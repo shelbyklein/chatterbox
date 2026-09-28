@@ -34,11 +34,12 @@ final class AppModel {
             effort: defaults.string(forKey: "defaultEffort") ?? "",
             personality: Personality(rawValue: defaults.string(forKey: "defaultPersonality") ?? "") ?? .friendly
         )
-        record.claudeCanEdit = defaults.object(forKey: "codexCanEdit") as? Bool ?? false
+        record.claudeMode = PermissionModes.defaultClaude
         if backend == .codex {
             record.codex = CodexSettings(
                 folder: defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
-                canEdit: defaults.object(forKey: "codexCanEdit") as? Bool ?? false
+                canEdit: false,
+                mode: PermissionModes.defaultCodex
             )
             record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
             record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
@@ -131,8 +132,12 @@ final class AppModel {
             .map { record in
                 // Requests from a previous run can't be answered anymore.
                 var record = record
-                for index in record.items.indices where record.items[index].approvalState == .pending {
-                    record.items[index].approvalState = .expired
+                for index in record.items.indices {
+                    if record.items[index].approvalState == .pending { record.items[index].approvalState = .expired }
+                    if record.items[index].kind == .tool, record.items[index].toolState == .running {
+                        record.items[index].toolState = .failed
+                    }
+                    if record.items[index].phase == .streaming { record.items[index].phase = .final }
                 }
                 return record
             }

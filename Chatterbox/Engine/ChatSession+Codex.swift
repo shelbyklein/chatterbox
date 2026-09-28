@@ -13,11 +13,6 @@ extension ChatSession {
         onChange?(self)
     }
 
-    func setCodexCanEdit(_ on: Bool) {
-        record.codex?.canEdit = on
-        onChange?(self)
-    }
-
     func setCodexModel(_ model: String?) {
         record.codex?.model = model
         record.codex?.effort = nil
@@ -83,7 +78,8 @@ extension ChatSession {
                 "threadId": .string(thread),
                 "input": .array(input),
                 "cwd": .string(settings.folder),
-                "approvalPolicy": "on-request",
+                "approvalPolicy": approvalPolicy(settings),
+                "approvalsReviewer": settings.modeID == "autoReview" ? "auto_review" : "user",
                 "sandboxPolicy": sandboxPolicy(settings),
             ]
             if let model = settings.model { params["model"] = .string(model) }
@@ -122,8 +118,8 @@ extension ChatSession {
 
         var params: [String: JSON] = [
             "cwd": .string(settings.folder),
-            "approvalPolicy": "on-request",
-            "sandbox": .string(settings.canEdit ? "workspace-write" : "read-only"),
+            "approvalPolicy": approvalPolicy(settings),
+            "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
             "developerInstructions": .string(Prompts.agentInstructions(record.personality)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
@@ -384,7 +380,12 @@ extension ChatSession {
     // MARK: - Helpers
 
     private func sandboxPolicy(_ settings: CodexSettings) -> JSON {
-        if settings.canEdit {
+        switch settings.modeID {
+        case "fullAccess":
+            return ["type": "dangerFullAccess"]
+        case "readOnly":
+            return ["type": "readOnly", "networkAccess": false]
+        default:
             return [
                 "type": "workspaceWrite",
                 "writableRoots": [.string(settings.folder)],
@@ -393,7 +394,11 @@ extension ChatSession {
                 "excludeSlashTmp": false,
             ]
         }
-        return ["type": "readOnly", "networkAccess": false]
+    }
+
+    /// Full access never asks; every other mode asks (or lets the auto reviewer decide).
+    private func approvalPolicy(_ settings: CodexSettings) -> JSON {
+        settings.modeID == "fullAccess" ? "never" : "on-request"
     }
 
     private static func textInput(_ text: String) -> JSON {

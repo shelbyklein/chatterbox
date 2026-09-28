@@ -34,14 +34,15 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - **Tone switching.** Friendly / Pragmatic / Neutral in the toolbar. The tone is sent as a tagged block only when it changes.
 - **Plan card.** Claude Code's to-do list and Codex's plan render as a live checklist.
 - **Switching agents.** One chat can move between Claude and Codex models. The incoming agent gets a transcript of what it missed.
-- **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder; "Can edit" decides whether file edits need approval.
+- **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder.
+- **Modes.** The mode menu under the message box sets what the agent may do without asking. Claude: Auto, Manual, Accept edits, Plan, Bypass permissions. Codex: Read only, Ask for approval, Approve for me, Full access.
 
 ## Claude Code backend
 
 `Chatterbox/Engine/ClaudeCode.swift` runs `claude -p --input-format stream-json --output-format stream-json`. `ChatSession+Claude.swift` maps it onto the transcript:
 
 - Streamed text, thinking, and tool calls become the reply, dim notes, and status rows. `TodoWrite` becomes the plan card.
-- Permission prompts arrive over stdio (`--permission-prompt-tool stdio`) and show as approval cards with Allow, Allow for This Chat, and Deny. With "Can edit" on, the session runs in `acceptEdits` mode.
+- Permission prompts arrive over stdio (`--permission-prompt-tool stdio`) and show as approval cards with Allow, Allow for This Chat, and Deny. The mode menu sets Claude Code's permission mode live; in Plan mode, the finished plan shows as a card with Start Building, Start and Accept Edits, and Keep Planning.
 - Model, effort, and permission changes are sent live as control requests. The model list and effort levels come from Claude Code's own startup handshake.
 - Each chat resumes its Claude Code session with `--resume`, so it survives restarts.
 
@@ -52,7 +53,7 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - Codex's `commentary` / `final_answer` message phases become the dim notes and the reply.
 - Commands, file edits, MCP tools, and web searches become status rows. `turn/plan/updated` becomes the plan card.
 - Messages sent mid-turn use `turn/steer`, and Stop uses `turn/interrupt`.
-- Each chat has a folder (the toolbar folder button) and a **Can edit** toggle. Off is a read-only sandbox; on lets Codex write inside that folder. Approval policy is `on-request`, so when Codex needs to go beyond that, an approval card appears with Allow, Allow for This Chat, and Deny.
+- Each chat has a folder (the toolbar folder button) and a mode: Read only (read-only sandbox), Ask for approval (can write in the folder, asks for anything beyond it), Approve for me (same, with Codex's `auto_review` reviewer deciding), or Full access (no sandbox, never asks). Approval cards have Allow, Allow for This Chat, and Deny.
 - The tone picker still works. The personality goes in as developer instructions when the thread starts, and as a tagged block when you change it.
 - Codex threads persist, and reopening an old chat resumes its thread.
 - Models and effort levels come live from `model/list`.

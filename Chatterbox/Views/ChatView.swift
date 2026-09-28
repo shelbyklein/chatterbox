@@ -135,19 +135,14 @@ struct ChatView: View {
                             ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
                                      onApproval: session.resolveApproval)
                                 .id(item.id)
-                                .transition(.opacity.combined(with: .offset(y: 6)))
                         }
                         if session.isRunning && !isVisiblyWorking {
                             TypingIndicator()
-                                .transition(.opacity)
                         }
                         Color.clear.frame(height: 1).id("bottom")
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 20)
-                    // New rows fade and slide in; streaming text inside a row doesn't animate.
-                    .animation(.easeOut(duration: 0.22), value: session.items.count)
-                    .animation(.easeOut(duration: 0.2), value: session.isRunning)
                     .frame(maxWidth: 820)
                     .frame(maxWidth: .infinity)
                 }
@@ -272,13 +267,6 @@ struct ChatView: View {
 
             projectButton
 
-            if session.record.projectFolder != nil || session.record.backend == .codex {
-                Toggle(isOn: Binding(get: { session.canEdit }, set: session.setCanEdit)) {
-                    Label("Can edit", systemImage: "pencil")
-                }
-                .help(session.canEdit ? "\(session.record.backend.label) can change files in the project folder" : "\(session.record.backend.label) can only read files")
-            }
-
             modelMenu(inline: false)
         }
     }
@@ -318,6 +306,8 @@ struct ChatView: View {
     /// The model and effort this chat uses, under the message box, with preset buttons.
     private var modelStatus: some View {
         HStack(spacing: 10) {
+            modeMenu
+                .fixedSize()
             // Gives up width first: the label shortens, then shows just the icon.
             modelMenu(inline: true)
                 .menuStyle(.borderlessButton)
@@ -345,6 +335,16 @@ struct ChatView: View {
         .padding(.leading, 34)
     }
 
+    /// How much the active agent may do without asking. Changes apply right away.
+    private var modeMenu: some View {
+        ModePicker(
+            modes: PermissionModes.modes(for: session.record.backend),
+            current: session.mode,
+            header: session.record.backend == .claude ? "Mode" : "How should Codex actions be approved?",
+            showsIcons: session.record.backend == .codex,
+            onSelect: session.setMode
+        )
+    }
     /// The current agent, model, and effort: a full form, and a short one for narrow windows.
     private var modelSummary: (full: String, short: String) {
         if session.record.backend == .codex, let codex = session.record.codex {
@@ -563,21 +563,66 @@ private struct TypingIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 4) {
-                ForEach(0..<3) { i in
-                    // A gentle wave: each dot rises and brightens a beat after the one before.
-                    let wave = reduceMotion ? 0.5 : (sin(t * 5 - Double(i) * 0.9) + 1) / 2
-                    Circle()
-                        .frame(width: 6, height: 6)
-                        .opacity(0.3 + 0.7 * wave)
-                        .offset(y: -2.5 * wave)
-                }
+        TypingDots(animated: !reduceMotion)
+            .frame(width: 26, height: 12)
+            .padding(.vertical, 4)
+    }
+}
+
+/// Three dots in a gentle wave, drawn and animated by Core Animation so SwiftUI does
+/// no work per frame.
+private struct TypingDots: NSViewRepresentable {
+    var animated: Bool
+
+    func makeNSView(context: Context) -> NSView { DotsNSView(animated: animated) }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class DotsNSView: NSView {
+        private var dots: [CALayer] = []
+
+        init(animated: Bool) {
+            super.init(frame: .zero)
+            wantsLayer = true
+            for i in 0..<3 {
+                let dot = CALayer()
+                dot.backgroundColor = NSColor.secondaryLabelColor.cgColor
+                dot.cornerRadius = 3
+                dot.opacity = 0.3
+                layer?.addSublayer(dot)
+                dots.append(dot)
+                guard animated else { continue }
+                let fade = CABasicAnimation(keyPath: "opacity")
+                fade.fromValue = 0.3
+                fade.toValue = 1
+                let rise = CABasicAnimation(keyPath: "transform.translation.y")
+                rise.fromValue = 0
+                rise.toValue = 2.5
+                let group = CAAnimationGroup()
+                group.animations = [fade, rise]
+                group.duration = 0.5
+                group.autoreverses = true
+                group.repeatCount = .infinity
+                group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                group.beginTime = CACurrentMediaTime() + Double(i) * 0.16
+                dot.add(group, forKey: "wave")
             }
         }
-        .foregroundStyle(.secondary)
-        .padding(.vertical, 6)
+
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func layout() {
+            super.layout()
+            for (i, dot) in dots.enumerated() {
+                dot.frame = CGRect(x: CGFloat(i) * 10, y: bounds.midY - 3, width: 6, height: 6)
+            }
+        }
+
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                for dot in dots { dot.backgroundColor = NSColor.secondaryLabelColor.cgColor }
+            }
+        }
     }
 }
 
@@ -600,5 +645,99 @@ private struct AttachmentChip: View {
         .padding(.trailing, 8)
         .padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.7)))
+    }
+}
+
+/// The mode button under the message box and its popover: each mode with its description,
+/// a Recommended badge, and number keys to pick one.
+private struct ModePicker: View {
+    let modes: [PermissionMode]
+    let current: PermissionMode
+    let header: String
+    let showsIcons: Bool
+    let onSelect: (String) -> Void
+    @State private var isOpen = false
+
+    var body: some View {
+        Button { isOpen.toggle() } label: {
+            HStack(spacing: 3) {
+                Label(current.title, systemImage: current.systemImage).labelStyle(.titleAndIcon)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+            }
+            .foregroundStyle(current.isUnrestricted ? Color.orange : Color.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("\(current.title): \(current.detail). Click to change.")
+        .popover(isPresented: $isOpen, arrowEdge: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(header)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 4)
+                ForEach(Array(modes.enumerated()), id: \.element.id) { index, mode in
+                    ModeRow(mode: mode, number: index + 1, isCurrent: mode.id == current.id, showsIcon: showsIcons) {
+                        onSelect(mode.id)
+                        isOpen = false
+                    }
+                }
+            }
+            .padding(10)
+            .frame(width: 380)
+        }
+    }
+}
+
+private struct ModeRow: View {
+    let mode: PermissionMode
+    let number: Int
+    let isCurrent: Bool
+    let showsIcon: Bool
+    let select: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: select) {
+            HStack(alignment: .center, spacing: 10) {
+                if showsIcon {
+                    Image(systemName: mode.systemImage)
+                        .font(.system(size: 15))
+                        .frame(width: 20)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(mode.title).font(.body)
+                        if mode.isRecommended {
+                            Text("Recommended")
+                                .font(.caption)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(.quaternary))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Text(mode.detail)
+                        .font(.callout)
+                        .foregroundStyle(mode.isUnrestricted ? AnyShapeStyle(Color.orange.opacity(0.85)) : AnyShapeStyle(.secondary))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if isCurrent {
+                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                }
+                Text("\(number)")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            .foregroundStyle(mode.isUnrestricted ? Color.orange : Color.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(hovering ? Color.primary.opacity(0.08) : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: [])
     }
 }

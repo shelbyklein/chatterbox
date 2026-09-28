@@ -76,10 +76,7 @@ extension ChatSession {
         record.projectFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
-    /// "Can edit" lets file edits through without asking; everything risky still asks.
-    private var claudePermissionMode: String {
-        record.claudeCanEdit == true ? "acceptEdits" : "default"
-    }
+    private var claudePermissionMode: String { record.claudeModeID }
 
     // MARK: - Live settings
 
@@ -227,7 +224,6 @@ extension ChatSession {
         }
         if isError || claudeStopRequested { markRunningToolsFailed() }
         expirePendingApprovals()
-        claudeApprovals = [:]
         claudeStopRequested = false
         claudeRender = ResponseRender()
         isRunning = false
@@ -248,7 +244,6 @@ extension ChatSession {
         }
         markRunningToolsFailed()
         expirePendingApprovals()
-        claudeApprovals = [:]
         isRunning = false
         onChange?(self)
     }
@@ -270,34 +265,55 @@ extension ChatSession {
 
     // MARK: - Permission prompts
 
+    /// The card keeps the whole request, so answering it never depends on in-memory state.
     private func showClaudeApproval(id: String, request: JSON) {
         let tool = request["tool_name"]?.string ?? "a tool"
         let input = request["input"] ?? [:]
-        let (title, detail) = Tools.approval(name: tool, input: input, description: request["description"]?.string)
-        claudeApprovals[id] = (tool, input, request["permission_suggestions"])
-        appendItem(DisplayItem(kind: .approval, text: title, detail: detail, requestID: .string(id), approvalState: .pending))
+        let payload: JSON = ["id": .string(id), "tool": .string(tool), "input": input,
+                             "suggestions": request["permission_suggestions"] ?? .null]
+        if tool == "ExitPlanMode" {
+            appendItem(DisplayItem(kind: .approval, text: "Claude has a plan. Start building?",
+                                   detail: input["plan"]?.string, requestID: payload, approvalState: .pending,
+                                   approvalStyle: .plan))
+        } else {
+            let (title, detail) = Tools.approval(name: tool, input: input, description: request["description"]?.string)
+            appendItem(DisplayItem(kind: .approval, text: title, detail: detail, requestID: payload, approvalState: .pending))
+        }
         onChange?(self)
     }
 
     func claudeResolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {
         guard let item = record.items.first(where: { $0.id == itemID }), item.approvalState == .pending,
-              let id = item.requestID?.string, let pending = claudeApprovals.removeValue(forKey: id),
-              let process = claudeProcess else { return }
+              let payload = item.requestID, let id = payload["id"]?.string else { return }
+        guard let process = claudeProcess, process.isRunning else {
+            updateItem(itemID) { $0.approvalState = .expired }
+            notice("That request is no longer active, because Claude Code restarted. Ask again to continue.")
+            onChange?(self)
+            return
+        }
+        let tool = payload["tool"]?.string ?? ""
+        let input = payload["input"] ?? [:]
         switch decision {
         case .approved, .approvedForSession:
-            var response: [String: JSON] = ["behavior": "allow", "updatedInput": pending.input]
-            if decision == .approvedForSession {
+            var response: [String: JSON] = ["behavior": "allow", "updatedInput": input]
+            if tool == "ExitPlanMode" {
+                // Leaving plan mode: "Start Building" asks before edits, the other accepts them.
+                let next = decision == .approvedForSession ? "acceptEdits" : "default"
+                response["updatedPermissions"] = [["type": "setMode", "mode": .string(next), "destination": "session"]]
+                record.claudeMode = next
+            } else if decision == .approvedForSession {
                 // Claude Code's own suggestion (e.g. "allow edits this session"), or a rule for this tool.
-                if let suggestions = pending.suggestions, !(suggestions.array ?? []).isEmpty {
+                if let suggestions = payload["suggestions"], !(suggestions.array ?? []).isEmpty {
                     response["updatedPermissions"] = suggestions
                 } else {
-                    response["updatedPermissions"] = [["type": "addRules", "rules": [["toolName": .string(pending.tool)]],
+                    response["updatedPermissions"] = [["type": "addRules", "rules": [["toolName": .string(tool)]],
                                                        "behavior": "allow", "destination": "session"]]
                 }
             }
             process.respond(to: id, .object(response))
         default:
-            process.respond(to: id, ["behavior": "deny", "message": "The user declined this."])
+            let message = tool == "ExitPlanMode" ? "The user wants to keep planning. Ask what to change." : "The user declined this."
+            process.respond(to: id, ["behavior": "deny", "message": .string(message)])
         }
         updateItem(itemID) { $0.approvalState = decision }
         onChange?(self)

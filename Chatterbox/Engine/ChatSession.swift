@@ -23,7 +23,6 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var claudeProcess: ClaudeCodeProcess?
     @ObservationIgnored var claudeRender = ResponseRender()
     @ObservationIgnored var claudeToolItems: [String: UUID] = [:]
-    @ObservationIgnored var claudeApprovals: [String: (tool: String, input: JSON, suggestions: JSON?)] = [:]
     @ObservationIgnored var claudePlanItem: UUID?
     @ObservationIgnored var claudeStopRequested = false
 
@@ -112,7 +111,8 @@ final class ChatSession: Identifiable {
             let defaults = UserDefaults.standard
             record.codex = CodexSettings(
                 folder: record.projectFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
-                canEdit: record.claudeCanEdit ?? defaults.object(forKey: "codexCanEdit") as? Bool ?? false
+                canEdit: false,
+                mode: PermissionModes.defaultCodex
             )
             record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
             record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
@@ -165,15 +165,22 @@ final class ChatSession: Identifiable {
         onChange?(self)
     }
 
-    var canEdit: Bool {
-        record.backend == .codex ? record.codex?.canEdit ?? false : record.claudeCanEdit ?? false
+    /// The active agent's permission mode.
+    var mode: PermissionMode {
+        record.backend == .codex
+            ? PermissionModes.mode(record.codex?.modeID ?? PermissionModes.defaultCodex, for: .codex)
+            : PermissionModes.mode(record.claudeModeID, for: .claude)
     }
 
-    /// One "Can edit" switch per chat, shared by both agents.
-    func setCanEdit(_ on: Bool) {
-        record.claudeCanEdit = on
-        record.codex?.canEdit = on
-        claudeApplyPermissionMode()
+    /// Sets the permission mode for the active agent. Takes effect right away, even mid-turn.
+    func setMode(_ id: String) {
+        switch record.backend {
+        case .claude:
+            record.claudeMode = id
+            claudeApplyPermissionMode()
+        case .codex:
+            record.codex?.mode = id
+        }
         onChange?(self)
     }
 

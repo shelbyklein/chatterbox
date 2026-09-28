@@ -76,6 +76,8 @@ final class ClaudeCodeProcess {
         var args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                     "--include-partial-messages", "--permission-prompt-tool", "stdio",
                     "--model", config.model, "--permission-mode", config.permissionMode,
+                    // Only makes "Bypass permissions" selectable later; the mode above still applies.
+                    "--allow-dangerously-skip-permissions",
                     "--append-system-prompt", config.appendSystemPrompt,
                     // The chat window has its own ways to ask; this tool would stall the turn.
                     "--disallowed-tools", "AskUserQuestion"]

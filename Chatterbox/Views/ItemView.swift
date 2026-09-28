@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Renders one transcript row. Commentary is deliberately quiet so the final reply stands out.
@@ -95,34 +96,45 @@ private struct ApprovalCard: View {
     let item: DisplayItem
     let decide: (DisplayItem.ApprovalState) -> Void
 
+    private var isPlan: Bool { item.approvalStyle == .plan }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(item.text, systemImage: "hand.raised")
                 .font(.callout.weight(.medium))
             if let detail = item.detail, !detail.isEmpty {
-                Text(detail)
-                    .font(.system(.callout, design: .monospaced))
-                    .textSelection(.enabled)
-                    .lineLimit(6)
+                if isPlan {
+                    ScrollView {
+                        MarkdownText(text: detail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 320)
                     .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.6)))
+                } else {
+                    Text(detail)
+                        .font(.system(.callout, design: .monospaced))
+                        .textSelection(.enabled)
+                        .lineLimit(6)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.6)))
+                }
             }
             switch item.approvalState ?? .expired {
             case .pending:
                 HStack {
-                    Button("Allow") { decide(.approved) }
-                        .keyboardShortcut(.defaultAction)
-                    Button("Allow for This Chat") { decide(.approvedForSession) }
-                    Button("Deny", role: .destructive) { decide(.denied) }
+                    Button(isPlan ? "Start Building" : "Allow") { decide(.approved) }
+                    Button(isPlan ? "Start and Accept Edits" : "Allow for This Chat") { decide(.approvedForSession) }
+                    Button(isPlan ? "Keep Planning" : "Deny", role: .destructive) { decide(.denied) }
                 }
                 .controlSize(.small)
             case .approved:
-                outcome("Allowed", "checkmark.circle", .green)
+                outcome(isPlan ? "Building, asking before edits" : "Allowed", "checkmark.circle", .green)
             case .approvedForSession:
-                outcome("Allowed for this chat", "checkmark.circle", .green)
+                outcome(isPlan ? "Building, accepting edits" : "Allowed for this chat", "checkmark.circle", .green)
             case .denied:
-                outcome("Denied", "xmark.circle", .orange)
+                outcome(isPlan ? "Kept planning" : "Denied", "xmark.circle", .orange)
             case .expired:
                 outcome("No longer needed", "clock", .secondary)
             }
@@ -155,7 +167,6 @@ private struct ThoughtView: View {
             Label(isActive ? "Thinking\u{2026}" : "Thought", systemImage: "sparkle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .symbolEffect(.pulse, options: .repeating, isActive: isActive)
                 .shimmering(isActive)
         }
     }
@@ -263,31 +274,51 @@ struct AttachmentThumbnail: View {
 }
 
 /// A soft highlight that sweeps across text while the agent is working on it.
-/// Stays still when Reduce Motion is on.
+/// Core Animation runs the sweep, so SwiftUI does no work per frame. Off with Reduce Motion.
 private struct Shimmer: ViewModifier {
     var active: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         if active && !reduceMotion {
-            content.overlay {
-                TimelineView(.animation) { context in
-                    let period = 1.8
-                    let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
-                    GeometryReader { geo in
-                        let band = max(geo.size.width * 0.35, 60)
-                        LinearGradient(colors: [.clear, .primary.opacity(0.55), .clear], startPoint: .leading, endPoint: .trailing)
-                            .frame(width: band)
-                            .offset(x: -band + (geo.size.width + band * 2) * t)
-                    }
-                    .mask(content)
-                    .blendMode(.plusLighter)
-                }
-                .allowsHitTesting(false)
-            }
+            content.overlay { SheenView().mask(content).allowsHitTesting(false) }
         } else {
             content
         }
+    }
+}
+
+/// A bright band sliding left to right, forever, drawn by a CAGradientLayer.
+private struct SheenView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { SheenNSView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class SheenNSView: NSView {
+    private let gradient = CAGradientLayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        gradient.startPoint = CGPoint(x: 0, y: 0.5)
+        gradient.endPoint = CGPoint(x: 1, y: 0.5)
+        gradient.colors = [NSColor.clear.cgColor, NSColor.white.withAlphaComponent(0.55).cgColor, NSColor.clear.cgColor]
+        gradient.locations = [-0.4, -0.2, 0]
+        layer?.addSublayer(gradient)
+
+        let sweep = CABasicAnimation(keyPath: "locations")
+        sweep.fromValue = [-0.4, -0.2, 0]
+        sweep.toValue = [1, 1.2, 1.4]
+        sweep.duration = 1.6
+        sweep.repeatCount = .infinity
+        gradient.add(sweep, forKey: "sweep")
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        gradient.frame = bounds
     }
 }
 

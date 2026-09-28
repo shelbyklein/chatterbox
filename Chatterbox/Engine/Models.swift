@@ -30,7 +30,12 @@ struct CodexSettings: Codable, Equatable {
     var model: String?
     var effort: String?
     var folder: String
+    /// Older setting, used when `mode` is unset: true meant workspace-write.
     var canEdit: Bool
+    /// One of `PermissionModes.codex`.
+    var mode: String?
+
+    var modeID: String { mode ?? (canEdit ? "ask" : "readOnly") }
 }
 
 struct PlanStep: Codable, Equatable, Hashable {
@@ -59,6 +64,10 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var approvalState: ApprovalState?
     /// Files attached to a user message.
     var attachments: [Attachment]?
+    /// Approval rows: which buttons to show. nil is the usual Allow / Allow for This Chat / Deny.
+    var approvalStyle: ApprovalStyle?
+
+    enum ApprovalStyle: String, Codable { case plan }
 }
 
 /// Everything persisted for a conversation.
@@ -85,8 +94,12 @@ struct ConversationRecord: Codable {
 
     /// The project folder this chat is bound to. At most one chat per folder.
     var projectFolder: String?
-    /// Whether Claude may change files without asking.
+    /// Older setting, used when `claudeMode` is unset: true meant accept edits.
     var claudeCanEdit: Bool?
+    /// Claude Code permission mode, one of `PermissionModes.claude`.
+    var claudeMode: String?
+
+    var claudeModeID: String { claudeMode ?? (claudeCanEdit == true ? "acceptEdits" : "default") }
 
     /// The last transcript row each agent has seen, so switching agents can hand over
     /// just the part of the conversation the new one missed.

@@ -14,7 +14,8 @@ struct SettingsView: View {
     @AppStorage("claudePath") private var claudePath = ""
     @AppStorage("codexPath") private var codexPath = ""
     @AppStorage("codexFolder") private var codexFolder = NSHomeDirectory()
-    @AppStorage("codexCanEdit") private var codexCanEdit = false
+    @AppStorage("claudeDefaultMode") private var claudeDefaultMode = PermissionModes.defaultClaude
+    @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
 
     var body: some View {
         Form {
@@ -31,7 +32,12 @@ struct SettingsView: View {
                     }
                 }
                 .help("Where Claude Code and Codex work in chats that aren't bound to a project folder.")
-                Toggle("Allow edits by default", isOn: $codexCanEdit)
+                Picker("Claude mode", selection: $claudeDefaultMode) {
+                    ForEach(PermissionModes.claude) { Text($0.title).tag($0.id) }
+                }
+                Picker("Codex mode", selection: $codexDefaultMode) {
+                    ForEach(PermissionModes.codex) { Text($0.title).tag($0.id) }
+                }
             }
 
             Section {
@@ -49,7 +55,7 @@ struct SettingsView: View {
             } footer: {
                 Text(detectedClaude == nil
                      ? "Couldn't find the `claude` command. Install Claude Code, or enter its full path."
-                     : "Uses your installed Claude Code, its settings, and your Claude subscription. Claude asks before running commands; \u{201C}Can edit\u{201D} lets file edits through without asking.")
+                     : "Uses your installed Claude Code, its settings, and your Claude subscription. The mode under the message box decides what Claude may do without asking.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
