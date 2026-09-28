@@ -52,6 +52,12 @@ final class AppModel {
 
     func delete(_ session: ChatSession) {
         session.interrupt()
+        let attachments = session.allAttachments
+        Attachments.remove(attachments)
+        let uploaded = attachments.compactMap(\.claudeFileID)
+        if !uploaded.isEmpty, let key = Keychain.readAPIKey() {
+            Task { for id in uploaded { await AnthropicClient(apiKey: key).deleteFile(id) } }
+        }
         sessions.removeAll { $0.id == session.id }
         try? FileManager.default.removeItem(at: fileURL(session.id))
         if selectedID == session.id { selectedID = sessions.first?.id }

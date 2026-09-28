@@ -18,7 +18,7 @@ final class ChatSession: Identifiable {
 
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
     @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored var pendingSteering: [String] = []
+    @ObservationIgnored var pendingSteering: [UserMessage] = []
 
     // Codex backend state (see ChatSession+Codex.swift).
     @ObservationIgnored var codexTurnID: String?
@@ -43,29 +43,38 @@ final class ChatSession: Identifiable {
 
     // MARK: - Public API
 
-    func send(_ raw: String) {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+    func send(_ raw: String, attachments: [Attachment] = []) {
+        let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
+        guard !message.text.isEmpty || !attachments.isEmpty else { return }
 
         if record.backend == .codex {
-            codexSend(text)
+            codexSend(message)
             return
         }
         if isRunning {
-            pendingSteering.append(text)
-            record.items.append(DisplayItem(kind: .user, text: text, steered: true))
+            pendingSteering.append(message)
+            appendUserItem(message, steered: true)
             return
         }
         guard let key = Keychain.readAPIKey() else {
             notice("Add your Anthropic API key in Settings (\u{2318},) to start chatting.")
             return
         }
-        setTitleIfNeeded(text)
-        record.items.append(DisplayItem(kind: .user, text: text))
+        setTitleIfNeeded(message)
+        let itemID = appendUserItem(message)
         isRunning = true
         onChange?(self)
-        task = Task { await self.runTurn(userText: text, client: AnthropicClient(apiKey: key)) }
+        task = Task { await self.runTurn(message, itemID: itemID, client: AnthropicClient(apiKey: key)) }
     }
+
+    @discardableResult
+    func appendUserItem(_ message: UserMessage, steered: Bool = false) -> UUID {
+        appendItem(DisplayItem(kind: .user, text: message.text, steered: steered,
+                               attachments: message.attachments.isEmpty ? nil : message.attachments))
+    }
+
+    /// Every attachment in this chat, for cleanup when the chat is deleted.
+    var allAttachments: [Attachment] { record.items.flatMap { $0.attachments ?? [] } }
 
     func interrupt() {
         if record.backend == .codex {
@@ -75,8 +84,9 @@ final class ChatSession: Identifiable {
         }
     }
 
-    func setTitleIfNeeded(_ text: String) {
+    func setTitleIfNeeded(_ message: UserMessage) {
         guard record.title == "New chat" else { return }
+        let text = message.text.isEmpty ? message.attachments.map(\.name).joined(separator: ", ") : message.text
         let firstLine = text.split(separator: "\n").first.map(String.init) ?? text
         record.title = firstLine.count > 48 ? String(firstLine.prefix(47)) + "\u{2026}" : firstLine
     }
@@ -121,13 +131,14 @@ final class ChatSession: Identifiable {
 
     // MARK: - Turn loop
 
-    private func runTurn(userText: String, client: AnthropicClient) async {
+    private func runTurn(_ message: UserMessage, itemID: UUID, client: AnthropicClient) async {
         var planItemID: UUID?
         do {
+            let content = try await userContent(message, itemID: itemID, client: client)
             if record.lastInputTokens > min(compactThreshold, modelInfo.maxInputTokens * 7 / 10) {
                 try await compact(client)
             }
-            appendUser(openingBlocks() + [.text(userText)])
+            appendUser(openingBlocks() + content)
 
             for _ in 0..<maxRounds {
                 let msg = try await streamResponse(client)
@@ -138,7 +149,8 @@ final class ChatSession: Identifiable {
                 switch msg.stopReason {
                 case "tool_use":
                     appendAssistant(msg.content)
-                    appendUser(runClientTools(msg, planItemID: &planItemID) + steeringBlocks() + personalityBlocksIfChanged())
+                    let results = runClientTools(msg, planItemID: &planItemID)
+                    appendUser(results + (try await steeringBlocks(client)) + personalityBlocksIfChanged())
                     continue
 
                 case "pause_turn":
@@ -160,7 +172,7 @@ final class ChatSession: Identifiable {
                     appendAssistant(msg.content)
                     if pendingSteering.isEmpty { return }
                     // The user steered while the final reply was streaming, so keep going.
-                    appendUser(steeringBlocks() + personalityBlocksIfChanged())
+                    appendUser((try await steeringBlocks(client)) + personalityBlocksIfChanged())
                 }
             }
             notice("Paused after a lot of steps. Say \u{201C}continue\u{201D} to keep going.")
@@ -177,7 +189,12 @@ final class ChatSession: Identifiable {
 
     private func finishTurn() {
         // Steering that never reached the model rides along with the next message.
-        record.carryover += steeringBlocks()
+        // Its files aren't uploaded yet, so they're named instead.
+        record.carryover += pendingSteering.map { message in
+            let files = message.attachments.map(\.name).joined(separator: ", ")
+            return Self.steeringBlock(message.text + (files.isEmpty ? "" : "\n(Attached, but not delivered: \(files). Ask the user to resend them if needed.)"))
+        }
+        pendingSteering.removeAll()
         isRunning = false
         task = nil
         record.updatedAt = Date()
@@ -354,11 +371,41 @@ final class ChatSession: Identifiable {
         return [.text(Prompts.personalitySpec(record.personality))]
     }
 
-    private func steeringBlocks() -> [JSON] {
-        let texts = pendingSteering
+    private func steeringBlocks(_ client: AnthropicClient) async throws -> [JSON] {
+        let messages = pendingSteering
         pendingSteering.removeAll()
-        return texts.map {
-            .text("<user_steering>\n\($0)\n</user_steering>\nThe user sent this while you were working. Take it into account now, and briefly acknowledge it.")
+        var blocks: [JSON] = []
+        for message in messages {
+            blocks.append(Self.steeringBlock(message.text))
+            if !message.attachments.isEmpty {
+                let itemID = record.items.last { $0.kind == .user && $0.attachments == message.attachments }?.id
+                blocks += try await attachmentBlocks(message.attachments, itemID: itemID, client: client)
+            }
+        }
+        return blocks
+    }
+
+    private static func steeringBlock(_ text: String) -> JSON {
+        .text("<user_steering>\n\(text)\n</user_steering>\nThe user sent this while you were working. Take it into account now, and briefly acknowledge it.")
+    }
+
+    /// The user's text plus attachment blocks, uploading files as needed.
+    private func userContent(_ message: UserMessage, itemID: UUID, client: AnthropicClient) async throws -> [JSON] {
+        let files = try await attachmentBlocks(message.attachments, itemID: itemID, client: client)
+        return files + (message.text.isEmpty ? [] : [.text(message.text)])
+    }
+
+    private func attachmentBlocks(_ attachments: [Attachment], itemID: UUID?, client: AnthropicClient) async throws -> [JSON] {
+        guard !attachments.isEmpty else { return [] }
+        let uploading = appendItem(DisplayItem(kind: .tool, text: attachments.count == 1 ? "Attaching \(attachments[0].name)" : "Attaching \(attachments.count) files"))
+        do {
+            let (blocks, updated) = try await Attachments.claudeBlocks(for: attachments, client: client)
+            if let itemID { updateItem(itemID) { $0.attachments = updated } }
+            record.items.removeAll { $0.id == uploading }
+            return blocks
+        } catch {
+            record.items.removeAll { $0.id == uploading }
+            throw error
         }
     }
 

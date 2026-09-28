@@ -1,10 +1,15 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @Environment(AppModel.self) private var model
     let session: ChatSession
     @State private var draft = ""
+    @State private var attachments: [Attachment] = []
+    @State private var attachError: String?
+    @State private var isDropTargeted = false
+    @State private var pasteMonitor: Any?
     @FocusState private var composerFocused: Bool
 
     var body: some View {
@@ -16,7 +21,99 @@ struct ChatView: View {
         }
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
-        .onAppear { composerFocused = true }
+        .onAppear {
+            composerFocused = true
+            installPasteMonitor()
+        }
+        .onDisappear {
+            if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
+            pasteMonitor = nil
+        }
+        .onDrop(of: [.fileURL, .image], isTargeted: $isDropTargeted, perform: handleDrop)
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .background(Color.accentColor.opacity(0.06))
+                    .overlay(Label("Drop to attach", systemImage: "paperclip").font(.title3).foregroundStyle(.tint))
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    // MARK: - Attachments
+
+    /// ⌘V with an image or copied files on the pasteboard attaches them instead of pasting text.
+    private func installPasteMonitor() {
+        guard pasteMonitor == nil else { return }
+        pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                  event.charactersIgnoringModifiers == "v",
+                  event.window?.isKeyWindow == true, composerFocused,
+                  let pasted = Attachments.fromPasteboard() else { return event }
+            add(pasted)
+            return nil
+        }
+    }
+
+    private func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Attach"
+        guard panel.runModal() == .OK else { return }
+        add(panel.urls.compactMap(importOrReport))
+    }
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    Task { @MainActor in add([importOrReport(url)].compactMap { $0 }) }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    guard let data else { return }
+                    Task { @MainActor in
+                        do { add([try Attachments.importImageData(data, name: "Dropped image")]) } catch { attachError = error.localizedDescription }
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    private func importOrReport(_ url: URL) -> Attachment? {
+        do { return try Attachments.importFile(url) } catch {
+            attachError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func add(_ new: [Attachment]) {
+        attachError = nil
+        if session.record.backend == .claude, let unreadable = new.first(where: { $0.kind == .other }) {
+            attachError = "Claude can't read \(unreadable.name). PDFs, images, Word and text files work."
+        }
+        attachments += new.filter { session.record.backend == .codex || $0.kind != .other }
+        composerFocused = true
+    }
+
+    private var attachmentTray: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(attachments) { attachment in
+                    AttachmentChip(attachment: attachment) {
+                        attachments.removeAll { $0.id == attachment.id }
+                        Attachments.remove([attachment])
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
     }
 
     // MARK: - Transcript
@@ -68,7 +165,34 @@ struct ChatView: View {
     // MARK: - Composer
 
     private var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !attachments.isEmpty { attachmentTray }
+            if let attachError {
+                Label(attachError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+            }
+            composerRow
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 860)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+    }
+
+    private var canSend: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
+    }
+
+    private var composerRow: some View {
         HStack(alignment: .bottom, spacing: 10) {
+            Button(action: chooseFiles) {
+                Image(systemName: "paperclip").font(.system(size: 17))
+                    .frame(height: 36)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Attach files or images. You can also paste or drag them in.")
+
             TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.record.backend.label)", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
@@ -93,22 +217,20 @@ struct ChatView: View {
                 Image(systemName: "arrow.up.circle.fill").font(.system(size: 26))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.secondary : Color.accentColor)
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
+            .disabled(!canSend)
             .help(session.isRunning ? "Steer the current reply" : "Send")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .frame(maxWidth: 860)
-        .frame(maxWidth: .infinity)
-        .background(.bar)
     }
 
     private func submit() {
+        guard canSend else { return }
         let text = draft
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let files = attachments
         draft = ""
-        session.send(text)
+        attachments = []
+        attachError = nil
+        session.send(text, attachments: files)
         model.refreshAPIKeyState()
     }
 
@@ -328,5 +450,27 @@ private struct TypingIndicator: View {
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = .pi * 2 }
         }
+    }
+}
+
+/// A removable attachment in the composer.
+private struct AttachmentChip: View {
+    let attachment: Attachment
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            AttachmentThumbnail(attachment: attachment, size: 28)
+            Text(attachment.name).lineLimit(1).truncationMode(.middle).frame(maxWidth: 160, alignment: .leading)
+            Button(action: onRemove) { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Remove")
+        }
+        .font(.callout)
+        .padding(.leading, 4)
+        .padding(.trailing, 8)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.7)))
     }
 }

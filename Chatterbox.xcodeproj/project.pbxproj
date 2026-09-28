@@ -23,6 +23,7 @@
 		940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		9FFDA5CE088C312919081868 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEC09A0381543C7EFAA58D6 /* Keychain.swift */; };
 		CE30B4EEBFE555395108BE6D /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
+		D05B92875B687F85956F41CE /* Attachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCA3F2B7277E38C199221AE /* Attachments.swift */; };
 		DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */; };
 		E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00AEF264659F41BD565201 /* AppModel.swift */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
@@ -45,6 +46,7 @@
 		C8EB85AF0736434980646DAF /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
 		C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		CD00AEF264659F41BD565201 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		DBCA3F2B7277E38C199221AE /* Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachments.swift; sourceTree = "<group>"; };
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
 		F2C1C43F95036114D2130B81 /* Chatterbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Chatterbox.entitlements; sourceTree = "<group>"; };
@@ -77,6 +79,7 @@
 		51435F2C976A70B7F3033B6A /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				DBCA3F2B7277E38C199221AE /* Attachments.swift */,
 				EB27A16AB61425271FAD9777 /* JSON.swift */,
 				4DEC09A0381543C7EFAA58D6 /* Keychain.swift */,
 			);
@@ -193,6 +196,7 @@
 			files = (
 				1BADA0F24D2B401C3AADFADF /* AnthropicClient.swift in Sources */,
 				E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */,
+				D05B92875B687F85956F41CE /* Attachments.swift in Sources */,
 				27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */,
 				56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */,
 				59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */,

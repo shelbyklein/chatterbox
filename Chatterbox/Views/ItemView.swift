@@ -24,11 +24,16 @@ struct ItemView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            Text(item.text)
-                .textSelection(.enabled)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 9)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.14)))
+            if let attachments = item.attachments, !attachments.isEmpty {
+                SentAttachments(attachments: attachments)
+            }
+            if !item.text.isEmpty {
+                Text(item.text)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.14)))
+            }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.leading, 80)
@@ -176,6 +181,72 @@ private struct PlanCard: View {
         case "completed": Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case "in_progress": Image(systemName: "circle.dotted.circle").foregroundStyle(.tint)
         default: Image(systemName: "circle").foregroundStyle(.tertiary)
+        }
+    }
+}
+
+/// Attachments on a sent message: images as previews, other files as chips. Click to open.
+private struct SentAttachments: View {
+    let attachments: [Attachment]
+
+    var body: some View {
+        let images = attachments.filter { $0.kind == .image }
+        let files = attachments.filter { $0.kind != .image }
+        VStack(alignment: .trailing, spacing: 6) {
+            if !images.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(images) { image in
+                        Button { NSWorkspace.shared.open(image.url) } label: {
+                            AttachmentThumbnail(attachment: image, size: images.count == 1 ? 240 : 120)
+                        }
+                        .buttonStyle(.plain)
+                        .help(image.name)
+                    }
+                }
+            }
+            ForEach(files) { file in
+                Button { NSWorkspace.shared.open(file.url) } label: {
+                    HStack(spacing: 6) {
+                        AttachmentThumbnail(attachment: file, size: 22)
+                        Text(file.name).lineLimit(1).truncationMode(.middle)
+                    }
+                    .font(.callout)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.7)))
+                }
+                .buttonStyle(.plain)
+                .help("Open \(file.name)")
+            }
+        }
+    }
+}
+
+/// A square preview of an image attachment, or the file's icon for anything else.
+struct AttachmentThumbnail: View {
+    let attachment: Attachment
+    let size: CGFloat
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if attachment.kind == .image, let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: size > 60 ? .fit : .fill)
+                    .frame(maxWidth: size, maxHeight: size)
+                    .frame(width: size > 60 ? nil : size, height: size > 60 ? nil : size)
+                    .clipShape(RoundedRectangle(cornerRadius: size > 60 ? 10 : 5))
+            } else {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: attachment.path))
+                    .resizable()
+                    .frame(width: size, height: size)
+            }
+        }
+        .task(id: attachment.path) {
+            guard attachment.kind == .image else { return }
+            let path = attachment.path
+            image = await Task.detached { NSImage(contentsOfFile: path) }.value
         }
     }
 }

@@ -31,29 +31,29 @@ extension ChatSession {
 
     // MARK: - Turns
 
-    func codexSend(_ text: String) {
+    func codexSend(_ message: UserMessage) {
         if isRunning {
             // Codex supports steering natively: the text joins the running turn.
-            record.items.append(DisplayItem(kind: .user, text: text, steered: true))
+            appendUserItem(message, steered: true)
             if let turn = codexTurnID {
-                Task { await codexSteer(text, turn: turn) }
+                Task { await codexSteer(message, turn: turn) }
             } else {
-                pendingSteering.append(text)
+                pendingSteering.append(message)
             }
             return
         }
-        setTitleIfNeeded(text)
-        record.items.append(DisplayItem(kind: .user, text: text))
-        beginCodexTurn(text)
+        setTitleIfNeeded(message)
+        appendUserItem(message)
+        beginCodexTurn(message)
     }
 
-    private func beginCodexTurn(_ text: String) {
+    private func beginCodexTurn(_ message: UserMessage) {
         isRunning = true
         codexTurnID = nil
         codexStopRequested = false
         codexTurnMessageItems = []
         onChange?(self)
-        Task { await codexStartTurn(text) }
+        Task { await codexStartTurn(message) }
     }
 
     func codexInterrupt() {
@@ -64,7 +64,7 @@ extension ChatSession {
         Task { try? await server.request("turn/interrupt", ["threadId": .string(thread), "turnId": .string(turn)]) }
     }
 
-    private func codexStartTurn(_ text: String) async {
+    private func codexStartTurn(_ message: UserMessage) async {
         guard let settings = record.codex else { return }
         do {
             let thread = try await codexEnsureThread()
@@ -73,7 +73,7 @@ extension ChatSession {
                 input.append(Self.textInput(Prompts.personalitySpec(record.personality)))
                 record.sentPersonality = record.personality
             }
-            input.append(Self.textInput(text))
+            input += Self.inputs(for: message)
 
             var params: [String: JSON] = [
                 "threadId": .string(thread),
@@ -133,16 +133,31 @@ extension ChatSession {
         return id
     }
 
-    private func codexSteer(_ text: String, turn: String) async {
+    private func codexSteer(_ message: UserMessage, turn: String) async {
         guard let thread = record.codex?.threadId else { return }
         do {
             _ = try await server.request("turn/steer", [
-                "threadId": .string(thread), "input": [Self.textInput(text)], "expectedTurnId": .string(turn),
+                "threadId": .string(thread), "input": .array(Self.inputs(for: message)), "expectedTurnId": .string(turn),
             ])
         } catch {
             // The turn most likely finished a moment ago; send the text as a new turn.
-            if isRunning { pendingSteering.append(text) } else { beginCodexTurn(text) }
+            if isRunning { pendingSteering.append(message) } else { beginCodexTurn(message) }
         }
+    }
+
+    /// Images go to Codex as local images; other files are named by path so Codex can open them.
+    private static func inputs(for message: UserMessage) -> [JSON] {
+        var input: [JSON] = message.attachments.filter { $0.kind == .image }.map {
+            ["type": "localImage", "path": .string($0.path)]
+        }
+        let files = message.attachments.filter { $0.kind != .image }
+        var text = message.text
+        if !files.isEmpty {
+            let list = files.map { "- \($0.name): \($0.path)" }.joined(separator: "\n")
+            text += (text.isEmpty ? "" : "\n\n") + "Attached files (read them from these paths):\n" + list
+        }
+        if !text.isEmpty { input.append(textInput(text)) }
+        return input
     }
 
     private func codexTurnDidGetID() {
@@ -153,7 +168,7 @@ extension ChatSession {
         }
         let queued = pendingSteering
         pendingSteering.removeAll()
-        for text in queued { Task { await codexSteer(text, turn: turn) } }
+        for message in queued { Task { await codexSteer(message, turn: turn) } }
     }
 
     private func codexFinish(startQueued: Bool) {
@@ -172,10 +187,11 @@ extension ChatSession {
         codexTurnID = nil
         codexItems = [:]
         record.updatedAt = Date()
-        let queued = pendingSteering.joined(separator: "\n\n")
+        let queued = UserMessage(text: pendingSteering.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n"),
+                                 attachments: pendingSteering.flatMap(\.attachments))
         pendingSteering.removeAll()
         onChange?(self)
-        if startQueued, !queued.isEmpty { beginCodexTurn(queued) }
+        if startQueued, !queued.text.isEmpty || !queued.attachments.isEmpty { beginCodexTurn(queued) }
     }
 
     // MARK: - Events

@@ -98,6 +98,8 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var detail: String?
     var requestID: JSON?
     var approvalState: ApprovalState?
+    /// Files attached to a user message.
+    var attachments: [Attachment]?
 }
 
 /// Everything persisted for a conversation.
