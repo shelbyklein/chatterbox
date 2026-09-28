@@ -2,17 +2,16 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    @State private var keyDraft = ""
-    @State private var status: String?
     @State private var detectedCodex: String?
+    @State private var detectedClaude: String?
 
     @AppStorage("defaultBackend") private var defaultBackend = Backend.claude
-    @AppStorage("defaultModel") private var defaultModel = "claude-opus-5"
-    @AppStorage("defaultEffort") private var defaultEffort = "high"
+    @AppStorage("defaultModel") private var defaultModel = "default"
+    @AppStorage("defaultEffort") private var defaultEffort = ""
     @AppStorage("codexDefaultModel") private var codexDefaultModel = ""
     @AppStorage("codexDefaultEffort") private var codexDefaultEffort = ""
     @AppStorage("defaultPersonality") private var defaultPersonality = Personality.friendly
-    @AppStorage("webAccess") private var webAccess = true
+    @AppStorage("claudePath") private var claudePath = ""
     @AppStorage("codexPath") private var codexPath = ""
     @AppStorage("codexFolder") private var codexFolder = NSHomeDirectory()
     @AppStorage("codexCanEdit") private var codexCanEdit = false
@@ -26,48 +25,57 @@ struct SettingsView: View {
                 Picker("Tone", selection: $defaultPersonality) {
                     ForEach(Personality.allCases) { Text($0.label).tag($0) }
                 }
+                LabeledContent("Working folder") {
+                    Button((codexFolder as NSString).abbreviatingWithTildeInPath) {
+                        if let path = FolderPicker.choose(startingAt: codexFolder, message: "Choose where chats without a project work") { codexFolder = path }
+                    }
+                }
+                .help("Where Claude Code and Codex work in chats that aren't bound to a project folder.")
+                Toggle("Allow edits by default", isOn: $codexCanEdit)
             }
 
             Section {
-                SecureField("API key", text: $keyDraft, prompt: Text(model.hasAPIKey ? "Saved. Paste a new key to replace it" : "sk-ant-\u{2026}"))
-                HStack {
-                    Button("Save Key") {
-                        status = Keychain.saveAPIKey(keyDraft) ? "Saved to your keychain." : "Couldn't save to the keychain."
-                        keyDraft = ""
-                        model.refreshAPIKeyState()
+                LabeledContent("Signed in") {
+                    if let email = ClaudeModels.shared.accountEmail {
+                        Text(email + (ClaudeModels.shared.plan.map { " (\($0))" } ?? ""))
+                    } else {
+                        Text(ClaudeModels.shared.statusMessage ?? "Checking\u{2026}").foregroundStyle(.secondary)
                     }
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                    if model.hasAPIKey {
-                        Button("Remove Key", role: .destructive) {
-                            Keychain.deleteAPIKey()
-                            model.refreshAPIKeyState()
-                            status = "Removed."
-                        }
-                    }
-                    Spacer()
-                    if let status { Text(status).foregroundStyle(.secondary).font(.caption) }
                 }
                 claudeDefaults
-                Toggle("Web search and page reading", isOn: $webAccess)
+                TextField("claude path", text: $claudePath, prompt: Text(detectedClaude ?? "Auto-detect"))
             } header: {
-                Text("Claude")
+                Text("Claude Code")
             } footer: {
-                HStack {
-                    Text("Uses your Anthropic API key. Web search is billed per search.")
-                    Spacer()
-                    Link("Get a key", destination: URL(string: "https://platform.claude.com/settings/keys")!)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(detectedClaude == nil
+                     ? "Couldn't find the `claude` command. Install Claude Code, or enter its full path."
+                     : "Uses your installed Claude Code, its settings, and your Claude subscription. Claude asks before running commands; \u{201C}Can edit\u{201D} lets file edits through without asking.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
-                LabeledContent("Default folder") {
-                    Button((codexFolder as NSString).abbreviatingWithTildeInPath) {
-                        if let path = FolderPicker.choose(startingAt: codexFolder) { codexFolder = path }
+                ForEach(ModelPresets.shared.presets) { preset in
+                    HStack {
+                        TextField("Name", text: Binding(get: { preset.title }, set: { ModelPresets.shared.rename(preset, to: $0) }))
+                            .textFieldStyle(.plain)
+                        Spacer()
+                        Text(presetDetail(preset)).foregroundStyle(.secondary).font(.caption)
+                        Button { ModelPresets.shared.remove(preset) } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                            .help("Remove preset")
                     }
                 }
-                Toggle("Allow edits in that folder by default", isOn: $codexCanEdit)
+                Button("Restore Default Presets") { ModelPresets.shared.resetToDefaults() }
+            } header: {
+                Text("Quick-switch presets")
+            } footer: {
+                Text("Shown under the message box. Add one from the model menu with \u{201C}Save as Preset\u{201D}.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 codexDefaults
                 TextField("codex path", text: $codexPath, prompt: Text(detectedCodex ?? "Auto-detect"))
             } header: {
@@ -84,23 +92,32 @@ struct SettingsView: View {
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
         .task(id: codexPath) { detectedCodex = CodexAppServer.locateBinary() }
-        .task(id: model.hasAPIKey) { await ClaudeModels.shared.refresh() }
+        .task(id: claudePath) {
+            detectedClaude = ClaudeCodeProcess.locateBinary()
+            await ClaudeModels.shared.refresh(force: !claudePath.isEmpty)
+        }
         .task { if CodexAppServer.shared.models.isEmpty { try? await CodexAppServer.shared.refreshModels() } }
+    }
+
+    private func presetDetail(_ preset: ModelPreset) -> String {
+        let model = preset.model ?? "default model"
+        return "\(preset.backend.label) \u{00B7} \(model) \u{00B7} \(preset.effort.map { ChatView.effortLabel($0) } ?? "default effort")"
     }
 
     @ViewBuilder
     private var claudeDefaults: some View {
         let catalog = ClaudeModels.shared
         let current = catalog.info(defaultModel)
-        let models = catalog.models.contains { $0.id == current.id } ? catalog.models : [current] + catalog.models
-        Picker("Model", selection: Binding(get: { defaultModel }, set: {
+        let models = catalog.models.contains { $0.value == current.value } ? catalog.models : [current] + catalog.models
+        Picker("Model", selection: Binding(get: { current.value }, set: {
             defaultModel = $0
-            defaultEffort = catalog.info($0).coerce(effort: defaultEffort)
+            if !catalog.info($0).efforts.contains(defaultEffort) { defaultEffort = "" }
         })) {
-            ForEach(models) { Text($0.displayName).tag($0.id) }
+            ForEach(models) { Text($0.displayName).tag($0.value) }
         }
         if !current.efforts.isEmpty {
-            Picker("Effort", selection: Binding(get: { current.coerce(effort: defaultEffort) }, set: { defaultEffort = $0 })) {
+            Picker("Effort", selection: $defaultEffort) {
+                Text("Model default").tag("")
                 ForEach(current.efforts, id: \.self) { Text(ChatView.effortLabel($0)).tag($0) }
             }
         }

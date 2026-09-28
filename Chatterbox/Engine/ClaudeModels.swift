@@ -1,77 +1,59 @@
 import Foundation
 import Observation
 
-/// The Claude models this API key can use, loaded from GET /v1/models with each model's
-/// effort levels and thinking modes, so the pickers never offer something the API rejects.
+/// One model Claude Code offers, as its startup handshake reports it.
+struct ClaudeCodeModel: Identifiable, Hashable {
+    var id: String { value }
+    /// What goes to `--model`: an alias such as "opus" or a full model id.
+    var value: String
+    /// The model the alias currently points to, e.g. "claude-opus-5-5".
+    var resolvedModel: String
+    var displayName: String
+    var detail: String
+    /// Effort levels the model accepts, weakest first. Empty means no effort control.
+    var efforts: [String]
+
+    static func unknown(_ value: String) -> ClaudeCodeModel {
+        ClaudeCodeModel(value: value, resolvedModel: value, displayName: value, detail: "",
+                        efforts: ["low", "medium", "high", "xhigh", "max"])
+    }
+}
+
+/// The Claude models and account from the user's Claude Code install, loaded once per launch.
 @MainActor
 @Observable
 final class ClaudeModels {
     static let shared = ClaudeModels()
 
-    private(set) var models: [ClaudeModelInfo] = []
-    private(set) var errorMessage: String?
+    private(set) var models: [ClaudeCodeModel] = []
+    private(set) var accountEmail: String?
+    private(set) var plan: String?
+    /// Set when Claude Code is missing or couldn't start.
+    private(set) var statusMessage: String?
     @ObservationIgnored private var loading = false
 
-    /// Capabilities for `id`, falling back to conservative guesses if it isn't listed.
-    func info(_ id: String) -> ClaudeModelInfo {
-        models.first { $0.id == id } ?? .fallback(id)
+    /// The model for a `--model` value, matching aliases and full ids alike.
+    func info(_ value: String) -> ClaudeCodeModel {
+        models.first { $0.value == value } ?? models.first { $0.resolvedModel == value } ?? .unknown(value)
+    }
+
+    /// Whether two `--model` values currently mean the same model ("opus" and "claude-opus-5-5").
+    func sameModel(_ a: String, _ b: String) -> Bool {
+        a == b || info(a).resolvedModel == info(b).resolvedModel
     }
 
     func refresh(force: Bool = false) async {
-        guard !loading, force || models.isEmpty, let key = Keychain.readAPIKey() else { return }
+        guard !loading, force || models.isEmpty else { return }
         loading = true
         defer { loading = false }
         do {
-            models = try await AnthropicClient(apiKey: key).listModels()
-            errorMessage = nil
+            let info = try await ClaudeCodeInfo.probe()
+            models = info.models
+            accountEmail = info.accountEmail
+            plan = info.plan
+            statusMessage = info.accountEmail == nil ? "Claude Code isn't signed in. Run `claude` in Terminal and log in." : nil
         } catch {
-            errorMessage = error.localizedDescription
+            statusMessage = error.localizedDescription
         }
-    }
-}
-
-extension AnthropicClient {
-    func listModels() async throws -> [ClaudeModelInfo] {
-        var result: [ClaudeModelInfo] = []
-        var after: String?
-        repeat {
-            var components = URLComponents(string: "https://api.anthropic.com/v1/models")!
-            components.queryItems = [URLQueryItem(name: "limit", value: "1000")]
-                + (after.map { [URLQueryItem(name: "after_id", value: $0)] } ?? [])
-            var request = URLRequest(url: components.url!)
-            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-            let json = try JSON.parse(data)
-            guard status == 200 else {
-                throw APIError(status: status, type: json["error"]?["type"]?.string,
-                               message: json["error"]?["message"]?.string ?? "HTTP \(status)")
-            }
-            for m in json["data"]?.array ?? [] {
-                guard let id = m["id"]?.string else { continue }
-                let caps = m["capabilities"]
-                let fallback = ClaudeModelInfo.fallback(id)
-                let effort = caps?["effort"]
-                // Every level the API marks supported, known ones in order, new ones after.
-                let levels = (effort?.object ?? [:]).filter { $0.value["supported"]?.bool == true }.map(\.key)
-                let order = ClaudeModelInfo.effortOrder
-                let efforts = effort?["supported"]?.bool == true
-                    ? order.filter(levels.contains) + levels.filter { !order.contains($0) }.sorted()
-                    : []
-                let thinking = caps?["thinking"]?["types"]
-                result.append(ClaudeModelInfo(
-                    id: id,
-                    displayName: m["display_name"]?.string ?? id,
-                    efforts: caps == nil ? fallback.efforts : efforts,
-                    adaptiveThinking: thinking?["adaptive"]?["supported"]?.bool ?? fallback.adaptiveThinking,
-                    manualThinking: thinking?["enabled"]?["supported"]?.bool ?? fallback.manualThinking,
-                    maxInputTokens: m["max_input_tokens"]?.int ?? fallback.maxInputTokens,
-                    maxOutputTokens: m["max_tokens"]?.int ?? fallback.maxOutputTokens
-                ))
-            }
-            after = json["has_more"]?.bool == true ? json["last_id"]?.string : nil
-        } while after != nil
-        return result
     }
 }

@@ -14,8 +14,6 @@ struct Attachment: Codable, Identifiable, Equatable, Hashable {
     var path: String
     var mediaType: String
     var kind: Kind
-    /// Set once the file is uploaded to the Anthropic Files API, so it can be deleted with the chat.
-    var claudeFileID: String?
 
     var url: URL { URL(fileURLWithPath: path) }
 }
@@ -30,7 +28,6 @@ enum Attachments {
     /// Claude resizes anything larger, so sending more only costs upload time.
     static let maxImageEdge = 2576
     static let maxImageBytes = 5 * 1024 * 1024
-    static let maxTextBytes = 2 * 1024 * 1024
 
     static let directory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -159,51 +156,25 @@ enum Attachments {
         return (try? importImageData(data)).map { [$0] }
     }
 
-    // MARK: - Claude content blocks
+    // MARK: - Claude Code content
 
-    /// Content blocks for Claude: images and PDFs go through the Files API, text is inlined.
-    /// Returns the blocks and the attachments updated with their uploaded file IDs.
-    static func claudeBlocks(for attachments: [Attachment], client: AnthropicClient) async throws -> ([JSON], [Attachment]) {
+    /// Content for a Claude Code user message: images inline, other files by path so
+    /// Claude Code opens them with its own tools (it reads PDFs, code, and documents).
+    static func claudeContent(for message: UserMessage) -> [JSON] {
         var blocks: [JSON] = []
-        var updated: [Attachment] = []
-        for var attachment in attachments {
-            switch attachment.kind {
-            case .image, .pdf:
-                let fileID: String
-                if let existing = attachment.claudeFileID {
-                    fileID = existing
-                } else {
-                    fileID = try await client.uploadFile(attachment.url, name: safeName(attachment.name), mediaType: attachment.mediaType)
-                }
-                attachment.claudeFileID = fileID
-                if attachment.kind == .image {
-                    blocks.append(["type": "image", "source": ["type": "file", "file_id": .string(fileID)]])
-                } else {
-                    blocks.append(["type": "document", "source": ["type": "file", "file_id": .string(fileID)],
-                                   "title": .string(attachment.name)])
-                }
-            case .text, .document:
-                blocks.append(.text("<attachment name=\"\(attachment.name)\">\n\(try readText(attachment))\n</attachment>"))
-            case .other:
-                throw AttachmentError("Claude can't read \(attachment.name). Try a PDF, image, or text file.")
-            }
-            updated.append(attachment)
+        for image in message.attachments where image.kind == .image {
+            guard let data = try? Data(contentsOf: image.url) else { continue }
+            blocks.append(["type": "image", "source": ["type": "base64", "media_type": .string(image.mediaType),
+                                                         "data": .string(data.base64EncodedString())]])
         }
-        return (blocks, updated)
-    }
-
-    private static func readText(_ attachment: Attachment) throws -> String {
-        let size = (try? attachment.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        if attachment.kind == .document {
-            // Word, RTF, and HTML documents, converted to plain text by AppKit.
-            let text = try NSAttributedString(url: attachment.url, options: [:], documentAttributes: nil).string
-            return text
+        var text = message.text
+        let files = message.attachments.filter { $0.kind != .image }
+        if !files.isEmpty {
+            let list = files.map { "- \($0.name): \($0.path)" }.joined(separator: "\n")
+            text += (text.isEmpty ? "" : "\n\n") + "Attached files (read them from these paths):\n" + list
         }
-        guard size <= maxTextBytes else {
-            throw AttachmentError("\(attachment.name) is too large to include as text (limit 2 MB).")
-        }
-        let data = try Data(contentsOf: attachment.url)
-        return String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
+        if !text.isEmpty { blocks.append(.text(text)) }
+        return blocks
     }
 }
 
@@ -211,39 +182,4 @@ struct AttachmentError: LocalizedError {
     var message: String
     init(_ message: String) { self.message = message }
     var errorDescription: String? { message }
-}
-
-extension AnthropicClient {
-    /// POST /v1/files. Returns the file ID.
-    func uploadFile(_ url: URL, name: String, mediaType: String) async throws -> String {
-        let boundary = "chatterbox-\(UUID().uuidString)"
-        var body = Data()
-        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(name)\"\r\nContent-Type: \(mediaType)\r\n\r\n".data(using: .utf8)!)
-        body.append(try Data(contentsOf: url))
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/files")!)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 300
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "content-type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        let json = try? JSON.parse(data)
-        guard status == 200, let id = json?["id"]?.string else {
-            throw APIError(status: status, type: json?["error"]?["type"]?.string,
-                           message: "Couldn't upload \(name): " + (json?["error"]?["message"]?.string ?? "HTTP \(status)"))
-        }
-        return id
-    }
-
-    /// DELETE /v1/files/{id}. Best effort; used when a chat is deleted.
-    func deleteFile(_ id: String) async {
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/files/\(id)")!)
-        request.httpMethod = "DELETE"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        _ = try? await URLSession.shared.data(for: request)
-    }
 }

@@ -2,36 +2,12 @@ import Foundation
 
 /// Loads the prompt files bundled from the repo's `prompts/` folder.
 enum Prompts {
-    static let vars: [String: String] = [
-        "assistant_name": "Chatterbox",
-        "assistant_role": "a conversational assistant for questions, research, writing, and thinking things through",
-        "product_name": "Chatterbox, a Mac chat app",
-        "product_specific_rules": """
-        # About this app
-        - The user reads your replies in a Mac chat window that renders Markdown. Text you write before a tool call appears as a dim, inline note; only your final message appears as the main reply.
-        - The user can't see raw tool output, such as search results or fetched pages. Summarize what matters and link sources when you use the web.
-        - Blocks tagged <personality_spec>, <user_steering>, <turn_aborted>, or <conversation_summary> come from the app, not from something the user typed. Follow them.
-        """,
-    ]
-
     static func load(_ name: String, subdirectory: String? = nil) -> String {
         let dir = subdirectory.map { "prompts/\($0)" } ?? "prompts"
         guard let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: dir),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
         return text
     }
-
-    /// Frozen for the life of the app so the prompt cache stays warm. Personality lives
-    /// in the conversation instead, so it can change mid-chat.
-    static let system: String = {
-        var out = load("conversational_base")
-        var filled = vars
-        filled["personality"] = "Your personality is described in the most recent <personality_spec> block."
-        for (key, value) in filled {
-            out = out.replacingOccurrences(of: "{{\(key)}}", with: value)
-        }
-        return out.trimmingCharacters(in: .whitespacesAndNewlines)
-    }()
 
     static func personalitySpec(_ p: Personality) -> String {
         let body: String
@@ -43,15 +19,27 @@ enum Prompts {
         return "<personality_spec>\n\(body.trimmingCharacters(in: .whitespacesAndNewlines))\n</personality_spec>"
     }
 
-    static var compaction: String { load("compaction") }
-
-    /// Codex brings its own conversational system prompt; this adds the tone and the app context.
-    static func codexDeveloperInstructions(_ p: Personality) -> String {
+    /// Added to Claude Code's system prompt and to Codex's developer instructions.
+    /// Both agents bring their own base prompt; this adds the tone and the app context.
+    static func agentInstructions(_ p: Personality) -> String {
         """
         \(personalitySpec(p))
 
         # About this app
-        You're running inside Chatterbox, a Mac chat app, not a terminal. The user reads your messages in a chat window that renders Markdown, and they can't see command output unless you summarize it. Your commentary messages show as small inline notes; your final answer is the main reply. A newer <personality_spec> block from the app replaces this one.
+        You're running inside Chatterbox, a Mac chat app, not a terminal. The user reads your messages in a chat window that renders Markdown, and they can't see command or tool output unless you summarize it. Text you write before a tool call shows as a small inline note; your last message of the turn is the main reply. Blocks tagged <personality_spec> or <conversation_handoff> come from the app, not from something the user typed. A newer <personality_spec> block replaces this one.
+        """
+    }
+
+    /// Hands the conversation to a different agent, or to a fresh session of the same one.
+    static func handoff(from other: String, transcript: String, isWholeConversation: Bool) -> String {
+        """
+        <conversation_handoff>
+        \(isWholeConversation
+            ? "This chat started before your session did. Here is the conversation so far"
+            : "The user switched agents in this chat. Here is what happened while \(other) was answering"), so you can continue without asking them to repeat anything:
+
+        \(transcript)
+        </conversation_handoff>
         """
     }
 }

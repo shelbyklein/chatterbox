@@ -73,6 +73,10 @@ extension ChatSession {
                 input.append(Self.textInput(Prompts.personalitySpec(record.personality)))
                 record.sentPersonality = record.personality
             }
+            if let handoff = record.pendingHandoff {
+                input.append(Self.textInput(handoff))
+                record.pendingHandoff = nil
+            }
             input += Self.inputs(for: message)
 
             var params: [String: JSON] = [
@@ -120,7 +124,7 @@ extension ChatSession {
             "cwd": .string(settings.folder),
             "approvalPolicy": "on-request",
             "sandbox": .string(settings.canEdit ? "workspace-write" : "read-only"),
-            "developerInstructions": .string(Prompts.codexDeveloperInstructions(record.personality)),
+            "developerInstructions": .string(Prompts.agentInstructions(record.personality)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
         let result = try await server.request("thread/start", .object(params))
@@ -363,7 +367,7 @@ extension ChatSession {
         }
     }
 
-    func resolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {
+    func codexResolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {
         guard let item = record.items.first(where: { $0.id == itemID }),
               item.approvalState == .pending, let requestID = item.requestID else { return }
         let wire: String

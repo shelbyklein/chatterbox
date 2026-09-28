@@ -7,7 +7,6 @@ import Observation
 final class AppModel {
     private(set) var sessions: [ChatSession] = []
     var selectedID: UUID?
-    var hasAPIKey = Keychain.readAPIKey() != nil
 
     @ObservationIgnored private let directory: URL
 
@@ -25,17 +24,17 @@ final class AppModel {
     func newChat(backend: Backend? = nil) -> ChatSession {
         let defaults = UserDefaults.standard
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
-        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning }) {
+        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil }) {
             empty.setBackend(backend)
             selectedID = empty.id
             return empty
         }
         var record = ConversationRecord(
-            model: defaults.string(forKey: "defaultModel") ?? "claude-opus-5",
-            effort: defaults.string(forKey: "defaultEffort") ?? "high",
-            webAccess: defaults.object(forKey: "webAccess") as? Bool ?? true,
+            model: defaults.string(forKey: "defaultModel") ?? "default",
+            effort: defaults.string(forKey: "defaultEffort") ?? "",
             personality: Personality(rawValue: defaults.string(forKey: "defaultPersonality") ?? "") ?? .friendly
         )
+        record.claudeCanEdit = defaults.object(forKey: "codexCanEdit") as? Bool ?? false
         if backend == .codex {
             record.codex = CodexSettings(
                 folder: defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
@@ -51,21 +50,48 @@ final class AppModel {
     }
 
     func delete(_ session: ChatSession) {
-        session.interrupt()
-        let attachments = session.allAttachments
-        Attachments.remove(attachments)
-        let uploaded = attachments.compactMap(\.claudeFileID)
-        if !uploaded.isEmpty, let key = Keychain.readAPIKey() {
-            Task { for id in uploaded { await AnthropicClient(apiKey: key).deleteFile(id) } }
-        }
+        session.shutdown()
+        Attachments.remove(session.allAttachments)
         sessions.removeAll { $0.id == session.id }
         try? FileManager.default.removeItem(at: fileURL(session.id))
         if selectedID == session.id { selectedID = sessions.first?.id }
         if sessions.isEmpty { newChat() }
     }
 
-    func refreshAPIKeyState() {
-        hasAPIKey = Keychain.readAPIKey() != nil
+    // MARK: - Projects
+
+    static func normalize(_ folder: String) -> String {
+        URL(fileURLWithPath: folder).standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    /// The chat bound to `folder`, if any. Each folder has at most one.
+    func session(boundTo folder: String) -> ChatSession? {
+        let target = Self.normalize(folder)
+        return sessions.first { $0.record.projectFolder.map(Self.normalize) == target }
+    }
+
+    /// Binds `session` to `folder`, unless another chat already owns it; that chat is returned instead.
+    @discardableResult
+    func bind(_ session: ChatSession, to folder: String) -> ChatSession? {
+        if let owner = self.session(boundTo: folder), owner.id != session.id { return owner }
+        session.bindProject(Self.normalize(folder))
+        return nil
+    }
+
+    /// Opens the folder's chat, creating one if the folder doesn't have one yet.
+    func openProject(_ folder: String, backend: Backend? = nil) {
+        if let existing = session(boundTo: folder) {
+            selectedID = existing.id
+            return
+        }
+        let session = newChat(backend: backend)
+        session.bindProject(Self.normalize(folder))
+    }
+
+    func chooseAndOpenProject() {
+        if let folder = FolderPicker.choose(startingAt: nil, message: "Choose a project folder. Its chat opens, or a new one starts.") {
+            openProject(folder)
+        }
     }
 
     // MARK: - Persistence
@@ -81,7 +107,8 @@ final class AppModel {
     }
 
     private func save(_ session: ChatSession) {
-        guard !session.items.isEmpty else { return }
+        // A project chat is kept even before its first message, so the binding survives.
+        guard !session.items.isEmpty || session.record.projectFolder != nil else { return }
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601

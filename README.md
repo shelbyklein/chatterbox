@@ -20,23 +20,30 @@ open build/DerivedData/Build/Products/Debug/Chatterbox.app
 
 Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 
-- **Claude** needs an Anthropic API key. Paste it in Settings (Cmd-,). It's stored in your login keychain. Debug builds are ad-hoc signed, so macOS may ask for keychain access again after a rebuild.
+- **Claude** runs on your installed **Claude Code** (`claude` CLI) and your Claude subscription. No API key. Chatterbox launches `claude` in stream-json mode, one process per chat, and uses your own `~/.claude` settings, CLAUDE.md files, skills, MCP servers, and hooks. It finds `claude` automatically, or you can set the path in Settings. If it isn't signed in, run `claude` in Terminal once and log in.
 - **Codex** needs the Codex CLI installed and signed in. Chatterbox launches `codex app-server` in the background and uses your own `~/.codex` config, MCP servers, hooks, and ChatGPT sign-in. It finds `codex` automatically, or you can set the path in Settings.
 
 ## What makes it feel conversational
 
-**Prompt layer** (`prompts/`, bundled into the app):
-- `conversational_base.md` covers preambles before actions, progress check-ins, replies sized to the request, teammate voice, numbered next steps, a visible plan, and how to handle messages sent mid-task.
-- `personalities/friendly.md`, `pragmatic.md` are swappable tone layers.
-- `compaction.md` is the handoff-summary prompt for long chats.
+**Prompt layer** (`prompts/`, bundled into the app): `personalities/friendly.md` and `pragmatic.md` are swappable tone layers. Both agents bring their own system prompt; Chatterbox adds the tone and a note about the chat window.
 
 **Runtime layer** (`Chatterbox/Engine/ChatSession.swift`):
-- **Commentary vs. final.** Text Claude writes before a tool call is shown as a dim inline note. Only the text that ends the turn becomes the reply.
-- **Steering.** The input box stays live while Claude works. Anything you send is folded into the running turn at the next model call, marked "Sent while working".
-- **Interrupt.** Stop (Cmd-.) keeps the partial reply and tells the model it was cut off.
-- **Tone switching.** Friendly / Pragmatic / Neutral in the toolbar. Personality is sent as a tagged block only when it changes, so the system prompt stays frozen and cached.
-- **Plan card.** An `update_plan` tool renders a live checklist for multi-step work.
-- **Compaction.** When a request passes about 300K input tokens, history is replaced by a summary plus your last few messages verbatim.
+- **Commentary vs. final.** Text written before a tool call is shown as a dim inline note. Only the text that ends the turn becomes the reply.
+- **Steering.** The input box stays live while the agent works. Anything you send joins the running turn, marked "Sent while working".
+- **Interrupt.** Stop (Cmd-.) keeps the partial reply.
+- **Tone switching.** Friendly / Pragmatic / Neutral in the toolbar. The tone is sent as a tagged block only when it changes.
+- **Plan card.** Claude Code's to-do list and Codex's plan render as a live checklist.
+- **Switching agents.** One chat can move between Claude and Codex models. The incoming agent gets a transcript of what it missed.
+- **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder; "Can edit" decides whether file edits need approval.
+
+## Claude Code backend
+
+`Chatterbox/Engine/ClaudeCode.swift` runs `claude -p --input-format stream-json --output-format stream-json`. `ChatSession+Claude.swift` maps it onto the transcript:
+
+- Streamed text, thinking, and tool calls become the reply, dim notes, and status rows. `TodoWrite` becomes the plan card.
+- Permission prompts arrive over stdio (`--permission-prompt-tool stdio`) and show as approval cards with Allow, Allow for This Chat, and Deny. With "Can edit" on, the session runs in `acceptEdits` mode.
+- Model, effort, and permission changes are sent live as control requests. The model list and effort levels come from Claude Code's own startup handshake.
+- Each chat resumes its Claude Code session with `--resume`, so it survives restarts.
 
 ## Codex backend
 
@@ -50,26 +57,17 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - Codex threads persist, and reopening an old chat resumes its thread.
 - Models and effort levels come live from `model/list`.
 
-The app isn't sandboxed, because it has to launch `codex` and let it reach your files.
+The app isn't sandboxed, because it has to launch `claude` and `codex` and let them reach your files.
 
-## API details
-
-- Model `claude-opus-5` by default (Sonnet 5 selectable), adaptive thinking with summarized thoughts shown in a collapsible "Thinking" row, and effort defaulting to medium for snappier chat.
-- Streams via raw HTTP and SSE (Swift has no official Anthropic SDK). `Chatterbox/Engine/AnthropicClient.swift`.
-- Opus 5 requests opt into server-side refusal fallbacks (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`). A declined request is retried on Anthropic's recommended model in the same call, and the transcript notes the switch.
-- Web search and web fetch are server tools, toggled per chat with the globe button. Search is billed per use.
-- History is append-only and raw content blocks are echoed back unchanged, which keeps thinking blocks valid and the prompt cache warm. Top-level `cache_control` turns on automatic caching.
-- Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Conversations/`.
+Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Conversations/`, and attachments in `Attachments/` next to it.
 
 ## Layout
 
-- `Chatterbox/Engine/` has the Claude API client and loop (`ChatSession.swift`), the Codex bridge (`CodexAppServer.swift`, `ChatSession+Codex.swift`), tools, the prompts loader, and persistence.
+- `Chatterbox/Engine/` has the chat session (`ChatSession.swift`), the Claude Code bridge (`ClaudeCode.swift`, `ChatSession+Claude.swift`), the Codex bridge (`CodexAppServer.swift`, `ChatSession+Codex.swift`), tool labels, presets, the prompts loader, and persistence.
 - `Chatterbox/Views/` has the SwiftUI views: sidebar, transcript rows, composer, Markdown, and settings.
-- `prompts/` has the prompt files, which you can edit without touching code.
-- `reference/typescript/conversation.ts` is a provider-agnostic TypeScript version of the same loop, for porting into other software.
+- `prompts/` has the tone files, which you can edit without touching code.
+- `reference/typescript/conversation.ts` is a provider-agnostic TypeScript version of the conversation loop, for porting into other software.
 - `project.yml` is the xcodegen spec. The `.xcodeproj` is generated.
-
-For Claude chats, I left out the coding-specific Codex patterns: AGENTS.md handling, sandboxing and approvals, patch editing, and git safety rules. Codex chats get all of those from Codex itself.
 
 ## License
 

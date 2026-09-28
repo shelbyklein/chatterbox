@@ -1,15 +1,15 @@
 import Foundation
 import Observation
 
-/// Runs one conversation: the agent loop plus the mechanics that make it feel conversational.
+/// Runs one conversation on Claude Code or Codex. Both agents run their own loop and keep
+/// their own history; this maps what they do onto one transcript and adds the chat mechanics:
 ///
-/// - Commentary vs. final: text Claude writes before a tool call is shown as a dim inline note;
+/// - Commentary vs. final: text written before a tool call is shown as a dim inline note;
 ///   only the text that ends a turn is shown as the reply.
-/// - Steering: messages sent while a turn is running are folded into that turn at the next
-///   model call instead of waiting for it to finish.
-/// - Interrupt: stopping keeps what was said and tells the model it was cut off.
-/// - Personality: sent as a tagged block only when it changes, so the system prompt stays frozen.
-/// - Compaction: near the context limit, history is replaced by a summary.
+/// - Steering: messages sent while a turn is running join that turn.
+/// - Interrupt: stopping keeps what was said so far.
+/// - Personality: sent as a tagged block only when it changes.
+/// - Handoff: switching agents catches the new one up on what it missed.
 @MainActor
 @Observable
 final class ChatSession: Identifiable {
@@ -17,24 +17,27 @@ final class ChatSession: Identifiable {
     var isRunning = false
 
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
-    @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored var pendingSteering: [UserMessage] = []
 
-    // Codex backend state (see ChatSession+Codex.swift).
+    // Claude Code state (see ChatSession+Claude.swift).
+    @ObservationIgnored var claudeProcess: ClaudeCodeProcess?
+    @ObservationIgnored var claudeRender = ResponseRender()
+    @ObservationIgnored var claudeToolItems: [String: UUID] = [:]
+    @ObservationIgnored var claudeApprovals: [String: (tool: String, input: JSON, suggestions: JSON?)] = [:]
+    @ObservationIgnored var claudePlanItem: UUID?
+    @ObservationIgnored var claudeStopRequested = false
+
+    // Codex state (see ChatSession+Codex.swift).
     @ObservationIgnored var codexTurnID: String?
     @ObservationIgnored var codexItems: [String: UUID] = [:]
     @ObservationIgnored var codexPlanItems: [String: UUID] = [:]
     @ObservationIgnored var codexTurnMessageItems: [UUID] = []
     @ObservationIgnored var codexStopRequested = false
-    @ObservationIgnored private var render = ResponseRender()
-    @ObservationIgnored private var toolItemForUseID: [String: UUID] = [:]
-
-    private let compactThreshold = 300_000
-    private let maxRounds = 40
 
     nonisolated let id: UUID
     var items: [DisplayItem] { record.items }
     var title: String { record.title }
+    var projectName: String { record.projectFolder.map { ($0 as NSString).lastPathComponent } ?? "" }
 
     init(record: ConversationRecord) {
         self.id = record.id
@@ -46,25 +49,31 @@ final class ChatSession: Identifiable {
     func send(_ raw: String, attachments: [Attachment] = []) {
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
+        switch record.backend {
+        case .codex: codexSend(message)
+        case .claude: claudeSend(message)
+        }
+    }
 
-        if record.backend == .codex {
-            codexSend(message)
-            return
+    func interrupt() {
+        switch record.backend {
+        case .codex: codexInterrupt()
+        case .claude: claudeInterrupt()
         }
-        if isRunning {
-            pendingSteering.append(message)
-            appendUserItem(message, steered: true)
-            return
+    }
+
+    func resolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {
+        switch record.backend {
+        case .codex: codexResolveApproval(itemID, decision)
+        case .claude: claudeResolveApproval(itemID, decision)
         }
-        guard let key = Keychain.readAPIKey() else {
-            notice("Add your Anthropic API key in Settings (\u{2318},) to start chatting.")
-            return
-        }
-        setTitleIfNeeded(message)
-        let itemID = appendUserItem(message)
-        isRunning = true
-        onChange?(self)
-        task = Task { await self.runTurn(message, itemID: itemID, client: AnthropicClient(apiKey: key)) }
+    }
+
+    /// Stops any agent process this chat owns, e.g. when the chat is deleted.
+    func shutdown() {
+        interrupt()
+        claudeProcess?.terminate()
+        claudeProcess = nil
     }
 
     @discardableResult
@@ -76,14 +85,6 @@ final class ChatSession: Identifiable {
     /// Every attachment in this chat, for cleanup when the chat is deleted.
     var allAttachments: [Attachment] { record.items.flatMap { $0.attachments ?? [] } }
 
-    func interrupt() {
-        if record.backend == .codex {
-            codexInterrupt()
-        } else {
-            task?.cancel()
-        }
-    }
-
     func setTitleIfNeeded(_ message: UserMessage) {
         guard record.title == "New chat" else { return }
         let text = message.text.isEmpty ? message.attachments.map(\.name).joined(separator: ", ") : message.text
@@ -91,20 +92,88 @@ final class ChatSession: Identifiable {
         record.title = firstLine.count > 48 ? String(firstLine.prefix(47)) + "\u{2026}" : firstLine
     }
 
-    /// Only before the first message: histories can't move between backends.
+    // MARK: - Agent switching
+
+    /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
+    /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
-        guard record.items.isEmpty, backend != record.backend else { return }
-        if backend == .codex {
+        guard !isRunning, backend != record.backend else { return }
+        let leaving = record.backend
+        if !record.items.isEmpty {
+            let last = record.items.last?.id
+            if leaving == .claude { record.claudeSeenThrough = last } else { record.codexSeenThrough = last }
+            let seen = backend == .claude ? record.claudeSeenThrough : record.codexSeenThrough
+            let start = seen.flatMap { id in record.items.firstIndex { $0.id == id } }.map { $0 + 1 } ?? 0
+            let transcript = Self.transcript(record.items[start...])
+            record.pendingHandoff = transcript.isEmpty ? nil
+                : Prompts.handoff(from: leaving.label, transcript: transcript, isWholeConversation: seen == nil)
+        }
+        if backend == .codex, record.codex == nil {
             let defaults = UserDefaults.standard
             record.codex = CodexSettings(
-                folder: defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
-                canEdit: defaults.object(forKey: "codexCanEdit") as? Bool ?? false
+                folder: record.projectFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
+                canEdit: record.claudeCanEdit ?? defaults.object(forKey: "codexCanEdit") as? Bool ?? false
             )
             record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
             record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
-        } else {
-            record.codex = nil
         }
+        record.activeBackend = backend
+        // The incoming agent may not have seen the current tone.
+        record.sentPersonality = nil
+        if !record.items.isEmpty { notice("Switched to \(backend.label). It has been caught up on this chat.") }
+        onChange?(self)
+    }
+
+    /// A plain-text record of the conversation for handing it to another agent.
+    static func transcript(_ items: ArraySlice<DisplayItem>, limit: Int = 150_000) -> String {
+        var parts: [String] = []
+        for item in items {
+            switch item.kind {
+            case .user:
+                var text = "User: " + item.text
+                if let files = item.attachments, !files.isEmpty {
+                    text += (item.text.isEmpty ? "" : "\n") + "[Attached: " + files.map { "\($0.name) (\($0.path))" }.joined(separator: ", ") + "]"
+                }
+                parts.append(text)
+            case .assistant where item.phase == .final:
+                parts.append("Assistant: " + item.text)
+            case .plan:
+                parts.append("Plan: " + item.planSteps.map { "[\($0.status)] \($0.step)" }.joined(separator: "; "))
+            default:
+                break
+            }
+        }
+        let joined = parts.joined(separator: "\n\n")
+        return joined.count > limit ? "(earlier messages omitted)\n\n" + String(joined.suffix(limit)) : joined
+    }
+
+    // MARK: - Settings
+
+    /// Binds this chat to a folder. AppModel checks that no other chat owns it.
+    func bindProject(_ folder: String) {
+        guard folder != record.projectFolder else { return }
+        record.projectFolder = folder
+        record.codex?.folder = folder
+        claudeWorkingFolderChanged()
+        onChange?(self)
+    }
+
+    func unbindProject() {
+        guard record.projectFolder != nil else { return }
+        record.projectFolder = nil
+        claudeWorkingFolderChanged()
+        onChange?(self)
+    }
+
+    var canEdit: Bool {
+        record.backend == .codex ? record.codex?.canEdit ?? false : record.claudeCanEdit ?? false
+    }
+
+    /// One "Can edit" switch per chat, shared by both agents.
+    func setCanEdit(_ on: Bool) {
+        record.claudeCanEdit = on
+        record.codex?.canEdit = on
+        claudeApplyPermissionMode()
         onChange?(self)
     }
 
@@ -113,369 +182,18 @@ final class ChatSession: Identifiable {
         onChange?(self)
     }
 
-    func setWebAccess(_ on: Bool) {
-        record.webAccess = on
-        onChange?(self)
-    }
-
     func setModel(_ model: String) {
         record.model = model
-        record.effort = ClaudeModels.shared.info(model).coerce(effort: record.effort)
+        let efforts = ClaudeModels.shared.info(model).efforts
+        if !record.effort.isEmpty, !efforts.contains(record.effort) { record.effort = "" }
+        claudeApplyModel()
         onChange?(self)
     }
 
     func setEffort(_ effort: String) {
         record.effort = effort
+        claudeApplyEffort()
         onChange?(self)
-    }
-
-    // MARK: - Turn loop
-
-    private func runTurn(_ message: UserMessage, itemID: UUID, client: AnthropicClient) async {
-        var planItemID: UUID?
-        do {
-            let content = try await userContent(message, itemID: itemID, client: client)
-            if record.lastInputTokens > min(compactThreshold, modelInfo.maxInputTokens * 7 / 10) {
-                try await compact(client)
-            }
-            appendUser(openingBlocks() + content)
-
-            for _ in 0..<maxRounds {
-                let msg = try await streamResponse(client)
-                record.lastInputTokens = msg.inputTokens
-                let endsTurn = ["end_turn", "stop_sequence", "max_tokens", "refusal"].contains(msg.stopReason ?? "end_turn")
-                finalizePhases(isFinal: endsTurn && pendingSteering.isEmpty)
-
-                switch msg.stopReason {
-                case "tool_use":
-                    appendAssistant(msg.content)
-                    let results = runClientTools(msg, planItemID: &planItemID)
-                    appendUser(results + (try await steeringBlocks(client)) + personalityBlocksIfChanged())
-                    continue
-
-                case "pause_turn":
-                    // The server paused its own tool loop; re-sending resumes it.
-                    appendAssistant(msg.content)
-                    continue
-
-                case "refusal":
-                    appendAssistant([.text("[This reply was declined by Claude's safety system.]")])
-                    notice("Claude declined to answer that. Try rephrasing.")
-                    return
-
-                case "max_tokens":
-                    appendAssistant(msg.content.filter { $0["type"]?.string != "tool_use" })
-                    notice("The reply hit the length limit.")
-                    return
-
-                default:
-                    appendAssistant(msg.content)
-                    if pendingSteering.isEmpty { return }
-                    // The user steered while the final reply was streaming, so keep going.
-                    appendUser((try await steeringBlocks(client)) + personalityBlocksIfChanged())
-                }
-            }
-            notice("Paused after a lot of steps. Say \u{201C}continue\u{201D} to keep going.")
-        } catch {
-            if Task.isCancelled || (error as? URLError)?.code == .cancelled || error is CancellationError {
-                handleInterrupt()
-            } else {
-                markRunningToolsFailed()
-                notice("Something went wrong: \(error.localizedDescription)")
-            }
-        }
-        finishTurn()
-    }
-
-    private func finishTurn() {
-        // Steering that never reached the model rides along with the next message.
-        // Its files aren't uploaded yet, so they're named instead.
-        record.carryover += pendingSteering.map { message in
-            let files = message.attachments.map(\.name).joined(separator: ", ")
-            return Self.steeringBlock(message.text + (files.isEmpty ? "" : "\n(Attached, but not delivered: \(files). Ask the user to resend them if needed.)"))
-        }
-        pendingSteering.removeAll()
-        isRunning = false
-        task = nil
-        record.updatedAt = Date()
-        onChange?(self)
-    }
-
-    private func handleInterrupt() {
-        let partial = render.partialText.keys.sorted().compactMap { render.partialText[$0] }
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        if !partial.isEmpty {
-            appendAssistant(partial.map { JSON.text($0) })
-        }
-        record.carryover.append(.text("<turn_aborted>The user stopped your previous response partway through. Don't pick it back up unless they ask.</turn_aborted>"))
-        finalizePhases(isFinal: true)
-        markRunningToolsFailed()
-        notice("Stopped.")
-    }
-
-    // MARK: - Streaming
-
-    private func streamResponse(_ client: AnthropicClient) async throws -> StreamedMessage {
-        var attempt = 0
-        while true {
-            render = ResponseRender()
-            do {
-                return try await client.stream(body: requestBody(messages: record.apiMessages), betas: betas) { [weak self] event in
-                    self?.handle(event)
-                }
-            } catch let error as APIError where error.isRetryable && attempt < 2 && render.itemForIndex.isEmpty {
-                attempt += 1
-                try await Task.sleep(for: .seconds(2 * attempt))
-            }
-        }
-    }
-
-    private var modelInfo: ClaudeModelInfo { ClaudeModels.shared.info(record.model) }
-
-    private var betas: [String] {
-        modelInfo.supportsDefaultFallbacks ? ["server-side-fallback-2026-07-01"] : []
-    }
-
-    private func requestBody(messages: [JSON]) -> JSON {
-        let info = modelInfo
-        let maxTokens = min(64_000, info.maxOutputTokens)
-        var body: [String: JSON] = [
-            "model": .string(record.model),
-            "max_tokens": .number(Double(maxTokens)),
-            "stream": true,
-            "system": .string(Prompts.system),
-            "messages": .array(messages),
-            "tools": .array(Tools.definitions(webAccess: record.webAccess, basicWebTools: info.usesBasicWebTools)),
-            "cache_control": ["type": "ephemeral"],
-        ]
-        // Adaptive where supported; older models (e.g. Haiku 4.5) take a fixed thinking budget.
-        if info.adaptiveThinking {
-            body["thinking"] = ["type": "adaptive", "display": "summarized"]
-        } else if info.manualThinking {
-            body["thinking"] = ["type": "enabled", "budget_tokens": .number(Double(min(16_000, maxTokens / 2)))]
-        }
-        let effort = info.coerce(effort: record.effort)
-        if !effort.isEmpty {
-            body["output_config"] = ["effort": .string(effort)]
-        }
-        if info.supportsDefaultFallbacks {
-            body["fallbacks"] = "default"
-        }
-        return .object(body)
-    }
-
-    private func handle(_ event: StreamEvent) {
-        switch event {
-        case .blockStart(let index, let block):
-            let type = block["type"]?.string ?? ""
-            switch type {
-            case "text":
-                let id = appendItem(DisplayItem(kind: .assistant, text: block["text"]?.string ?? "", phase: .streaming))
-                render.itemForIndex[index] = id
-                render.textItems.append(id)
-            case "thinking":
-                render.itemForIndex[index] = appendItem(DisplayItem(kind: .thought))
-            case "tool_use", "server_tool_use":
-                // Anything Claude said before a tool call was narration, not the answer.
-                markStreamingTextAsCommentary()
-                let name = block["name"]?.string ?? ""
-                guard name != "update_plan" else { break }
-                let id = appendItem(DisplayItem(kind: .tool, text: Tools.label(name: name, input: nil)))
-                render.itemForIndex[index] = id
-                if let useID = block["id"]?.string { toolItemForUseID[useID] = id }
-            case "fallback":
-                let model = block["to"]?["model"]?.string ?? "another model"
-                notice("Switched to \(model) for this reply.")
-            default:
-                if type.hasSuffix("_tool_result"), let useID = block["tool_use_id"]?.string,
-                   let id = toolItemForUseID[useID] {
-                    let content = block["content"]
-                    let failed = content?["error_code"] != nil || content?["type"]?.string?.hasSuffix("error") == true
-                    updateItem(id) { $0.toolState = failed ? .failed : .done }
-                }
-            }
-
-        case .textDelta(let index, let text):
-            render.partialText[index, default: ""] += text
-            if let id = render.itemForIndex[index] { updateItem(id) { $0.text += text } }
-
-        case .thinkingDelta(let index, let text):
-            if let id = render.itemForIndex[index] { updateItem(id) { $0.text += text } }
-
-        case .blockStop(let index, let block):
-            let type = block["type"]?.string
-            if type == "tool_use" || type == "server_tool_use", let id = render.itemForIndex[index],
-               let name = block["name"]?.string {
-                updateItem(id) { $0.text = Tools.label(name: name, input: block["input"]) }
-            }
-        }
-    }
-
-    // MARK: - Tools
-
-    private func runClientTools(_ msg: StreamedMessage, planItemID: inout UUID?) -> [JSON] {
-        var results: [JSON] = []
-        for block in msg.content where block["type"]?.string == "tool_use" {
-            guard let useID = block["id"]?.string, let name = block["name"]?.string else { continue }
-            let itemID = toolItemForUseID[useID]
-
-            if msg.invalidToolInputs.contains(useID) {
-                results.append(toolResult(useID, "INVALID_JSON: the tool input was not valid JSON. Please call the tool again.", isError: true))
-                if let itemID { updateItem(itemID) { $0.toolState = .failed } }
-                continue
-            }
-
-            switch Tools.run(name: name, input: block["input"] ?? [:]) {
-            case .text(let output):
-                results.append(toolResult(useID, output))
-                if let itemID { updateItem(itemID) { $0.toolState = .done } }
-            case .plan(let steps, let output):
-                if let planItemID {
-                    updateItem(planItemID) { $0.planSteps = steps }
-                } else {
-                    planItemID = appendItem(DisplayItem(kind: .plan, planSteps: steps))
-                }
-                results.append(toolResult(useID, output))
-            case .error(let message):
-                results.append(toolResult(useID, message, isError: true))
-                if let itemID { updateItem(itemID) { $0.toolState = .failed } }
-            }
-        }
-        return results
-    }
-
-    private func toolResult(_ useID: String, _ content: String, isError: Bool = false) -> JSON {
-        var block: [String: JSON] = ["type": "tool_result", "tool_use_id": .string(useID), "content": .string(content)]
-        if isError { block["is_error"] = true }
-        return .object(block)
-    }
-
-    // MARK: - Context blocks
-
-    /// Summary, carryover notes, and personality that should precede the user's next message.
-    private func openingBlocks() -> [JSON] {
-        var blocks: [JSON] = []
-        if let summary = record.pendingSummary {
-            blocks.append(.text("<conversation_summary>\nEarlier parts of this conversation were summarized to save space. Continue naturally from here without repeating finished work.\n\n\(summary)\n</conversation_summary>"))
-            record.pendingSummary = nil
-        }
-        blocks += record.carryover
-        record.carryover = []
-        blocks += personalityBlocksIfChanged()
-        return blocks
-    }
-
-    private func personalityBlocksIfChanged() -> [JSON] {
-        guard record.sentPersonality != record.personality else { return [] }
-        record.sentPersonality = record.personality
-        return [.text(Prompts.personalitySpec(record.personality))]
-    }
-
-    private func steeringBlocks(_ client: AnthropicClient) async throws -> [JSON] {
-        let messages = pendingSteering
-        pendingSteering.removeAll()
-        var blocks: [JSON] = []
-        for message in messages {
-            blocks.append(Self.steeringBlock(message.text))
-            if !message.attachments.isEmpty {
-                let itemID = record.items.last { $0.kind == .user && $0.attachments == message.attachments }?.id
-                blocks += try await attachmentBlocks(message.attachments, itemID: itemID, client: client)
-            }
-        }
-        return blocks
-    }
-
-    private static func steeringBlock(_ text: String) -> JSON {
-        .text("<user_steering>\n\(text)\n</user_steering>\nThe user sent this while you were working. Take it into account now, and briefly acknowledge it.")
-    }
-
-    /// The user's text plus attachment blocks, uploading files as needed.
-    private func userContent(_ message: UserMessage, itemID: UUID, client: AnthropicClient) async throws -> [JSON] {
-        let files = try await attachmentBlocks(message.attachments, itemID: itemID, client: client)
-        return files + (message.text.isEmpty ? [] : [.text(message.text)])
-    }
-
-    private func attachmentBlocks(_ attachments: [Attachment], itemID: UUID?, client: AnthropicClient) async throws -> [JSON] {
-        guard !attachments.isEmpty else { return [] }
-        let uploading = appendItem(DisplayItem(kind: .tool, text: attachments.count == 1 ? "Attaching \(attachments[0].name)" : "Attaching \(attachments.count) files"))
-        do {
-            let (blocks, updated) = try await Attachments.claudeBlocks(for: attachments, client: client)
-            if let itemID { updateItem(itemID) { $0.attachments = updated } }
-            record.items.removeAll { $0.id == uploading }
-            return blocks
-        } catch {
-            record.items.removeAll { $0.id == uploading }
-            throw error
-        }
-    }
-
-    // MARK: - Compaction
-
-    private func compact(_ client: AnthropicClient) async throws {
-        let itemID = appendItem(DisplayItem(kind: .tool, text: "Summarizing earlier conversation to make room"))
-        let instruction = Prompts.compaction + "\n\nWrite the summary now as plain text. Do not call any tools."
-        var messages = record.apiMessages
-        Self.appendUser(record.carryover + [.text(instruction)], to: &messages)
-
-        do {
-            let msg = try await client.stream(body: requestBody(messages: messages), betas: betas) { _ in }
-            let summary = msg.content.compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }.joined(separator: "\n")
-            guard !summary.isEmpty else { throw APIError(status: 0, message: "empty summary") }
-
-            let recent = record.items.filter { $0.kind == .user }.dropLast().suffix(3).map { "> " + $0.text.replacingOccurrences(of: "\n", with: "\n> ") }
-            record.pendingSummary = summary + (recent.isEmpty ? "" : "\n\nThe user's most recent messages, verbatim:\n\n" + recent.joined(separator: "\n\n"))
-            record.apiMessages = []
-            record.carryover = []
-            record.sentPersonality = nil
-            record.lastInputTokens = 0
-            updateItem(itemID) { $0.toolState = .done; $0.text = "Summarized earlier conversation to make room" }
-        } catch let error as APIError {
-            // Not fatal: the context window is far larger than the threshold.
-            updateItem(itemID) { $0.toolState = .failed; $0.text = "Couldn't summarize earlier conversation (\(error.message))" }
-        }
-    }
-
-    // MARK: - History
-
-    private func appendUser(_ content: [JSON]) {
-        Self.appendUser(content, to: &record.apiMessages)
-    }
-
-    /// Merges into a trailing user message so the history always alternates roles,
-    /// even after an error or interrupt left a user message unanswered.
-    private static func appendUser(_ content: [JSON], to messages: inout [JSON]) {
-        guard !content.isEmpty else { return }
-        if let last = messages.last, last["role"]?.string == "user", let existing = last["content"]?.array {
-            messages[messages.count - 1] = .message("user", existing + content)
-        } else {
-            messages.append(.message("user", content))
-        }
-    }
-
-    private func appendAssistant(_ content: [JSON]) {
-        var blocks = Self.sanitizeForReplay(content)
-        if blocks.isEmpty { blocks = [.text("(no response)")] }
-        record.apiMessages.append(.message("assistant", blocks))
-    }
-
-    /// Applies the replay rules for responses that switched models partway through,
-    /// and drops empty text blocks, which the API rejects.
-    static func sanitizeForReplay(_ content: [JSON]) -> [JSON] {
-        let type = { (block: JSON) in block["type"]?.string ?? "" }
-        var blocks = content
-        if let boundary = blocks.lastIndex(where: { type($0) == "fallback" }) {
-            let resultIDs = Set(blocks.compactMap { type($0).hasSuffix("_tool_result") ? $0["tool_use_id"]?.string : nil })
-            blocks = blocks.enumerated().compactMap { index, block in
-                guard index < boundary else { return block }
-                switch type(block) {
-                case "text", "fallback": return block
-                case "server_tool_use": return resultIDs.contains(block["id"]?.string ?? "") ? block : nil
-                case let t where t.hasSuffix("_tool_result"): return block
-                default: return nil
-                }
-            }
-        }
-        return blocks.filter { type($0) != "text" || !($0["text"]?.string ?? "").isEmpty }
     }
 
     // MARK: - Display items
@@ -495,31 +213,21 @@ final class ChatSession: Identifiable {
         record.items.append(DisplayItem(kind: .notice, text: text))
     }
 
-    private func markStreamingTextAsCommentary() {
-        for id in render.textItems {
-            updateItem(id) { if $0.phase == .streaming { $0.phase = .commentary } }
-        }
-    }
-
-    private func finalizePhases(isFinal: Bool) {
-        for id in render.textItems {
-            updateItem(id) { if $0.phase == .streaming { $0.phase = isFinal ? .final : .commentary } }
-        }
-        record.items.removeAll {
-            ($0.kind == .assistant || $0.kind == .thought) && $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-    }
-
-    private func markRunningToolsFailed() {
+    func markRunningToolsFailed() {
         for index in record.items.indices where record.items[index].kind == .tool && record.items[index].toolState == .running {
             record.items[index].toolState = .failed
+        }
+    }
+
+    func expirePendingApprovals() {
+        for index in record.items.indices where record.items[index].approvalState == .pending {
+            record.items[index].approvalState = .expired
         }
     }
 }
 
 /// Per-response bookkeeping that maps streamed block indexes to transcript rows.
-private struct ResponseRender {
+struct ResponseRender {
     var itemForIndex: [Int: UUID] = [:]
     var textItems: [UUID] = []
-    var partialText: [Int: String] = [:]
 }

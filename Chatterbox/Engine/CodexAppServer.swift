@@ -14,6 +14,8 @@ struct CodexModelInfo: Identifiable, Hashable {
     var efforts: [String]
     /// Hidden from Codex's own default picker, but still usable.
     var hidden: Bool
+    /// The model Codex uses when a chat doesn't pick one.
+    var isDefault: Bool = false
 }
 
 /// One shared `codex app-server` child process, spoken to with JSON-RPC over stdio.
@@ -180,7 +182,8 @@ final class CodexAppServer {
                     displayName: m["displayName"]?.string ?? model,
                     defaultEffort: m["defaultReasoningEffort"]?.string ?? "medium",
                     efforts: (m["supportedReasoningEfforts"]?.array ?? []).compactMap { $0["reasoningEffort"]?.string },
-                    hidden: m["hidden"]?.bool ?? false
+                    hidden: m["hidden"]?.bool ?? false,
+                    isDefault: m["isDefault"]?.bool ?? false
                 )
             }
             cursor = result["nextCursor"]?.string

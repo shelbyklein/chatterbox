@@ -1,101 +1,86 @@
 import Foundation
 
+/// How Claude Code's tool calls appear in the transcript.
 enum Tools {
-    /// Tools Chatterbox runs itself. Eager input streaming means the API doesn't
-    /// validate inputs, so `run` validates them before doing anything.
-    static let clientTools: [JSON] = [
-        [
-            "name": "update_plan",
-            "description": "Show or update a short step-by-step plan in the user's chat window. Use for multi-step work only. Exactly one step should be in_progress until everything is completed.",
-            "eager_input_streaming": true,
-            "input_schema": [
-                "type": "object",
-                "properties": [
-                    "explanation": ["type": "string", "description": "Optional one-line reason for a change to the plan."],
-                    "plan": [
-                        "type": "array",
-                        "items": [
-                            "type": "object",
-                            "properties": [
-                                "step": ["type": "string", "description": "5-7 word description of the step."],
-                                "status": ["type": "string", "enum": ["pending", "in_progress", "completed"]],
-                            ],
-                            "required": ["step", "status"],
-                        ],
-                    ],
-                ],
-                "required": ["plan"],
-            ],
-        ],
-        [
-            "name": "get_current_datetime",
-            "description": "Get the user's current local date, time, and time zone.",
-            "eager_input_streaming": true,
-            "input_schema": ["type": "object", "properties": [:]],
-        ],
-    ]
+    /// Claude Code's to-do list, shown as the plan card instead of a tool row.
+    static let todoTool = "TodoWrite"
 
-    static let serverTools: [JSON] = [
-        ["type": "web_search_20260209", "name": "web_search", "max_uses": 5],
-        ["type": "web_fetch_20260209", "name": "web_fetch", "max_uses": 5],
-    ]
-
-    /// For models older than Opus/Sonnet 4.6, which lack dynamic filtering.
-    static let basicServerTools: [JSON] = [
-        ["type": "web_search_20250305", "name": "web_search", "max_uses": 5],
-        ["type": "web_fetch_20250910", "name": "web_fetch", "max_uses": 5],
-    ]
-
-    static func definitions(webAccess: Bool, basicWebTools: Bool = false) -> [JSON] {
-        clientTools + (webAccess ? (basicWebTools ? basicServerTools : serverTools) : [])
-    }
-
-    enum Outcome {
-        case text(String)
-        case plan([PlanStep], String)
-        case error(String)
-    }
-
-    static func run(name: String, input: JSON) -> Outcome {
-        switch name {
-        case "update_plan":
-            guard let rawSteps = input["plan"]?.array, !rawSteps.isEmpty else {
-                return .error("update_plan needs a non-empty `plan` array.")
-            }
-            var steps: [PlanStep] = []
-            for raw in rawSteps {
-                guard let step = raw["step"]?.string, let status = raw["status"]?.string,
-                      ["pending", "in_progress", "completed"].contains(status) else {
-                    return .error("Each plan item needs `step` and a `status` of pending, in_progress, or completed.")
-                }
-                steps.append(PlanStep(step: step, status: status))
-            }
-            return .plan(steps, "Plan updated.")
-
-        case "get_current_datetime":
-            let now = Date()
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE, MMMM d, yyyy 'at' h:mm a"
-            return .text("\(formatter.string(from: now)) (\(TimeZone.current.identifier))")
-
-        default:
-            return .error("Unknown tool: \(name)")
+    static func planSteps(_ input: JSON?) -> [PlanStep]? {
+        guard let todos = input?["todos"]?.array, !todos.isEmpty else { return nil }
+        return todos.compactMap { todo in
+            guard let text = todo["content"]?.string ?? todo["activeForm"]?.string else { return nil }
+            let status = todo["status"]?.string ?? "pending"
+            return PlanStep(step: text, status: ["pending", "in_progress", "completed"].contains(status) ? status : "pending")
         }
     }
 
     /// Human-readable status line for a tool call.
     static func label(name: String, input: JSON?) -> String {
+        let file = input?["file_path"]?.string ?? input?["notebook_path"]?.string ?? input?["path"]?.string
+        let fileName = file.map { ($0 as NSString).lastPathComponent }
         switch name {
-        case "web_search":
+        case "Bash":
+            if let description = input?["description"]?.string, !description.isEmpty { return description }
+            if let command = input?["command"]?.string { return "Running `\(short(command))`" }
+            return "Running a command"
+        case "Read": return "Reading \(fileName ?? "a file")"
+        case "Write": return "Writing \(fileName ?? "a file")"
+        case "Edit", "MultiEdit", "NotebookEdit": return "Editing \(fileName ?? "a file")"
+        case "Glob":
+            if let pattern = input?["pattern"]?.string { return "Finding files matching \(pattern)" }
+            return "Finding files"
+        case "Grep":
+            if let pattern = input?["pattern"]?.string { return "Searching for \u{201C}\(short(pattern))\u{201D}" }
+            return "Searching files"
+        case "WebSearch":
             if let q = input?["query"]?.string { return "Searching the web for \u{201C}\(q)\u{201D}" }
             return "Searching the web"
-        case "web_fetch":
+        case "WebFetch":
             if let url = input?["url"]?.string { return "Reading \(URL(string: url)?.host ?? url)" }
             return "Reading a page"
-        case "get_current_datetime": return "Checking the time"
-        case "update_plan": return "Updating the plan"
-        case "code_execution", "bash_code_execution", "text_editor_code_execution": return "Sifting through results"
-        default: return "Using \(name)"
+        case "Task", "Agent":
+            if let description = input?["description"]?.string { return "Delegating: \(description)" }
+            return "Delegating to a helper"
+        case "Skill":
+            if let skill = input?["skill"]?.string ?? input?["command"]?.string { return "Using the \(skill) skill" }
+            return "Using a skill"
+        case todoTool: return "Updating the plan"
+        default:
+            // MCP tools are named mcp__<server>__<tool>.
+            if name.hasPrefix("mcp__") {
+                let parts = name.split(separator: "_", omittingEmptySubsequences: true)
+                if parts.count >= 3 { return "Using \(parts.dropFirst(2).joined(separator: " ")) (\(parts[1]))" }
+            }
+            return "Using \(name)"
         }
     }
+
+    /// Title and detail for a permission prompt.
+    static func approval(name: String, input: JSON?, description: String?) -> (title: String, detail: String?) {
+        let file = input?["file_path"]?.string ?? input?["notebook_path"]?.string
+        switch name {
+        case "Bash":
+            return ("Claude wants to run a command", input?["command"]?.string)
+        case "Write":
+            return ("Claude wants to create \((file as NSString?)?.lastPathComponent ?? "a file")", file)
+        case "Edit", "MultiEdit", "NotebookEdit":
+            let change = input?["old_string"]?.string.map { old in
+                "\(file ?? "")\n\u{2212} \(short(old, 200))\n+ \(short(input?["new_string"]?.string ?? "", 200))"
+            }
+            return ("Claude wants to edit \((file as NSString?)?.lastPathComponent ?? "a file")", change ?? file)
+        case "WebFetch":
+            return ("Claude wants to open a web page", input?["url"]?.string)
+        default:
+            return ("Claude wants to use \(label(name: name, input: input).lowercasedFirst)", description)
+        }
+    }
+
+    private static func short(_ text: String, _ limit: Int = 80) -> String {
+        let oneLine = text.replacingOccurrences(of: "\n", with: " ")
+        return oneLine.count > limit ? String(oneLine.prefix(limit - 1)) + "\u{2026}" : oneLine
+    }
+}
+
+private extension String {
+    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
 }

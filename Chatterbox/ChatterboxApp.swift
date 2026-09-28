@@ -18,6 +18,9 @@ struct ChatterboxApp: App {
                     .keyboardShortcut("n", modifiers: [.command, .option])
                 Button("New Codex Chat") { model.newChat(backend: .codex) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
+                Button("Open Project\u{2026}") { model.chooseAndOpenProject() }
+                    .keyboardShortcut("o")
             }
         }
 

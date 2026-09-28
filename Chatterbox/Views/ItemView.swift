@@ -3,13 +3,15 @@ import SwiftUI
 /// Renders one transcript row. Commentary is deliberately quiet so the final reply stands out.
 struct ItemView: View {
     let item: DisplayItem
+    /// True for the row the agent is working on right now.
+    var isActive = false
     var onApproval: (UUID, DisplayItem.ApprovalState) -> Void = { _, _ in }
 
     var body: some View {
         switch item.kind {
         case .user: userBubble
         case .assistant: assistantText
-        case .thought: ThoughtView(text: item.text)
+        case .thought: ThoughtView(text: item.text, isActive: isActive)
         case .tool: toolRow
         case .plan: PlanCard(steps: item.planSteps)
         case .notice: noticeRow
@@ -61,17 +63,23 @@ struct ItemView: View {
             Group {
                 switch item.toolState {
                 case .running: ProgressView().controlSize(.small)
-                case .done: Image(systemName: "checkmark.circle").foregroundStyle(.green)
-                case .failed: Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+                case .done:
+                    Image(systemName: "checkmark.circle").foregroundStyle(.green)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                case .failed:
+                    Image(systemName: "exclamationmark.circle").foregroundStyle(.orange)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
                 }
             }
             .frame(width: 16)
             Text(item.text)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .shimmering(item.toolState == .running)
         }
         .font(.callout)
         .foregroundStyle(.secondary)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: item.toolState)
     }
 
     private var noticeRow: some View {
@@ -133,6 +141,7 @@ private struct ApprovalCard: View {
 
 private struct ThoughtView: View {
     let text: String
+    var isActive = false
     @State private var expanded = false
 
     var body: some View {
@@ -143,9 +152,11 @@ private struct ThoughtView: View {
                 .textSelection(.enabled)
                 .padding(.top, 4)
         } label: {
-            Label("Thinking", systemImage: "sparkle")
+            Label(isActive ? "Thinking\u{2026}" : "Thought", systemImage: "sparkle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .symbolEffect(.pulse, options: .repeating, isActive: isActive)
+                .shimmering(isActive)
         }
     }
 }
@@ -249,4 +260,37 @@ struct AttachmentThumbnail: View {
             image = await Task.detached { NSImage(contentsOfFile: path) }.value
         }
     }
+}
+
+/// A soft highlight that sweeps across text while the agent is working on it.
+/// Stays still when Reduce Motion is on.
+private struct Shimmer: ViewModifier {
+    var active: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if active && !reduceMotion {
+            content.overlay {
+                TimelineView(.animation) { context in
+                    let period = 1.8
+                    let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+                    GeometryReader { geo in
+                        let band = max(geo.size.width * 0.35, 60)
+                        LinearGradient(colors: [.clear, .primary.opacity(0.55), .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: band)
+                            .offset(x: -band + (geo.size.width + band * 2) * t)
+                    }
+                    .mask(content)
+                    .blendMode(.plusLighter)
+                }
+                .allowsHitTesting(false)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func shimmering(_ active: Bool) -> some View { modifier(Shimmer(active: active)) }
 }
