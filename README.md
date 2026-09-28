@@ -70,3 +70,7 @@ The app isn't sandboxed, because it has to launch `codex` and let it reach your 
 - `project.yml` is the xcodegen spec. The `.xcodeproj` is generated.
 
 For Claude chats, I left out the coding-specific Codex patterns: AGENTS.md handling, sandboxing and approvals, patch editing, and git safety rules. Codex chats get all of those from Codex itself.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE). Chatterbox builds on ideas from [OpenAI Codex](https://github.com/openai/codex), also Apache-2.0; see [NOTICE](NOTICE).
