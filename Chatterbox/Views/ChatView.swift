@@ -16,6 +16,8 @@ struct ChatView: View {
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
     @State private var dismissedCommandDraft: String?
     private let presets = ModelPresets.shared
+    /// The Issues panel on the right (see IssuesPanel.swift).
+    @State private var issuesPanel = IssuesPanelState()
     @FocusState private var composerFocused: Bool
     private let appearance = ReaderStyleSettings()
 
@@ -29,6 +31,7 @@ struct ChatView: View {
         }
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
+        .inspector(isPresented: $issuesPanel.isOpen) { IssuesPanel(session: session, panel: issuesPanel) }
         // Re-read git when the chat opens, its folder changes, or a turn ends (the agent may have committed).
         .task(id: "\(session.record.projectFolder ?? "")|\(session.isRunning)") {
             guard let folder = session.record.projectFolder, !session.isRunning else { return }
@@ -407,7 +410,8 @@ struct ChatView: View {
             if let status = GitStatusStore.shared.status(for: session.record.projectFolder),
                let remote = status.remote(preferring: session.record.gitRemote), let repo = remote.repo {
                 RepoChip(repo: repo, remote: remote, status: status, folder: session.record.projectFolder ?? "",
-                         onSelectRemote: session.setGitRemote)
+                         onSelectRemote: session.setGitRemote, onShowIssues: { issuesPanel.show() })
+                IssueToolbarItems(session: session, panel: issuesPanel, repo: repo, branch: status.branch)
             }
 
             ModelPicker(session: session, compact: true, summary: modelSummary.full,
@@ -804,6 +808,7 @@ private struct RepoChip: View {
     let status: GitStatus
     let folder: String
     let onSelectRemote: (String) -> Void
+    let onShowIssues: () -> Void
 
     private var web: URL { URL(string: "https://github.com/\(repo)")! }
 
@@ -822,7 +827,8 @@ private struct RepoChip: View {
                     NSWorkspace.shared.open(web.appendingPathComponent("tree").appendingPathComponent(branch))
                 }
             }
-            Button("Issues") { NSWorkspace.shared.open(web.appendingPathComponent("issues")) }
+            Button("Issues\u{2026}") { onShowIssues() }
+            Button("Issues on GitHub") { NSWorkspace.shared.open(web.appendingPathComponent("issues")) }
             Button("Pull Requests") { NSWorkspace.shared.open(web.appendingPathComponent("pulls")) }
             Divider()
             Button("Copy Clone URL") {

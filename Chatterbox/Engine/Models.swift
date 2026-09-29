@@ -127,6 +127,8 @@ struct ConversationRecord: Codable {
     var githubRepo: String?
     /// Which remote to use when the folder has more than one on GitHub.
     var gitRemote: String?
+    /// The GitHub issue this chat is working on, shown in the toolbar. Set by "Work on This".
+    var currentIssue: CurrentIssue?
     /// Labels for sorting projects, shown as pills in the sidebar.
     var tags: [String]?
     /// Older setting, used when `claudeMode` is unset: true meant accept edits.

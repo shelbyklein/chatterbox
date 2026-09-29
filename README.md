@@ -36,6 +36,7 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - **Switching agents.** One chat can move between Claude and Codex models. The incoming agent gets a transcript of what it missed.
 - **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder.
 - **GitHub.** A project's GitHub repo is read from its folder's git remote. The toolbar shows the repo, branch, and commits to push or pull, with links to the repo, branch, issues, and pull requests. File → New Project from GitHub (Cmd-Shift-O) lists your repos through `gh`, or takes a pasted URL, clones it, and opens it as a project; a repo that already has a chat opens that chat instead.
+- **Issues.** Issues… in the repo menu, or Cmd-Shift-I, opens a side panel with the repo's open issues (read through `gh api`): search, label, milestone, and “Mine” filters, three sort orders, and each issue's body and comments. Work on This sends the issue to the chat's agent (as `/dev-work #N` when your Claude Code has that skill) and shows it in the toolbar, next to the branch's pull request. Triage sends the list and asks the agent to rank it, flag duplicates and stale issues, and then ask you which to take next. The app only reads GitHub; any change there is made by the agent, with its usual approvals.
 - **Modes.** The mode menu under the message box sets what the agent may do without asking. Claude: Auto, Manual, Accept edits, Plan, Bypass permissions. Codex: Read only, Ask for approval, Approve for me, Full access.
 
 ## Claude Code backend
