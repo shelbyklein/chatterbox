@@ -31,6 +31,12 @@ struct ChatView: View {
         }
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
+        // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
+        .environment(\.openURL, OpenURLAction { url in
+            guard let file = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
+            NSWorkspace.shared.open(file)
+            return .handled
+        })
         .inspector(isPresented: $issuesPanel.isOpen) { IssuesPanel(session: session, panel: issuesPanel) }
         // Re-read git when the chat opens, its folder changes, or a turn ends (the agent may have committed).
         .task(id: "\(session.record.projectFolder ?? "")|\(session.isRunning)") {
@@ -379,7 +385,12 @@ struct ChatView: View {
                         submit(now: true)
                         return .handled
                     }
-                    return press.modifiers.contains(.shift) ? .ignored : completeCommand()
+                    // Shift-Return starts a new line at the cursor, like Option-Return.
+                    if press.modifiers.contains(.shift) {
+                        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
+                        return .handled
+                    }
+                    return completeCommand()
                 }
                 .onKeyPress(.escape) {
                     guard !commandMatches.isEmpty else { return .ignored }
@@ -678,6 +689,24 @@ private struct EmptyChatView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// Turns a link with no scheme into the file it names: absolute, "~/…", or relative to the
+/// chat's folder, dropping a trailing ":line" or ":line:column" when that's what was added.
+enum FileLink {
+    static func resolve(_ url: URL, in folder: String) -> URL? {
+        guard url.scheme == nil || url.scheme == "file" else { return nil }
+        var path = url.scheme == "file" ? url.path : (url.path.removingPercentEncoding ?? url.path)
+        guard !path.isEmpty else { return nil }
+        path = (path as NSString).expandingTildeInPath
+        if !path.hasPrefix("/") { path = (folder as NSString).appendingPathComponent(path) }
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: path), let range = path.range(of: #":\d+(:\d+)?$"#, options: .regularExpression),
+           fm.fileExists(atPath: String(path[..<range.lowerBound])) {
+            path = String(path[..<range.lowerBound])
+        }
+        return URL(fileURLWithPath: path)
     }
 }
 
