@@ -22,7 +22,7 @@ struct ItemView: View {
         case .notice: noticeRow
         case .approval: ApprovalCard(item: item) { onApproval(item.id, $0) }
         case .image: GeneratedImages(item: item)
-        case .questions: QuestionCard(item: item) { onAnswer(item.id, $0) }
+        case .questions: QuestionCard(item: item, agent: agent) { onAnswer(item.id, $0) }
         }
     }
 
@@ -387,8 +387,11 @@ extension View {
 /// Once answered it shows a short summary of what you chose.
 private struct QuestionCard: View {
     let item: DisplayItem
+    /// The agent that asked, which picks the color of your answers' bubble.
+    let agent: Backend
     let submit: ([String: [String]]?) -> Void
     @Environment(\.cardFillsWidth) private var fillsWidth
+    @Environment(\.readerStyle) private var style
 
     @State private var index = 0
     @State private var picks: [String: Set<String>] = [:]
@@ -398,17 +401,15 @@ private struct QuestionCard: View {
     private var questions: [AgentQuestion] { item.questions ?? [] }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if item.approvalState == .pending, questions.indices.contains(index) {
-                asking(questions[index])
-            } else {
-                answered
-            }
+        if item.approvalState == .pending, questions.indices.contains(index) {
+            asking(questions[index])
+                .padding(14)
+                .frame(maxWidth: fillsWidth ? .infinity : 560, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.highlight.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.highlight.opacity(0.5)))
+        } else {
+            answered
         }
-        .padding(14)
-        .frame(maxWidth: fillsWidth ? .infinity : 560, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.highlight.opacity(item.approvalState == .pending ? 0.07 : 0.03)))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.highlight.opacity(item.approvalState == .pending ? 0.5 : 0.15)))
     }
 
     private func asking(_ question: AgentQuestion) -> some View {
@@ -489,21 +490,34 @@ private struct QuestionCard: View {
         .buttonStyle(.plain)
     }
 
+    /// Your answers, styled and placed like your own messages: right-aligned, in the bubble
+    /// color of the agent that asked.
     private var answered: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .trailing, spacing: 3) {
             Label(item.approvalState == .approved ? "Answered" : item.approvalState == .denied ? "Skipped" : "No longer needed",
                   systemImage: item.approvalState == .approved ? "checkmark.circle" : "questionmark.bubble")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(item.approvalState == .approved ? .green : .secondary)
-            ForEach(questions) { question in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(question.question).font(.callout).foregroundStyle(.secondary)
-                    if let answer = item.answers?[question.id] {
-                        Text(question.isSecret ? "\u{2022}\u{2022}\u{2022}\u{2022}" : answer.joined(separator: ", ")).font(.callout.weight(.medium))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(questions) { question in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(question.question).font(style.secondary).foregroundStyle(.secondary)
+                        if let answer = item.answers?[question.id] {
+                            Text(question.isSecret ? "\u{2022}\u{2022}\u{2022}\u{2022}" : answer.joined(separator: ", "))
+                                .font(style.body.weight(.medium))
+                        }
                     }
                 }
             }
+            .lineSpacing(style.lineSpacing)
+            .textSelection(.enabled)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 14).fill(style.color(for: agent).opacity(style.bubbleStrength)))
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.leading, 80)
+        .padding(.top, 6)
     }
 
     private func binding(for question: AgentQuestion) -> Binding<String> {
