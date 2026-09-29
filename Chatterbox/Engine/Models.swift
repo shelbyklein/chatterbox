@@ -71,6 +71,8 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var text: String = ""
     var phase: Phase = .final
     var steered = false
+    /// A steered message the agent hasn't picked up yet. Optional so older chats still load.
+    var queued: Bool?
     var toolState: ToolState = .running
     var planSteps: [PlanStep] = []
     /// Approval rows: extra detail (command, files), the pending server request, and its outcome.

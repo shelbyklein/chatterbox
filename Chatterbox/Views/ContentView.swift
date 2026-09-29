@@ -10,22 +10,31 @@ struct ContentView: View {
     @State private var flagsMonitor: Any?
     @State private var taggingSession: ChatSession?
     @State private var newTag = ""
+    @State private var searchText = ""
+    /// Show only projects with this tag; empty shows everything.
+    @AppStorage("sidebarTagFilter") private var tagFilter = ""
 
     var body: some View {
         @Bindable var model = model
         NavigationSplitView {
             List(selection: $model.selectedID) {
-                let projects = model.sidebarProjects
-                let chats = model.sidebarChats
-                let numbers = Dictionary(uniqueKeysWithValues: (projects + chats).prefix(9).enumerated().map { ($1.id, $0 + 1) })
-                let archived = model.archivedSessions
+                // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
+                let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
+                let projects = model.sidebarProjects.filter(isShown)
+                let chats = model.sidebarChats.filter(isShown)
+                let archived = model.archivedSessions.filter(isShown)
+                if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
+                    Text("No matching chats").foregroundStyle(.secondary)
+                }
                 if !projects.isEmpty {
                     Section("Projects") {
                         ForEach(projects) { session in row(session, number: numbers[session.id]) }
                     }
                 }
-                Section(projects.isEmpty ? "" : "Chats") {
-                    ForEach(chats) { session in row(session, number: numbers[session.id]) }
+                if !chats.isEmpty || !isFiltering {
+                    Section(projects.isEmpty ? "" : "Chats") {
+                        ForEach(chats) { session in row(session, number: numbers[session.id]) }
+                    }
                 }
                 if !archived.isEmpty {
                     Section("Archived (\(archived.count))", isExpanded: $showArchived) {
@@ -34,7 +43,9 @@ struct ContentView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+            .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
+                ToolbarItem { tagFilterMenu }
                 ToolbarItem {
                     Menu {
                         Button("New Claude Chat") { model.newChat(backend: .claude) }
@@ -59,6 +70,12 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
+        .background {
+            Color.clear.sheet(isPresented: Binding(get: { ChatCommands.shared.showingQuickSwitcher },
+                                                   set: { ChatCommands.shared.showingQuickSwitcher = $0 })) {
+                QuickSwitcher().environment(model)
+            }
+        }
         .alert("New Tag", isPresented: Binding(get: { taggingSession != nil }, set: { if !$0 { taggingSession = nil } })) {
             TextField("Tag name", text: $newTag)
             Button("Add") {
@@ -90,6 +107,42 @@ struct ContentView: View {
 }
 
 extension ContentView {
+    /// The tag filter, ignored once no chat has that tag anymore.
+    private var activeTag: String? {
+        tagFilter.isEmpty ? nil : model.allTags.first { $0.caseInsensitiveCompare(tagFilter) == .orderedSame }
+    }
+
+    private var isFiltering: Bool {
+        activeTag != nil || !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Search matches every word against the chat title, project name, and tags.
+    private func isShown(_ session: ChatSession) -> Bool {
+        if let tag = activeTag, !session.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
+            return false
+        }
+        let text = ([session.title, session.projectName] + session.tags).joined(separator: " ")
+        return searchText.split(whereSeparator: \.isWhitespace).allSatisfy { text.localizedStandardContains($0) }
+    }
+
+    private var tagFilterMenu: some View {
+        Menu {
+            Picker("Show", selection: Binding(get: { activeTag ?? "" }, set: { tagFilter = $0 })) {
+                Text("All Chats").tag("")
+                if !model.allTags.isEmpty {
+                    Section("Projects Tagged") {
+                        ForEach(model.allTags, id: \.self) { Text($0).tag($0) }
+                    }
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("Filter", systemImage: activeTag == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+        }
+        .disabled(model.allTags.isEmpty)
+        .help(activeTag.map { "Showing projects tagged \u{201C}\($0)\u{201D}" } ?? "Show only projects with a tag")
+    }
+
     /// Holding ⌘ alone shows the ⌘1–⌘9 badges right away; any other key or release hides them.
     private func watchCommandKey() {
         guard flagsMonitor == nil else { return }
@@ -133,6 +186,7 @@ private struct SidebarRow: View {
     let session: ChatSession
     /// Shown while ⌘ is held.
     var shortcut: Int?
+    private let appearance = ReaderStyleSettings()
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -164,7 +218,9 @@ private struct SidebarRow: View {
                     .background(RoundedRectangle(cornerRadius: 4).fill(.quaternary))
                     .foregroundStyle(.secondary)
             } else if session.isRunning {
-                ProgressView().controlSize(.mini)
+                ActivitySpinner(color: appearance.style.color(for: session.record.backend))
+                    .frame(width: 10, height: 10)
+                    .help("\(session.record.backend.label) is working")
             }
         }
     }

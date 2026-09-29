@@ -8,6 +8,8 @@ struct ModelPicker: View {
     var compact = false
     let summary: String
     let color: Color
+    /// Bumped by Chat → Choose Model (⌘⇧M) to toggle the popover.
+    var openRequest = 0
     @State private var isOpen = false
 
     var body: some View {
@@ -26,7 +28,8 @@ struct ModelPicker: View {
             }
         }
         .buttonStyle(compact ? AnyButtonStyle(.automatic) : AnyButtonStyle(.plain))
-        .help(summary + ". Click to change.")
+        .help(summary + ". Click to change (\u{2318}\u{21E7}M).")
+        .onChange(of: openRequest) { isOpen.toggle() }
         .popover(isPresented: $isOpen, arrowEdge: compact ? .bottom : .top) {
             ModelPopover(session: session) { isOpen = false }
         }

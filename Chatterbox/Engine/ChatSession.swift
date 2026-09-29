@@ -15,9 +15,13 @@ import Observation
 final class ChatSession: Identifiable {
     var record: ConversationRecord
     var isRunning = false
+    /// How full each agent's context is, from its latest token counts. Not saved.
+    var contextUsage: [Backend: ContextUsage] = [:]
 
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
     @ObservationIgnored var pendingSteering: [UserMessage] = []
+    /// The transcript rows of `pendingSteering`, cleared from "Queued" once Codex takes them.
+    @ObservationIgnored var pendingSteeringItems: [UUID] = []
 
     // Claude Code state (see ChatSession+Claude.swift).
     @ObservationIgnored var claudeProcess: ClaudeCodeProcess?
@@ -93,7 +97,8 @@ final class ChatSession: Identifiable {
 
     @discardableResult
     func appendUserItem(_ message: UserMessage, steered: Bool = false) -> UUID {
-        appendItem(DisplayItem(kind: .user, text: message.text, steered: steered,
+        // A message sent mid-turn waits until the agent picks it up (see ChatSession+Status).
+        appendItem(DisplayItem(kind: .user, text: message.text, steered: steered, queued: steered ? true : nil,
                                attachments: message.attachments.isEmpty ? nil : message.attachments,
                                agent: record.backend))
     }

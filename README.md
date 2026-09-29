@@ -29,15 +29,19 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 
 **Runtime layer** (`Chatterbox/Engine/ChatSession.swift`):
 - **Commentary vs. final.** Text written before a tool call is shown as a dim inline note. Only the text that ends the turn becomes the reply.
-- **Steering.** The input box stays live while the agent works. Anything you send joins the running turn, marked "Sent while working".
+- **Steering.** The input box stays live while the agent works. Anything you send joins the running turn. It shows "Queued" until the agent picks it up at its next step, then "Sent while working".
 - **Interrupt.** Stop (Cmd-.) keeps the partial reply.
-- **Tone switching.** Friendly / Pragmatic / Neutral in the toolbar. The tone is sent as a tagged block only when it changes.
+- **Tone switching.** The tone menu in the toolbar has Friendly, Pragmatic, and Neutral. The tone is sent as a tagged block only when it changes.
 - **Plan card.** Claude Code's to-do list and Codex's plan render as a live checklist.
 - **Switching agents.** One chat can move between Claude and Codex models. The incoming agent gets a transcript of what it missed.
 - **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder.
 - **GitHub.** A project's GitHub repo is read from its folder's git remote. The toolbar shows the repo, branch, and commits to push or pull, with links to the repo, branch, issues, and pull requests. File → New Project from GitHub (Cmd-Shift-O) lists your repos through `gh`, or takes a pasted URL, clones it, and opens it as a project; a repo that already has a chat opens that chat instead.
 - **Issues.** Issues… in the repo menu, or Cmd-Shift-I, opens a side panel with the repo's open issues (read through `gh api`): search, label, milestone, and “Mine” filters, three sort orders, and each issue's body and comments. Work on This sends the issue to the chat's agent (as `/dev-work #N` when your Claude Code has that skill) and shows it in the toolbar, next to the branch's pull request. Triage sends the list and asks the agent to rank it, flag duplicates and stale issues, and then ask you which to take next. The app only reads GitHub; any change there is made by the agent, with its usual approvals.
-- **Modes.** The mode menu under the message box sets what the agent may do without asking. Claude: Auto, Manual, Accept edits, Plan, Bypass permissions. Codex: Read only, Ask for approval, Approve for me, Full access.
+- **Modes.** The mode menu under the message box (Cmd-Shift-P) sets what the agent may do without asking. Claude: Auto, Manual, Accept edits, Plan, Bypass permissions. Codex: Read only, Ask for approval, Approve for me, Full access.
+- **Model and presets.** The model line under the message box opens the model picker (Cmd-Shift-M). Preset pills beside it switch agent, model, and effort in one click. They're tinted with the agent's color. Right-click a pill to rename or delete it, or drag it to reorder.
+- **Context and usage.** A small ring next to the model line shows how full the conversation's context is. Hover it for the token count, or click it to see your 5-hour and 7-day usage limits and when they reset. It appears after the agent's first reply.
+- **Quick switcher.** Cmd-K finds any chat or project by name, title, tag, or agent. It also has New Chat, New Project Chat, New Project from GitHub, and Settings. Use the arrow keys, Return, and Esc.
+- **Sidebar.** Search filters chats by title, project name, and tags. The filter button shows only projects with a given tag. A spinner in the agent's color marks chats that are working.
 
 ## Claude Code backend
 
