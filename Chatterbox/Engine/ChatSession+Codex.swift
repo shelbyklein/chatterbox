@@ -219,8 +219,19 @@ extension ChatSession {
         record.items.removeAll {
             ($0.kind == .assistant || $0.kind == .thought) && $0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
+        // Commands still running when the reply ends keep going in the background, watched
+        // by their process in case Codex stopped them along with the reply.
+        var carriedOn: Set<UUID> = []
+        for (itemID, command) in codexRunningCommands {
+            guard let row = codexItems[itemID], command.processID != nil else { continue }
+            carriedOn.insert(row)
+            addBackgroundTask(BackgroundTask(id: itemID, kind: .shell, title: command.command, detached: true,
+                                             processID: command.processID, rowID: row))
+        }
+        codexRunningCommands = [:]
         for index in record.items.indices {
-            if record.items[index].kind == .tool, record.items[index].toolState == .running {
+            if record.items[index].kind == .tool, record.items[index].toolState == .running,
+               !carriedOn.contains(record.items[index].id) {
                 record.items[index].toolState = .failed
             }
             if record.items[index].approvalState == .pending {
@@ -310,6 +321,7 @@ extension ChatSession {
             codexUpdateContext(params)
 
         case "chatterbox/processExited":
+            clearBackgroundTasks()
             if isRunning {
                 notice(params["message"]?.string ?? "Codex stopped unexpectedly.")
                 codexFinish(startQueued: false)
@@ -322,6 +334,11 @@ extension ChatSession {
 
     private func codexItemStarted(_ item: JSON?) {
         guard let item, let type = item["type"]?.string, let itemID = item["id"]?.string else { return }
+        codexTrackHelpers(item)
+        if type == "commandExecution" {
+            codexRunningCommands[itemID] = (Self.shortCommand(item["command"]?.string ?? ""),
+                                            item["processId"]?.string.flatMap { Int32($0) })
+        }
         switch type {
         case "agentMessage":
             let phase: DisplayItem.Phase = item["phase"]?.string == "commentary" ? .commentary : .streaming
@@ -339,6 +356,15 @@ extension ChatSession {
 
     private func codexItemCompleted(_ item: JSON?) {
         guard let item, let type = item["type"]?.string, let itemID = item["id"]?.string else { return }
+        codexTrackHelpers(item)
+        codexRunningCommands[itemID] = nil
+        // A background command from an earlier reply has ended.
+        if let task = backgroundTasks.first(where: { $0.id == itemID }) {
+            let failed = item["status"]?.string != "completed"
+            if let row = task.rowID, let label = Self.label(for: item) { updateItem(row) { $0.text = label } }
+            finishBackgroundTask(itemID, failed: failed)
+            return
+        }
         guard let id = codexItems[itemID] else {
             // A message can finish without a start event; show it anyway.
             if type == "agentMessage", let text = item["text"]?.string, !text.isEmpty {
@@ -506,12 +532,84 @@ extension ChatSession {
     }
 
     /// Status line for a Codex tool item, or nil for items that aren't shown.
+    // MARK: - Helper agents
+
+    /// Subagents show as background tasks while they work. Codex reports them two ways:
+    /// `subAgentActivity` items, and the states in a `collabAgentToolCall` (spawnAgent, wait…).
+    private func codexTrackHelpers(_ item: JSON) {
+        switch item["type"]?.string {
+        case "subAgentActivity":
+            guard let thread = item["agentThreadId"]?.string else { return }
+            switch item["kind"]?.string {
+            case "started": codexHelperStarted(thread, name: Self.helperName(item))
+            case "completed": finishBackgroundTask(thread)
+            case "interrupted": finishBackgroundTask(thread, failed: true)
+            default: break
+            }
+        case "collabAgentToolCall":
+            for (thread, state) in item["agentsStates"]?.object ?? [:] {
+                switch state["status"]?.string {
+                case "pendingInit", "running":
+                    let prompt = item["prompt"]?.string.map { $0.count > 60 ? String($0.prefix(59)) + "\u{2026}" : $0 }
+                    codexHelperStarted(thread, name: prompt)
+                case "completed": finishBackgroundTask(thread)
+                case "errored", "interrupted", "shutdown", "notFound": finishBackgroundTask(thread, failed: true)
+                default: break
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    /// Shows the helper and follows its own thread, whose events name what it's doing now.
+    private func codexHelperStarted(_ thread: String, name: String?) {
+        if !backgroundTasks.contains(where: { $0.id == thread }) {
+            addBackgroundTask(BackgroundTask(id: thread, kind: .agent, title: name ?? "Helper agent", detached: true))
+        }
+        CodexAppServer.shared.register(thread: thread) { [weak self] method, params, requestID in
+            self?.codexHelperEvent(thread, method: method, params: params, requestID: requestID)
+        }
+    }
+
+    private func codexHelperEvent(_ thread: String, method: String, params: JSON, requestID: JSON?) {
+        // A helper asking to run a command asks here, in the chat that started it.
+        if requestID != nil {
+            handleCodex(method: method, params: params, requestID: requestID)
+            return
+        }
+        switch method {
+        case "item/started":
+            if let item = params["item"], let label = Self.label(for: item) {
+                updateBackgroundTask(thread) { $0.detail = label }
+            }
+        case "turn/completed":
+            finishBackgroundTask(thread, failed: params["turn"]?["status"]?.string == "failed")
+        default:
+            break
+        }
+    }
+
+    /// "pong" for a helper at "/root/pong".
+    private static func helperName(_ item: JSON) -> String? {
+        guard let path = item["agentPath"]?.string, !path.isEmpty else { return nil }
+        return (path as NSString).lastPathComponent
+    }
+
+    private static func shortCommand(_ command: String) -> String {
+        // Codex wraps commands as `/bin/zsh -lc '…'`; the part inside is what was asked for.
+        var text = command
+        if let range = text.range(of: #"^/bin/(z|ba)?sh -lc '(.*)'$"#, options: .regularExpression) {
+            text = String(text[range]).replacingOccurrences(of: #"^/bin/(z|ba)?sh -lc '"#, with: "", options: .regularExpression)
+            text.removeLast()
+        }
+        return text.count > 80 ? String(text.prefix(79)) + "\u{2026}" : text
+    }
+
     private static func label(for item: JSON) -> String? {
         switch item["type"]?.string {
         case "commandExecution":
-            let command = item["command"]?.string ?? ""
-            let short = command.count > 80 ? String(command.prefix(79)) + "\u{2026}" : command
-            return "Running `\(short)`"
+            return "Running `\(shortCommand(item["command"]?.string ?? ""))`"
         case "fileChange":
             let paths = (item["changes"]?.array ?? []).compactMap { $0["path"]?.string }
             let names = paths.map { ($0 as NSString).lastPathComponent }
@@ -528,8 +626,22 @@ extension ChatSession {
             return "Generating an image"
         case "contextCompaction":
             return "Summarizing earlier conversation to make room"
-        case "collabAgentToolCall", "subAgentActivity":
-            return "Working with a helper agent"
+        case "subAgentActivity":
+            let name = helperName(item).map { " \u{201C}\($0)\u{201D}" } ?? ""
+            switch item["kind"]?.string {
+            case "started": return "Started helper agent\(name)"
+            case "completed": return "Helper agent\(name) finished"
+            case "interrupted": return "Helper agent\(name) stopped"
+            default: return "Sent helper agent\(name) a message"
+            }
+        case "collabAgentToolCall":
+            switch item["tool"]?.string {
+            case "spawnAgent": return "Starting a helper agent"
+            case "wait": return "Waiting on helper agents"
+            case "closeAgent", "interruptAgent": return "Stopping a helper agent"
+            case "listAgents": return "Checking on helper agents"
+            default: return "Messaging a helper agent"
+            }
         default:
             return nil
         }

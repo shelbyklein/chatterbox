@@ -265,6 +265,10 @@ struct ChatView: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if session.hasBackgroundWork {
+                BackgroundWorkBar(session: session, color: appearance.style.color(for: session.record.backend))
+                    .padding(.leading, 34)
+            }
             if waitingCard != nil { waitingTray }
             if !commandMatches.isEmpty { commandMenu }
             if draft.hasPrefix("!") {

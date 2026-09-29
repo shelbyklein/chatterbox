@@ -151,6 +151,7 @@ extension ChatSession {
                 claudeCommands = list.compactMap(SlashCommand.init(claude:))
             }
             if message["subtype"]?.string == "compact_boundary" { claudeCompacted(message) }
+            claudeBackgroundEvent(message)
 
         case "stream_event":
             if let event = message["event"] { handleClaudeEvent(event) }
@@ -278,6 +279,8 @@ extension ChatSession {
             notice("Claude Code reported a problem: \(detail)")
         }
         if isError || claudeStopRequested { markRunningToolsFailed() }
+        // A subagent the reply was waiting on is done with it. Background ones carry on.
+        clearBackgroundTasks { !$0.detached }
         claudeUpdateContextWindow(result: result)
         // Anything still marked queued was taken in without an echo; nothing more is waiting.
         if (result["queued_turn_count"]?.int ?? 0) == 0 { clearQueuedMessages() }
@@ -304,8 +307,40 @@ extension ChatSession {
         markRunningToolsFailed()
         expirePendingApprovals()
         clearQueuedMessages()
+        clearBackgroundTasks()
         isRunning = false
         onChange?(self)
+    }
+
+    /// Claude Code reports each subagent and background command as a task: started, its
+    /// progress, and when it ends. `background_tasks_changed` lists the background ones.
+    private func claudeBackgroundEvent(_ message: JSON) {
+        switch message["subtype"]?.string {
+        case "task_started":
+            // A subagent's own commands show as that subagent's progress instead.
+            guard let id = message["task_id"]?.string, message["owned_by_subagent"]?.bool != true else { return }
+            let isAgent = message["task_type"]?.string == "local_agent"
+            let detached = message["is_backgrounded"]?.bool == true
+            guard isAgent || detached else { return }
+            addBackgroundTask(BackgroundTask(id: id, kind: isAgent ? .agent : .shell,
+                                             title: message["description"]?.string ?? (isAgent ? "Subagent" : "Shell command"),
+                                             detached: detached))
+        case "task_progress":
+            guard let id = message["task_id"]?.string, let detail = message["description"]?.string else { return }
+            updateBackgroundTask(id) { $0.detail = detail }
+        case "task_updated":
+            guard let id = message["task_id"]?.string, let status = message["patch"]?["status"]?.string,
+                  status != "running", status != "pending" else { return }
+            finishBackgroundTask(id, failed: status == "failed")
+        case "task_notification":
+            guard let id = message["task_id"]?.string else { return }
+            finishBackgroundTask(id, failed: message["status"]?.string == "failed")
+        case "background_tasks_changed":
+            let live = Set((message["tasks"]?.array ?? []).compactMap { $0["task_id"]?.string })
+            clearBackgroundTasks { $0.detached && !live.contains($0.id) }
+        default:
+            break
+        }
     }
 
     /// Files Claude writes that can be looked at (a web page, an SVG, an image) appear in the

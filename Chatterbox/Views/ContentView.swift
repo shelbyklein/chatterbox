@@ -372,7 +372,7 @@ private struct StudioRow: View {
             if collapsed {
                 if chats.contains(where: \.isWaitingOnYou) {
                     Circle().fill(Color.yellow).frame(width: 7, height: 7).help("A chat here is waiting on you")
-                } else if chats.contains(where: \.isRunning) {
+                } else if chats.contains(where: { $0.isRunning || $0.hasBackgroundWork }) {
                     ActivitySpinner(color: .secondary).frame(width: 10, height: 10).help("A chat here is working")
                 } else if !chats.isEmpty {
                     Text("\(chats.count)").font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
@@ -438,6 +438,11 @@ private struct SidebarRow: View {
                 ActivitySpinner(color: appearance.style.color(for: session.record.backend))
                     .frame(width: 10, height: 10)
                     .help("\(session.record.backend.label) is working")
+            } else if session.hasBackgroundWork {
+                // The reply is done, but a subagent or command is still going.
+                ActivitySpinner(color: .secondary)
+                    .frame(width: 10, height: 10)
+                    .help("Running in the background: \(session.backgroundTasks.map(\.title).joined(separator: ", "))")
             }
         }
     }

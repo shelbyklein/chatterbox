@@ -67,6 +67,9 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var codexStopRequested = false
     /// Stopping so a message can go straight in ("Send Now"), not a plain Stop.
     @ObservationIgnored var stoppingToSend = false
+    /// Codex commands in progress this turn (item id → command and process), so any still
+    /// running when the reply ends carry on as background tasks.
+    @ObservationIgnored var codexRunningCommands: [String: (command: String, processID: Int32?)] = [:]
 
     nonisolated let id: UUID
     var items: [DisplayItem] { record.items }

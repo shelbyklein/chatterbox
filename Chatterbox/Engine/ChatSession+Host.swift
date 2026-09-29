@@ -45,6 +45,7 @@ extension ChatSession {
     /// every chat has done this (`CodexAppServer.resume`).
     func resumeFromHost(_ processes: [HostProcess]) {
         awaitingHostResume = false
+        defer { resumeBackgroundWatches() }
         let ids = Set(processes.map(\.id))
         var claudeAlive = false, codexAlive = false
 
@@ -97,6 +98,8 @@ extension ChatSession {
     /// What a run that can't be continued left behind: requests nobody can answer anymore,
     /// tools that never finished, and text that was still streaming.
     func settleInterruptedWork() {
+        // Nothing of the agent is left to report on them.
+        record.backgroundTasks = nil
         for index in record.items.indices {
             if record.items[index].approvalState == .pending { record.items[index].approvalState = .expired }
             if record.items[index].kind == .tool, record.items[index].toolState == .running {

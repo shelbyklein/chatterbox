@@ -170,6 +170,8 @@ struct ConversationRecord: Codable {
     /// a reply that kept going while the app was closed. Older records leave these unset.
     var claudeHost: HostLink?
     var codexHost: HostLink?
+    /// Subagents and background commands still running (see BackgroundTasks.swift).
+    var backgroundTasks: [BackgroundTask]?
 }
 
 /// Where a chat's agent runs in ChatterboxHost and how far its output had been handled when
