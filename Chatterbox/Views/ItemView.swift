@@ -22,6 +22,7 @@ struct ItemView: View {
         case .notice: noticeRow
         case .approval: ApprovalCard(item: item) { onApproval(item.id, $0) }
         case .image: GeneratedImages(item: item)
+        case .shell: ShellBlock(item: item)
         case .questions: QuestionCard(item: item, agent: agent) { onAnswer(item.id, $0) }
         }
     }
@@ -550,5 +551,49 @@ extension EnvironmentValues {
     var cardFillsWidth: Bool {
         get { self[CardFillsWidthKey.self] }
         set { self[CardFillsWidthKey.self] = newValue }
+    }
+}
+
+/// A "!" command you ran: the command, its output (the last lines, with the rest one click
+/// away), and the exit code when it failed.
+private struct ShellBlock: View {
+    let item: DisplayItem
+    @Environment(\.readerStyle) private var style
+    @State private var expanded = false
+
+    private var lines: [Substring] { (item.detail ?? "").split(separator: "\n", omittingEmptySubsequences: false) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text("$ " + item.text).font(style.code.weight(.semibold)).textSelection(.enabled).lineLimit(2)
+                Spacer(minLength: 8)
+                switch item.toolState {
+                case .running: ProgressView().controlSize(.small)
+                case .done: Image(systemName: "checkmark").font(.caption).foregroundStyle(.secondary)
+                case .failed: Text("failed").font(.caption.weight(.medium)).foregroundStyle(.orange)
+                }
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(item.detail ?? "", forType: .string)
+                } label: { Image(systemName: "doc.on.doc") }
+                    .buttonStyle(.borderless)
+                    .help("Copy output")
+            }
+            let output = (item.detail ?? "").trimmingCharacters(in: .newlines)
+            if !output.isEmpty {
+                let shown = expanded || lines.count <= 14 ? output : lines.suffix(14).joined(separator: "\n")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(shown).font(style.code).foregroundStyle(.secondary).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if lines.count > 14 {
+                    Button(expanded ? "Show less" : "Show all \(lines.count) lines") { expanded.toggle() }
+                        .buttonStyle(.link).font(.caption)
+                }
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
     }
 }

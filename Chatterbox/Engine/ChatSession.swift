@@ -88,6 +88,11 @@ final class ChatSession: Identifiable {
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
         // Writing in an archived chat brings it back.
         if record.archivedAt != nil { setArchived(false) }
+        // "!command" runs in the chat's folder instead of going to the agent.
+        if message.text.hasPrefix("!"), attachments.isEmpty {
+            runShell(String(message.text.dropFirst()).trimmingCharacters(in: .whitespaces))
+            return
+        }
         switch record.backend {
         case .codex: codexSend(message)
         case .claude: claudeSend(message)
@@ -237,6 +242,8 @@ final class ChatSession: Identifiable {
                 parts.append("Assistant: " + item.text)
             case .plan:
                 parts.append("Plan: " + item.planSteps.map { "[\($0.status)] \($0.step)" }.joined(separator: "; "))
+            case .shell:
+                parts.append("User ran: $ \(item.text)\n" + String((item.detail ?? "").suffix(4_000)))
             case .questions:
                 let qa = (item.questions ?? []).map { q in
                     "Q: \(q.question) A: \((item.answers?[q.id] ?? ["(no answer)"]).joined(separator: ", "))"

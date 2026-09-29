@@ -60,7 +60,7 @@ struct PlanStep: Codable, Equatable, Hashable {
 
 /// One row in the transcript. The API history is stored separately; this is only what the user sees.
 struct DisplayItem: Identifiable, Codable, Equatable {
-    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval, image, questions }
+    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval, image, questions, shell }
     /// Assistant text is either narration mid-task (commentary) or the reply that ends a turn (final).
     enum Phase: String, Codable { case streaming, commentary, final }
     enum ToolState: String, Codable { case running, done, failed }
@@ -148,6 +148,8 @@ struct ConversationRecord: Codable {
     var codexSeenThrough: UUID?
     /// Transcript of what the incoming agent missed, delivered with its next message.
     var pendingHandoff: String?
+    /// "!" commands you ran and their output, delivered with your next message to the agent.
+    var pendingShellContext: String?
 
     var backend: Backend { activeBackend ?? (codex == nil ? .claude : .codex) }
 

@@ -74,6 +74,7 @@ extension ChatSession {
                 input.append(Self.textInput(Prompts.personalitySpec(record.personality)))
                 record.sentPersonality = record.personality
             }
+            if let shell = takeShellContext() { input.append(Self.textInput(shell)) }
             if let handoff = record.pendingHandoff {
                 input.append(Self.textInput(handoff))
                 record.pendingHandoff = nil

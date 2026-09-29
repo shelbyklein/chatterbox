@@ -15,6 +15,7 @@ extension ChatSession {
         do {
             let process = try claudeEnsureProcess(earlierItems: earlierItems)
             var content: [JSON] = []
+            if let shell = takeShellContext() { content.append(.text(shell)) }
             if let handoff = record.pendingHandoff {
                 content.append(.text(handoff))
                 record.pendingHandoff = nil

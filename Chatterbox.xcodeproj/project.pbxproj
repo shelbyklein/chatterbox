@@ -28,6 +28,7 @@
 		57D138F3E0F30EAC4F1EF78D /* Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B1A8FD57BD2D2C11BC4B51 /* Host.swift */; };
 		59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */; };
 		5CBC37DD0167C0D78291D969 /* CloneFromGitHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */; };
+		5E7A560F77F5DFA853740235 /* ChatSession+Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */; };
 		677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */; };
 		6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A125487FAFCF644CD583045D /* Prompts.swift */; };
 		6DBCD914CBA6AE11534A1FBF /* SlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */; };
@@ -136,6 +137,7 @@
 		DBCA3F2B7277E38C199221AE /* Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachments.swift; sourceTree = "<group>"; };
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E34B3EA688DB4D5120202F4A /* Attention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attention.swift; sourceTree = "<group>"; };
+		E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Shell.swift"; sourceTree = "<group>"; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 				C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */,
 				C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */,
 				A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */,
+				E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */,
 				E7786246032F89E4E0C70184 /* ChatSession+Status.swift */,
 				294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */,
 				3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */,
@@ -360,6 +363,7 @@
 				27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */,
 				E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */,
 				CD177B0129A911BCBAFC510C /* ChatSession+Issues.swift in Sources */,
+				5E7A560F77F5DFA853740235 /* ChatSession+Shell.swift in Sources */,
 				8FD50A86B332AEA5CCEBC1C5 /* ChatSession+Status.swift in Sources */,
 				FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */,
 				56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */,

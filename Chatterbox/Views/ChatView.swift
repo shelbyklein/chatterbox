@@ -266,6 +266,12 @@ struct ChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             if waitingCard != nil { waitingTray }
             if !commandMatches.isEmpty { commandMenu }
+            if draft.hasPrefix("!") {
+                Label("Runs in your shell in \((session.workingFolder as NSString).abbreviatingWithTildeInPath). The output goes to \(session.record.backend.label) with your next message.",
+                      systemImage: "terminal")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.leading, 34)
+            }
             if !attachments.isEmpty { attachmentTray }
             if let attachError {
                 Label(attachError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
