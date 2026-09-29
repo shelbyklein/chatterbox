@@ -61,8 +61,13 @@ final class AppModel {
     static var keepRepliesRunning: Bool { UserDefaults.standard.object(forKey: keepRepliesRunningKey) as? Bool ?? true }
 
     init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
+        // CHATTERBOX_DATA_DIR keeps tests away from the user's real chats.
+        if let dir = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], !dir.isEmpty {
+            directory = URL(fileURLWithPath: dir, isDirectory: true).appendingPathComponent("Conversations", isDirectory: true)
+        } else {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
+        }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         load()
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }

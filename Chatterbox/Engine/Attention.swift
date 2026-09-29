@@ -29,6 +29,8 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     func start(model: AppModel) {
         guard self.model == nil else { return }
         self.model = model
+        // Notifications need a real app bundle; test harnesses run without one.
+        guard Bundle.main.bundleIdentifier != nil else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let allow = UNNotificationAction(identifier: "allow", title: "Allow")
@@ -132,7 +134,7 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func post(_ content: UNMutableNotificationContent, session: ChatSession, item: UUID?) {
-        guard authorized else { return }
+        guard authorized, Bundle.main.bundleIdentifier != nil else { return }
         if playSound { content.sound = .default }
         content.threadIdentifier = session.id.uuidString
         content.userInfo = ["session": session.id.uuidString, "item": item?.uuidString ?? ""]

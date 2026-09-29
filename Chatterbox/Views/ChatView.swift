@@ -156,11 +156,17 @@ struct ChatView: View {
                     let agents = session.agentsByItem
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(visibleItems) { item in
-                            ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
-                                     agent: agents[item.id] ?? session.record.backend,
-                                     onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
-                                .padding(.vertical, rowPadding(item))
-                                .id(item.id)
+                            Group {
+                                if isWaitingOnYou(item) {
+                                    waitingMarker(item)
+                                } else {
+                                    ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
+                                             agent: agents[item.id] ?? session.record.backend,
+                                             onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+                                }
+                            }
+                            .padding(.vertical, rowPadding(item))
+                            .id(item.id)
                         }
                         if session.isRunning && !isVisiblyWorking {
                             TypingIndicator()
@@ -212,8 +218,44 @@ struct ChatView: View {
 
     // MARK: - Composer
 
+    // MARK: - Waiting on you
+
+    /// Approvals and questions waiting for an answer. They're shown above the message box, not
+    /// in the transcript: the transcript is a lazy list, and when rows near the bottom change
+    /// height it keeps stale click positions until you scroll, so card buttons missed.
+    private func isWaitingOnYou(_ item: DisplayItem) -> Bool {
+        (item.kind == .approval || item.kind == .questions) && item.approvalState == .pending
+    }
+
+    /// The earliest waiting card; the rest follow once it's answered.
+    private var waitingCard: DisplayItem? { session.items.first(where: isWaitingOnYou) }
+
+    private func waitingMarker(_ item: DisplayItem) -> some View {
+        Label(item.kind == .questions ? "Waiting for your answer below" : "Waiting for your approval below",
+              systemImage: "arrow.down.circle")
+            .font(.callout)
+            .foregroundStyle(.tint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var waitingTray: some View {
+        ScrollView {
+            if let item = waitingCard {
+                ItemView(item: item, agent: session.record.backend,
+                         onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .id(item.id)
+            }
+        }
+        // Tall cards (a long plan) scroll inside the tray instead of pushing the chat away.
+        .frame(maxHeight: 360)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.leading, 34)
+    }
+
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if waitingCard != nil { waitingTray }
             if !commandMatches.isEmpty { commandMenu }
             if !attachments.isEmpty { attachmentTray }
             if let attachError {
