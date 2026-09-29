@@ -9,6 +9,7 @@ struct ItemView: View {
     /// For user messages: the agent it went to, which picks the bubble color.
     var agent: Backend = .claude
     var onApproval: (UUID, DisplayItem.ApprovalState) -> Void = { _, _ in }
+    var onAnswer: (UUID, [String: [String]]?) -> Void = { _, _ in }
     @Environment(\.readerStyle) private var style
 
     var body: some View {
@@ -21,6 +22,7 @@ struct ItemView: View {
         case .notice: noticeRow
         case .approval: ApprovalCard(item: item) { onApproval(item.id, $0) }
         case .image: GeneratedImages(item: item)
+        case .questions: QuestionCard(item: item) { onAnswer(item.id, $0) }
         }
     }
 
@@ -373,4 +375,150 @@ private final class SheenNSView: NSView {
 
 extension View {
     func shimmering(_ active: Bool) -> some View { modifier(Shimmer(active: active)) }
+}
+
+/// Questions from the agent, one at a time: pick options or type an answer, then submit.
+/// Once answered it shows a short summary of what you chose.
+private struct QuestionCard: View {
+    let item: DisplayItem
+    let submit: ([String: [String]]?) -> Void
+
+    @State private var index = 0
+    @State private var picks: [String: Set<String>] = [:]
+    @State private var other: [String: String] = [:]
+    @FocusState private var otherFocused: Bool
+
+    private var questions: [AgentQuestion] { item.questions ?? [] }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if item.approvalState == .pending, questions.indices.contains(index) {
+                asking(questions[index])
+            } else {
+                answered
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: 560, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor.opacity(item.approvalState == .pending ? 0.07 : 0.03)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor.opacity(item.approvalState == .pending ? 0.5 : 0.15)))
+    }
+
+    private func asking(_ question: AgentQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(question.header.isEmpty ? "Question" : question.header, systemImage: "questionmark.bubble")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                Spacer()
+                if questions.count > 1 {
+                    Text("\(index + 1) of \(questions.count)").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text(question.question).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+            if question.multiSelect {
+                Text("Choose any that apply").font(.caption).foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(question.options.enumerated()), id: \.offset) { number, option in
+                    optionRow(option, number: number + 1, question: question)
+                }
+            }
+
+            Group {
+                if question.isSecret {
+                    SecureField("Type your answer", text: binding(for: question))
+                } else {
+                    TextField(question.options.isEmpty ? "Type your answer" : "Other\u{2026}", text: binding(for: question), axis: .vertical)
+                        .lineLimit(1...4)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .focused($otherFocused)
+            .onSubmit(advance)
+
+            HStack {
+                Button("Skip") { submit(nil) }.help("Don't answer; the agent carries on without these")
+                Spacer()
+                if index > 0 { Button("Back") { index -= 1 } }
+                Button(index == questions.count - 1 ? "Submit" : "Next", action: advance)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(answer(for: question).isEmpty)
+            }
+            .controlSize(.small)
+        }
+        .id(question.id)
+    }
+
+    private func optionRow(_ option: AgentQuestion.Option, number: Int, question: AgentQuestion) -> some View {
+        let selected = picks[question.id, default: []].contains(option.label)
+        return Button {
+            var set = picks[question.id, default: []]
+            if question.multiSelect {
+                if selected { set.remove(option.label) } else { set.insert(option.label) }
+            } else {
+                set = selected ? [] : [option.label]
+            }
+            picks[question.id] = set
+            // A single choice with nothing typed moves straight on.
+            if !question.multiSelect, !selected, (other[question.id] ?? "").isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { advance() }
+            }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: question.multiSelect ? (selected ? "checkmark.square.fill" : "square") : (selected ? "largecircle.fill.circle" : "circle"))
+                    .foregroundStyle(selected ? Color.accentColor : .secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(option.label)
+                    if !option.detail.isEmpty, option.detail != option.label {
+                        Text(option.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.04)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var answered: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(item.approvalState == .approved ? "Answered" : item.approvalState == .denied ? "Skipped" : "No longer needed",
+                  systemImage: item.approvalState == .approved ? "checkmark.circle" : "questionmark.bubble")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(item.approvalState == .approved ? .green : .secondary)
+            ForEach(questions) { question in
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(question.question).font(.callout).foregroundStyle(.secondary)
+                    if let answer = item.answers?[question.id] {
+                        Text(question.isSecret ? "\u{2022}\u{2022}\u{2022}\u{2022}" : answer.joined(separator: ", ")).font(.callout.weight(.medium))
+                    }
+                }
+            }
+        }
+    }
+
+    private func binding(for question: AgentQuestion) -> Binding<String> {
+        Binding(get: { other[question.id] ?? "" }, set: { other[question.id] = $0 })
+    }
+
+    /// Picked options, plus anything typed.
+    private func answer(for question: AgentQuestion) -> [String] {
+        let chosen = question.options.map(\.label).filter { picks[question.id, default: []].contains($0) }
+        let typed = (other[question.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return chosen + (typed.isEmpty ? [] : [typed])
+    }
+
+    private func advance() {
+        guard questions.indices.contains(index), !answer(for: questions[index]).isEmpty else { return }
+        if index < questions.count - 1 {
+            index += 1
+        } else {
+            submit(Dictionary(uniqueKeysWithValues: questions.map { ($0.id, answer(for: $0)) }))
+        }
+    }
 }

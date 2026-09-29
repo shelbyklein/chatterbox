@@ -26,6 +26,10 @@ final class ChatSession: Identifiable {
     /// Tool name and input per call, to preview files Claude writes once the write succeeds.
     @ObservationIgnored var claudeToolCalls: [String: (name: String, input: JSON)] = [:]
     @ObservationIgnored var claudePlanItem: UUID?
+    /// Messages already shown from the live stream. Slash-command output arrives whole instead.
+    @ObservationIgnored var claudeStreamedMessages: Set<String> = []
+    /// Slash commands and skills this chat's Claude Code session offers (includes project ones).
+    var claudeCommands: [SlashCommand]?
     @ObservationIgnored var claudeStopRequested = false
 
     // Codex state (see ChatSession+Codex.swift).
@@ -72,6 +76,14 @@ final class ChatSession: Identifiable {
         }
     }
 
+    /// Answers a question card; nil means you skipped it.
+    func answerQuestions(_ itemID: UUID, answers: [String: [String]]?) {
+        switch record.backend {
+        case .codex: codexAnswer(itemID, answers: answers)
+        case .claude: claudeAnswer(itemID, answers: answers)
+        }
+    }
+
     /// Stops any agent process this chat owns, e.g. when the chat is deleted.
     func shutdown() {
         interrupt()
@@ -87,14 +99,17 @@ final class ChatSession: Identifiable {
     }
 
     /// Which agent each user message went to. Older rows didn't record it, so it's worked out
-    /// from the "Switched to …" notes, walking back from the agent answering now.
+    /// from the agent-switch notes, walking back from the agent answering now.
     var agentsByItem: [UUID: Backend] {
         var result: [UUID: Backend] = [:]
         var current = record.backend
         for item in record.items.reversed() {
-            if item.kind == .notice, item.text.hasPrefix("Switched to ") {
+            let isOldSwitch = item.kind == .notice && item.text.hasPrefix("Switched to ")
+            let isSwitch = item.isSettingsChange == true && item.text.hasSuffix("caught up on this chat.")
+            if isOldSwitch || isSwitch {
                 // Before this note, the other agent was answering.
-                current = item.text.hasPrefix("Switched to Codex") ? .claude : .codex
+                let toCodex = item.text.hasPrefix("Switched to Codex") || item.text.hasPrefix("Now using Codex")
+                current = toCodex ? .claude : .codex
             }
             if item.kind == .user { result[item.id] = item.agent ?? current }
         }
@@ -140,8 +155,38 @@ final class ChatSession: Identifiable {
         record.activeBackend = backend
         // The incoming agent may not have seen the current tone.
         record.sentPersonality = nil
-        if !record.items.isEmpty { notice("Switched to \(backend.label). It has been caught up on this chat.") }
+        noteSettingsChange(switchedAgent: true)
         onChange?(self)
+    }
+
+    /// The agent, model, and effort in words, e.g. "Claude · Opus 5.5 · Medium effort".
+    var settingsDescription: String {
+        switch record.backend {
+        case .claude:
+            let model = ClaudeModels.shared.info(record.model)
+            let effort = record.effort.isEmpty ? "default effort" : "\(ChatView.effortLabel(record.effort)) effort"
+            return "Claude \u{00B7} \(model.displayName)" + (model.efforts.isEmpty ? "" : " \u{00B7} \(effort)")
+        case .codex:
+            let models = CodexAppServer.shared.models
+            let name = models.first { $0.model == record.codex?.model }?.displayName
+                ?? models.first(where: \.isDefault).map { "\($0.displayName) (default)" } ?? "default model"
+            let effort = record.codex?.effort.map { "\(ChatView.effortLabel($0)) effort" } ?? "default effort"
+            return "Codex \u{00B7} \(name) \u{00B7} \(effort)"
+        }
+    }
+
+    /// Adds a line to the chat when the agent, model, or effort changes. Changes made in a row
+    /// (a preset, dragging the effort slider) update the same line instead of adding more.
+    func noteSettingsChange(switchedAgent: Bool = false) {
+        guard record.items.contains(where: { $0.kind == .user }) else { return }
+        let caughtUp = " It has been caught up on this chat."
+        if let last = record.items.indices.last, record.items[last].isSettingsChange == true {
+            let wasSwitch = record.items[last].text.hasSuffix(caughtUp)
+            record.items[last].text = "Now using \(settingsDescription)." + (switchedAgent || wasSwitch ? caughtUp : "")
+        } else {
+            record.items.append(DisplayItem(kind: .notice, text: "Now using \(settingsDescription)." + (switchedAgent ? caughtUp : ""),
+                                            isSettingsChange: true))
+        }
     }
 
     /// A plain-text record of the conversation for handing it to another agent.
@@ -159,6 +204,11 @@ final class ChatSession: Identifiable {
                 parts.append("Assistant: " + item.text)
             case .plan:
                 parts.append("Plan: " + item.planSteps.map { "[\($0.status)] \($0.step)" }.joined(separator: "; "))
+            case .questions:
+                let qa = (item.questions ?? []).map { q in
+                    "Q: \(q.question) A: \((item.answers?[q.id] ?? ["(no answer)"]).joined(separator: ", "))"
+                }
+                parts.append("Assistant asked:\n" + qa.joined(separator: "\n"))
             case .image:
                 let files = (item.attachments ?? []).map(\.path).joined(separator: ", ")
                 parts.append("Assistant produced a file to look at" + (item.text.isEmpty ? "" : " (\(item.text))") + ": " + files)
@@ -246,16 +296,20 @@ final class ChatSession: Identifiable {
     }
 
     func setModel(_ model: String) {
+        guard model != record.model else { return }
         record.model = model
         let efforts = ClaudeModels.shared.info(model).efforts
         if !record.effort.isEmpty, !efforts.contains(record.effort) { record.effort = "" }
         claudeApplyModel()
+        if record.backend == .claude { noteSettingsChange() }
         onChange?(self)
     }
 
     func setEffort(_ effort: String) {
+        guard effort != record.effort else { return }
         record.effort = effort
         claudeApplyEffort()
+        if record.backend == .claude { noteSettingsChange() }
         onChange?(self)
     }
 

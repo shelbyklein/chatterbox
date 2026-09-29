@@ -78,9 +78,7 @@ final class ClaudeCodeProcess {
                     "--model", config.model, "--permission-mode", config.permissionMode,
                     // Only makes "Bypass permissions" selectable later; the mode above still applies.
                     "--allow-dangerously-skip-permissions",
-                    "--append-system-prompt", config.appendSystemPrompt,
-                    // The chat window has its own ways to ask; this tool would stall the turn.
-                    "--disallowed-tools", "AskUserQuestion"]
+                    "--append-system-prompt", config.appendSystemPrompt]
         if !config.effort.isEmpty { args += ["--effort", config.effort] }
         if let id = config.resumeSessionID { args += ["--resume", id] }
         for dir in config.extraDirectories { args += ["--add-dir", dir] }
@@ -204,6 +202,7 @@ final class ClaudeCodeProcess {
 /// and who is signed in. Starting up doesn't call the model, so it costs nothing.
 struct ClaudeCodeInfo {
     var models: [ClaudeCodeModel]
+    var commands: [SlashCommand]
     var accountEmail: String?
     var plan: String?
 
@@ -233,7 +232,9 @@ struct ClaudeCodeInfo {
                 efforts: m["supportsEffort"]?.bool == true ? (m["supportedEffortLevels"]?.array ?? []).compactMap(\.string) : []
             )
         }
-        return ClaudeCodeInfo(models: models, accountEmail: response["account"]?["email"]?.string,
+        return ClaudeCodeInfo(models: models,
+                              commands: (response["commands"]?.array ?? []).compactMap(SlashCommand.init(claude:)),
+                              accountEmail: response["account"]?["email"]?.string,
                               plan: response["account"]?["subscriptionType"]?.string)
     }
 }

@@ -23,6 +23,8 @@ struct SettingsView: View {
                 .tabItem { Label("General", systemImage: "gearshape") }
             AppearanceSettingsView()
                 .tabItem { Label("Appearance", systemImage: "textformat.size") }
+            InstructionsSettingsView()
+                .tabItem { Label("Instructions", systemImage: "text.book.closed") }
         }
     }
 
@@ -272,5 +274,95 @@ private struct AppearanceSettingsView: View {
             }
             if let hint { Text(hint).font(.caption).foregroundStyle(.secondary) }
         }
+    }
+}
+
+/// Settings → Instructions: what Chatterbox tells both agents, your own instructions for
+/// every chat, and each agent's own global file.
+private struct InstructionsSettingsView: View {
+    @AppStorage("defaultPersonality") private var personality = Personality.friendly
+    @State private var draft = Prompts.userInstructions
+    @State private var saved = Prompts.userInstructions
+
+    var body: some View {
+        Form {
+            Section {
+                ScrollView {
+                    Text(Prompts.agentInstructions(personality))
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 170)
+            } header: {
+                Text("Chatterbox instructions")
+            } footer: {
+                Text("Added to Claude Code's and Codex's own system prompts in every chat: your tone (shown for the default tone), plus notes about the chat window. Each agent keeps its own base prompt.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                TextEditor(text: $draft)
+                    .font(.system(.callout, design: .monospaced))
+                    .frame(height: 170)
+                HStack {
+                    Button("Save") { save() }.disabled(draft == saved)
+                    Button("Revert") { draft = saved }.disabled(draft == saved)
+                    Spacer()
+                    Button("Show File") { reveal(Prompts.userInstructionsFile) }
+                }
+            } header: {
+                Text("Your instructions for every chat")
+            } footer: {
+                Text("Sent to both agents. New chats get them in their instructions; ongoing chats get the update with your next message. Stored in \((Prompts.userInstructionsFile.path as NSString).abbreviatingWithTildeInPath).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                fileRow("Claude Code: ~/.claude/CLAUDE.md", "\(NSHomeDirectory())/.claude/CLAUDE.md")
+                fileRow("Codex: ~/.codex/AGENTS.md", "\(NSHomeDirectory())/.codex/AGENTS.md")
+            } header: {
+                Text("Each agent's own global instructions")
+            } footer: {
+                Text("In a project, Claude reads CLAUDE.md and Codex reads AGENTS.md. Chatterbox also gives each agent the other's file, so either one covers both. Edit them from the project's folder menu in the toolbar.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 520, height: 720)
+    }
+
+    private func save() {
+        let url = Prompts.userInstructionsFile
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? draft.write(to: url, atomically: true, encoding: .utf8)
+        saved = draft
+    }
+
+    private func fileRow(_ title: String, _ path: String) -> some View {
+        LabeledContent(title) {
+            Button(FileManager.default.fileExists(atPath: path) ? "Edit" : "Create") { openForEditing(path) }
+        }
+    }
+
+    private func reveal(_ url: URL) {
+        if !FileManager.default.fileExists(atPath: url.path) { save() }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+}
+
+/// Opens a Markdown file in the user's editor, creating it first if needed.
+@MainActor
+func openForEditing(_ path: String) {
+    let url = URL(fileURLWithPath: path)
+    if !FileManager.default.fileExists(atPath: path) {
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? "".write(to: url, atomically: true, encoding: .utf8)
+    }
+    let textEdit = URL(fileURLWithPath: "/System/Applications/TextEdit.app")
+    if NSWorkspace.shared.urlForApplication(toOpen: url) != nil {
+        NSWorkspace.shared.open(url)
+    } else {
+        NSWorkspace.shared.open([url], withApplicationAt: textEdit, configuration: NSWorkspace.OpenConfiguration())
     }
 }

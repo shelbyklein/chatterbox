@@ -26,6 +26,8 @@ final class CodexAppServer {
     static let shared = CodexAppServer()
 
     private(set) var models: [CodexModelInfo] = []
+    /// Skills per working folder, from `skills/list`.
+    private(set) var skills: [String: [SlashCommand]] = [:]
     private(set) var statusMessage: String?
 
     @ObservationIgnored private var process: Process?
@@ -166,6 +168,19 @@ final class CodexAppServer {
 
     func markLoaded(_ thread: String) {
         loadedThreads.insert(thread)
+    }
+
+    func refreshSkills(for folder: String) async {
+        guard (try? await ensureStarted()) != nil,
+              let result = try? await request("skills/list", ["cwds": [.string(folder)]]) else { return }
+        let entries = result["data"]?.array ?? []
+        let list = entries.flatMap { $0["skills"]?.array ?? [] }.compactMap { skill -> SlashCommand? in
+            guard let name = skill["name"]?.string, skill["enabled"]?.bool != false else { return nil }
+            return SlashCommand(name: name,
+                                description: skill["interface"]?["shortDescription"]?.string ?? skill["description"]?.string ?? "",
+                                codexSkillPath: skill["path"]?.string)
+        }
+        skills[folder] = list.sorted { $0.name < $1.name }
     }
 
     func refreshModels() async throws {

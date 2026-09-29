@@ -26,6 +26,8 @@ final class ClaudeModels {
     static let shared = ClaudeModels()
 
     private(set) var models: [ClaudeCodeModel] = []
+    /// Slash commands and skills available everywhere (a chat adds its project's own).
+    private(set) var commands: [SlashCommand] = []
     private(set) var accountEmail: String?
     private(set) var plan: String?
     /// Set when Claude Code is missing or couldn't start.
@@ -49,6 +51,7 @@ final class ClaudeModels {
         do {
             let info = try await ClaudeCodeInfo.probe()
             models = info.models
+            commands = info.commands
             accountEmail = info.accountEmail
             plan = info.plan
             statusMessage = info.accountEmail == nil ? "Claude Code isn't signed in. Run `claude` in Terminal and log in." : nil

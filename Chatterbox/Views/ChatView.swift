@@ -12,6 +12,9 @@ struct ChatView: View {
     @State private var pasteMonitor: Any?
     @State private var projectConflict: ChatSession?
     @State private var reviewing: Attachment?
+    @State private var commandIndex = 0
+    /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
+    @State private var dismissedCommandDraft: String?
     private let presets = ModelPresets.shared
     @FocusState private var composerFocused: Bool
     private let appearance = ReaderStyleSettings()
@@ -31,6 +34,11 @@ struct ChatView: View {
             guard let folder = session.record.projectFolder, !session.isRunning else { return }
             await GitStatusStore.shared.refresh(folder)
             session.updateGitHubRepo(from: GitStatusStore.shared.status(for: folder))
+        }
+        .task(id: session.record.backend == .codex ? session.record.codex?.folder : nil) {
+            if session.record.backend == .codex, let folder = session.record.codex?.folder {
+                await CodexAppServer.shared.refreshSkills(for: folder)
+            }
         }
         .onAppear {
             composerFocused = true
@@ -147,7 +155,7 @@ struct ChatView: View {
                         ForEach(visibleItems) { item in
                             ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
                                      agent: agents[item.id] ?? session.record.backend,
-                                     onApproval: session.resolveApproval)
+                                     onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
                                 .padding(.vertical, rowPadding(item))
                                 .id(item.id)
                         }
@@ -190,6 +198,7 @@ struct ChatView: View {
         case .assistant: return last.phase == .streaming
         case .tool: return last.toolState == .running
         case .thought: return true
+        case .questions, .approval: return last.approvalState == .pending
         default: return false
         }
     }
@@ -202,6 +211,7 @@ struct ChatView: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if !commandMatches.isEmpty { commandMenu }
             if !attachments.isEmpty { attachmentTray }
             if let attachError {
                 Label(attachError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
@@ -214,6 +224,67 @@ struct ChatView: View {
         .frame(maxWidth: appearance.style.contentWidth + 40)
         .frame(maxWidth: .infinity)
         .background(.bar)
+    }
+
+    // MARK: - Slash commands
+
+    /// Claude Code's commands and skills (including the project's), or Codex's skills.
+    private var availableCommands: [SlashCommand] {
+        if session.record.backend == .codex {
+            return session.record.codex.map { CodexAppServer.shared.skills[$0.folder] ?? [] } ?? []
+        }
+        return session.claudeCommands ?? ClaudeModels.shared.commands
+    }
+
+    /// Shown while the draft is "/" plus a partial command name.
+    private var commandMatches: [SlashCommand] {
+        guard draft.hasPrefix("/"), !draft.contains(where: \.isWhitespace), draft != dismissedCommandDraft else { return [] }
+        return Array(SlashCommand.matches(String(draft.dropFirst()), in: availableCommands).prefix(8))
+    }
+
+    private var commandMenu: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(commandMatches.enumerated()), id: \.element.id) { index, command in
+                Button { complete(command) } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("/" + command.name).font(.callout.weight(.semibold)).lineLimit(1)
+                        if let hint = command.argumentHint {
+                            Text(hint).font(.caption).foregroundStyle(.tertiary).lineLimit(1)
+                        }
+                        Text(command.description).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(index == commandIndex ? Color.accentColor.opacity(0.18) : .clear))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(RoundedRectangle(cornerRadius: 10).fill(.background))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+        .padding(.leading, 34)
+    }
+
+    private func moveCommandSelection(_ offset: Int) -> KeyPress.Result {
+        let count = commandMatches.count
+        guard count > 0 else { return .ignored }
+        commandIndex = (commandIndex + offset + count) % count
+        return .handled
+    }
+
+    private func completeCommand() -> KeyPress.Result {
+        let matches = commandMatches
+        guard !matches.isEmpty else { return .ignored }
+        complete(matches[min(commandIndex, matches.count - 1)])
+        return .handled
+    }
+
+    private func complete(_ command: SlashCommand) {
+        draft = "/\(command.name) "
+        composerFocused = true
     }
 
     private var canSend: Bool {
@@ -235,6 +306,18 @@ struct ChatView: View {
                 .lineLimit(1...8)
                 .focused($composerFocused)
                 .onSubmit(submit)
+                .onKeyPress(.upArrow) { moveCommandSelection(-1) }
+                .onKeyPress(.downArrow) { moveCommandSelection(1) }
+                .onKeyPress(.tab) { completeCommand() }
+                .onKeyPress(.return, phases: .down) { press in
+                    press.modifiers.contains(.shift) ? .ignored : completeCommand()
+                }
+                .onKeyPress(.escape) {
+                    guard !commandMatches.isEmpty else { return .ignored }
+                    dismissedCommandDraft = draft
+                    return .handled
+                }
+                .onChange(of: draft) { commandIndex = 0 }
                 .padding(.vertical, 9)
                 .padding(.horizontal, 12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(.background))
@@ -250,7 +333,16 @@ struct ChatView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .keyboardShortcut(".", modifiers: .command)
-                .help("Stop (\u{2318}.)")
+                .help("Stop (Esc or \u{2318}.)")
+                // Esc stops the reply from anywhere in the chat. While the "/" menu is open,
+                // Esc closes the menu instead.
+                if commandMatches.isEmpty {
+                    Button("Stop", action: session.interrupt)
+                        .keyboardShortcut(.escape, modifiers: [])
+                        .frame(width: 0, height: 0)
+                        .opacity(0)
+                        .accessibilityHidden(true)
+                }
             }
 
             Button(action: submit) {
@@ -318,7 +410,8 @@ struct ChatView: View {
                          onSelectRemote: session.setGitRemote)
             }
 
-            modelMenu(inline: false)
+            ModelPicker(session: session, compact: true, summary: modelSummary.full,
+                        color: appearance.style.color(for: session.record.backend))
         }
     }
 
@@ -334,11 +427,14 @@ struct ChatView: View {
             if let folder = session.record.projectFolder {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
                 Divider()
+                Button("Edit AGENTS.md") { openForEditing(folder + "/AGENTS.md") }
+                Button("Edit CLAUDE.md") { openForEditing(folder + "/CLAUDE.md") }
+                Divider()
                 Button("Unbind from Folder") { session.unbindProject() }
             }
         } label: {
             Label(projectFolderName ?? "No Project", systemImage: session.record.projectFolder == nil ? "folder.badge.plus" : "folder.fill")
-                .labelStyle(.titleAndIcon)
+                .labelStyle(SpacedLabelStyle())
         }
         .help(session.record.projectFolder.map { "This chat is bound to \($0). Claude and Codex work in this folder." }
               ?? "Bind this chat to a project folder so Claude or Codex can work in it. Each folder gets one chat.")
@@ -359,10 +455,9 @@ struct ChatView: View {
         HStack(spacing: 10) {
             modeMenu
                 .fixedSize()
-            // Gives up width first: the label shortens, then shows just the icon.
-            modelMenu(inline: true)
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.visible)
+            // Gives up width first: the name truncates, while the preset pills keep theirs.
+            ModelPicker(session: session, summary: modelSummary.full,
+                        color: appearance.style.color(for: session.record.backend))
             Spacer(minLength: 0)
             ForEach(presets.presets) { preset in
                 let active = presets.matches(preset, session: session)
@@ -422,102 +517,6 @@ struct ChatView: View {
         guard !current.efforts.isEmpty else { return ("Claude \u{00B7} \(modelName)", name) }
         return ("Claude \u{00B7} \(modelName) \u{00B7} \(effort ?? "Default") effort",
                 name + " \u{00B7} " + (effort ?? "Default"))
-    }
-
-    /// One menu for both agents. Picking a model from the other agent switches this chat to it.
-    private func modelMenu(inline: Bool) -> some View {
-        let catalog = ClaudeModels.shared
-        let codexModels = CodexAppServer.shared.models
-        let onClaude = session.record.backend == .claude
-        let claudeCurrent = catalog.info(session.record.model)
-        // Keep a chat's model selectable even if Claude Code no longer lists it.
-        let claudeModels = catalog.models.contains { $0.value == claudeCurrent.value } ? catalog.models : [claudeCurrent] + catalog.models
-        let codex = session.record.codex
-        let codexCurrent = codexModels.first { $0.model == codex?.model }
-        let summary = modelSummary
-
-        return Menu {
-            Section("Claude") {
-                ForEach(claudeModels) { m in
-                    Button { selectClaude(m.value) } label: {
-                        checkmarked(m.displayName, onClaude && m.value == claudeCurrent.value)
-                    }
-                    .disabled(session.isRunning && !onClaude)
-                    .help(m.detail)
-                }
-            }
-            Section("Codex") {
-                Button { selectCodex(nil) } label: { checkmarked("Codex default", !onClaude && codex?.model == nil) }
-                    .disabled(session.isRunning && onClaude)
-                ForEach(codexModels.filter { !$0.hidden || $0.model == codex?.model }) { m in
-                    Button { selectCodex(m.model) } label: { checkmarked(m.displayName, !onClaude && m.model == codex?.model) }
-                        .disabled(session.isRunning && onClaude)
-                }
-                let hidden = codexModels.filter { $0.hidden && $0.model != codex?.model }
-                if !hidden.isEmpty {
-                    Menu("More Codex Models") {
-                        ForEach(hidden) { m in Button(m.displayName) { selectCodex(m.model) } }
-                    }
-                    .disabled(session.isRunning && onClaude)
-                }
-            }
-            Divider()
-            if onClaude {
-                if !claudeCurrent.efforts.isEmpty {
-                    Picker("Effort", selection: Binding(get: { session.record.effort }, set: session.setEffort)) {
-                        Text("Model default").tag("")
-                        ForEach(claudeCurrent.efforts, id: \.self) { Text(Self.effortLabel($0)).tag($0) }
-                    }
-                }
-            } else if let codex {
-                Picker("Effort", selection: Binding(get: { codex.effort ?? "" }, set: { session.setCodexEffort($0.isEmpty ? nil : $0) })) {
-                    Text("Model default").tag("")
-                    ForEach(codexCurrent?.efforts ?? ["low", "medium", "high"], id: \.self) { Text(Self.effortLabel($0)).tag($0) }
-                }
-            }
-            Divider()
-            Button("Save as Preset") { presets.saveCurrent(session, title: summary.short) }
-            Button("Refresh Model Lists") {
-                Task {
-                    await catalog.refresh(force: true)
-                    try? await CodexAppServer.shared.refreshModels()
-                }
-            }
-            if let error = catalog.statusMessage { Text(error) }
-        } label: {
-            if inline {
-                ViewThatFits(in: .horizontal) {
-                    Label { Text(summary.full).lineLimit(1) } icon: { agentDot }
-                    Label { Text(summary.short).lineLimit(1) } icon: { agentDot }
-                    Label { Text(summary.short) } icon: { agentDot }.labelStyle(.iconOnly)
-                }
-            } else {
-                Label("Model", systemImage: "cpu")
-            }
-        }
-        .help(summary.full + ". Click to change.")
-        .task { await catalog.refresh() }
-        .task { if codexModels.isEmpty { try? await CodexAppServer.shared.refreshModels() } }
-    }
-
-    /// The current agent's color, next to the model name.
-    private var agentDot: some View {
-        Circle().fill(appearance.style.color(for: session.record.backend)).frame(width: 8, height: 8)
-    }
-
-    @ViewBuilder
-    private func checkmarked(_ title: String, _ on: Bool) -> some View {
-        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
-    }
-
-    private func selectClaude(_ id: String) {
-        session.setBackend(.claude)
-        session.setModel(id)
-    }
-
-    private func selectCodex(_ id: String?) {
-        session.setBackend(.codex)
-        session.setCodexModel(id)
     }
 
     static func effortLabel(_ effort: String) -> String {
@@ -717,7 +716,7 @@ private struct ModePicker: View {
     var body: some View {
         Button { isOpen.toggle() } label: {
             HStack(spacing: 3) {
-                Label(current.title, systemImage: current.systemImage).labelStyle(.titleAndIcon)
+                Label(current.title, systemImage: current.systemImage).labelStyle(SpacedLabelStyle())
                 Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
             }
             .foregroundStyle(current.isUnrestricted ? Color.orange : Color.secondary)
@@ -846,7 +845,7 @@ private struct RepoChip: View {
             } icon: {
                 Image(systemName: "arrow.triangle.branch")
             }
-            .labelStyle(.titleAndIcon)
+            .labelStyle(SpacedLabelStyle())
         }
         .help(helpText)
     }
@@ -860,5 +859,17 @@ private struct RepoChip: View {
             text += ". No upstream branch"
         }
         return text + "."
+    }
+}
+
+/// Icon then title with a little breathing room, for toolbar and status controls.
+struct SpacedLabelStyle: LabelStyle {
+    var spacing: CGFloat = 6
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: spacing) {
+            configuration.icon
+            configuration.title
+        }
     }
 }

@@ -14,13 +14,17 @@ extension ChatSession {
     }
 
     func setCodexModel(_ model: String?) {
+        guard model != record.codex?.model else { return }
         record.codex?.model = model
         record.codex?.effort = nil
+        noteSettingsChange()
         onChange?(self)
     }
 
     func setCodexEffort(_ effort: String?) {
+        guard effort != record.codex?.effort else { return }
         record.codex?.effort = effort
+        noteSettingsChange()
         onChange?(self)
     }
 
@@ -72,7 +76,16 @@ extension ChatSession {
                 input.append(Self.textInput(handoff))
                 record.pendingHandoff = nil
             }
-            input += Self.inputs(for: message)
+            if (record.instructionsVersion ?? 1) < Prompts.instructionsVersion {
+                input.append(Self.textInput(Prompts.instructionsUpdate))
+                record.instructionsVersion = Prompts.instructionsVersion
+            }
+            let user = Prompts.userInstructions
+            if user != (record.sentUserInstructions ?? "") {
+                input.append(Self.textInput(Prompts.userInstructionsUpdate(user)))
+                record.sentUserInstructions = user
+            }
+            input += inputs(for: message)
 
             var params: [String: JSON] = [
                 "threadId": .string(thread),
@@ -120,13 +133,15 @@ extension ChatSession {
             "cwd": .string(settings.folder),
             "approvalPolicy": approvalPolicy(settings),
             "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
-            "developerInstructions": .string(Prompts.agentInstructions(record.personality)),
+            "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.projectFolder)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
         let result = try await server.request("thread/start", .object(params))
         guard let id = result["thread"]?["id"]?.string else { throw CodexError(message: "Codex didn't return a thread.") }
         record.codex?.threadId = id
         record.sentPersonality = record.personality
+        record.sentUserInstructions = Prompts.userInstructions
+        record.instructionsVersion = Prompts.instructionsVersion
         server.register(thread: id, handler: handler)
         server.markLoaded(id)
         onChange?(self)
@@ -137,7 +152,7 @@ extension ChatSession {
         guard let thread = record.codex?.threadId else { return }
         do {
             _ = try await server.request("turn/steer", [
-                "threadId": .string(thread), "input": .array(Self.inputs(for: message)), "expectedTurnId": .string(turn),
+                "threadId": .string(thread), "input": .array(inputs(for: message)), "expectedTurnId": .string(turn),
             ])
         } catch {
             // The turn most likely finished a moment ago; send the text as a new turn.
@@ -146,17 +161,23 @@ extension ChatSession {
     }
 
     /// Images go to Codex as local images; other files are named by path so Codex can open them.
-    private static func inputs(for message: UserMessage) -> [JSON] {
+    /// A leading "/skill" becomes a skill input, which Codex loads before reading the text.
+    private func inputs(for message: UserMessage) -> [JSON] {
         var input: [JSON] = message.attachments.filter { $0.kind == .image }.map {
             ["type": "localImage", "path": .string($0.path)]
         }
         let files = message.attachments.filter { $0.kind != .image }
         var text = message.text
+        let skills = record.codex.map { server.skills[$0.folder] ?? [] } ?? []
+        if let (skill, rest) = SlashCommand.leading(text, in: skills), let path = skill.codexSkillPath {
+            input.append(["type": "skill", "name": .string(skill.name), "path": .string(path)])
+            text = rest.isEmpty ? "Use the \(skill.name) skill." : rest
+        }
         if !files.isEmpty {
             let list = files.map { "- \($0.name): \($0.path)" }.joined(separator: "\n")
             text += (text.isEmpty ? "" : "\n\n") + "Attached files (read them from these paths):\n" + list
         }
-        if !text.isEmpty { input.append(textInput(text)) }
+        if !text.isEmpty { input.append(Self.textInput(text)) }
         return input
     }
 
@@ -360,6 +381,14 @@ extension ChatSession {
 
     private func handleCodexRequest(method: String, params: JSON, id: JSON) {
         switch method {
+        case "item/tool/requestUserInput":
+            let questions = (params["questions"]?.array ?? []).enumerated().map { index, q in
+                AgentQuestion(id: q["id"]?.string ?? "q\(index)", header: q["header"]?.string ?? "",
+                              question: q["question"]?.string ?? "",
+                              options: (q["options"]?.array ?? []).map { .init(label: $0["label"]?.string ?? "", detail: $0["description"]?.string ?? "") },
+                              multiSelect: false, isSecret: q["isSecret"]?.bool ?? false)
+            }
+            appendItem(DisplayItem(kind: .questions, requestID: id, approvalState: .pending, questions: questions))
         case "item/commandExecution/requestApproval":
             let reason = params["reason"]?.string
             appendItem(DisplayItem(
@@ -382,6 +411,19 @@ extension ChatSession {
         default:
             server.respondError(to: id, message: "Chatterbox can't answer \(method) yet.")
         }
+    }
+
+    /// Sends answers keyed by question id; skipping sends none.
+    func codexAnswer(_ itemID: UUID, answers: [String: [String]]?) {
+        guard let item = record.items.first(where: { $0.id == itemID }),
+              item.approvalState == .pending, let requestID = item.requestID else { return }
+        let wire = (answers ?? [:]).mapValues { JSON.object(["answers": .array($0.map(JSON.string))]) }
+        server.respond(to: requestID, result: ["answers": .object(wire)])
+        updateItem(itemID) {
+            $0.answers = answers
+            $0.approvalState = answers == nil ? .denied : .approved
+        }
+        onChange?(self)
     }
 
     func codexResolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {

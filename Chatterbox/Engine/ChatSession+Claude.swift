@@ -23,6 +23,15 @@ extension ChatSession {
                 content.append(.text(Prompts.personalitySpec(record.personality)))
                 record.sentPersonality = record.personality
             }
+            if (record.instructionsVersion ?? 1) < Prompts.instructionsVersion {
+                content.append(.text(Prompts.instructionsUpdate))
+                record.instructionsVersion = Prompts.instructionsVersion
+            }
+            let user = Prompts.userInstructions
+            if user != (record.sentUserInstructions ?? "") {
+                content.append(.text(Prompts.userInstructionsUpdate(user)))
+                record.sentUserInstructions = user
+            }
             content += Attachments.claudeContent(for: message)
             process.sendUser(content)
             if !steered {
@@ -62,12 +71,16 @@ extension ChatSession {
             model: record.model,
             effort: record.effort,
             permissionMode: claudePermissionMode,
-            appendSystemPrompt: Prompts.agentInstructions(record.personality),
+            appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.projectFolder),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path]
         ))
-        // A fresh session gets the current tone in its system prompt.
-        if !resuming { record.sentPersonality = record.personality }
+        // A fresh session gets the current tone and instructions in its system prompt.
+        if !resuming {
+            record.sentPersonality = record.personality
+            record.sentUserInstructions = Prompts.userInstructions
+            record.instructionsVersion = Prompts.instructionsVersion
+        }
         claudeProcess = process
         return process
     }
@@ -119,11 +132,24 @@ extension ChatSession {
                 record.claudeSessionID = id
                 onChange?(self)
             }
+            // Includes the project's own commands once Claude Code has started in its folder.
+            if message["subtype"]?.string == "commands_changed", let list = message["commands"]?.array {
+                claudeCommands = list.compactMap(SlashCommand.init(claude:))
+            }
 
         case "stream_event":
             if let event = message["event"] { handleClaudeEvent(event) }
 
         case "assistant":
+            // Output that never streamed (e.g. from a slash command like /context): show it whole.
+            let messageID = message["message"]?["id"]?.string
+            if messageID.map({ !claudeStreamedMessages.contains($0) }) ?? true {
+                if let messageID { claudeStreamedMessages.insert(messageID) }
+                for block in message["message"]?["content"]?.array ?? [] where block["type"]?.string == "text" {
+                    guard let text = block["text"]?.string, !text.isEmpty else { continue }
+                    claudeRender.textItems.append(appendItem(DisplayItem(kind: .assistant, text: text, phase: .streaming)))
+                }
+            }
             // Complete blocks: tool inputs are only final here.
             for block in message["message"]?["content"]?.array ?? [] where block["type"]?.string == "tool_use" {
                 guard let useID = block["id"]?.string, let name = block["name"]?.string else { continue }
@@ -169,6 +195,7 @@ extension ChatSession {
         switch event["type"]?.string {
         case "message_start":
             claudeRender = ResponseRender()
+            if let id = event["message"]?["id"]?.string { claudeStreamedMessages.insert(id) }
             // Claude Code may start a new turn on its own, e.g. for a message queued during the last one.
             if !isRunning { isRunning = true }
 
@@ -185,7 +212,8 @@ extension ChatSession {
                 // Anything said before a tool call was narration, not the answer.
                 markClaudeTextAsCommentary()
                 let name = block["name"]?.string ?? ""
-                guard name != Tools.todoTool else { break }
+                // The plan card and question card stand in for these rows.
+                guard name != Tools.todoTool, name != "AskUserQuestion" else { break }
                 let id = appendItem(DisplayItem(kind: .tool, text: Tools.label(name: name, input: nil)))
                 claudeRender.itemForIndex[index] = id
                 if let useID = block["id"]?.string { claudeToolItems[useID] = id }
@@ -293,6 +321,17 @@ extension ChatSession {
         let input = request["input"] ?? [:]
         let payload: JSON = ["id": .string(id), "tool": .string(tool), "input": input,
                              "suggestions": request["permission_suggestions"] ?? .null]
+        if tool == "AskUserQuestion" {
+            let questions = (input["questions"]?.array ?? []).enumerated().map { index, q in
+                AgentQuestion(id: q["question"]?.string ?? "q\(index)", header: q["header"]?.string ?? "",
+                              question: q["question"]?.string ?? "",
+                              options: (q["options"]?.array ?? []).map { .init(label: $0["label"]?.string ?? "", detail: $0["description"]?.string ?? "") },
+                              multiSelect: q["multiSelect"]?.bool ?? false, isSecret: false)
+            }
+            appendItem(DisplayItem(kind: .questions, requestID: payload, approvalState: .pending, questions: questions))
+            onChange?(self)
+            return
+        }
         if tool == "ExitPlanMode" {
             appendItem(DisplayItem(kind: .approval, text: "Claude has a plan. Start building?",
                                    detail: input["plan"]?.string, requestID: payload, approvalState: .pending,
@@ -300,6 +339,29 @@ extension ChatSession {
         } else {
             let (title, detail) = Tools.approval(name: tool, input: input, description: request["description"]?.string)
             appendItem(DisplayItem(kind: .approval, text: title, detail: detail, requestID: payload, approvalState: .pending))
+        }
+        onChange?(self)
+    }
+
+    /// Sends your answers (or a skip) back to AskUserQuestion. Answers go keyed by question text.
+    func claudeAnswer(_ itemID: UUID, answers: [String: [String]]?) {
+        guard let item = record.items.first(where: { $0.id == itemID }), item.approvalState == .pending,
+              let payload = item.requestID, let id = payload["id"]?.string else { return }
+        guard let process = claudeProcess, process.isRunning else {
+            updateItem(itemID) { $0.approvalState = .expired }
+            onChange?(self)
+            return
+        }
+        if let answers {
+            var input = payload["input"]?.object ?? [:]
+            input["answers"] = .object(answers.mapValues { .string($0.joined(separator: ", ")) })
+            process.respond(to: id, ["behavior": "allow", "updatedInput": .object(input)])
+        } else {
+            process.respond(to: id, ["behavior": "deny", "message": "The user skipped these questions. Continue with sensible defaults, or ask in a message if you really need an answer."])
+        }
+        updateItem(itemID) {
+            $0.answers = answers
+            $0.approvalState = answers == nil ? .denied : .approved
         }
         onChange?(self)
     }

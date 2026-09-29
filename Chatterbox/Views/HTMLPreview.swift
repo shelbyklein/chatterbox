@@ -17,11 +17,28 @@ struct HTMLPreview: View {
     var maxHeight: CGFloat = 640
     @Environment(\.reviewImage) private var review
     @State private var height: CGFloat = 160
+    @State private var width: CGFloat = 640
     @State private var snapshotter = Snapshotter()
+
+    /// Pages get at least a 16:9 frame so full-window layouts have room; SVGs size to their drawing.
+    private var isPage: Bool {
+        switch source {
+        case .html: return true
+        case .svg: return false
+        case .file(let url): return url.pathExtension.lowercased() != "svg"
+        }
+    }
+
+    private var frameHeight: CGFloat {
+        let content = min(max(height, 40), max(maxHeight, width * 9 / 16))
+        return isPage ? max(content, width * 9 / 16) : content
+    }
 
     var body: some View {
         WebPreview(source: source, height: $height, snapshotter: snapshotter)
-            .frame(height: min(max(height, 40), maxHeight))
+            .frame(maxWidth: .infinity)
+            .frame(height: frameHeight)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))

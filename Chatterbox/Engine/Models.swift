@@ -38,6 +38,21 @@ struct CodexSettings: Codable, Equatable {
     var modeID: String { mode ?? (canEdit ? "ask" : "readOnly") }
 }
 
+/// One question an agent asks you: from Claude Code's AskUserQuestion tool or Codex's
+/// request_user_input. Answered in a card, one question at a time.
+struct AgentQuestion: Codable, Equatable, Hashable, Identifiable {
+    struct Option: Codable, Equatable, Hashable {
+        var label: String
+        var detail: String
+    }
+    var id: String
+    var header: String
+    var question: String
+    var options: [Option]
+    var multiSelect: Bool
+    var isSecret: Bool
+}
+
 struct PlanStep: Codable, Equatable, Hashable {
     var step: String
     var status: String // pending | in_progress | completed
@@ -45,7 +60,7 @@ struct PlanStep: Codable, Equatable, Hashable {
 
 /// One row in the transcript. The API history is stored separately; this is only what the user sees.
 struct DisplayItem: Identifiable, Codable, Equatable {
-    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval, image }
+    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval, image, questions }
     /// Assistant text is either narration mid-task (commentary) or the reply that ends a turn (final).
     enum Phase: String, Codable { case streaming, commentary, final }
     enum ToolState: String, Codable { case running, done, failed }
@@ -66,6 +81,11 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var attachments: [Attachment]?
     /// The agent a user message was sent to. Older rows leave it unset.
     var agent: Backend?
+    /// Notices marking a change of agent, model, or effort. Back-to-back changes share one.
+    var isSettingsChange: Bool?
+    /// Question rows: what the agent asked, and your answers by question id once sent.
+    var questions: [AgentQuestion]?
+    var answers: [String: [String]]?
     /// Approval rows: which buttons to show. nil is the usual Allow / Allow for This Chat / Deny.
     var approvalStyle: ApprovalStyle?
 
@@ -87,6 +107,10 @@ struct ConversationRecord: Codable {
     var personality: Personality
     /// The personality most recently sent to the agent, so it's re-sent only when it changes.
     var sentPersonality: Personality?
+    /// Which version of the app's agent instructions this chat has seen (see Prompts).
+    var instructionsVersion: Int?
+    /// Your every-chat instructions as last given to this chat's agent.
+    var sentUserInstructions: String?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?
