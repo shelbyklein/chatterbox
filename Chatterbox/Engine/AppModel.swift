@@ -7,19 +7,29 @@ import Observation
 @Observable
 final class AppModel {
     private(set) var sessions: [ChatSession] = []
+    /// Groups of chats sharing a folder (see Studios.swift).
+    var studios: [Studio] = []
     var selectedID: UUID?
     var showingCloneFromGitHub = false
 
     var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
 
-    /// Projects by name, then other chats by most recent: the sidebar's order, which the
-    /// ⌘1–⌘9 shortcuts follow.
+    /// Projects by name, then each open Studio's chats, then other chats by most recent: the
+    /// sidebar's order, which the ⌘1–⌘9 shortcuts follow.
     var sidebarProjects: [ChatSession] {
         activeSessions.filter { $0.record.projectFolder != nil }
             .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
     }
-    var sidebarChats: [ChatSession] { activeSessions.filter { $0.record.projectFolder == nil } }
-    var sidebarOrder: [ChatSession] { sidebarProjects + sidebarChats }
+    /// Chats in neither a project nor a Studio. A chat whose Studio is gone shows here too.
+    var sidebarChats: [ChatSession] {
+        let studioIDs = Set(activeStudios.map(\.id))
+        return activeSessions.filter { session in
+            session.record.projectFolder == nil && !(session.record.studioID.map(studioIDs.contains) ?? false)
+        }
+    }
+    var sidebarOrder: [ChatSession] {
+        sidebarProjects + activeStudios.filter { $0.collapsed != true }.flatMap(chats(in:)) + sidebarChats
+    }
 
     /// Every tag in use, for the Tags menu.
     var allTags: [String] {
@@ -69,6 +79,7 @@ final class AppModel {
             directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        loadStudios()
         load()
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }
@@ -89,7 +100,7 @@ final class AppModel {
     func newChat(backend: Backend? = nil) -> ChatSession {
         let defaults = UserDefaults.standard
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
-        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.archivedAt == nil }) {
+        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil }) {
             empty.setBackend(backend)
             selectedID = empty.id
             return empty
@@ -126,6 +137,7 @@ final class AppModel {
     }
 
     func unarchive(_ session: ChatSession) {
+        if let studio = studio(for: session), studio.archivedAt != nil { unarchiveStudio(studio.id) }
         session.setArchived(false)
         selectedID = session.id
     }
@@ -188,16 +200,14 @@ final class AppModel {
     /// The folder the selected chat works in: its project, or else the working folder.
     var selectedFolder: String? {
         guard let session = selected else { return nil }
-        return session.record.projectFolder ?? session.record.codex?.folder
+        return session.record.boundFolder ?? session.record.codex?.folder
             ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     /// Opens a Terminal window in the selected chat's folder.
     func openTerminal() {
         guard let folder = selectedFolder else { return }
-        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-        NSWorkspace.shared.open([URL(fileURLWithPath: folder, isDirectory: true)], withApplicationAt: terminal,
-                                configuration: NSWorkspace.OpenConfiguration())
+        openTerminal(at: folder)
     }
 
     func chooseAndOpenProject() {
@@ -263,6 +273,24 @@ final class AppModel {
         for process in processes where !process.running && !known.contains(process.id) {
             HostClient.shared.forget(id: process.id)
         }
+    }
+
+    private var studiosFile: URL { directory.deletingLastPathComponent().appendingPathComponent("Studios.json") }
+
+    func saveStudios() {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        do {
+            try encoder.encode(studios).write(to: studiosFile, options: .atomic)
+        } catch {
+            NSLog("Chatterbox: failed to save Studios: \(error)")
+        }
+    }
+
+    private func loadStudios() {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        studios = (try? Data(contentsOf: studiosFile)).flatMap { try? decoder.decode([Studio].self, from: $0) } ?? []
     }
 
     private func fileURL(_ id: UUID) -> URL {

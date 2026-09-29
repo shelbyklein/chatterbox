@@ -251,7 +251,7 @@ final class ChatSession: Identifiable {
         if backend == .codex, record.codex == nil {
             let defaults = UserDefaults.standard
             record.codex = CodexSettings(
-                folder: record.projectFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
+                folder: record.boundFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
                 canEdit: false,
                 mode: PermissionModes.defaultCodex
             )
@@ -334,6 +334,9 @@ final class ChatSession: Identifiable {
     func bindProject(_ folder: String) {
         guard folder != record.projectFolder else { return }
         record.projectFolder = folder
+        // A project chat isn't in a Studio.
+        record.studioID = nil
+        record.studioFolder = nil
         record.codex?.folder = folder
         claudeWorkingFolderChanged()
         onChange?(self)
@@ -350,6 +353,22 @@ final class ChatSession: Identifiable {
     func setGitRemote(_ name: String) {
         record.gitRemote = name
         updateGitHubRepo(from: GitStatusStore.shared.status(for: record.projectFolder))
+        onChange?(self)
+    }
+
+    /// Moves this chat into a Studio, where it works in the Studio's folder, or out of one
+    /// with nil. A project chat leaves its project.
+    func setStudio(_ studio: Studio?) {
+        guard studio?.id != record.studioID else { return }
+        record.studioID = studio?.id
+        record.studioFolder = studio?.folder
+        if studio != nil {
+            record.projectFolder = nil
+            record.githubRepo = nil
+        }
+        let folder = record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        record.codex?.folder = folder
+        claudeWorkingFolderChanged()
         onChange?(self)
     }
 

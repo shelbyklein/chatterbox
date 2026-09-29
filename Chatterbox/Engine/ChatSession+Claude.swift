@@ -71,7 +71,8 @@ extension ChatSession {
             model: record.model,
             effort: record.effort,
             permissionMode: claudePermissionMode,
-            appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.projectFolder),
+            appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.boundFolder,
+                                                         studioFolder: record.studioFolder),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path]
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
@@ -98,7 +99,7 @@ extension ChatSession {
     }
 
     private var claudeWorkingFolder: String {
-        record.projectFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     private var claudePermissionMode: String { record.claudeModeID }

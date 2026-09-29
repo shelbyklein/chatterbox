@@ -126,6 +126,10 @@ struct ConversationRecord: Codable {
 
     /// The project folder this chat is bound to. At most one chat per folder.
     var projectFolder: String?
+    /// The Studio this chat belongs to, and that Studio's folder, which the chat works in.
+    /// The folder is kept here too so the chat can start its agent without looking it up.
+    var studioID: UUID?
+    var studioFolder: String?
     /// "owner/name" of the GitHub repo the project folder's remote points to. Read from
     /// git, not set by hand; kept here so the sidebar and "From GitHub" can find it.
     var githubRepo: String?
@@ -158,6 +162,9 @@ struct ConversationRecord: Codable {
     var pendingShellContext: String?
 
     var backend: Backend { activeBackend ?? (codex == nil ? .claude : .codex) }
+
+    /// The folder this chat is tied to: its project's, or its Studio's.
+    var boundFolder: String? { projectFolder ?? studioFolder }
 
     /// The agent processes this chat has in the background host, so a relaunch can pick up
     /// a reply that kept going while the app was closed. Older records leave these unset.

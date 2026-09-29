@@ -134,7 +134,8 @@ extension ChatSession {
             "cwd": .string(settings.folder),
             "approvalPolicy": approvalPolicy(settings),
             "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
-            "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.projectFolder)),
+            "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.boundFolder,
+                                                                         studioFolder: record.studioFolder)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
         let result = try await server.request("thread/start", .object(params))

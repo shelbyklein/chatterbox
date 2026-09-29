@@ -4,9 +4,9 @@ import Foundation
 /// output into the chat, and hands both to the agent with your next message, like Claude
 /// Code's shell mode.
 extension ChatSession {
-    /// Where the chat works: its project, its Codex folder, or the working folder.
+    /// Where the chat works: its project or Studio, its Codex folder, or the working folder.
     var workingFolder: String {
-        record.projectFolder ?? record.codex?.folder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        record.boundFolder ?? record.codex?.folder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     static let shellOutputLimit = 100_000

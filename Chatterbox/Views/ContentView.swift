@@ -16,6 +16,11 @@ struct ContentView: View {
     @State private var taggingSession: ChatSession?
     @State private var newTag = ""
     @State private var searchText = ""
+    @State private var namingStudio = false
+    @State private var studioName = ""
+    /// The chat that goes into the Studio being named, when making one from a chat.
+    @State private var studioFromChat: ChatSession?
+    @State private var renamingStudio: Studio?
     /// Show only projects with this tag; empty shows everything.
     @AppStorage("sidebarTagFilter") private var tagFilter = ""
 
@@ -46,8 +51,26 @@ struct ContentView: View {
                         }
                     }
                 }
+                let studios = model.activeStudios.filter(isShown)
+                if !studios.isEmpty || !isFiltering {
+                    Section {
+                        ForEach(studios) { studio in studioGroup(studio, numbers: numbers) }
+                        if studios.isEmpty {
+                            Text("A Studio groups chats that share one folder, for messy work that isn't a project.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Studios")
+                            Spacer()
+                            Button { beginNewStudio() } label: { Image(systemName: "plus") }
+                                .buttonStyle(.borderless)
+                                .help("New Studio")
+                        }
+                    }
+                }
                 if !chats.isEmpty || !isFiltering {
-                    Section(projects.isEmpty ? "" : "Chats") {
+                    Section(projects.isEmpty && studios.isEmpty ? "" : "Chats") {
                         ForEach(chats) { session in row(session, number: numbers[session.id]) }
                     }
                 }
@@ -67,6 +90,8 @@ struct ContentView: View {
                         Divider()
                         Button("New Project Chat\u{2026}") { model.chooseAndOpenProject() }
                         Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
+                        Divider()
+                        Button("New Studio\u{2026}") { beginNewStudio() }
                     } label: {
                         Label("New Chat", systemImage: "square.and.pencil")
                     } primaryAction: {
@@ -89,6 +114,23 @@ struct ContentView: View {
             TextField("Title", text: $chatTitle)
             Button("Rename") { renamingChat?.setTitle(chatTitle) }
             Button("Cancel", role: .cancel) {}
+        }
+        .alert(studioFromChat == nil ? "New Studio" : "New Studio from Chat", isPresented: $namingStudio) {
+            TextField("Name", text: $studioName)
+            Button("Create") {
+                model.newStudio(named: studioName, moving: studioFromChat)
+                studioFromChat = nil
+            }
+            Button("Cancel", role: .cancel) { studioFromChat = nil }
+        } message: {
+            Text("Its chats share a new folder in \(AppModel.studiosBase.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")), and can save work there.")
+        }
+        .alert("Rename Studio", isPresented: Binding(get: { renamingStudio != nil }, set: { if !$0 { renamingStudio = nil } })) {
+            TextField("Name", text: $studioName)
+            Button("Rename") { if let studio = renamingStudio { model.renameStudio(studio.id, to: studioName) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The folder itself isn't renamed.")
         }
         .alert("Rename Project", isPresented: Binding(get: { renamingProject != nil }, set: { if !$0 { renamingProject = nil } })) {
             TextField("Name", text: $projectNickname)
@@ -160,8 +202,65 @@ extension ContentView {
         if let tag = activeTag, !session.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
             return false
         }
-        let text = ([session.title, session.projectName] + session.tags).joined(separator: " ")
-        return searchText.split(whereSeparator: \.isWhitespace).allSatisfy { text.localizedStandardContains($0) }
+        let text = ([session.title, session.projectName, model.studio(for: session)?.name ?? ""] + session.tags).joined(separator: " ")
+        return matchesSearch(text)
+    }
+
+    private func matchesSearch(_ text: String) -> Bool {
+        searchText.split(whereSeparator: \.isWhitespace).allSatisfy { text.localizedStandardContains($0) }
+    }
+
+    /// A Studio shows while any of its chats do, or, with no tag filter, when it has none yet.
+    private func isShown(_ studio: Studio) -> Bool {
+        let chats = model.chats(in: studio)
+        if chats.contains(where: isShown) { return true }
+        return activeTag == nil && chats.isEmpty && matchesSearch(studio.name)
+    }
+
+    private func beginNewStudio(from session: ChatSession? = nil) {
+        studioFromChat = session
+        studioName = ""
+        namingStudio = true
+    }
+
+    /// A Studio as a group that opens to show its chats.
+    private func studioGroup(_ studio: Studio, numbers: [UUID: Int]) -> some View {
+        let chats = model.chats(in: studio)
+        let expanded = Binding(get: { isFiltering || studio.collapsed != true },
+                               set: { model.setStudio(studio.id, collapsed: !$0) })
+        return DisclosureGroup(isExpanded: expanded) {
+            ForEach(chats.filter(isShown)) { session in row(session, number: numbers[session.id]) }
+            if chats.isEmpty {
+                Button { model.newChat(in: studio) } label: {
+                    Label("New Chat", systemImage: "square.and.pencil").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        } label: {
+            StudioRow(studio: studio, chats: chats, collapsed: !expanded.wrappedValue)
+                .contentShape(Rectangle())
+                .onTapGesture { expanded.wrappedValue.toggle() }
+                // Drop a chat here to move it in.
+                .dropDestination(for: String.self) { ids, _ in
+                    let moved = ids.compactMap(UUID.init(uuidString:)).compactMap { id in model.sessions.first { $0.id == id } }
+                    for session in moved { model.move(session, to: studio) }
+                    return !moved.isEmpty
+                }
+                .contextMenu {
+                    Button("New Claude Chat") { model.newChat(in: studio, backend: .claude) }
+                    Button("New Codex Chat") { model.newChat(in: studio, backend: .codex) }
+                    Divider()
+                    Button("Rename Studio\u{2026}") {
+                        studioName = studio.name
+                        renamingStudio = studio
+                    }
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: studio.folder)]) }
+                    Button("Open Terminal Here") { model.openTerminal(at: studio.folder) }
+                    Divider()
+                    Button("Archive Studio") { model.archiveStudio(studio.id) }
+                }
+                .help(studio.folder)
+        }
     }
 
     private var tagFilterMenu: some View {
@@ -199,6 +298,8 @@ extension ContentView {
         SidebarRow(session: session, shortcut: showShortcuts ? number : nil)
             .contentShape(Rectangle())
             .onTapGesture { model.selectedID = session.id }
+            // Drag onto a Studio to move the chat in.
+            .draggable(session.id.uuidString)
             .listRowBackground(
                 // Waiting on you wins over selection: the whole row turns yellow.
                 RoundedRectangle(cornerRadius: 8)
@@ -231,6 +332,19 @@ extension ContentView {
                     Divider()
                 }
                 if session.record.archivedAt == nil {
+                    Menu("Move to Studio") {
+                        ForEach(model.activeStudios) { studio in
+                            Button(studio.name) { model.move(session, to: studio) }
+                                .disabled(studio.id == session.record.studioID)
+                        }
+                        if !model.activeStudios.isEmpty { Divider() }
+                        Button("New Studio\u{2026}") { beginNewStudio(from: session) }
+                        if model.studio(for: session) != nil {
+                            Divider()
+                            Button("Remove from Studio") { model.move(session, to: nil) }
+                        }
+                    }
+                    .disabled(session.isRunning)
                     Button("Archive Chat") { model.archive(session) }
                 } else {
                     Button("Unarchive Chat") { model.unarchive(session) }
@@ -238,6 +352,33 @@ extension ContentView {
                 Divider()
                 Button("Delete Chat\u{2026}", role: .destructive) { pendingDelete = session }
             }
+    }
+}
+
+/// A Studio's heading in the sidebar. While it's collapsed it shows whether a chat inside
+/// is working or waiting on you.
+private struct StudioRow: View {
+    let studio: Studio
+    let chats: [ChatSession]
+    let collapsed: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "paintpalette")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(studio.name).lineLimit(1)
+            Spacer(minLength: 0)
+            if collapsed {
+                if chats.contains(where: \.isWaitingOnYou) {
+                    Circle().fill(Color.yellow).frame(width: 7, height: 7).help("A chat here is waiting on you")
+                } else if chats.contains(where: \.isRunning) {
+                    ActivitySpinner(color: .secondary).frame(width: 10, height: 10).help("A chat here is working")
+                } else if !chats.isEmpty {
+                    Text("\(chats.count)").font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
+                }
+            }
+        }
     }
 }
 

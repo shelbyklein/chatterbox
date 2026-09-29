@@ -41,13 +41,22 @@ enum Prompts {
 
     /// Everything Chatterbox adds for an agent: its own block, then yours, then the project's
     /// file meant for the other agent.
-    static func fullInstructions(_ p: Personality, backend: Backend, projectFolder: String?) -> String {
+    static func fullInstructions(_ p: Personality, backend: Backend, projectFolder: String?, studioFolder: String? = nil) -> String {
         var parts = [agentInstructions(p)]
+        if let studioFolder { parts.append(studioNote(studioFolder)) }
         let user = userInstructions
         if !user.isEmpty { parts.append("# The user's instructions for every chat\n\n" + user) }
         let project = crossAgentProjectFile(for: backend, folder: projectFolder)
         if !project.isEmpty { parts.append(project) }
         return parts.joined(separator: "\n\n")
+    }
+
+    /// Tells a Studio chat that its folder is shared with other chats.
+    static func studioNote(_ folder: String) -> String {
+        """
+        # Studio
+        This chat is in a Chatterbox Studio: a folder, \(folder), shared by several of the user's chats working on loosely related asks, often creative ones spanning different apps. It isn't a code project and may not be a git repository. Save what you make in this folder. Expect files there from other chats, and don't reorganize or delete work you didn't make unless the user asks.
+        """
     }
 
     /// Added to Claude Code's system prompt and to Codex's developer instructions.

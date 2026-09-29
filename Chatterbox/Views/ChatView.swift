@@ -477,7 +477,7 @@ struct ChatView: View {
         ToolbarItemGroup {
             ToneMenu(session: session)
 
-            projectButton
+            if let studio = model.studio(for: session) { studioButton(studio) } else { projectButton }
             if let status = GitStatusStore.shared.status(for: session.record.projectFolder),
                let remote = status.remote(preferring: session.record.gitRemote), let repo = remote.repo {
                 RepoChip(repo: repo, remote: remote, status: status, folder: session.record.projectFolder ?? "",
@@ -513,6 +513,23 @@ struct ChatView: View {
         }
         .help(session.record.projectFolder.map { "This chat is bound to \($0). Claude and Codex work in this folder." }
               ?? "Bind this chat to a project folder so Claude or Codex can work in it. Each folder gets one chat.")
+    }
+
+    /// Stands in for the project button in a Studio chat.
+    private func studioButton(_ studio: Studio) -> some View {
+        Menu {
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: studio.folder)]) }
+            Button("Open Terminal Here  \u{2325}\u{2318}T") { model.openTerminal() }
+            Divider()
+            Button("Edit AGENTS.md") { openForEditing(studio.folder + "/AGENTS.md") }
+            Button("Edit CLAUDE.md") { openForEditing(studio.folder + "/CLAUDE.md") }
+            Divider()
+            Button("Remove from Studio") { model.move(session, to: nil) }
+                .disabled(session.isRunning)
+        } label: {
+            ToolbarLabel(studio.name, systemImage: "paintpalette")
+        }
+        .help("This chat is in the \(studio.name) Studio. Its chats share \(studio.folder).")
     }
 
     private func chooseProject() {
@@ -631,7 +648,7 @@ private struct EmptyChatView: View {
 
             AgentSwitch(selection: session.record.backend, onSelect: session.setBackend)
 
-            if session.record.projectFolder == nil, session.record.backend == .codex, let codex = session.record.codex {
+            if session.record.boundFolder == nil, session.record.backend == .codex, let codex = session.record.codex {
                 Button {
                     if let path = FolderPicker.choose(startingAt: codex.folder) { session.setCodexFolder(path) }
                 } label: {
