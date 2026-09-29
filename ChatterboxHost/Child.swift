@@ -115,12 +115,18 @@ final class Child {
         defer { posix_spawnattr_destroy(&attrs) }
         // Only stdio is inherited, so a child never holds another child's pipes open. The host
         // ignores SIGPIPE and SIGHUP; the agents get the usual defaults back.
-        posix_spawnattr_setflags(&attrs, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF))
+        posix_spawnattr_setflags(&attrs, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
         var defaults = sigset_t()
         sigemptyset(&defaults)
         sigaddset(&defaults, SIGPIPE)
         sigaddset(&defaults, SIGHUP)
         posix_spawnattr_setsigdefault(&attrs, &defaults)
+        // Spawning happens on a dispatch thread, which blocks signals; a child inherits that
+        // mask unless told otherwise. Codex then never saw SIGCHLD, so it never learned its
+        // commands had finished. Children start with nothing blocked.
+        var unblocked = sigset_t()
+        sigemptyset(&unblocked)
+        posix_spawnattr_setsigmask(&attrs, &unblocked)
 
         let argv = ([executable] + arguments).map { strdup($0) } + [nil]
         let envp = environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
