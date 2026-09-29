@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("codexFolder") private var codexFolder = NSHomeDirectory()
     @AppStorage("claudeDefaultMode") private var claudeDefaultMode = PermissionModes.defaultClaude
     @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
+    @AppStorage(AppModel.keepRepliesRunningKey) private var keepRepliesRunning = true
 
     var body: some View {
         TabView {
@@ -49,6 +50,16 @@ struct SettingsView: View {
                 Picker("Codex mode", selection: $codexDefaultMode) {
                     ForEach(PermissionModes.codex) { Text($0.title).tag($0.id) }
                 }
+            }
+
+            Section {
+                Toggle("Keep replies running after Chatterbox quits", isOn: $keepRepliesRunning)
+            } footer: {
+                Text(keepRepliesRunning
+                     ? "A reply in progress finishes in the background and is waiting when you reopen Chatterbox, along with any question it asked."
+                     : "Quitting stops any reply in progress.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

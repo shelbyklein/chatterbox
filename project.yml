@@ -17,6 +17,13 @@ targets:
       - path: prompts
         type: folder
         buildPhase: resources
+    dependencies:
+      # The background host that keeps replies running after the app quits, in Contents/MacOS.
+      - target: ChatterboxHost
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox
@@ -28,3 +35,18 @@ targets:
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
         ENABLE_HARDENED_RUNTIME: YES
+  ChatterboxHost:
+    type: tool
+    platform: macOS
+    sources:
+      - path: ChatterboxHost
+      - path: Chatterbox/Support/JSON.swift
+      - path: Chatterbox/Support/HostProtocol.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Host
+        PRODUCT_NAME: ChatterboxHost
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES

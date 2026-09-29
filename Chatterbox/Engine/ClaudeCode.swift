@@ -43,7 +43,9 @@ enum BinaryLocator {
     }
 }
 
-/// One `claude` (Claude Code) child process in stream-json mode, owned by one chat.
+/// One `claude` (Claude Code) process in stream-json mode, owned by one chat. It runs in
+/// ChatterboxHost rather than as the app's child, so a reply outlives the app; `offset` is how
+/// far its output has been read, which a relaunch continues from with `attach`.
 /// It uses the user's own Claude Code install, settings, and subscription sign-in.
 @MainActor
 final class ClaudeCodeProcess {
@@ -62,13 +64,14 @@ final class ClaudeCodeProcess {
     /// Called once if the process ends; the text is the last thing it printed to stderr.
     var onExit: ((_ status: Int32, _ detail: String) -> Void)?
 
-    private var process: Process?
-    private var stdinHandle: FileHandle?
-    private var buffer = Data()
-    private var stderrTail: [String] = []
+    /// The process's id in the host.
+    private(set) var hostID: String?
+    /// Where the output handled so far ends in the host's log.
+    private(set) var offset = 0
+    private var running = false
     private var pending: [String: CheckedContinuation<JSON, Error>] = [:]
 
-    var isRunning: Bool { process?.isRunning == true }
+    var isRunning: Bool { running }
 
     static func locateBinary() -> String? { BinaryLocator.find("claude", customPathKey: "claudePath") }
 
@@ -87,47 +90,31 @@ final class ClaudeCodeProcess {
         return args
     }
 
-    func start(_ config: Config) throws {
+    /// Starts a new process in the host under `id`.
+    func start(_ config: Config, id: String) throws {
         guard let binary = Self.locateBinary() else {
             throw ClaudeCodeError(message: "Couldn't find the `claude` command. Install Claude Code, or set its path in Settings.")
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = Self.arguments(config)
-        process.currentDirectoryURL = URL(fileURLWithPath: config.cwd)
-        process.environment = BinaryLocator.environment
+        try HostClient.shared.spawn(id: id, executable: binary, arguments: Self.arguments(config), cwd: config.cwd,
+                                    environment: BinaryLocator.environment, kind: "claude")
+        try attach(id: id, from: 0)
+    }
 
-        let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.consume(data) } }
-        }
-        stderr.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let text = String(decoding: handle.availableData, as: UTF8.self)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.stderrTail = Array((self.stderrTail + text.split(separator: "\n").map(String.init)).suffix(20))
-                }
-            }
-        }
-        process.terminationHandler = { [weak self] proc in
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.handleExit(proc) } }
-        }
-
-        try process.run()
-        self.process = process
-        self.stdinHandle = stdin.fileHandleForWriting
+    /// Follows a process already in the host, replaying its output from `offset` first.
+    func attach(id: String, from offset: Int) throws {
+        hostID = id
+        self.offset = offset
+        running = true
+        try HostClient.shared.attach(id: id, from: offset, onLine: { [weak self] line, end in
+            self?.consume(line, end: end)
+        }, onExit: { [weak self] status, detail in
+            self?.handleExit(status: status, detail: detail)
+        })
     }
 
     func send(_ message: JSON) {
-        guard let stdinHandle, var data = try? message.encoded() else { return }
-        data.append(0x0A)
-        try? stdinHandle.write(contentsOf: data)
+        guard running, let hostID, let data = try? message.encoded() else { return }
+        HostClient.shared.write(id: hostID, data)
     }
 
     func sendUser(_ content: [JSON]) {
@@ -161,42 +148,43 @@ final class ClaudeCodeProcess {
         send(["type": "control_response", "response": ["subtype": "success", "request_id": .string(requestID), "response": response]])
     }
 
+    /// Stops the process and removes its log.
     func terminate() {
         onExit = nil
-        try? stdinHandle?.close()
-        process?.terminate()
-        process = nil
-        stdinHandle = nil
+        if let hostID { HostClient.shared.kill(id: hostID, forget: true) }
+        failPending()
+        running = false
+        hostID = nil
     }
 
-    private func consume(_ data: Data) {
-        buffer.append(data)
-        while let newline = buffer.firstIndex(of: 0x0A) {
-            let line = buffer.subdata(in: buffer.startIndex..<newline)
-            buffer.removeSubrange(buffer.startIndex...newline)
-            guard !line.isEmpty, let message = try? JSON.parse(line) else { continue }
-            if message["type"]?.string == "control_response" {
-                guard let id = message["response"]?["request_id"]?.string, let continuation = pending.removeValue(forKey: id) else { continue }
-                if message["response"]?["subtype"]?.string == "error" {
-                    continuation.resume(throwing: ClaudeCodeError(message: message["response"]?["error"]?.string ?? "Claude Code refused the request."))
-                } else {
-                    continuation.resume(returning: message["response"]?["response"] ?? .null)
-                }
-                continue
+    private func consume(_ line: Data, end: Int) {
+        defer { offset = end }
+        guard !line.isEmpty, let message = try? JSON.parse(line) else { return }
+        if message["type"]?.string == "control_response" {
+            guard let id = message["response"]?["request_id"]?.string, let continuation = pending.removeValue(forKey: id) else { return }
+            if message["response"]?["subtype"]?.string == "error" {
+                continuation.resume(throwing: ClaudeCodeError(message: message["response"]?["error"]?.string ?? "Claude Code refused the request."))
+            } else {
+                continuation.resume(returning: message["response"]?["response"] ?? .null)
             }
-            onMessage?(message)
+            return
         }
+        onMessage?(message)
     }
 
-    private func handleExit(_ proc: Process) {
-        guard proc === process else { return }
-        process = nil
-        stdinHandle = nil
+    private func handleExit(status: Int32, detail: String) {
+        guard running else { return }
+        running = false
+        failPending()
+        // Everything it printed has been handled; the log isn't needed anymore.
+        if let hostID { HostClient.shared.forget(id: hostID) }
+        onExit?(status, detail)
+    }
+
+    private func failPending() {
         let error = ClaudeCodeError(message: "Claude Code stopped.")
         for (_, continuation) in pending { continuation.resume(throwing: error) }
         pending = [:]
-        let detail = stderrTail.suffix(3).joined(separator: " ")
-        onExit?(proc.terminationStatus, detail)
     }
 }
 
@@ -212,7 +200,7 @@ struct ClaudeCodeInfo {
     static func probe() async throws -> ClaudeCodeInfo {
         let process = ClaudeCodeProcess()
         let config = ClaudeCodeProcess.Config(cwd: NSHomeDirectory(), model: "default", effort: "", permissionMode: "default", appendSystemPrompt: "")
-        try process.start(config)
+        try process.start(config, id: "probe-\(UUID().uuidString)")
         defer { process.terminate() }
         let response = try await withThrowingTaskGroup(of: JSON.self) { group in
             group.addTask { @MainActor in try await process.control("initialize") }

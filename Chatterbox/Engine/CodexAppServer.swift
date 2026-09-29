@@ -18,7 +18,9 @@ struct CodexModelInfo: Identifiable, Hashable {
     var isDefault: Bool = false
 }
 
-/// One shared `codex app-server` child process, spoken to with JSON-RPC over stdio.
+/// One shared `codex app-server` process, spoken to with JSON-RPC over stdio. It runs in
+/// ChatterboxHost, so turns keep going after the app quits; on relaunch the app reattaches
+/// and replays what it missed (see `resume`).
 /// It uses the user's own Codex install, config, and ChatGPT sign-in.
 @MainActor
 @Observable
@@ -30,21 +32,31 @@ final class CodexAppServer {
     private(set) var skills: [String: [SlashCommand]] = [:]
     private(set) var statusMessage: String?
 
-    @ObservationIgnored private var process: Process?
-    @ObservationIgnored private var stdinHandle: FileHandle?
-    @ObservationIgnored private var nextID = 1
+    /// The app-server's id in the host; a new one per launch of the process.
+    @ObservationIgnored private(set) var hostID: String?
+    @ObservationIgnored private var running = false
+    /// Request ids continue from the clock, so replies to an earlier app run's requests
+    /// (replayed after a relaunch) never match a new request.
+    @ObservationIgnored private var nextID = Int(Date().timeIntervalSince1970 * 1000)
     @ObservationIgnored private var pending: [Int: CheckedContinuation<JSON, Error>] = [:]
     @ObservationIgnored private var threadHandlers: [String: (_ method: String, _ params: JSON, _ requestID: JSON?) -> Void] = [:]
     @ObservationIgnored private var startTask: Task<Void, Error>?
-    @ObservationIgnored private var stdoutBuffer = Data()
-    @ObservationIgnored private var stderrTail: [String] = []
     /// Threads loaded into the current process. A fresh process must resume a thread before using it.
     @ObservationIgnored private(set) var loadedThreads: Set<String> = []
+    /// Where the output handled so far ends in the host's log.
+    @ObservationIgnored private(set) var offset = 0
+    /// The end of the line being handled right now, so chats can skip lines they had already
+    /// seen before a relaunch.
+    @ObservationIgnored private(set) var currentLineEnd = 0
+    /// Lines up to here were handled by an earlier run of the app.
+    @ObservationIgnored private var replayedThrough = 0
+
+    var isRunning: Bool { running }
 
     // MARK: - Lifecycle
 
     func ensureStarted() async throws {
-        if process?.isRunning == true, startTask == nil { return }
+        if running, startTask == nil { return }
         if let startTask { return try await startTask.value }
         let task = Task { try await self.launch() }
         startTask = task
@@ -56,39 +68,12 @@ final class CodexAppServer {
         guard let binary = Self.locateBinary() else {
             throw CodexError(message: "Couldn't find the `codex` command. Install the Codex CLI, or set its path in Settings.")
         }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: binary)
-        process.arguments = ["app-server"]
-        var env = ProcessInfo.processInfo.environment
-        let extraPath = ["\(NSHomeDirectory())/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-        env["PATH"] = (extraPath + [env["PATH"] ?? ""]).joined(separator: ":")
-        process.environment = env
-
-        let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        stdout.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            DispatchQueue.main.async { MainActor.assumeIsolated { self.consume(stdout: data) } }
-        }
-        stderr.fileHandleForReading.readabilityHandler = { handle in
-            let text = String(decoding: handle.availableData, as: UTF8.self)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    self.stderrTail = Array((self.stderrTail + text.split(separator: "\n").map(String.init)).suffix(20))
-                }
-            }
-        }
-        process.terminationHandler = { proc in
-            DispatchQueue.main.async { MainActor.assumeIsolated { self.handleExit(proc) } }
-        }
-
-        try process.run()
-        self.process = process
-        self.stdinHandle = stdin.fileHandleForWriting
+        let id = "codex-\(UUID().uuidString.prefix(8))"
+        try HostClient.shared.spawn(id: id, executable: binary, arguments: ["app-server"], cwd: nil,
+                                    environment: BinaryLocator.environment, kind: "codex")
+        try follow(id, from: 0)
         loadedThreads = []
+        replayedThrough = 0
 
         _ = try await rawRequest("initialize", [
             "clientInfo": ["name": "chatterbox", "title": "Chatterbox", "version": "0.1.0"],
@@ -96,22 +81,88 @@ final class CodexAppServer {
         ])
         write(["method": "initialized"])
         statusMessage = nil
+        saveResumeState()
         Task { try? await self.refreshModels() }
         Task { UsageLimits.shared.updateCodex(try? await self.rawRequest("account/rateLimits/read", .null)["rateLimits"]) }
     }
 
-    private func handleExit(_ proc: Process) {
-        guard proc === process else { return }
-        let detail = stderrTail.last.map { ": \($0)" } ?? ""
-        let error = CodexError(message: "Codex stopped unexpectedly (exit \(proc.terminationStatus))\(detail)")
-        process = nil
-        stdinHandle = nil
+    private func follow(_ id: String, from start: Int) throws {
+        hostID = id
+        offset = start
+        running = true
+        try HostClient.shared.attach(id: id, from: start, onLine: { [weak self] line, end in
+            self?.consume(line, end: end)
+        }, onExit: { [weak self] status, detail in
+            self?.handleExit(status: status, detail: detail)
+        })
+    }
+
+    private func handleExit(status: Int32, detail: String) {
+        guard running else { return }
+        let error = CodexError(message: "Codex stopped unexpectedly (exit \(status))\(detail.isEmpty ? "" : ": \(detail)")")
+        if let hostID { HostClient.shared.forget(id: hostID) }
+        running = false
+        hostID = nil
         loadedThreads = []
-        stdoutBuffer = Data()
         for (_, continuation) in pending { continuation.resume(throwing: error) }
         pending = [:]
         for (_, handler) in threadHandlers { handler("chatterbox/processExited", ["message": .string(error.message)], nil) }
         statusMessage = error.message
+        saveResumeState()
+    }
+
+    /// Stops the app-server, e.g. when replies shouldn't outlive the app.
+    func terminate() {
+        guard let hostID else { return }
+        HostClient.shared.kill(id: hostID, forget: true)
+        running = false
+        self.hostID = nil
+        loadedThreads = []
+        saveResumeState()
+    }
+
+    // MARK: - Resuming after a relaunch
+
+    private struct ResumeState: Codable {
+        var processID: String?
+        var offset: Int
+        var loadedThreads: [String]
+    }
+
+    private static var resumeFile: URL { HostPaths.directory.appendingPathComponent("codex-resume.json") }
+
+    /// Remembers which process is ours and how far its output was handled. Saved after the
+    /// chats themselves, so every chat's saved state is at least this far along.
+    func saveResumeState() {
+        let state = ResumeState(processID: hostID, offset: offset, loadedThreads: loadedThreads.sorted())
+        try? FileManager.default.createDirectory(at: HostPaths.directory, withIntermediateDirectories: true)
+        try? JSONEncoder().encode(state).write(to: Self.resumeFile, options: .atomic)
+        if let hostID, HostClient.shared.isConnected { HostClient.shared.ack(id: hostID, offset: offset) }
+    }
+
+    /// The process an earlier run of the app left in the host, if it's still there.
+    static var savedProcessID: String? {
+        guard let data = try? Data(contentsOf: resumeFile) else { return nil }
+        return (try? JSONDecoder().decode(ResumeState.self, from: data))?.processID
+    }
+
+    /// Reattaches to the app-server an earlier run left in the host and replays what it
+    /// printed since. Chats register their thread handlers first, so nothing is dropped.
+    func resume(_ processes: [HostProcess]) {
+        guard !running, let data = try? Data(contentsOf: Self.resumeFile),
+              let state = try? JSONDecoder().decode(ResumeState.self, from: data),
+              let id = state.processID, processes.contains(where: { $0.id == id }) else { return }
+        loadedThreads = Set(state.loadedThreads)
+        replayedThrough = state.offset
+        do {
+            try follow(id, from: state.offset)
+            if processes.first(where: { $0.id == id })?.running == true {
+                Task { try? await self.refreshModels() }
+            }
+        } catch {
+            running = false
+            hostID = nil
+        }
     }
 
     static func locateBinary() -> String? {
@@ -208,19 +259,15 @@ final class CodexAppServer {
     }
 
     private func write(_ message: JSON) {
-        guard let stdinHandle, var data = try? message.encoded() else { return }
-        data.append(0x0A)
-        try? stdinHandle.write(contentsOf: data)
+        guard running, let hostID, let data = try? message.encoded() else { return }
+        HostClient.shared.write(id: hostID, data)
     }
 
-    private func consume(stdout data: Data) {
-        stdoutBuffer.append(data)
-        while let newline = stdoutBuffer.firstIndex(of: 0x0A) {
-            let line = stdoutBuffer.subdata(in: stdoutBuffer.startIndex..<newline)
-            stdoutBuffer.removeSubrange(stdoutBuffer.startIndex...newline)
-            guard !line.isEmpty, let message = try? JSON.parse(line) else { continue }
-            dispatch(message)
-        }
+    private func consume(_ line: Data, end: Int) {
+        currentLineEnd = end
+        defer { offset = end }
+        guard !line.isEmpty, let message = try? JSON.parse(line) else { return }
+        dispatch(message)
     }
 
     private func dispatch(_ message: JSON) {
@@ -250,8 +297,9 @@ final class CodexAppServer {
             handler(method, params, id)
             return
         }
-        // Server requests we can't route must still be answered so Codex doesn't hang.
-        if let id {
+        // Server requests we can't route must still be answered so Codex doesn't hang
+        // (unless an earlier run of the app already saw it).
+        if let id, currentLineEnd > replayedThrough {
             respondError(to: id, message: "Chatterbox doesn't support \(method) yet.")
         }
     }

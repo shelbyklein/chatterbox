@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -50,12 +51,33 @@ final class AppModel {
 
     var selected: ChatSession? { sessions.first { $0.id == selectedID } }
 
+    /// Chats with changes not yet written, saved together shortly after (see `scheduleSave`).
+    @ObservationIgnored private var unsaved: Set<UUID> = []
+    @ObservationIgnored private var saveSoonScheduled = false
+    @ObservationIgnored private var saveLaterScheduled = false
+
+    /// Settings > General: when off, quitting stops any reply still running.
+    static let keepRepliesRunningKey = "keepRepliesRunning"
+    static var keepRepliesRunning: Bool { UserDefaults.standard.object(forKey: keepRepliesRunningKey) as? Bool ?? true }
+
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         load()
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
+        Task { await resumeBackgroundReplies() }
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applicationWillTerminate() }
+        }
+    }
+
+    /// Replies keep running in the background host after the app quits, unless turned off.
+    private func applicationWillTerminate() {
+        saveUnsaved()
+        guard !Self.keepRepliesRunning else { return }
+        for session in sessions { session.claudeProcess?.terminate() }
+        CodexAppServer.shared.terminate()
     }
 
     @discardableResult
@@ -105,6 +127,7 @@ final class AppModel {
 
     func delete(_ session: ChatSession) {
         session.shutdown()
+        unsaved.remove(session.id)
         Attachments.remove(session.allAttachments)
         sessions.removeAll { $0.id == session.id }
         try? FileManager.default.removeItem(at: fileURL(session.id))
@@ -167,8 +190,59 @@ final class AppModel {
 
     private func makeSession(_ record: ConversationRecord) -> ChatSession {
         let session = ChatSession(record: record)
-        session.onChange = { [weak self] session in self?.save(session) }
+        session.onChange = { [weak self] session in self?.scheduleSave(session, soon: true) }
+        session.onStreamed = { [weak self] session in self?.scheduleSave(session, soon: false) }
         return session
+    }
+
+    /// Saves are batched and always run between two agent output lines, so each saved record
+    /// matches how far its agent's output was read. Changes save on the next turn of the run
+    /// loop; streamed text at most once a second.
+    private func scheduleSave(_ session: ChatSession, soon: Bool) {
+        unsaved.insert(session.id)
+        if soon {
+            guard !saveSoonScheduled else { return }
+            saveSoonScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                self?.saveSoonScheduled = false
+                self?.saveUnsaved()
+            }
+        } else {
+            guard !saveLaterScheduled else { return }
+            saveLaterScheduled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.saveLaterScheduled = false
+                self?.saveUnsaved()
+            }
+        }
+    }
+
+    private func saveUnsaved() {
+        guard !unsaved.isEmpty else { return }
+        let ids = unsaved
+        unsaved = []
+        for session in sessions where ids.contains(session.id) { save(session) }
+        // After the chats, so each chat's saved state is at least as far along as this.
+        if CodexAppServer.shared.isRunning { CodexAppServer.shared.saveResumeState() }
+    }
+
+    /// Reattaches chats to replies that kept running (or finished) while the app was closed.
+    /// Runs once at launch; without a host running there's nothing to find.
+    private func resumeBackgroundReplies() async {
+        let linked = sessions.filter(\.awaitingHostResume)
+        let processes = (try? await HostClient.shared.list()) ?? []
+        for session in linked {
+            session.resumeFromHost(processes)
+            scheduleSave(session, soon: true)
+        }
+        CodexAppServer.shared.resume(processes)
+        // Logs of ended processes no chat points at anymore. Running ones are left alone: the
+        // host lets an agent go once it's idle with no app attached.
+        var known = Set(sessions.compactMap { $0.claudeProcess?.hostID })
+        if let codex = CodexAppServer.shared.hostID { known.insert(codex) }
+        for process in processes where !process.running && !known.contains(process.id) {
+            HostClient.shared.forget(id: process.id)
+        }
     }
 
     private func fileURL(_ id: UUID) -> URL {
@@ -178,12 +252,17 @@ final class AppModel {
     private func save(_ session: ChatSession) {
         // A project chat is kept even before its first message, so the binding survives.
         guard !session.items.isEmpty || session.record.projectFolder != nil else { return }
+        session.prepareForSave()
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             try encoder.encode(session.record).write(to: fileURL(session.id), options: .atomic)
         } catch {
             NSLog("Chatterbox: failed to save conversation: \(error)")
+        }
+        // Saved, so the host may trim that much of a long log.
+        if let link = session.record.claudeHost, HostClient.shared.isConnected {
+            HostClient.shared.ack(id: link.processID, offset: link.offset)
         }
         // Keep the most recently active conversation at the top.
         if let index = sessions.firstIndex(where: { $0.id == session.id }), index != 0, !sessions[0].items.isEmpty {
@@ -198,19 +277,18 @@ final class AppModel {
         sessions = files.filter { $0.pathExtension == "json" }
             .compactMap { try? decoder.decode(ConversationRecord.self, from: Data(contentsOf: $0)) }
             .map { record in
-                // Requests from a previous run can't be answered anymore.
                 var record = record
-                for index in record.items.indices {
-                    if record.items[index].approvalState == .pending { record.items[index].approvalState = .expired }
-                    if record.items[index].kind == .tool, record.items[index].toolState == .running {
-                        record.items[index].toolState = .failed
-                    }
-                    if record.items[index].phase == .streaming { record.items[index].phase = .final }
-                    record.items[index].queued = nil
-                }
+                for index in record.items.indices { record.items[index].queued = nil }
                 return record
             }
             .sorted { $0.updatedAt > $1.updatedAt }
-            .map(makeSession)
+            .map { record in
+                let session = makeSession(record)
+                // A chat whose agent may still be running in the background host keeps its
+                // pending requests and running rows until `resumeBackgroundReplies` checks.
+                // Otherwise requests from a previous run can't be answered anymore.
+                if session.hasHostLinks { session.awaitingHostResume = true } else { session.settleInterruptedWork() }
+                return session
+            }
     }
 }

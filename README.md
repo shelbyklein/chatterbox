@@ -50,7 +50,7 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - Streamed text, thinking, and tool calls become the reply, dim notes, and status rows. `TodoWrite` becomes the plan card.
 - Permission prompts arrive over stdio (`--permission-prompt-tool stdio`) and show as approval cards with Allow, Allow for This Chat, and Deny. The mode menu sets Claude Code's permission mode live; in Plan mode, the finished plan shows as a card with Start Building, Start and Accept Edits, and Keep Planning.
 - Model, effort, and permission changes are sent live as control requests. The model list and effort levels come from Claude Code's own startup handshake.
-- Each chat resumes its Claude Code session with `--resume`, so it survives restarts.
+- Each chat resumes its Claude Code session with `--resume`, so it survives restarts. A reply that's still running when you quit continues in the background host (see below).
 
 ## Codex backend
 
@@ -64,13 +64,26 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - Codex threads persist, and reopening an old chat resumes its thread.
 - Models and effort levels come live from `model/list`.
 
+## Background host
+
+Replies keep running after you quit Chatterbox, and are waiting when you reopen it. The agent processes don't run as the app's children: `ChatterboxHost` (a small command-line tool inside the app, `Contents/MacOS/ChatterboxHost`) runs them, like tmux for JSON streams.
+
+- The app launches the host on first use. It listens on a Unix socket in `~/Library/Application Support/Chatterbox/Host/` (folder mode 0700, socket 0600, same user only). It's in its own session and ignores SIGHUP and SIGPIPE, so quitting or crashing the app doesn't take it down. It exits by itself after 60 seconds with no processes and no app connected.
+- Each process's stdout is written to `Host/logs/<id>.jsonl`. The app reads it back as `(line, byte offset)` pairs: first the saved lines from an offset, then live ones, then the exit status. Once the app has saved past a point, a log over 32 MB is trimmed to that point. Offsets stay valid after trimming.
+- Each chat saves the id of its Claude Code process and how far it has read. It also saves the in-flight turn's bookkeeping, like which row each streamed block goes to. Saves are batched and always happen between two output lines. On relaunch, the chat reattaches and replays from its offset into exactly the saved state, so it never gets repeated or half-built rows. The shared Codex app-server works the same way: `Host/codex-resume.json` holds its id and offset, and each chat skips lines it had already saved.
+- Approval and question cards stay answerable after a relaunch while their process is still alive. They expire only when their process is gone. A reply that finished while the app was closed replays the rest of its log, so the final answer lands.
+- With no app attached, an agent that isn't working is let go after 30 seconds by closing its stdin. A Claude chat is working until its `result`. Codex is working while any turn is running. If an agent asks for approval or has a question while no app is attached, the host posts a notification through `osascript`, because a command-line tool can't post notifications of its own.
+- Settings → General → **Keep replies running after Chatterbox quits** (on by default). When it's off, quitting stops everything the app started.
+- For testing, set `CHATTERBOX_HOST_DIR` to move the socket and logs, and `CHATTERBOX_HOST_BINARY` to use a different host binary. Timings can be changed with `CHATTERBOX_HOST_IDLE_SECONDS`, `CHATTERBOX_HOST_DETACHED_IDLE_SECONDS`, and `CHATTERBOX_HOST_LOG_LIMIT`. `CHATTERBOX_HOST_NOTIFY=0` turns notifications off.
+
 The app isn't sandboxed, because it has to launch `claude` and `codex` and let them reach your files.
 
 Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Conversations/`, and attachments in `Attachments/` next to it.
 
 ## Layout
 
-- `Chatterbox/Engine/` has the chat session (`ChatSession.swift`), the Claude Code bridge (`ClaudeCode.swift`, `ChatSession+Claude.swift`), the Codex bridge (`CodexAppServer.swift`, `ChatSession+Codex.swift`), tool labels, presets, the prompts loader, and persistence.
+- `Chatterbox/Engine/` has the chat session (`ChatSession.swift`), the Claude Code bridge (`ClaudeCode.swift`, `ChatSession+Claude.swift`), the Codex bridge (`CodexAppServer.swift`, `ChatSession+Codex.swift`), the background-host client and resume logic (`HostClient.swift`, `ChatSession+Host.swift`), tool labels, presets, the prompts loader, and persistence.
+- `ChatterboxHost/` is the background host. `Chatterbox/Support/HostProtocol.swift` (paths, framing, sockets) and `JSON.swift` are compiled into both targets.
 - `Chatterbox/Views/` has the SwiftUI views: sidebar, transcript rows, composer, Markdown, and settings.
 - `prompts/` has the tone files, which you can edit without touching code.
 - `reference/typescript/conversation.ts` is a provider-agnostic TypeScript version of the conversation loop, for porting into other software.

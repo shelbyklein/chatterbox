@@ -63,9 +63,8 @@ extension ChatSession {
                 record.pendingHandoff = Prompts.handoff(from: "", transcript: transcript, isWholeConversation: true)
             }
         }
-        let process = ClaudeCodeProcess()
-        process.onMessage = { [weak self] message in self?.handleClaude(message) }
-        process.onExit = { [weak self] status, detail in self?.claudeProcessExited(status: status, detail: detail) }
+        let process = makeClaudeProcess()
+        // A fresh id per process: a relaunch only ever reattaches to the one this chat recorded.
         try process.start(ClaudeCodeProcess.Config(
             cwd: claudeWorkingFolder,
             model: record.model,
@@ -74,7 +73,7 @@ extension ChatSession {
             appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.projectFolder),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path]
-        ))
+        ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {
             record.sentPersonality = record.personality
@@ -82,6 +81,18 @@ extension ChatSession {
             record.instructionsVersion = Prompts.instructionsVersion
         }
         claudeProcess = process
+        return process
+    }
+
+    /// A process wired to this chat, not yet started or attached.
+    func makeClaudeProcess() -> ClaudeCodeProcess {
+        let process = ClaudeCodeProcess()
+        process.onMessage = { [weak self] message in
+            guard let self else { return }
+            self.handleClaude(message)
+            self.onStreamed?(self)
+        }
+        process.onExit = { [weak self] status, detail in self?.claudeProcessExited(status: status, detail: detail) }
         return process
     }
 
@@ -269,6 +280,7 @@ extension ChatSession {
         expirePendingApprovals()
         claudeStopRequested = false
         claudeRender = ResponseRender()
+        claudeStreamedMessages = []
         isRunning = false
         record.updatedAt = Date()
         onChange?(self)

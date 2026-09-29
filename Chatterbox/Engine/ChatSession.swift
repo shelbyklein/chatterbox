@@ -19,6 +19,15 @@ final class ChatSession: Identifiable {
     var contextUsage: [Backend: ContextUsage] = [:]
 
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
+    /// Called after agent output changed the transcript without `onChange` (streamed text),
+    /// so it's saved soon, with how far the output was read (see ChatSession+Host).
+    @ObservationIgnored var onStreamed: ((ChatSession) -> Void)?
+    /// Set while this chat waits to reattach to its background processes after launch;
+    /// saving leaves the saved links alone until then.
+    @ObservationIgnored var awaitingHostResume = false
+    /// Codex lines up to here (in `codexSkipProcess`) were already in the saved transcript.
+    @ObservationIgnored var codexSkipThrough = 0
+    @ObservationIgnored var codexSkipProcess: String?
     @ObservationIgnored var pendingSteering: [UserMessage] = []
     /// The transcript rows of `pendingSteering`, cleared from "Queued" once Codex takes them.
     @ObservationIgnored var pendingSteeringItems: [UUID] = []
@@ -349,7 +358,7 @@ final class ChatSession: Identifiable {
 }
 
 /// Per-response bookkeeping that maps streamed block indexes to transcript rows.
-struct ResponseRender {
+struct ResponseRender: Codable, Equatable {
     var itemForIndex: [Int: UUID] = [:]
     var textItems: [UUID] = []
 }
