@@ -97,6 +97,7 @@ final class CodexAppServer {
         write(["method": "initialized"])
         statusMessage = nil
         Task { try? await self.refreshModels() }
+        Task { UsageLimits.shared.updateCodex(try? await self.rawRequest("account/rateLimits/read", .null)["rateLimits"]) }
     }
 
     private func handleExit(_ proc: Process) {
@@ -239,6 +240,11 @@ final class CodexAppServer {
         guard let method else { return }
         let params = message["params"] ?? .null
 
+        // Account-wide, so it belongs to no one thread.
+        if method == "account/rateLimits/updated" {
+            UsageLimits.shared.updateCodex(params["rateLimits"])
+            return
+        }
         // Notification or server request aimed at a thread.
         if let thread = params["threadId"]?.string, let handler = threadHandlers[thread] {
             handler(method, params, id)

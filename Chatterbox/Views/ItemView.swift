@@ -28,7 +28,12 @@ struct ItemView: View {
 
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: 3) {
-            if item.steered {
+            if item.queued == true {
+                Label("Queued", systemImage: "clock")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help("Sent while the agent is working. It joins the reply at the agent's next step.")
+            } else if item.steered {
                 Label("Sent while working", systemImage: "arrow.turn.down.right")
                     .font(.caption2)
                     .foregroundStyle(.secondary)

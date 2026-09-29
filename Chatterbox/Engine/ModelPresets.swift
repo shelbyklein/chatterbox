@@ -80,6 +80,14 @@ final class ModelPresets {
         save()
     }
 
+    /// Moves a preset to where `target` is, for drag-to-reorder in the preset row.
+    func move(_ id: UUID, to target: UUID) {
+        guard id != target, let from = presets.firstIndex(where: { $0.id == id }),
+              let to = presets.firstIndex(where: { $0.id == target }) else { return }
+        presets.insert(presets.remove(at: from), at: to)
+        save()
+    }
+
     func resetToDefaults() {
         presets = Self.defaults
         save()

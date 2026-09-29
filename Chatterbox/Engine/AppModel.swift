@@ -206,6 +206,7 @@ final class AppModel {
                         record.items[index].toolState = .failed
                     }
                     if record.items[index].phase == .streaming { record.items[index].phase = .final }
+                    record.items[index].queued = nil
                 }
                 return record
             }

@@ -34,7 +34,13 @@ struct ChatterboxApp: App {
         }
 
         .commands {
+            // ⌘⇧P belongs to the mode menu; there's nothing to print.
+            CommandGroup(replacing: .printItem) {}
+
             CommandMenu("Go") {
+                Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
+                    .keyboardShortcut("k")
+                Divider()
                 Button("Next Chat") { model.selectAdjacentChat(1) }
                     .keyboardShortcut("]", modifiers: [.command, .shift])
                 Button("Previous Chat") { model.selectAdjacentChat(-1) }
@@ -45,6 +51,13 @@ struct ChatterboxApp: App {
                         .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: .command)
                         .disabled(model.sidebarOrder.count < number)
                 }
+            }
+
+            CommandMenu("Chat") {
+                Button("Choose Model\u{2026}") { ChatCommands.shared.toggleModelPopover() }
+                    .keyboardShortcut("m", modifiers: [.command, .shift])
+                Button("Choose Mode\u{2026}") { ChatCommands.shared.toggleModePopover() }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
             }
         }
 

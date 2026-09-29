@@ -117,6 +117,7 @@ extension ChatSession {
         claudeProcess = nil
         record.claudeSessionID = nil
         record.claudeSeenThrough = nil
+        clearQueuedMessages()
         if isRunning { isRunning = false }
     }
 
@@ -162,6 +163,10 @@ extension ChatSession {
             }
 
         case "user":
+            if message["isReplay"]?.bool == true {
+                claudeMessageReplayed(message)
+                break
+            }
             for block in message["message"]?["content"]?.array ?? [] where block["type"]?.string == "tool_result" {
                 guard let useID = block["tool_use_id"]?.string, let item = claudeToolItems[useID] else { continue }
                 let failed = block["is_error"]?.bool == true
@@ -176,6 +181,7 @@ extension ChatSession {
 
         case "rate_limit_event":
             let info = message["rate_limit_info"]
+            UsageLimits.shared.updateClaude(info)
             if let status = info?["status"]?.string, status != "allowed" {
                 let reset = info?["resetsAt"]?.int.map { Date(timeIntervalSince1970: TimeInterval($0)) }
                 let when = reset.map { " It resets \($0.formatted(date: .omitted, time: .shortened))." } ?? ""
@@ -196,6 +202,7 @@ extension ChatSession {
         case "message_start":
             claudeRender = ResponseRender()
             if let id = event["message"]?["id"]?.string { claudeStreamedMessages.insert(id) }
+            claudeUpdateContext(usage: event["message"]?["usage"])
             // Claude Code may start a new turn on its own, e.g. for a message queued during the last one.
             if !isRunning { isRunning = true }
 
@@ -223,6 +230,9 @@ extension ChatSession {
                     updateItem(item) { $0.toolState = .done }
                 }
             }
+
+        case "message_delta":
+            claudeUpdateContext(usage: event["usage"])
 
         case "content_block_delta":
             guard let id = claudeRender.itemForIndex[index], let delta = event["delta"] else { break }
@@ -253,6 +263,9 @@ extension ChatSession {
             notice("Claude Code reported a problem: \(detail)")
         }
         if isError || claudeStopRequested { markRunningToolsFailed() }
+        claudeUpdateContextWindow(result: result)
+        // Anything still marked queued was taken in without an echo; nothing more is waiting.
+        if (result["queued_turn_count"]?.int ?? 0) == 0 { clearQueuedMessages() }
         expirePendingApprovals()
         claudeStopRequested = false
         claudeRender = ResponseRender()
@@ -274,6 +287,7 @@ extension ChatSession {
         }
         markRunningToolsFailed()
         expirePendingApprovals()
+        clearQueuedMessages()
         isRunning = false
         onChange?(self)
     }

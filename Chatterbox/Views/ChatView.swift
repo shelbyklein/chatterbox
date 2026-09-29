@@ -15,7 +15,7 @@ struct ChatView: View {
     @State private var commandIndex = 0
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
     @State private var dismissedCommandDraft: String?
-    private let presets = ModelPresets.shared
+    private let commands = ChatCommands.shared
     @FocusState private var composerFocused: Bool
     private let appearance = ReaderStyleSettings()
 
@@ -397,11 +397,7 @@ struct ChatView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
-            Picker("Tone", selection: Binding(get: { session.record.personality }, set: session.setPersonality)) {
-                ForEach(Personality.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .help("Tone. Changes apply from your next message.")
+            ToneMenu(session: session)
 
             projectButton
             if let status = GitStatusStore.shared.status(for: session.record.projectFolder),
@@ -457,24 +453,13 @@ struct ChatView: View {
                 .fixedSize()
             // Gives up width first: the name truncates, while the preset pills keep theirs.
             ModelPicker(session: session, summary: modelSummary.full,
-                        color: appearance.style.color(for: session.record.backend))
+                        color: appearance.style.color(for: session.record.backend),
+                        openRequest: commands.modelPopoverRequests)
+            UsageMeter(session: session, color: appearance.style.color(for: session.record.backend))
             Spacer(minLength: 0)
-            ForEach(presets.presets) { preset in
-                let active = presets.matches(preset, session: session)
-                Button { presets.apply(preset, to: session) } label: {
-                    Text(preset.title)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(active ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.12)))
-                        .foregroundStyle(active ? Color.accentColor : Color.secondary)
-                }
-                .buttonStyle(.plain)
-                .disabled(session.isRunning && preset.backend != session.record.backend)
-                .help(active ? "Using \(preset.title)" : "Switch to \(preset.title)")
+            PresetPills(session: session, style: appearance.style)
+                .fixedSize()
                 .layoutPriority(1)
-            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -488,6 +473,7 @@ struct ChatView: View {
             current: session.mode,
             header: session.record.backend == .claude ? "Mode" : "How should Codex actions be approved?",
             showsIcons: session.record.backend == .codex,
+            openRequest: commands.modePopoverRequests,
             onSelect: session.setMode
         )
     }
@@ -710,6 +696,8 @@ private struct ModePicker: View {
     let current: PermissionMode
     let header: String
     let showsIcons: Bool
+    /// Bumped by Chat → Choose Mode (⌘⇧P) to toggle the popover.
+    var openRequest = 0
     let onSelect: (String) -> Void
     @State private var isOpen = false
 
@@ -723,7 +711,8 @@ private struct ModePicker: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(current.title): \(current.detail). Click to change.")
+        .help("\(current.title): \(current.detail). Click to change (\u{2318}\u{21E7}P).")
+        .onChange(of: openRequest) { isOpen.toggle() }
         .popover(isPresented: $isOpen, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(header)

@@ -33,11 +33,12 @@ extension ChatSession {
     func codexSend(_ message: UserMessage) {
         if isRunning {
             // Codex supports steering natively: the text joins the running turn.
-            appendUserItem(message, steered: true)
+            let item = appendUserItem(message, steered: true)
             if let turn = codexTurnID {
-                Task { await codexSteer(message, turn: turn) }
+                Task { await codexSteer(message, turn: turn, item: item) }
             } else {
                 pendingSteering.append(message)
+                pendingSteeringItems.append(item)
             }
             return
         }
@@ -46,13 +47,14 @@ extension ChatSession {
         beginCodexTurn(message)
     }
 
-    private func beginCodexTurn(_ message: UserMessage) {
+    /// `items` are queued rows this turn delivers, e.g. messages that missed the last turn.
+    private func beginCodexTurn(_ message: UserMessage, items: [UUID] = []) {
         isRunning = true
         codexTurnID = nil
         codexStopRequested = false
         codexTurnMessageItems = []
         onChange?(self)
-        Task { await codexStartTurn(message) }
+        Task { await codexStartTurn(message, items: items) }
     }
 
     func codexInterrupt() {
@@ -63,7 +65,7 @@ extension ChatSession {
         Task { try? await server.request("turn/interrupt", ["threadId": .string(thread), "turnId": .string(turn)]) }
     }
 
-    private func codexStartTurn(_ message: UserMessage) async {
+    private func codexStartTurn(_ message: UserMessage, items: [UUID]) async {
         guard let settings = record.codex else { return }
         do {
             let thread = try await codexEnsureThread()
@@ -99,6 +101,7 @@ extension ChatSession {
             if let effort = settings.effort { params["effort"] = .string(effort) }
 
             let result = try await server.request("turn/start", .object(params))
+            items.forEach(markPickedUp)
             if isRunning, codexTurnID == nil { codexTurnID = result["turn"]?["id"]?.string }
             codexTurnDidGetID()
         } catch {
@@ -148,15 +151,21 @@ extension ChatSession {
         return id
     }
 
-    private func codexSteer(_ message: UserMessage, turn: String) async {
+    private func codexSteer(_ message: UserMessage, turn: String, item: UUID) async {
         guard let thread = record.codex?.threadId else { return }
         do {
             _ = try await server.request("turn/steer", [
                 "threadId": .string(thread), "input": .array(inputs(for: message)), "expectedTurnId": .string(turn),
             ])
+            markPickedUp(item)
         } catch {
             // The turn most likely finished a moment ago; send the text as a new turn.
-            if isRunning { pendingSteering.append(message) } else { beginCodexTurn(message) }
+            if isRunning {
+                pendingSteering.append(message)
+                pendingSteeringItems.append(item)
+            } else {
+                beginCodexTurn(message, items: [item])
+            }
         }
     }
 
@@ -187,9 +196,10 @@ extension ChatSession {
             codexInterrupt()
             return
         }
-        let queued = pendingSteering
+        let queued = zip(pendingSteering, pendingSteeringItems)
         pendingSteering.removeAll()
-        for message in queued { Task { await codexSteer(message, turn: turn) } }
+        pendingSteeringItems.removeAll()
+        for (message, item) in queued { Task { await codexSteer(message, turn: turn, item: item) } }
     }
 
     private func codexFinish(startQueued: Bool) {
@@ -210,9 +220,16 @@ extension ChatSession {
         record.updatedAt = Date()
         let queued = UserMessage(text: pendingSteering.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n"),
                                  attachments: pendingSteering.flatMap(\.attachments))
+        let queuedItems = pendingSteeringItems
         pendingSteering.removeAll()
-        onChange?(self)
-        if startQueued, !queued.text.isEmpty || !queued.attachments.isEmpty { beginCodexTurn(queued) }
+        pendingSteeringItems.removeAll()
+        if startQueued, !queued.text.isEmpty || !queued.attachments.isEmpty {
+            onChange?(self)
+            beginCodexTurn(queued, items: queuedItems)
+        } else {
+            queuedItems.forEach(markPickedUp)
+            onChange?(self)
+        }
     }
 
     // MARK: - Events
@@ -275,6 +292,9 @@ extension ChatSession {
 
         case "turn/completed":
             codexTurnCompleted(params["turn"])
+
+        case "thread/tokenUsage/updated":
+            codexUpdateContext(params)
 
         case "chatterbox/processExited":
             if isRunning {

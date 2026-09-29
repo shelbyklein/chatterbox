@@ -75,6 +75,8 @@ final class ClaudeCodeProcess {
     static func arguments(_ config: Config) -> [String] {
         var args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                     "--include-partial-messages", "--permission-prompt-tool", "stdio",
+                    // Echoes each message as it joins the conversation, which ends its "Queued" state.
+                    "--replay-user-messages",
                     "--model", config.model, "--permission-mode", config.permissionMode,
                     // Only makes "Bypass permissions" selectable later; the mode above still applies.
                     "--allow-dangerously-skip-permissions",
