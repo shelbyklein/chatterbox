@@ -148,4 +148,44 @@ struct ConversationRecord: Codable {
     var pendingHandoff: String?
 
     var backend: Backend { activeBackend ?? (codex == nil ? .claude : .codex) }
+
+    /// The agent processes this chat has in the background host, so a relaunch can pick up
+    /// a reply that kept going while the app was closed. Older records leave these unset.
+    var claudeHost: HostLink?
+    var codexHost: HostLink?
+}
+
+/// Where a chat's agent runs in ChatterboxHost and how far its output had been handled when
+/// the chat was last saved. The turn bookkeeping is saved with it, so replaying from `offset`
+/// continues exactly where the saved transcript stops: no repeated or half-built rows.
+struct HostLink: Codable, Equatable {
+    var processID: String
+    var offset: Int
+    /// A turn was in progress.
+    var running: Bool
+    var claude: ClaudeTurnState?
+    var codex: CodexTurnState?
+}
+
+/// The Claude side's per-turn bookkeeping (see ChatSession+Claude).
+struct ClaudeTurnState: Codable, Equatable {
+    struct ToolCall: Codable, Equatable {
+        var name: String
+        var input: JSON
+    }
+    var render: ResponseRender
+    var toolItems: [String: UUID]
+    var toolCalls: [String: ToolCall]
+    var planItem: UUID?
+    var streamedMessages: [String]
+    var stopRequested: Bool
+}
+
+/// The Codex side's per-turn bookkeeping (see ChatSession+Codex).
+struct CodexTurnState: Codable, Equatable {
+    var turnID: String?
+    var items: [String: UUID]
+    var planItems: [String: UUID]
+    var turnMessageItems: [UUID]
+    var stopRequested: Bool
 }

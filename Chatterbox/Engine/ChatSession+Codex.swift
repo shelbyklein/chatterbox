@@ -113,12 +113,9 @@ extension ChatSession {
     private func codexEnsureThread() async throws -> String {
         guard let settings = record.codex else { throw CodexError(message: "This chat isn't set up for Codex.") }
         try await server.ensureStarted()
-        let handler: (String, JSON, JSON?) -> Void = { [weak self] method, params, requestID in
-            self?.handleCodex(method: method, params: params, requestID: requestID)
-        }
 
         if let existing = settings.threadId {
-            server.register(thread: existing, handler: handler)
+            codexRegisterHandler(existing)
             if server.loadedThreads.contains(existing) { return existing }
             do {
                 _ = try await server.request("thread/resume", [
@@ -145,10 +142,24 @@ extension ChatSession {
         record.sentPersonality = record.personality
         record.sentUserInstructions = Prompts.userInstructions
         record.instructionsVersion = Prompts.instructionsVersion
-        server.register(thread: id, handler: handler)
+        codexRegisterHandler(id)
         server.markLoaded(id)
         onChange?(self)
         return id
+    }
+
+    /// Routes the thread's events to this chat. After a relaunch, lines the saved transcript
+    /// already reflects are skipped.
+    func codexRegisterHandler(_ thread: String) {
+        server.register(thread: thread) { [weak self] method, params, requestID in
+            guard let self else { return }
+            if let skipped = self.codexSkipProcess {
+                if skipped == self.server.hostID, self.server.currentLineEnd <= self.codexSkipThrough { return }
+                self.codexSkipProcess = nil
+            }
+            self.handleCodex(method: method, params: params, requestID: requestID)
+            self.onStreamed?(self)
+        }
     }
 
     private func codexSteer(_ message: UserMessage, turn: String, item: UUID) async {
