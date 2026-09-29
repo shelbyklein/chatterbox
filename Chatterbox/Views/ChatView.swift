@@ -433,8 +433,7 @@ struct ChatView: View {
                 Button("Unbind from Folder") { session.unbindProject() }
             }
         } label: {
-            Label(projectFolderName ?? "No Project", systemImage: session.record.projectFolder == nil ? "folder.badge.plus" : "folder.fill")
-                .labelStyle(SpacedLabelStyle())
+            ToolbarLabel(projectFolderName ?? "No Project", systemImage: session.record.projectFolder == nil ? "folder.badge.plus" : "folder.fill")
         }
         .help(session.record.projectFolder.map { "This chat is bound to \($0). Claude and Codex work in this folder." }
               ?? "Bind this chat to a project folder so Claude or Codex can work in it. Each folder gets one chat.")
@@ -835,12 +834,8 @@ private struct RepoChip: View {
                 }
             }
         } label: {
-            Label {
-                Text([repo, status.branch, syncText.isEmpty ? nil : syncText].compactMap { $0 }.joined(separator: " \u{00B7} "))
-            } icon: {
-                Image(systemName: "arrow.triangle.branch")
-            }
-            .labelStyle(SpacedLabelStyle())
+            ToolbarLabel([repo, status.branch, syncText.isEmpty ? nil : syncText].compactMap { $0 }.joined(separator: " \u{00B7} "),
+                         systemImage: "arrow.triangle.branch")
         }
         .help(helpText)
     }
@@ -857,7 +852,26 @@ private struct RepoChip: View {
     }
 }
 
-/// Icon then title with a little breathing room, for toolbar and status controls.
+/// A toolbar menu's icon and title with a gap between them. The toolbar restyles a `Label`
+/// (ignoring any label style), so this is a plain row it leaves alone.
+struct ToolbarLabel: View {
+    let title: String
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title).lineLimit(1)
+        }
+    }
+}
+
+/// Icon then title with a little breathing room, for status controls.
 struct SpacedLabelStyle: LabelStyle {
     var spacing: CGFloat = 6
 

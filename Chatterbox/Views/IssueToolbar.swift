@@ -36,8 +36,7 @@ struct IssueToolbarItems: View {
             Divider()
             Button("Clear") { session.setCurrentIssue(nil) }
         } label: {
-            Label("#\(issue.number) \u{00B7} \(Self.short(issue.title))", systemImage: "smallcircle.filled.circle")
-                .labelStyle(SpacedLabelStyle())
+            ToolbarLabel("#\(issue.number) \u{00B7} \(Self.short(issue.title))", systemImage: "smallcircle.filled.circle")
         }
         .help("This chat is working on #\(issue.number): \(issue.title)")
     }
@@ -50,8 +49,7 @@ struct IssueToolbarItems: View {
                 NSPasteboard.general.setString(pr.url.absoluteString, forType: .string)
             }
         } label: {
-            Label("PR #\(pr.number) \u{00B7} \(pr.state.capitalized)", systemImage: "arrow.triangle.pull")
-                .labelStyle(SpacedLabelStyle())
+            ToolbarLabel("PR #\(pr.number) \u{00B7} \(pr.state.capitalized)", systemImage: "arrow.triangle.pull")
         } primaryAction: {
             NSWorkspace.shared.open(pr.url)
         }

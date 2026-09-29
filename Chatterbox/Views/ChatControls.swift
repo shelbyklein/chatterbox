@@ -15,7 +15,7 @@ struct ToneMenu: View {
             .pickerStyle(.inline)
             .labelsHidden()
         } label: {
-            Label(current.label, systemImage: Self.icon(current)).labelStyle(SpacedLabelStyle())
+            ToolbarLabel(current.label, systemImage: Self.icon(current))
         }
         .help("Tone: \(current.label). Changes apply from your next message.")
     }
