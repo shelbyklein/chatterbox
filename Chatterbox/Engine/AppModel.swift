@@ -180,6 +180,21 @@ final class AppModel {
         }
     }
 
+    /// The folder the selected chat works in: its project, or else the working folder.
+    var selectedFolder: String? {
+        guard let session = selected else { return nil }
+        return session.record.projectFolder ?? session.record.codex?.folder
+            ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+    }
+
+    /// Opens a Terminal window in the selected chat's folder.
+    func openTerminal() {
+        guard let folder = selectedFolder else { return }
+        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        NSWorkspace.shared.open([URL(fileURLWithPath: folder, isDirectory: true)], withApplicationAt: terminal,
+                                configuration: NSWorkspace.OpenConfiguration())
+    }
+
     func chooseAndOpenProject() {
         if let folder = FolderPicker.choose(startingAt: nil, message: "Choose a project folder. Its chat opens, or a new one starts.") {
             openProject(folder)

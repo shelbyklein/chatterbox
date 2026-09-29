@@ -426,6 +426,7 @@ struct ChatView: View {
             Button(session.record.projectFolder == nil ? "Bind to Folder\u{2026}" : "Change Folder\u{2026}") { chooseProject() }
             if let folder = session.record.projectFolder {
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
+                Button("Open Terminal Here  \u{2325}\u{2318}T") { model.openTerminal() }
                 Divider()
                 Button("Edit AGENTS.md") { openForEditing(folder + "/AGENTS.md") }
                 Button("Edit CLAUDE.md") { openForEditing(folder + "/CLAUDE.md") }

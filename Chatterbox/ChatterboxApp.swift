@@ -58,6 +58,10 @@ struct ChatterboxApp: App {
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button("Choose Mode\u{2026}") { ChatCommands.shared.toggleModePopover() }
                     .keyboardShortcut("p", modifiers: [.command, .shift])
+                Divider()
+                Button("Open Terminal Here") { model.openTerminal() }
+                    .keyboardShortcut("t", modifiers: [.command, .option])
+                    .disabled(model.selected == nil)
             }
         }
 
