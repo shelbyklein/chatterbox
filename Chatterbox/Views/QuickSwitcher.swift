@@ -21,11 +21,13 @@ struct QuickSwitcher: View {
 
     private enum Entry: Identifiable {
         case chat(ChatSession)
+        case pin(Pin)
         case action(Action)
 
         var id: String {
             switch self {
             case .chat(let session): session.id.uuidString
+            case .pin(let pin): pin.id.uuidString
             case .action(let action): action.id
             }
         }
@@ -57,7 +59,8 @@ struct QuickSwitcher: View {
         let found = chats.filter { session in
             matches([session.projectName, session.title, session.record.backend.label] + session.tags)
         }
-        return found.map(Entry.chat) + actions.filter { matches([$0.title]) }.map(Entry.action)
+        let pins = PinStore.shared.pins.filter { matches([$0.title, $0.target, $0.kind.label, "pin"]) }
+        return found.map(Entry.chat) + pins.map(Entry.pin) + actions.filter { matches([$0.title]) }.map(Entry.action)
     }
 
     var body: some View {
@@ -117,6 +120,8 @@ struct QuickSwitcher: View {
         switch entry {
         case .chat(let session):
             model.selectedID = session.id
+        case .pin(let pin):
+            PinStore.shared.open(pin)
         case .action(let action):
             // Let the sheet close first: some actions open a panel or another sheet.
             DispatchQueue.main.async { action.perform() }
@@ -147,6 +152,11 @@ struct QuickSwitcher: View {
                     TagPills(tags: session.tags).fixedSize()
                 }
                 Text(session.record.backend.label).font(.caption).foregroundStyle(.secondary)
+            case .pin(let pin):
+                PinIcon(pin: pin).frame(width: 18, height: 18)
+                Text(pin.title).lineLimit(1)
+                Spacer(minLength: 8)
+                Text("Pin \u{00B7} \(pin.kind.label)").font(.caption).foregroundStyle(.secondary)
             case .action(let action):
                 Image(systemName: action.systemImage).foregroundStyle(.secondary).frame(width: 18)
                 Text(action.title)
@@ -156,7 +166,7 @@ struct QuickSwitcher: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.18) : .clear))
+        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.highlight.opacity(0.18) : .clear))
         .contentShape(Rectangle())
     }
 }

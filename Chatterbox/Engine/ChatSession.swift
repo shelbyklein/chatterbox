@@ -55,7 +55,26 @@ final class ChatSession: Identifiable {
     nonisolated let id: UUID
     var items: [DisplayItem] { record.items }
     var title: String { record.title }
-    var projectName: String { record.projectFolder.map { ($0 as NSString).lastPathComponent } ?? "" }
+    /// The project's nickname, or else its folder's name.
+    var projectName: String {
+        record.projectNickname ?? record.projectFolder.map { ($0 as NSString).lastPathComponent } ?? ""
+    }
+
+    /// Your own title for the chat. Automatic titles only fill in a chat still called "New chat".
+    func setTitle(_ title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != record.title else { return }
+        record.title = trimmed
+        onChange?(self)
+    }
+
+    /// An empty name goes back to the folder's name.
+    func setProjectNickname(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let folderName = record.projectFolder.map { ($0 as NSString).lastPathComponent }
+        record.projectNickname = trimmed.isEmpty || trimmed == folderName ? nil : trimmed
+        onChange?(self)
+    }
 
     init(record: ConversationRecord) {
         self.id = record.id

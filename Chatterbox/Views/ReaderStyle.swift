@@ -114,3 +114,24 @@ struct ReaderStyleSettings: DynamicProperty {
         showThinking = true
     }
 }
+
+extension Color {
+    /// Chatterbox's own highlight: selection, progress, and emphasis. White in dark mode and
+    /// black in light mode, instead of the system's blue accent.
+    static let highlight = Color.primary
+}
+
+/// The main button in a card (Submit, Next): filled with the highlight, text in the
+/// background color, so it reads as primary without the system's blue.
+struct HighlightButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.highlight.opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.3)))
+    }
+}

@@ -5,6 +5,11 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("showArchived") private var showArchived = false
     @State private var pendingDelete: ChatSession?
+    @State private var addingPin = false
+    @State private var renamingProject: ChatSession?
+    @State private var projectNickname = ""
+    @State private var renamingChat: ChatSession?
+    @State private var chatTitle = ""
     /// True while ⌘ is held on its own: the sidebar shows each chat's ⌘-number.
     @State private var showShortcuts = false
     @State private var flagsMonitor: Any?
@@ -23,6 +28,7 @@ struct ContentView: View {
                 let projects = model.sidebarProjects.filter(isShown)
                 let chats = model.sidebarChats.filter(isShown)
                 let archived = model.archivedSessions.filter(isShown)
+                if !isFiltering { PinsSection(addingPin: $addingPin) }
                 if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
                     Text("No matching chats").foregroundStyle(.secondary)
                 }
@@ -76,6 +82,22 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
+        .sheet(isPresented: $addingPin) { AddPinSheet() }
+        .alert("Rename Chat", isPresented: Binding(get: { renamingChat != nil }, set: { if !$0 { renamingChat = nil } })) {
+            TextField("Title", text: $chatTitle)
+            Button("Rename") { renamingChat?.setTitle(chatTitle) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Rename Project", isPresented: Binding(get: { renamingProject != nil }, set: { if !$0 { renamingProject = nil } })) {
+            TextField("Name", text: $projectNickname)
+            Button("Rename") { renamingProject?.setProjectNickname(projectNickname) }
+            if renamingProject?.record.projectNickname != nil {
+                Button("Use Folder Name") { renamingProject?.setProjectNickname("") }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Shown in the sidebar and toolbar. The folder itself isn't renamed.")
+        }
         .background {
             Color.clear.sheet(isPresented: Binding(get: { ChatCommands.shared.showingQuickSwitcher },
                                                    set: { ChatCommands.shared.showingQuickSwitcher = $0 })) {
@@ -175,7 +197,15 @@ extension ContentView {
         SidebarRow(session: session, shortcut: showShortcuts ? number : nil)
             .tag(session.id)
             .contextMenu {
+                Button("Rename Chat\u{2026}") {
+                    chatTitle = session.title
+                    renamingChat = session
+                }
                 if let folder = session.record.projectFolder {
+                    Button("Rename Project\u{2026}") {
+                        projectNickname = session.projectName
+                        renamingProject = session
+                    }
                     Menu("Tags") {
                         ForEach(model.allTags, id: \.self) { tag in
                             Toggle(tag, isOn: Binding(get: { session.tags.contains(tag) }, set: { _ in session.toggleTag(tag) }))
@@ -230,7 +260,7 @@ private struct SidebarRow: View {
             // Waiting on you, or a finished reply you haven't seen.
             if Attention.shared.unread.contains(session.id)
                 || session.items.contains(where: { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }) {
-                Circle().fill(Color.accentColor).frame(width: 7, height: 7)
+                Circle().fill(Color.highlight).frame(width: 7, height: 7)
                     .help("Needs your attention")
             }
             if let shortcut {

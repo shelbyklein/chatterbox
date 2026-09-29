@@ -147,7 +147,7 @@ private struct ModelPopover: View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: "checkmark").font(.caption.weight(.bold))
-                    .foregroundStyle(.tint).opacity(selected ? 1 : 0)
+                    .foregroundStyle(Color.highlight).opacity(selected ? 1 : 0)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                     if !detail.isEmpty {
@@ -158,7 +158,7 @@ private struct ModelPopover: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.12) : .clear))
+            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.highlight.opacity(0.12) : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

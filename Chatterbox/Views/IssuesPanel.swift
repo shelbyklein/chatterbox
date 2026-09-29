@@ -378,7 +378,7 @@ private struct IssueDetailView: View {
             }
             HStack {
                 Button { onWork(issue) } label: { Label("Work on This", systemImage: "hammer") }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HighlightButtonStyle())
                     .disabled(issue.state != "open")
                     .help("Send this issue to the chat's agent and make it the chat's current issue")
                 Button("Open on GitHub") { NSWorkspace.shared.open(issue.url) }

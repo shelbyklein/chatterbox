@@ -53,6 +53,17 @@ struct ChatterboxApp: App {
                 }
             }
 
+            CommandMenu("Pins") {
+                ForEach(1...9, id: \.self) { number in
+                    let pins = PinStore.shared.pins
+                    Button(pins.indices.contains(number - 1) ? pins[number - 1].title : "Pin \(number)") {
+                        PinStore.shared.open(number: number)
+                    }
+                    .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: [.command, .control])
+                    .disabled(!pins.indices.contains(number - 1))
+                }
+            }
+
             CommandMenu("Chat") {
                 Button("Choose Model\u{2026}") { ChatCommands.shared.toggleModelPopover() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])

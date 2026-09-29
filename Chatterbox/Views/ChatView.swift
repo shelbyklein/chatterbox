@@ -64,9 +64,9 @@ struct ChatView: View {
         .overlay {
             if isDropTargeted {
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6]))
-                    .background(Color.accentColor.opacity(0.06))
-                    .overlay(Label("Drop to attach", systemImage: "paperclip").font(.title3).foregroundStyle(.tint))
+                    .strokeBorder(Color.highlight, style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .background(Color.highlight.opacity(0.06))
+                    .overlay(Label("Drop to attach", systemImage: "paperclip").font(.title3).foregroundStyle(Color.highlight))
                     .padding(8)
                     .allowsHitTesting(false)
             }
@@ -234,7 +234,7 @@ struct ChatView: View {
         Label(item.kind == .questions ? "Waiting for your answer below" : "Waiting for your approval below",
               systemImage: "arrow.down.circle")
             .font(.callout)
-            .foregroundStyle(.tint)
+            .foregroundStyle(Color.highlight)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -301,7 +301,7 @@ struct ChatView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(index == commandIndex ? Color.accentColor.opacity(0.18) : .clear))
+                    .background(RoundedRectangle(cornerRadius: 6).fill(index == commandIndex ? Color.highlight.opacity(0.18) : .clear))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -394,7 +394,7 @@ struct ChatView: View {
                 Image(systemName: "arrow.up.circle.fill").font(.system(size: 26))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
+            .foregroundStyle(canSend ? Color.primary : Color.secondary)
             .disabled(!canSend)
             .help(session.isRunning ? "Steer the current reply" : "Send")
         }
@@ -460,7 +460,7 @@ struct ChatView: View {
     // MARK: - Project
 
     private var projectFolderName: String? {
-        session.record.projectFolder.map { ($0 as NSString).lastPathComponent }
+        session.record.projectFolder == nil ? nil : session.projectName
     }
 
     private var projectButton: some View {
@@ -592,16 +592,11 @@ private struct EmptyChatView: View {
         VStack(spacing: 18) {
             Image(systemName: session.record.backend == .codex ? "terminal" : "bubble.left.and.text.bubble.right")
                 .font(.system(size: 40))
-                .foregroundStyle(.tint)
+                .foregroundStyle(.primary)
             Text("What's on your mind?")
                 .font(.title2.weight(.semibold))
 
-            Picker("Chat with", selection: Binding(get: { session.record.backend }, set: session.setBackend)) {
-                ForEach(Backend.allCases) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 200)
+            AgentSwitch(selection: session.record.backend, onSelect: session.setBackend)
 
             if session.record.projectFolder == nil, session.record.backend == .codex, let codex = session.record.codex {
                 Button {
@@ -814,7 +809,7 @@ private struct ModeRow: View {
                 }
                 Spacer(minLength: 8)
                 if isCurrent {
-                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                    Image(systemName: "checkmark").foregroundStyle(Color.highlight)
                 }
                 Text("\(number)")
                     .font(.callout.monospacedDigit())
@@ -923,5 +918,33 @@ struct SpacedLabelStyle: LabelStyle {
             configuration.icon
             configuration.title
         }
+    }
+}
+
+/// Claude | Codex on an empty chat. A system segmented control always takes the macOS accent
+/// color (blue); this one marks the choice in the text color instead: white in dark mode.
+private struct AgentSwitch: View {
+    let selection: Backend
+    let onSelect: (Backend) -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Backend.allCases) { backend in
+                let selected = backend == selection
+                Button { onSelect(backend) } label: {
+                    Text(backend.label)
+                        .font(.callout.weight(.medium))
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(selected ? Color(nsColor: .windowBackgroundColor) : Color.primary)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.primary : Color.clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.08)))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Chat with")
     }
 }

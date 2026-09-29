@@ -131,6 +131,8 @@ struct ConversationRecord: Codable {
     var gitRemote: String?
     /// The GitHub issue this chat is working on, shown in the toolbar. Set by "Work on This".
     var currentIssue: CurrentIssue?
+    /// A friendlier name for the project ("Tracker Trapper" for tracker-trapper). The folder isn't renamed.
+    var projectNickname: String?
     /// Labels for sorting projects, shown as pills in the sidebar.
     var tags: [String]?
     /// Older setting, used when `claudeMode` is unset: true meant accept edits.

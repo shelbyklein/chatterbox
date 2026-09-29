@@ -155,7 +155,7 @@ private struct ApprovalCard: View {
         }
         .padding(12)
         .frame(maxWidth: 520, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.accentColor.opacity(item.approvalState == .pending ? 0.6 : 0.2)))
+        .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.highlight.opacity(item.approvalState == .pending ? 0.6 : 0.2)))
     }
 
     private func outcome(_ text: String, _ icon: String, _ color: Color) -> some View {
@@ -215,7 +215,7 @@ private struct PlanCard: View {
     private func icon(for status: String) -> some View {
         switch status {
         case "completed": Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case "in_progress": Image(systemName: "circle.dotted.circle").foregroundStyle(.tint)
+        case "in_progress": Image(systemName: "circle.dotted.circle").foregroundStyle(Color.highlight)
         default: Image(systemName: "circle").foregroundStyle(.tertiary)
         }
     }
@@ -405,15 +405,15 @@ private struct QuestionCard: View {
         }
         .padding(14)
         .frame(maxWidth: 560, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor.opacity(item.approvalState == .pending ? 0.07 : 0.03)))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor.opacity(item.approvalState == .pending ? 0.5 : 0.15)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.highlight.opacity(item.approvalState == .pending ? 0.07 : 0.03)))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.highlight.opacity(item.approvalState == .pending ? 0.5 : 0.15)))
     }
 
     private func asking(_ question: AgentQuestion) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label(question.header.isEmpty ? "Question" : question.header, systemImage: "questionmark.bubble")
-                    .font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                    .font(.caption.weight(.semibold)).foregroundStyle(Color.highlight)
                 Spacer()
                 if questions.count > 1 {
                     Text("\(index + 1) of \(questions.count)").font(.caption).foregroundStyle(.secondary)
@@ -448,7 +448,7 @@ private struct QuestionCard: View {
                 if index > 0 { Button("Back") { index -= 1 } }
                 Button(index == questions.count - 1 ? "Submit" : "Next", action: advance)
                     .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(HighlightButtonStyle())
                     .disabled(answer(for: question).isEmpty)
             }
             .controlSize(.small)
@@ -470,7 +470,7 @@ private struct QuestionCard: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: question.multiSelect ? (selected ? "checkmark.square.fill" : "square") : (selected ? "largecircle.fill.circle" : "circle"))
-                    .foregroundStyle(selected ? Color.accentColor : .secondary)
+                    .foregroundStyle(selected ? Color.highlight : .secondary)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(option.label)
                     if !option.detail.isEmpty, option.detail != option.label {
@@ -481,7 +481,7 @@ private struct QuestionCard: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.04)))
+            .background(RoundedRectangle(cornerRadius: 7).fill(selected ? Color.highlight.opacity(0.14) : Color.primary.opacity(0.04)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

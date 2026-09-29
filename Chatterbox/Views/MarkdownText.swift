@@ -187,7 +187,7 @@ struct MarkdownText: View {
                 result[run.range].backgroundColor = Color.primary.opacity(0.09)
             }
             if run.link != nil {
-                result[run.range].foregroundColor = .accentColor
+                result[run.range].foregroundColor = Color.highlight
                 result[run.range].underlineStyle = .single
             }
         }
