@@ -22,7 +22,9 @@ struct ContentView: View {
     var body: some View {
         @Bindable var model = model
         NavigationSplitView {
-            List(selection: $model.selectedID) {
+            // No list selection: macOS would paint the selected row in the system accent (blue).
+            // Rows select on click and draw their own subtle highlight instead.
+            List {
                 // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
                 let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
                 let projects = model.sidebarProjects.filter(isShown)
@@ -195,7 +197,13 @@ extension ContentView {
 
     private func row(_ session: ChatSession, number: Int?) -> some View {
         SidebarRow(session: session, shortcut: showShortcuts ? number : nil)
-            .tag(session.id)
+            .contentShape(Rectangle())
+            .onTapGesture { model.selectedID = session.id }
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.highlight.opacity(model.selectedID == session.id ? 0.10 : 0))
+                    .padding(.horizontal, 10)
+            )
             .contextMenu {
                 Button("Rename Chat\u{2026}") {
                     chatTitle = session.title
