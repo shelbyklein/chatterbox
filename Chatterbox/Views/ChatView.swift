@@ -239,18 +239,27 @@ struct ChatView: View {
     }
 
     private var waitingTray: some View {
-        ScrollView {
-            if let item = waitingCard {
-                ItemView(item: item, agent: session.record.backend,
-                         onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .id(item.id)
+        // Hidden copies of the paperclip and send/stop buttons, so the card lines up exactly
+        // with the text field below it.
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "paperclip").font(.system(size: 17)).hidden()
+            ScrollView {
+                if let item = waitingCard {
+                    ItemView(item: item, agent: session.record.backend,
+                             onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+                        .environment(\.cardFillsWidth, true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .id(item.id)
+                }
             }
+            // Tall cards (a long plan) scroll inside the tray instead of pushing the chat away.
+            .frame(maxHeight: 360)
+            .fixedSize(horizontal: false, vertical: true)
+            if session.isRunning {
+                Image(systemName: "stop.circle.fill").font(.system(size: 26)).hidden()
+            }
+            Image(systemName: "arrow.up.circle.fill").font(.system(size: 26)).hidden()
         }
-        // Tall cards (a long plan) scroll inside the tray instead of pushing the chat away.
-        .frame(maxHeight: 360)
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.leading, 34)
     }
 
     private var composer: some View {
@@ -380,13 +389,14 @@ struct ChatView: View {
                 .keyboardShortcut(".", modifiers: .command)
                 .help("Stop (Esc or \u{2318}.)")
                 // Esc stops the reply from anywhere in the chat. While the "/" menu is open,
-                // Esc closes the menu instead.
-                if commandMatches.isEmpty {
-                    Button("Stop", action: session.interrupt)
-                        .keyboardShortcut(.escape, modifiers: [])
-                        .frame(width: 0, height: 0)
-                        .opacity(0)
-                        .accessibilityHidden(true)
+                // Esc closes the menu instead. Kept in the background so it takes no room in the row.
+                .background {
+                    if commandMatches.isEmpty {
+                        Button("Stop", action: session.interrupt)
+                            .keyboardShortcut(.escape, modifiers: [])
+                            .opacity(0)
+                            .accessibilityHidden(true)
+                    }
                 }
             }
 

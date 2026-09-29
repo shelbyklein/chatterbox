@@ -109,6 +109,7 @@ struct ItemView: View {
 private struct ApprovalCard: View {
     let item: DisplayItem
     let decide: (DisplayItem.ApprovalState) -> Void
+    @Environment(\.cardFillsWidth) private var fillsWidth
 
     private var isPlan: Bool { item.approvalStyle == .plan }
 
@@ -154,7 +155,7 @@ private struct ApprovalCard: View {
             }
         }
         .padding(12)
-        .frame(maxWidth: 520, alignment: .leading)
+        .frame(maxWidth: fillsWidth ? .infinity : 520, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.highlight.opacity(item.approvalState == .pending ? 0.6 : 0.2)))
     }
 
@@ -387,6 +388,7 @@ extension View {
 private struct QuestionCard: View {
     let item: DisplayItem
     let submit: ([String: [String]]?) -> Void
+    @Environment(\.cardFillsWidth) private var fillsWidth
 
     @State private var index = 0
     @State private var picks: [String: Set<String>] = [:]
@@ -404,7 +406,7 @@ private struct QuestionCard: View {
             }
         }
         .padding(14)
-        .frame(maxWidth: 560, alignment: .leading)
+        .frame(maxWidth: fillsWidth ? .infinity : 560, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.highlight.opacity(item.approvalState == .pending ? 0.07 : 0.03)))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.highlight.opacity(item.approvalState == .pending ? 0.5 : 0.15)))
     }
@@ -522,5 +524,17 @@ private struct QuestionCard: View {
         } else {
             submit(Dictionary(uniqueKeysWithValues: questions.map { ($0.id, answer(for: $0)) }))
         }
+    }
+}
+
+/// Cards in the tray above the message box span its full width instead of their usual cap.
+private struct CardFillsWidthKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var cardFillsWidth: Bool {
+        get { self[CardFillsWidthKey.self] }
+        set { self[CardFillsWidthKey.self] = newValue }
     }
 }
