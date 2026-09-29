@@ -26,9 +26,16 @@ struct ContentView: View {
                 if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
                     Text("No matching chats").foregroundStyle(.secondary)
                 }
-                if !projects.isEmpty {
-                    Section("Projects") {
+                // The heading stays while a tag filter is on, so the filter can always be cleared.
+                if !projects.isEmpty || activeTag != nil {
+                    Section {
                         ForEach(projects) { session in row(session, number: numbers[session.id]) }
+                    } header: {
+                        HStack {
+                            Text("Projects")
+                            Spacer()
+                            if !model.allTags.isEmpty { tagFilterMenu }
+                        }
                     }
                 }
                 if !chats.isEmpty || !isFiltering {
@@ -45,7 +52,6 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
-                ToolbarItem { tagFilterMenu }
                 ToolbarItem {
                     Menu {
                         Button("New Claude Chat") { model.newChat(backend: .claude) }
@@ -99,7 +105,14 @@ struct ContentView: View {
         }
         .task { await model.refreshProjectRepos() }
         .task { Attention.shared.start(model: model) }
-        .onChange(of: model.selectedID) { _, id in Attention.shared.markSeen(id) }
+        .onChange(of: model.selectedID) { _, id in
+            Attention.shared.markSeen(id)
+            // A chat you open (like a new one) never hides behind the search or tag filter.
+            if let session = model.sessions.first(where: { $0.id == id }), !isShown(session) {
+                searchText = ""
+                tagFilter = ""
+            }
+        }
         .onAppear(perform: watchCommandKey)
         .onDisappear {
             if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
@@ -139,9 +152,11 @@ extension ContentView {
             }
             .pickerStyle(.inline)
         } label: {
-            Label("Filter", systemImage: activeTag == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            Image(systemName: activeTag == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
-        .disabled(model.allTags.isEmpty)
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
         .help(activeTag.map { "Showing projects tagged \u{201C}\($0)\u{201D}" } ?? "Show only projects with a tag")
     }
 
