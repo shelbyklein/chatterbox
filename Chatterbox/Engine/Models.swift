@@ -83,6 +83,8 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var attachments: [Attachment]?
     /// The agent a user message was sent to. Older rows leave it unset.
     var agent: Backend?
+    /// On a turn's final reply: how long the turn took, shown as "Worked for 4m 12s".
+    var workedSeconds: Int?
     /// Notices marking a change of agent, model, or effort. Back-to-back changes share one.
     var isSettingsChange: Bool?
     /// Question rows: what the agent asked, and your answers by question id once sent.
@@ -148,6 +150,10 @@ struct ConversationRecord: Codable {
     var codexSeenThrough: UUID?
     /// Transcript of what the incoming agent missed, delivered with its next message.
     var pendingHandoff: String?
+    /// When the reply in progress started, so its running time survives a restart.
+    var turnStartedAt: Date?
+    /// Context usage per agent ("claude"/"codex") as last reported, so the meter shows at once.
+    var savedContext: [String: ContextUsage]?
     /// "!" commands you ran and their output, delivered with your next message to the agent.
     var pendingShellContext: String?
 

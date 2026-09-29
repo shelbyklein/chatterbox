@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// How full a conversation's context is, from the agent's own token counts.
-struct ContextUsage: Equatable {
+struct ContextUsage: Equatable, Codable {
     /// Tokens the last request sent: the whole conversation so far, as the model saw it.
     var used: Int
     /// The model's context window, once the agent has reported it.

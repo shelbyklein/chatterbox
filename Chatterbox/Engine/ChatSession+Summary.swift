@@ -2,6 +2,11 @@ import Foundation
 
 /// A one-line "what happened last" for a project, shown under its name in the sidebar.
 extension ChatSession {
+    /// A question or approval is waiting for you.
+    var isWaitingOnYou: Bool {
+        items.contains { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }
+    }
+
     var lastActionSummary: String? {
         if let waiting = items.last(where: { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }) {
             return waiting.kind == .questions ? "Has a question for you" : "Waiting for your approval"

@@ -12,23 +12,29 @@ struct UsageMeter: View {
     private var limits: [UsageWindow] { UsageLimits.shared.windows(for: session.record.backend) }
 
     var body: some View {
-        if let fraction = context?.fraction {
+        if let context {
+            let fraction = context.fraction
             Button { isOpen.toggle() } label: {
-                ZStack {
-                    Circle().stroke(Color.secondary.opacity(0.25), lineWidth: 2)
-                    Circle()
-                        .trim(from: 0, to: max(0.02, fraction))
-                        .stroke(ringColor(fraction), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
+                HStack(spacing: 5) {
+                    ZStack {
+                        Circle().stroke(Color.secondary.opacity(0.25), lineWidth: 2)
+                        Circle()
+                            .trim(from: 0, to: max(0.02, fraction ?? 0))
+                            .stroke(ringColor(fraction ?? 0), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: 12, height: 12)
+                    Text(fraction.map { "Context \(Int(($0 * 100).rounded()))%" } ?? "\(Self.tokens(context.used)) tokens")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(fraction.map { $0 >= 0.75 ? ringColor($0) : Color.secondary } ?? .secondary)
                 }
-                .frame(width: 12, height: 12)
                 .padding(2)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(summary)
             .popover(isPresented: $isOpen, arrowEdge: .top) { details.padding(14).frame(width: 280) }
-            .accessibilityLabel("Context \(Int(fraction * 100)) percent full")
+            .accessibilityLabel(fraction.map { "Context \(Int($0 * 100)) percent full" } ?? "Context \(context.used) tokens")
         }
     }
 

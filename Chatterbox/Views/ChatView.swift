@@ -386,6 +386,15 @@ struct ChatView: View {
                                   lineWidth: composerFocused ? 1.5 : 1))
                 .animation(.easeOut(duration: 0.15), value: session.record.backend)
 
+            if session.isRunning, let started = session.record.turnStartedAt {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(ChatSession.durationText(max(0, Int(context.date.timeIntervalSince(started)))))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .frame(height: 36)
+                .help("Working since \(started.formatted(date: .omitted, time: .shortened))")
+            }
             if session.isRunning {
                 Button(action: session.interrupt) {
                     Image(systemName: "stop.circle.fill").font(.system(size: 26))

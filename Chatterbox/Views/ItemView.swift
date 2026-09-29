@@ -69,8 +69,15 @@ struct ItemView: View {
                     .textSelection(.enabled)
             }
         } else {
-            MarkdownText(text: item.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                MarkdownText(text: item.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let seconds = item.workedSeconds {
+                    Label("Worked for \(ChatSession.durationText(seconds))", systemImage: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 

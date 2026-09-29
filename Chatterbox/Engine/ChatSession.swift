@@ -14,9 +14,23 @@ import Observation
 @Observable
 final class ChatSession: Identifiable {
     var record: ConversationRecord
-    var isRunning = false
+    var isRunning = false {
+        didSet {
+            guard isRunning != oldValue else { return }
+            if isRunning {
+                if record.turnStartedAt == nil { record.turnStartedAt = Date() }
+            } else {
+                noteTurnDuration()
+            }
+        }
+    }
     /// How full each agent's context is, from its latest token counts. Not saved.
-    var contextUsage: [Backend: ContextUsage] = [:]
+    var contextUsage: [Backend: ContextUsage] = [:] {
+        didSet {
+            guard contextUsage != oldValue else { return }
+            record.savedContext = Dictionary(uniqueKeysWithValues: contextUsage.map { ($0.key.rawValue, $0.value) })
+        }
+    }
 
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
     /// Called after agent output changed the transcript without `onChange` (streamed text),
@@ -79,6 +93,9 @@ final class ChatSession: Identifiable {
     init(record: ConversationRecord) {
         self.id = record.id
         self.record = record
+        for (key, usage) in record.savedContext ?? [:] {
+            if let backend = Backend(rawValue: key) { contextUsage[backend] = usage }
+        }
     }
 
     // MARK: - Public API
@@ -111,6 +128,24 @@ final class ChatSession: Identifiable {
         case .codex: codexResolveApproval(itemID, decision)
         case .claude: claudeResolveApproval(itemID, decision)
         }
+    }
+
+    /// Stamps the turn's final reply with how long it took, when that was long enough to matter.
+    private func noteTurnDuration() {
+        guard let started = record.turnStartedAt else { return }
+        record.turnStartedAt = nil
+        let seconds = Int(Date().timeIntervalSince(started))
+        guard seconds >= 10,
+              let index = record.items.lastIndex(where: { $0.kind == .assistant && $0.phase == .final }),
+              record.items[index...].allSatisfy({ $0.kind != .user || $0.steered }) else { return }
+        record.items[index].workedSeconds = seconds
+    }
+
+    /// "4m 12s", "1h 3m", "45s".
+    static func durationText(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds)s" }
+        if seconds < 3600 { return "\(seconds / 60)m \(seconds % 60)s" }
+        return "\(seconds / 3600)h \((seconds % 3600) / 60)m"
     }
 
     /// Answers a question card; nil means you skipped it.

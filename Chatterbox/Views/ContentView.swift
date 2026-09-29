@@ -200,8 +200,12 @@ extension ContentView {
             .contentShape(Rectangle())
             .onTapGesture { model.selectedID = session.id }
             .listRowBackground(
+                // Waiting on you wins over selection: the whole row turns yellow.
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.highlight.opacity(model.selectedID == session.id ? 0.10 : 0))
+                    .fill(session.isWaitingOnYou ? Color.yellow.opacity(0.22)
+                          : Color.highlight.opacity(model.selectedID == session.id ? 0.10 : 0))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.yellow.opacity(session.isWaitingOnYou ? 0.7 : 0), lineWidth: 1))
                     .padding(.horizontal, 10)
             )
             .contextMenu {
@@ -257,7 +261,8 @@ private struct SidebarRow: View {
                     }
                     // What happened last, rather than the chat's title.
                     if let summary = session.lastActionSummary ?? (session.title != "New chat" ? session.title : nil) {
-                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(summary).font(.caption.weight(session.isWaitingOnYou ? .semibold : .regular))
+                            .foregroundStyle(session.isWaitingOnYou ? Color.yellow : Color.secondary).lineLimit(1)
                             .help(session.title)
                     }
                 }
@@ -281,6 +286,14 @@ private struct SidebarRow: View {
                     .background(RoundedRectangle(cornerRadius: 4).fill(.quaternary))
                     .foregroundStyle(.secondary)
             } else if session.isRunning {
+                if let started = session.record.turnStartedAt {
+                    TimelineView(.periodic(from: .now, by: 15)) { context in
+                        let minutes = Int(context.date.timeIntervalSince(started)) / 60
+                        if minutes >= 1 {
+                            Text("\(minutes)m").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 ActivitySpinner(color: appearance.style.color(for: session.record.backend))
                     .frame(width: 10, height: 10)
                     .help("\(session.record.backend.label) is working")
