@@ -149,6 +149,7 @@ extension ChatSession {
             if message["subtype"]?.string == "commands_changed", let list = message["commands"]?.array {
                 claudeCommands = list.compactMap(SlashCommand.init(claude:))
             }
+            if message["subtype"]?.string == "compact_boundary" { claudeCompacted(message) }
 
         case "stream_event":
             if let event = message["event"] { handleClaudeEvent(event) }

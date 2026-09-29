@@ -42,6 +42,23 @@ extension ChatSession {
         contextUsage[.claude] = ContextUsage(used: used, window: contextUsage[.claude]?.window)
     }
 
+    /// `compact_boundary` (from /compact or automatic compaction) says how big the context is
+    /// afterwards, so the meter drops right away instead of after the next request.
+    func claudeCompacted(_ message: JSON) {
+        let meta = message["compact_metadata"]
+        guard let after = meta?["post_tokens"]?.int else { return }
+        contextUsage[.claude] = ContextUsage(used: after, window: contextUsage[.claude]?.window)
+        let before = meta?["pre_tokens"]?.int
+        let auto = meta?["trigger"]?.string == "auto"
+        let sizes = before.map { " from \(Self.tokens($0)) to \(Self.tokens(after)) tokens" } ?? " to \(Self.tokens(after)) tokens"
+        notice((auto ? "The conversation was compacted automatically" : "Compacted the conversation") + sizes + ".")
+        onChange?(self)
+    }
+
+    private static func tokens(_ n: Int) -> String {
+        n >= 1000 ? String(format: "%.1fk", Double(n) / 1000) : "\(n)"
+    }
+
     /// The `result` message names each model's context window in `modelUsage`. Sub-tasks can
     /// use a smaller model, so the one that read the most is taken as the chat's.
     func claudeUpdateContextWindow(result: JSON) {
