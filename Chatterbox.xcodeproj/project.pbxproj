@@ -61,6 +61,7 @@
 		F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */; };
 		F21C81EE917C3DB8A4CFD123 /* Usage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB7CFE60E88616572724762 /* Usage.swift */; };
 		F72F71755FD8B1FC399BFE7E /* ImageReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */; };
+		FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +98,7 @@
 		14558A0837B25DEDA47B363D /* ModelPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPresets.swift; sourceTree = "<group>"; };
 		1AECAB552B28248B3461AC00 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
 		276EA46A76921A11440633E3 /* ItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemView.swift; sourceTree = "<group>"; };
+		294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Summary.swift"; sourceTree = "<group>"; };
 		2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderStyle.swift; sourceTree = "<group>"; };
 		30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Claude.swift"; sourceTree = "<group>"; };
 		3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatControls.swift; sourceTree = "<group>"; };
@@ -199,6 +201,7 @@
 				C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */,
 				A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */,
 				E7786246032F89E4E0C70184 /* ChatSession+Status.swift */,
+				294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */,
 				3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */,
 				C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */,
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
@@ -358,6 +361,7 @@
 				E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */,
 				CD177B0129A911BCBAFC510C /* ChatSession+Issues.swift in Sources */,
 				8FD50A86B332AEA5CCEBC1C5 /* ChatSession+Status.swift in Sources */,
+				FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */,
 				56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */,
 				59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */,
 				DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */,

@@ -247,8 +247,10 @@ private struct SidebarRow: View {
                     if !session.tags.isEmpty {
                         TagPills(tags: session.tags)
                     }
-                    if session.title != "New chat" {
-                        Text(session.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    // What happened last, rather than the chat's title.
+                    if let summary = session.lastActionSummary ?? (session.title != "New chat" ? session.title : nil) {
+                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .help(session.title)
                     }
                 }
                 .help(session.record.projectFolder ?? "")

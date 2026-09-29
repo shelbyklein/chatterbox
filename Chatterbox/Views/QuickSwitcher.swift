@@ -143,8 +143,9 @@ struct QuickSwitcher: View {
                             Text("Archived").font(.caption).foregroundStyle(.tertiary)
                         }
                     }
-                    if session.record.projectFolder != nil, session.title != "New chat" {
-                        Text(session.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if session.record.projectFolder != nil,
+                       let summary = session.lastActionSummary ?? (session.title != "New chat" ? session.title : nil) {
+                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 Spacer(minLength: 8)
