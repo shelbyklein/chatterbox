@@ -465,11 +465,8 @@ private struct QuestionCard: View {
             } else {
                 set = selected ? [] : [option.label]
             }
+            // Selecting only marks the choice; Next or Submit sends it.
             picks[question.id] = set
-            // A single choice with nothing typed moves straight on.
-            if !question.multiSelect, !selected, (other[question.id] ?? "").isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { advance() }
-            }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: question.multiSelect ? (selected ? "checkmark.square.fill" : "square") : (selected ? "largecircle.fill.circle" : "circle"))
