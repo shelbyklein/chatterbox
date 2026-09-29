@@ -45,7 +45,7 @@ struct PlanStep: Codable, Equatable, Hashable {
 
 /// One row in the transcript. The API history is stored separately; this is only what the user sees.
 struct DisplayItem: Identifiable, Codable, Equatable {
-    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval }
+    enum Kind: String, Codable { case user, assistant, thought, tool, plan, notice, approval, image }
     /// Assistant text is either narration mid-task (commentary) or the reply that ends a turn (final).
     enum Phase: String, Codable { case streaming, commentary, final }
     enum ToolState: String, Codable { case running, done, failed }
@@ -64,6 +64,8 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var approvalState: ApprovalState?
     /// Files attached to a user message.
     var attachments: [Attachment]?
+    /// The agent a user message was sent to. Older rows leave it unset.
+    var agent: Backend?
     /// Approval rows: which buttons to show. nil is the usual Allow / Allow for This Chat / Deny.
     var approvalStyle: ApprovalStyle?
 
@@ -75,6 +77,8 @@ struct ConversationRecord: Codable {
     var id = UUID()
     var title = "New chat"
     var createdAt = Date()
+    /// Set when the chat is archived: hidden from the main lists, but kept intact.
+    var archivedAt: Date?
     var updatedAt = Date()
     /// Claude Code `--model` value: an alias ("opus", "default") or a full model id.
     var model: String
@@ -94,6 +98,13 @@ struct ConversationRecord: Codable {
 
     /// The project folder this chat is bound to. At most one chat per folder.
     var projectFolder: String?
+    /// "owner/name" of the GitHub repo the project folder's remote points to. Read from
+    /// git, not set by hand; kept here so the sidebar and "From GitHub" can find it.
+    var githubRepo: String?
+    /// Which remote to use when the folder has more than one on GitHub.
+    var gitRemote: String?
+    /// Labels for sorting projects, shown as pills in the sidebar.
+    var tags: [String]?
     /// Older setting, used when `claudeMode` is unset: true meant accept edits.
     var claudeCanEdit: Bool?
     /// Claude Code permission mode, one of `PermissionModes.claude`.

@@ -293,6 +293,7 @@ extension ChatSession {
                 codexItems[itemID] = id
                 codexTurnMessageItems.append(id)
             }
+            if type == "imageGeneration", item["failure"].map({ $0 == .null }) ?? true { showGeneratedImage(item) }
             return
         }
         switch type {
@@ -308,6 +309,10 @@ extension ChatSession {
         case "reasoning":
             let summary = (item["summary"]?.array ?? []).compactMap(\.string).joined(separator: "\n\n")
             if !summary.isEmpty { updateItem(id) { $0.text = summary } }
+        case "imageGeneration":
+            let failed = item["failure"].map { $0 != .null } ?? false
+            updateItem(id) { $0.toolState = failed ? .failed : .done }
+            if !failed { showGeneratedImage(item) }
         default:
             let status = item["status"]?.string
             updateItem(id) {
@@ -315,6 +320,22 @@ extension ChatSession {
                 $0.toolState = (status == nil || status == "completed") ? .done : .failed
             }
         }
+    }
+
+    /// Copies a generated image into the attachment store and shows it in the chat.
+    /// Codex saves it to disk (`savedPath`) and also returns it inline (`result`, base64).
+    private func showGeneratedImage(_ item: JSON) {
+        var attachment: Attachment?
+        if let path = item["savedPath"]?.string, FileManager.default.fileExists(atPath: path) {
+            attachment = try? Attachments.importFile(URL(fileURLWithPath: path))
+        }
+        if attachment == nil, let base64 = item["result"]?.string,
+           let data = Data(base64Encoded: base64.replacingOccurrences(of: #"^data:image/\w+;base64,"#, with: "", options: .regularExpression)) {
+            attachment = try? Attachments.importImageData(data, name: "Generated image")
+        }
+        guard let attachment else { return }
+        appendItem(DisplayItem(kind: .image, text: item["revisedPrompt"]?.string ?? "", attachments: [attachment]))
+        onChange?(self)
     }
 
     private func codexTurnCompleted(_ turn: JSON?) {

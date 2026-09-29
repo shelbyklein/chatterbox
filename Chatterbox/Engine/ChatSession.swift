@@ -23,6 +23,8 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var claudeProcess: ClaudeCodeProcess?
     @ObservationIgnored var claudeRender = ResponseRender()
     @ObservationIgnored var claudeToolItems: [String: UUID] = [:]
+    /// Tool name and input per call, to preview files Claude writes once the write succeeds.
+    @ObservationIgnored var claudeToolCalls: [String: (name: String, input: JSON)] = [:]
     @ObservationIgnored var claudePlanItem: UUID?
     @ObservationIgnored var claudeStopRequested = false
 
@@ -48,6 +50,8 @@ final class ChatSession: Identifiable {
     func send(_ raw: String, attachments: [Attachment] = []) {
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
+        // Writing in an archived chat brings it back.
+        if record.archivedAt != nil { setArchived(false) }
         switch record.backend {
         case .codex: codexSend(message)
         case .claude: claudeSend(message)
@@ -78,7 +82,23 @@ final class ChatSession: Identifiable {
     @discardableResult
     func appendUserItem(_ message: UserMessage, steered: Bool = false) -> UUID {
         appendItem(DisplayItem(kind: .user, text: message.text, steered: steered,
-                               attachments: message.attachments.isEmpty ? nil : message.attachments))
+                               attachments: message.attachments.isEmpty ? nil : message.attachments,
+                               agent: record.backend))
+    }
+
+    /// Which agent each user message went to. Older rows didn't record it, so it's worked out
+    /// from the "Switched to …" notes, walking back from the agent answering now.
+    var agentsByItem: [UUID: Backend] {
+        var result: [UUID: Backend] = [:]
+        var current = record.backend
+        for item in record.items.reversed() {
+            if item.kind == .notice, item.text.hasPrefix("Switched to ") {
+                // Before this note, the other agent was answering.
+                current = item.text.hasPrefix("Switched to Codex") ? .claude : .codex
+            }
+            if item.kind == .user { result[item.id] = item.agent ?? current }
+        }
+        return result
     }
 
     /// Every attachment in this chat, for cleanup when the chat is deleted.
@@ -139,6 +159,9 @@ final class ChatSession: Identifiable {
                 parts.append("Assistant: " + item.text)
             case .plan:
                 parts.append("Plan: " + item.planSteps.map { "[\($0.status)] \($0.step)" }.joined(separator: "; "))
+            case .image:
+                let files = (item.attachments ?? []).map(\.path).joined(separator: ", ")
+                parts.append("Assistant produced a file to look at" + (item.text.isEmpty ? "" : " (\(item.text))") + ": " + files)
             default:
                 break
             }
@@ -158,9 +181,24 @@ final class ChatSession: Identifiable {
         onChange?(self)
     }
 
+    /// Records the GitHub repo the folder's git remote points to.
+    func updateGitHubRepo(from status: GitStatus?) {
+        let repo = status?.remote(preferring: record.gitRemote)?.repo
+        guard repo != record.githubRepo else { return }
+        record.githubRepo = repo
+        onChange?(self)
+    }
+
+    func setGitRemote(_ name: String) {
+        record.gitRemote = name
+        updateGitHubRepo(from: GitStatusStore.shared.status(for: record.projectFolder))
+        onChange?(self)
+    }
+
     func unbindProject() {
         guard record.projectFolder != nil else { return }
         record.projectFolder = nil
+        record.githubRepo = nil
         claudeWorkingFolderChanged()
         onChange?(self)
     }
@@ -181,6 +219,24 @@ final class ChatSession: Identifiable {
         case .codex:
             record.codex?.mode = id
         }
+        onChange?(self)
+    }
+
+    var tags: [String] { record.tags ?? [] }
+
+    func toggleTag(_ tag: String) {
+        var tags = self.tags
+        if let index = tags.firstIndex(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
+            tags.remove(at: index)
+        } else {
+            tags.append(tag)
+        }
+        record.tags = tags.isEmpty ? nil : tags
+        onChange?(self)
+    }
+
+    func setArchived(_ archived: Bool) {
+        record.archivedAt = archived ? Date() : nil
         onChange?(self)
     }
 

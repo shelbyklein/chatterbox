@@ -5,9 +5,10 @@ import SwiftUI
 /// tables, quotes, rules, and fenced code, with inline bold, italics, code, and links.
 struct MarkdownText: View {
     let text: String
+    @Environment(\.readerStyle) private var style
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: style.paragraphSpacing) {
             ForEach(Array(Self.blocks(text).enumerated()), id: \.offset) { _, block in
                 BlockView(block: block)
             }
@@ -23,7 +24,8 @@ struct MarkdownText: View {
         case table(header: [String], rows: [[String]], alignments: [HorizontalAlignment])
         case quote(String)
         case rule
-        case code(String, language: String)
+        /// `closed` is false while the fence is still streaming.
+        case code(String, language: String, closed: Bool)
     }
 
     struct ListItem {
@@ -60,7 +62,7 @@ struct MarkdownText: View {
                     code.append(lines[index])
                     index += 1
                 }
-                blocks.append(.code(code.joined(separator: "\n"), language: language))
+                blocks.append(.code(code.joined(separator: "\n"), language: language, closed: index < lines.count))
                 index += 1
                 continue
             }
@@ -176,12 +178,12 @@ struct MarkdownText: View {
     // MARK: - Inline
 
     /// Bold, italics, links, and code spans. Code gets a subtle chip.
-    static func inline(_ text: String) -> AttributedString {
+    static func inline(_ text: String, style: ReaderStyle = .defaults) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
         for run in result.runs {
             if let intent = run.inlinePresentationIntent, intent.contains(.code) {
-                result[run.range].font = .system(.callout, design: .monospaced)
+                result[run.range].font = style.code
                 result[run.range].backgroundColor = Color.primary.opacity(0.09)
             }
             if run.link != nil {
@@ -197,32 +199,38 @@ struct MarkdownText: View {
 
 private struct BlockView: View {
     let block: MarkdownText.Block
+    @Environment(\.readerStyle) private var style
+
+    private func inline(_ text: String) -> AttributedString { MarkdownText.inline(text, style: style) }
 
     var body: some View {
         switch block {
         case .heading(let level, let text):
-            Text(MarkdownText.inline(text))
-                .font(level == 1 ? .title2.weight(.semibold) : level == 2 ? .title3.weight(.semibold) : .headline)
-                .padding(.top, level <= 2 ? 6 : 2)
+            Text(inline(text))
+                .font(style.heading(level))
+                .padding(.top, level <= 2 ? style.paragraphSpacing * 0.6 : 2)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
 
         case .paragraph(let text):
-            Text(MarkdownText.inline(text))
-                .lineSpacing(3)
+            Text(inline(text))
+                .font(style.body)
+                .lineSpacing(style.lineSpacing)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
 
         case .list(let items):
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: max(3, style.paragraphSpacing / 2)) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     HStack(alignment: .firstTextBaseline, spacing: 7) {
                         Text(item.marker)
+                            .font(style.body)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                             .frame(minWidth: item.marker == "\u{2022}" ? 10 : 20, alignment: .trailing)
-                        Text(MarkdownText.inline(item.text))
-                            .lineSpacing(3)
+                        Text(inline(item.text))
+                            .font(style.body)
+                            .lineSpacing(style.lineSpacing)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -236,9 +244,10 @@ private struct BlockView: View {
         case .quote(let text):
             HStack(alignment: .top, spacing: 10) {
                 RoundedRectangle(cornerRadius: 1.5).fill(.tertiary).frame(width: 3)
-                Text(MarkdownText.inline(text))
+                Text(inline(text))
+                    .font(style.body)
                     .foregroundStyle(.secondary)
-                    .lineSpacing(3)
+                    .lineSpacing(style.lineSpacing)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -246,8 +255,8 @@ private struct BlockView: View {
         case .rule:
             Divider().padding(.vertical, 4)
 
-        case .code(let code, let language):
-            CodeBlock(code: code, language: language)
+        case .code(let code, let language, let closed):
+            CodeBlock(code: code, language: language, closed: closed)
         }
     }
 }
@@ -256,6 +265,7 @@ private struct TableView: View {
     let header: [String]
     let rows: [[String]]
     let alignments: [HorizontalAlignment]
+    @Environment(\.readerStyle) private var style
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -283,8 +293,9 @@ private struct TableView: View {
 
     private func cell(_ text: String, column: Int) -> some View {
         let alignment = alignments[column]
-        return Text(MarkdownText.inline(text))
-            .font(.callout)
+        return Text(MarkdownText.inline(text, style: style))
+            .font(style.secondary)
+            .lineSpacing(style.lineSpacing * 0.6)
             .multilineTextAlignment(alignment == .trailing ? .trailing : alignment == .center ? .center : .leading)
             .textSelection(.enabled)
             .frame(minWidth: 40, maxWidth: 360, alignment: Alignment(horizontal: alignment, vertical: .center))
@@ -298,30 +309,70 @@ private struct TableView: View {
 private struct CodeBlock: View {
     let code: String
     let language: String
+    var closed = true
+    @Environment(\.readerStyle) private var style
     @State private var copied = false
+    @State private var showCode = false
+
+    /// HTML and SVG blocks can be previewed live.
+    private var preview: PreviewSource? {
+        let lang = language.lowercased()
+        let head = code.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200).lowercased()
+        if lang == "svg" || (lang.isEmpty || lang == "xml") && head.hasPrefix("<svg") { return .svg(code) }
+        if lang == "html" || lang == "htm" || lang.isEmpty && (head.hasPrefix("<!doctype html") || head.hasPrefix("<html")) {
+            return .html(code)
+        }
+        return nil
+    }
 
     var body: some View {
+        if let preview, closed {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Picker("", selection: $showCode) {
+                        Text("Preview").tag(false)
+                        Text("Code").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    Spacer()
+                    copyButton
+                }
+                if showCode { codeBody } else { HTMLPreview(source: preview) }
+            }
+        } else {
+            codeBody
+        }
+    }
+
+    private var copyButton: some View {
+        Button(copied ? "Copied" : "Copy") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(code, forType: .string)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
+        }
+        .buttonStyle(.borderless)
+        .font(.caption)
+    }
+
+    private var codeBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(language.isEmpty ? "code" : language)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button(copied ? "Copied" : "Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(code, forType: .string)
-                    copied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
+                copyButton
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
-                    .font(.system(.callout, design: .monospaced))
+                    .font(style.code)
+                    .lineSpacing(style.lineSpacing * 0.5)
                     .textSelection(.enabled)
                     .padding(12)
             }

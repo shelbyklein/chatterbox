@@ -131,10 +131,22 @@ enum Attachments {
         return cleaned.isEmpty ? "file" : String(cleaned)
     }
 
+    /// Deletes the app's own copies. Anything outside the attachment store (such as a file
+    /// an agent wrote in the user's project, shown as a preview) is never touched.
     static func remove(_ attachments: [Attachment]) {
+        let store = directory.standardizedFileURL.path + "/"
         for attachment in attachments {
-            try? FileManager.default.removeItem(at: attachment.url.deletingLastPathComponent())
+            let folder = attachment.url.deletingLastPathComponent().standardizedFileURL
+            guard folder.path.hasPrefix(store), folder.path != store.dropLast() else { continue }
+            try? FileManager.default.removeItem(at: folder)
         }
+    }
+
+    /// A reference to a file in place, for previews of files an agent wrote.
+    static func reference(_ url: URL) -> Attachment {
+        let type = UTType(filenameExtension: url.pathExtension) ?? .data
+        return Attachment(name: url.lastPathComponent, path: url.path,
+                          mediaType: type.preferredMIMEType ?? "text/html", kind: type.conforms(to: .image) && url.pathExtension.lowercased() != "svg" ? .image : .text)
     }
 
     // MARK: - Pasteboard

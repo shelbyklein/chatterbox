@@ -127,6 +127,7 @@ extension ChatSession {
             // Complete blocks: tool inputs are only final here.
             for block in message["message"]?["content"]?.array ?? [] where block["type"]?.string == "tool_use" {
                 guard let useID = block["id"]?.string, let name = block["name"]?.string else { continue }
+                claudeToolCalls[useID] = (name, block["input"] ?? [:])
                 if name == Tools.todoTool {
                     showPlan(Tools.planSteps(block["input"]))
                 } else if let item = claudeToolItems[useID] {
@@ -139,6 +140,7 @@ extension ChatSession {
                 guard let useID = block["tool_use_id"]?.string, let item = claudeToolItems[useID] else { continue }
                 let failed = block["is_error"]?.bool == true
                 updateItem(item) { $0.toolState = failed ? .failed : .done }
+                if !failed { previewWrittenFile(useID) }
             }
 
         case "control_request":
@@ -246,6 +248,26 @@ extension ChatSession {
         expirePendingApprovals()
         isRunning = false
         onChange?(self)
+    }
+
+    /// Files Claude writes that can be looked at (a web page, an SVG, an image) appear in the
+    /// reply as a live preview, the way Codex's generated images do.
+    private func previewWrittenFile(_ useID: String) {
+        guard let call = claudeToolCalls.removeValue(forKey: useID),
+              ["Write", "Edit", "MultiEdit"].contains(call.name),
+              let path = call.input["file_path"]?.string else { return }
+        let url = URL(fileURLWithPath: path)
+        let ext = url.pathExtension.lowercased()
+        guard ["html", "htm", "svg", "png", "jpg", "jpeg", "gif", "webp"].contains(ext),
+              FileManager.default.fileExists(atPath: path) else { return }
+        // An edit to a file already previewed this turn refreshes that preview instead of adding another.
+        if let existing = record.items.lastIndex(where: { $0.kind == .image && $0.attachments?.first?.path == path }),
+           record.items[existing...].allSatisfy({ $0.kind != .user }) {
+            record.items[existing].text = "Updated \(url.lastPathComponent)"
+            record.items[existing].attachments = [Attachments.reference(url)]
+            return
+        }
+        appendItem(DisplayItem(kind: .image, text: url.lastPathComponent, attachments: [Attachments.reference(url)]))
     }
 
     private func markClaudeTextAsCommentary() {

@@ -7,6 +7,44 @@ import Observation
 final class AppModel {
     private(set) var sessions: [ChatSession] = []
     var selectedID: UUID?
+    var showingCloneFromGitHub = false
+
+    var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
+
+    /// Projects by name, then other chats by most recent: the sidebar's order, which the
+    /// ⌘1–⌘9 shortcuts follow.
+    var sidebarProjects: [ChatSession] {
+        activeSessions.filter { $0.record.projectFolder != nil }
+            .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
+    }
+    var sidebarChats: [ChatSession] { activeSessions.filter { $0.record.projectFolder == nil } }
+    var sidebarOrder: [ChatSession] { sidebarProjects + sidebarChats }
+
+    /// Every tag in use, for the Tags menu.
+    var allTags: [String] {
+        var seen: [String: String] = [:]
+        for tag in sessions.flatMap(\.tags) where seen[tag.lowercased()] == nil { seen[tag.lowercased()] = tag }
+        return seen.values.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// Selects the chat at a 1-based position in the sidebar.
+    func selectChat(number: Int) {
+        let order = sidebarOrder
+        guard order.indices.contains(number - 1) else { return }
+        selectedID = order[number - 1].id
+    }
+
+    /// Moves the selection up or down the sidebar, wrapping around.
+    func selectAdjacentChat(_ offset: Int) {
+        let order = sidebarOrder
+        guard !order.isEmpty else { return }
+        let current = order.firstIndex { $0.id == selectedID } ?? 0
+        selectedID = order[(current + offset + order.count) % order.count].id
+    }
+    var archivedSessions: [ChatSession] {
+        sessions.filter { $0.record.archivedAt != nil }
+            .sorted { ($0.record.archivedAt ?? .distantPast) > ($1.record.archivedAt ?? .distantPast) }
+    }
 
     @ObservationIgnored private let directory: URL
 
@@ -17,14 +55,14 @@ final class AppModel {
         directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         load()
-        if sessions.isEmpty { newChat() } else { selectedID = sessions.first?.id }
+        if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
     }
 
     @discardableResult
     func newChat(backend: Backend? = nil) -> ChatSession {
         let defaults = UserDefaults.standard
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
-        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil }) {
+        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.archivedAt == nil }) {
             empty.setBackend(backend)
             selectedID = empty.id
             return empty
@@ -50,13 +88,28 @@ final class AppModel {
         return session
     }
 
+    /// Hides a chat from the main lists and stops its agent. Nothing is removed; a project
+    /// chat keeps its folder, and opening that folder again brings the chat back.
+    func archive(_ session: ChatSession) {
+        guard !session.items.isEmpty || session.record.projectFolder != nil else { return delete(session) }
+        session.shutdown()
+        session.setArchived(true)
+        if selectedID == session.id { selectedID = activeSessions.first?.id }
+        if activeSessions.isEmpty { newChat() }
+    }
+
+    func unarchive(_ session: ChatSession) {
+        session.setArchived(false)
+        selectedID = session.id
+    }
+
     func delete(_ session: ChatSession) {
         session.shutdown()
         Attachments.remove(session.allAttachments)
         sessions.removeAll { $0.id == session.id }
         try? FileManager.default.removeItem(at: fileURL(session.id))
-        if selectedID == session.id { selectedID = sessions.first?.id }
-        if sessions.isEmpty { newChat() }
+        if selectedID == session.id { selectedID = activeSessions.first?.id }
+        if activeSessions.isEmpty { newChat() }
     }
 
     // MARK: - Projects
@@ -82,11 +135,26 @@ final class AppModel {
     /// Opens the folder's chat, creating one if the folder doesn't have one yet.
     func openProject(_ folder: String, backend: Backend? = nil) {
         if let existing = session(boundTo: folder) {
+            if existing.record.archivedAt != nil { existing.setArchived(false) }
             selectedID = existing.id
             return
         }
         let session = newChat(backend: backend)
         session.bindProject(Self.normalize(folder))
+    }
+
+    /// The chat whose project folder is a clone of `repo` ("owner/name").
+    func session(forRepo repo: String) -> ChatSession? {
+        sessions.first { $0.record.githubRepo?.lowercased() == repo.lowercased() }
+    }
+
+    /// Reads each project's git remote at launch, so repos show without opening every chat.
+    func refreshProjectRepos() async {
+        for session in sessions {
+            guard let folder = session.record.projectFolder else { continue }
+            await GitStatusStore.shared.refresh(folder)
+            session.updateGitHubRepo(from: GitStatusStore.shared.status(for: folder))
+        }
     }
 
     func chooseAndOpenProject() {

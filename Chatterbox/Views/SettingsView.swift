@@ -18,6 +18,15 @@ struct SettingsView: View {
     @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
 
     var body: some View {
+        TabView {
+            general
+                .tabItem { Label("General", systemImage: "gearshape") }
+            AppearanceSettingsView()
+                .tabItem { Label("Appearance", systemImage: "textformat.size") }
+        }
+    }
+
+    private var general: some View {
         Form {
             Section("New chats") {
                 Picker("Chat with", selection: $defaultBackend) {
@@ -141,6 +150,127 @@ struct SettingsView: View {
         Picker("Effort", selection: $codexDefaultEffort) {
             Text("Model default").tag("")
             ForEach(current?.efforts ?? ["low", "medium", "high"], id: \.self) { Text(ChatView.effortLabel($0)).tag($0) }
+        }
+    }
+}
+
+/// Settings → Appearance: how the transcript reads, with a live preview.
+private struct AppearanceSettingsView: View {
+    private let settings = ReaderStyleSettings()
+
+    private static let preview = """
+    ## A quick preview
+    This is how replies read. Adjust **text size**, line height, and spacing until long answers feel comfortable. Code like `git status` gets its own font.
+
+    - Lists wrap with a hanging indent, so longer items stay easy to scan.
+    - Tables, quotes, and code blocks follow the same settings.
+
+    | Setting | Effect |
+    |---|---|
+    | Line height | Space between wrapped lines |
+    | Paragraph spacing | Space between blocks |
+    """
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section("Text") {
+                    Picker("Font", selection: settings.$design) {
+                        ForEach(ReaderStyle.designs, id: \.id) { Text($0.label).tag($0.id) }
+                    }
+                    slider("Text size", value: settings.$textSize, range: 11...22, step: 1, unit: "pt")
+                    slider("Line height", value: settings.$lineSpacing, range: 0...12, step: 1, unit: "pt",
+                           hint: "Extra space between wrapped lines")
+                    slider("Paragraph spacing", value: settings.$paragraphSpacing, range: 4...28, step: 1, unit: "pt")
+                    slider("Code size", value: settings.$codeSize, range: 10...20, step: 1, unit: "pt")
+                }
+                Section {
+                    colorRow("Claude", selection: settings.$claudeColor)
+                    colorRow("Codex", selection: settings.$codexColor)
+                    slider("Bubble strength", value: Binding(get: { settings.bubbleStrength * 100 }, set: { settings.bubbleStrength = $0 / 100 }),
+                           range: 5...60, step: 1, unit: "%")
+                } header: {
+                    Text("Agent colors")
+                } footer: {
+                    Text("Your messages take the color of the agent they went to. The message box and model line use the current agent's color.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("Steps and thinking") {
+                    Toggle("Compact step rows", isOn: settings.$compactSteps)
+                    Text("Tightens the spacing of \u{201C}Running\u{2026}\u{201D} rows, notes, and thinking.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Show thinking", isOn: settings.$showThinking)
+                }
+                Section("Layout") {
+                    slider("Conversation width", value: settings.$contentWidth, range: 560...1400, step: 20, unit: "pt",
+                           hint: "The widest the chat column gets in a large window")
+                }
+                Section {
+                    Button("Restore Defaults") { settings.reset() }
+                }
+            }
+            .formStyle(.grouped)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ItemView(item: DisplayItem(kind: .user, text: "Claude, can you make the replies easier to read?"), agent: .claude)
+                        .padding(.vertical, settings.style.paragraphSpacing / 2)
+                    ItemView(item: DisplayItem(kind: .user, text: "Codex, check the build too."), agent: .codex)
+                        .padding(.vertical, settings.style.paragraphSpacing / 2)
+                    ItemView(item: DisplayItem(kind: .tool, text: "Reading MarkdownText.swift", toolState: .done))
+                        .padding(.vertical, settings.compactSteps ? 1 : settings.style.paragraphSpacing / 2)
+                    if settings.showThinking {
+                        ItemView(item: DisplayItem(kind: .thought, text: "Checking the current spacing"))
+                            .padding(.vertical, settings.compactSteps ? 1 : settings.style.paragraphSpacing / 2)
+                    }
+                    MarkdownText(text: Self.preview)
+                        .padding(.vertical, settings.style.paragraphSpacing / 2)
+                }
+                .environment(\.readerStyle, settings.style)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: 300)
+            .background(Color(nsColor: .textBackgroundColor))
+            .overlay(alignment: .top) { Divider() }
+        }
+        .frame(width: 520, height: 820)
+    }
+
+    private func colorRow(_ title: String, selection: Binding<String>) -> some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                ForEach(ReaderStyle.bubbleColors, id: \.id) { preset in
+                    Button { selection.wrappedValue = preset.id } label: {
+                        Circle().fill(preset.color).frame(width: 18, height: 18)
+                            .overlay(Circle().strokeBorder(Color.primary, lineWidth: selection.wrappedValue == preset.id ? 2 : 0))
+                    }
+                    .buttonStyle(.plain)
+                    .help(preset.label)
+                }
+                ColorPicker("Custom", selection: Binding(
+                    get: { ReaderStyle.bubbleColor(selection.wrappedValue) },
+                    set: { selection.wrappedValue = ReaderStyle.hex($0) }
+                ), supportsOpacity: false)
+                .labelsHidden()
+                .help("Custom color")
+            }
+        }
+    }
+
+    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double,
+                        unit: String, hint: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            LabeledContent(title) {
+                HStack {
+                    Slider(value: value, in: range, step: step).frame(width: 200)
+                    Text("\(Int(value.wrappedValue)) \(unit)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 52, alignment: .trailing)
+                }
+            }
+            if let hint { Text(hint).font(.caption).foregroundStyle(.secondary) }
         }
     }
 }

@@ -35,6 +35,7 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - **Plan card.** Claude Code's to-do list and Codex's plan render as a live checklist.
 - **Switching agents.** One chat can move between Claude and Codex models. The incoming agent gets a transcript of what it missed.
 - **Projects.** A chat can be bound to a folder, and each folder has one chat. Both agents work in that folder.
+- **GitHub.** A project's GitHub repo is read from its folder's git remote. The toolbar shows the repo, branch, and commits to push or pull, with links to the repo, branch, issues, and pull requests. File → New Project from GitHub (Cmd-Shift-O) lists your repos through `gh`, or takes a pasted URL, clones it, and opens it as a project; a repo that already has a chat opens that chat instead.
 - **Modes.** The mode menu under the message box sets what the agent may do without asking. Claude: Auto, Manual, Accept edits, Plan, Bypass permissions. Codex: Read only, Ask for approval, Approve for me, Full access.
 
 ## Claude Code backend

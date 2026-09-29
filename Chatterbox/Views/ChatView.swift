@@ -11,11 +11,14 @@ struct ChatView: View {
     @State private var isDropTargeted = false
     @State private var pasteMonitor: Any?
     @State private var projectConflict: ChatSession?
+    @State private var reviewing: Attachment?
     private let presets = ModelPresets.shared
     @FocusState private var composerFocused: Bool
+    private let appearance = ReaderStyleSettings()
 
     var body: some View {
         VStack(spacing: 0) {
+            if session.record.archivedAt != nil { archivedBanner }
             if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
             if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { codexBanner(status) }
             transcript
@@ -23,6 +26,12 @@ struct ChatView: View {
         }
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
+        // Re-read git when the chat opens, its folder changes, or a turn ends (the agent may have committed).
+        .task(id: "\(session.record.projectFolder ?? "")|\(session.isRunning)") {
+            guard let folder = session.record.projectFolder, !session.isRunning else { return }
+            await GitStatusStore.shared.refresh(folder)
+            session.updateGitHubRepo(from: GitStatusStore.shared.status(for: folder))
+        }
         .onAppear {
             composerFocused = true
             installPasteMonitor()
@@ -32,6 +41,9 @@ struct ChatView: View {
             pasteMonitor = nil
         }
         .onDrop(of: [.fileURL, .image], isTargeted: $isDropTargeted, perform: handleDrop)
+        .sheet(item: $reviewing) { image in
+            ImageReviewView(attachment: image) { text, files in session.send(text, attachments: files) }
+        }
         .alert("That folder already has a chat", isPresented: Binding(get: { projectConflict != nil }, set: { if !$0 { projectConflict = nil } }), presenting: projectConflict) { owner in
             Button("Open That Chat") { model.selectedID = owner.id }
             Button("Cancel", role: .cancel) {}
@@ -130,10 +142,13 @@ struct ChatView: View {
                     EmptyChatView(session: session) { draft = $0; submit() }
                         .padding(.top, 60)
                 } else {
-                    LazyVStack(alignment: .leading, spacing: 10) {
-                        ForEach(session.items) { item in
+                    let agents = session.agentsByItem
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(visibleItems) { item in
                             ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
+                                     agent: agents[item.id] ?? session.record.backend,
                                      onApproval: session.resolveApproval)
+                                .padding(.vertical, rowPadding(item))
                                 .id(item.id)
                         }
                         if session.isRunning && !isVisiblyWorking {
@@ -143,7 +158,9 @@ struct ChatView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 20)
-                    .frame(maxWidth: 820)
+                    .frame(maxWidth: appearance.style.contentWidth)
+                    .environment(\.readerStyle, appearance.style)
+                    .environment(\.reviewImage, ImageReviewAction { reviewing = $0 })
                     .frame(maxWidth: .infinity)
                 }
             }
@@ -153,9 +170,22 @@ struct ChatView: View {
         }
     }
 
+    /// Rows to show: thinking can be hidden in Settings → Appearance.
+    private var visibleItems: [DisplayItem] {
+        appearance.showThinking ? session.items : session.items.filter { $0.kind != .thought }
+    }
+
+    /// Half the paragraph spacing above and below each row; step rows get less in compact mode.
+    private func rowPadding(_ item: DisplayItem) -> CGFloat {
+        let spacing = appearance.style.paragraphSpacing / 2
+        let isStep = item.kind == .tool || item.kind == .thought || item.kind == .notice
+            || (item.kind == .assistant && item.phase == .commentary)
+        return isStep && appearance.compactSteps ? 1 : spacing
+    }
+
     /// True when the last row already shows activity, so the typing dots would be redundant.
     private var isVisiblyWorking: Bool {
-        guard let last = session.items.last else { return false }
+        guard let last = visibleItems.last else { return false }
         switch last.kind {
         case .assistant: return last.phase == .streaming
         case .tool: return last.toolState == .running
@@ -181,7 +211,7 @@ struct ChatView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .frame(maxWidth: 860)
+        .frame(maxWidth: appearance.style.contentWidth + 40)
         .frame(maxWidth: .infinity)
         .background(.bar)
     }
@@ -208,7 +238,10 @@ struct ChatView: View {
                 .padding(.vertical, 9)
                 .padding(.horizontal, 12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(.background))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.separator))
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(appearance.style.color(for: session.record.backend).opacity(composerFocused ? 0.8 : 0.45),
+                                  lineWidth: composerFocused ? 1.5 : 1))
+                .animation(.easeOut(duration: 0.15), value: session.record.backend)
 
             if session.isRunning {
                 Button(action: session.interrupt) {
@@ -240,6 +273,19 @@ struct ChatView: View {
         session.send(text, attachments: files)
     }
 
+    private var archivedBanner: some View {
+        HStack {
+            Image(systemName: "archivebox")
+            Text("This chat is archived. Sending a message brings it back.")
+            Spacer()
+            Button("Unarchive") { model.unarchive(session) }
+        }
+        .font(.callout)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color.secondary.opacity(0.12))
+    }
+
     private func claudeBanner(_ status: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -266,6 +312,11 @@ struct ChatView: View {
             .help("Tone. Changes apply from your next message.")
 
             projectButton
+            if let status = GitStatusStore.shared.status(for: session.record.projectFolder),
+               let remote = status.remote(preferring: session.record.gitRemote), let repo = remote.repo {
+                RepoChip(repo: repo, remote: remote, status: status, folder: session.record.projectFolder ?? "",
+                         onSelectRemote: session.setGitRemote)
+            }
 
             modelMenu(inline: false)
         }
@@ -436,9 +487,9 @@ struct ChatView: View {
         } label: {
             if inline {
                 ViewThatFits(in: .horizontal) {
-                    Label(summary.full, systemImage: "cpu").labelStyle(.titleAndIcon).lineLimit(1)
-                    Label(summary.short, systemImage: "cpu").labelStyle(.titleAndIcon).lineLimit(1)
-                    Label(summary.short, systemImage: "cpu").labelStyle(.iconOnly)
+                    Label { Text(summary.full).lineLimit(1) } icon: { agentDot }
+                    Label { Text(summary.short).lineLimit(1) } icon: { agentDot }
+                    Label { Text(summary.short) } icon: { agentDot }.labelStyle(.iconOnly)
                 }
             } else {
                 Label("Model", systemImage: "cpu")
@@ -447,6 +498,11 @@ struct ChatView: View {
         .help(summary.full + ". Click to change.")
         .task { await catalog.refresh() }
         .task { if codexModels.isEmpty { try? await CodexAppServer.shared.refreshModels() } }
+    }
+
+    /// The current agent's color, next to the model name.
+    private var agentDot: some View {
+        Circle().fill(appearance.style.color(for: session.record.backend)).frame(width: 8, height: 8)
     }
 
     @ViewBuilder
@@ -739,5 +795,70 @@ private struct ModeRow: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: [])
+    }
+}
+
+/// The project's GitHub repo in the toolbar: branch and sync state, with links out.
+private struct RepoChip: View {
+    let repo: String
+    let remote: GitRemote
+    let status: GitStatus
+    let folder: String
+    let onSelectRemote: (String) -> Void
+
+    private var web: URL { URL(string: "https://github.com/\(repo)")! }
+
+    private var syncText: String {
+        var parts: [String] = []
+        if let ahead = status.ahead, ahead > 0 { parts.append("\u{2191}\(ahead)") }
+        if let behind = status.behind, behind > 0 { parts.append("\u{2193}\(behind)") }
+        return parts.joined(separator: " ")
+    }
+
+    var body: some View {
+        Menu {
+            Button("Open on GitHub") { NSWorkspace.shared.open(web) }
+            if let branch = status.branch {
+                Button("Open Branch \u{201C}\(branch)\u{201D}") {
+                    NSWorkspace.shared.open(web.appendingPathComponent("tree").appendingPathComponent(branch))
+                }
+            }
+            Button("Issues") { NSWorkspace.shared.open(web.appendingPathComponent("issues")) }
+            Button("Pull Requests") { NSWorkspace.shared.open(web.appendingPathComponent("pulls")) }
+            Divider()
+            Button("Copy Clone URL") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(remote.url, forType: .string)
+            }
+            Button(GitStatusStore.shared.fetching.contains(folder) ? "Checking GitHub\u{2026}" : "Check for Updates") {
+                Task { await GitStatusStore.shared.refresh(folder, fetch: true) }
+            }
+            let github = status.remotes.filter { $0.repo != nil }
+            if github.count > 1 {
+                Divider()
+                Picker("Remote", selection: Binding(get: { remote.name }, set: onSelectRemote)) {
+                    ForEach(github, id: \.name) { Text("\($0.name) (\($0.repo ?? ""))").tag($0.name) }
+                }
+            }
+        } label: {
+            Label {
+                Text([repo, status.branch, syncText.isEmpty ? nil : syncText].compactMap { $0 }.joined(separator: " \u{00B7} "))
+            } icon: {
+                Image(systemName: "arrow.triangle.branch")
+            }
+            .labelStyle(.titleAndIcon)
+        }
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        var text = "\(repo) on GitHub (remote \u{201C}\(remote.name)\u{201D})"
+        if let branch = status.branch { text += ", branch \(branch)" }
+        if let ahead = status.ahead, let behind = status.behind {
+            text += ". \(ahead) to push, \(behind) to pull"
+        } else {
+            text += ". No upstream branch"
+        }
+        return text + "."
     }
 }

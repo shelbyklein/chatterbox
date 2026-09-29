@@ -6,7 +6,10 @@ struct ItemView: View {
     let item: DisplayItem
     /// True for the row the agent is working on right now.
     var isActive = false
+    /// For user messages: the agent it went to, which picks the bubble color.
+    var agent: Backend = .claude
     var onApproval: (UUID, DisplayItem.ApprovalState) -> Void = { _, _ in }
+    @Environment(\.readerStyle) private var style
 
     var body: some View {
         switch item.kind {
@@ -17,6 +20,7 @@ struct ItemView: View {
         case .plan: PlanCard(steps: item.planSteps)
         case .notice: noticeRow
         case .approval: ApprovalCard(item: item) { onApproval(item.id, $0) }
+        case .image: GeneratedImages(item: item)
         }
     }
 
@@ -32,10 +36,12 @@ struct ItemView: View {
             }
             if !item.text.isEmpty {
                 Text(item.text)
+                    .font(style.body)
+                    .lineSpacing(style.lineSpacing)
                     .textSelection(.enabled)
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.14)))
+                    .background(RoundedRectangle(cornerRadius: 14).fill(style.color(for: agent).opacity(style.bubbleStrength)))
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -48,8 +54,9 @@ struct ItemView: View {
         if item.phase == .commentary {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Circle().frame(width: 4, height: 4).foregroundStyle(.tertiary)
-                Text(MarkdownText.inline(item.text))
-                    .font(.callout)
+                Text(MarkdownText.inline(item.text, style: style))
+                    .font(style.secondary)
+                    .lineSpacing(style.lineSpacing)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
@@ -78,7 +85,7 @@ struct ItemView: View {
                 .truncationMode(.middle)
                 .shimmering(item.toolState == .running)
         }
-        .font(.callout)
+        .font(style.secondary)
         .foregroundStyle(.secondary)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: item.toolState)
     }
@@ -208,8 +215,50 @@ private struct PlanCard: View {
 }
 
 /// Attachments on a sent message: images as previews, other files as chips. Click to open.
+/// An image an agent made, shown in the reply. Click to open it for review.
+private struct GeneratedImages: View {
+    let item: DisplayItem
+    @Environment(\.reviewImage) private var review
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(item.attachments ?? []) { image in
+                if ["html", "htm", "svg"].contains(image.url.pathExtension.lowercased()) {
+                    HTMLPreview(source: .file(image.url))
+                } else {
+                    picture(image)
+                }
+            }
+            if !item.text.isEmpty {
+                Text(item.text).font(.caption).foregroundStyle(.secondary).lineLimit(3).textSelection(.enabled)
+            }
+        }
+    }
+
+    private func picture(_ image: Attachment) -> some View {
+                Button { review.open(image) } label: {
+                    AttachmentThumbnail(attachment: image, size: 360)
+                        .overlay(alignment: .bottomTrailing) {
+                            Label("Review", systemImage: "pencil.and.scribble")
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .padding(8)
+                        }
+                }
+                .buttonStyle(.plain)
+                .help("Click to view larger and mark up")
+                .contextMenu {
+                    Button("Open in Preview") { NSWorkspace.shared.open(image.url) }
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([image.url]) }
+                }
+    }
+}
+
 private struct SentAttachments: View {
     let attachments: [Attachment]
+    @Environment(\.reviewImage) private var review
 
     var body: some View {
         let images = attachments.filter { $0.kind == .image }
@@ -218,7 +267,7 @@ private struct SentAttachments: View {
             if !images.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(images) { image in
-                        Button { NSWorkspace.shared.open(image.url) } label: {
+                        Button { review.open(image) } label: {
                             AttachmentThumbnail(attachment: image, size: images.count == 1 ? 240 : 120)
                         }
                         .buttonStyle(.plain)
