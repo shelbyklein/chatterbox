@@ -98,6 +98,8 @@ struct ContentView: View {
             Text("The conversation and its attachments are removed permanently. Archiving keeps them out of the way instead.")
         }
         .task { await model.refreshProjectRepos() }
+        .task { Attention.shared.start(model: model) }
+        .onChange(of: model.selectedID) { _, id in Attention.shared.markSeen(id) }
         .onAppear(perform: watchCommandKey)
         .onDisappear {
             if let flagsMonitor { NSEvent.removeMonitor(flagsMonitor) }
@@ -210,6 +212,12 @@ private struct SidebarRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            // Waiting on you, or a finished reply you haven't seen.
+            if Attention.shared.unread.contains(session.id)
+                || session.items.contains(where: { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }) {
+                Circle().fill(Color.accentColor).frame(width: 7, height: 7)
+                    .help("Needs your attention")
+            }
             if let shortcut {
                 Text("\u{2318}\(shortcut)")
                     .font(.caption.weight(.semibold).monospacedDigit())

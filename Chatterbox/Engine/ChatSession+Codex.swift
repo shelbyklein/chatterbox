@@ -431,6 +431,7 @@ extension ChatSession {
         default:
             server.respondError(to: id, message: "Chatterbox can't answer \(method) yet.")
         }
+        onChange?(self)
     }
 
     /// Sends answers keyed by question id; skipping sends none.

@@ -11,6 +11,7 @@
 		0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
 		0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
 		17BF765717748A9396DC6875 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F3DC91A879146D9B37CA06E3 /* Assets.xcassets */; };
+		185FE4741650353C7DB76AFB /* Attention.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B3EA688DB4D5120202F4A /* Attention.swift */; };
 		1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */; };
 		27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */; };
 		38C35AD484F69B297C79B9B8 /* CodexAppServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C3FB24651A1A367B53C36 /* CodexAppServer.swift */; };
@@ -87,6 +88,7 @@
 		D23F411A39522520E8F10339 /* ModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPicker.swift; sourceTree = "<group>"; };
 		DBCA3F2B7277E38C199221AE /* Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachments.swift; sourceTree = "<group>"; };
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E34B3EA688DB4D5120202F4A /* Attention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attention.swift; sourceTree = "<group>"; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
@@ -131,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				CD00AEF264659F41BD565201 /* AppModel.swift */,
+				E34B3EA688DB4D5120202F4A /* Attention.swift */,
 				C8EB85AF0736434980646DAF /* ChatSession.swift */,
 				30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */,
 				C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */,
@@ -260,6 +263,7 @@
 				83DFF330821ADECCFAC9F161 /* ActivitySpinner.swift in Sources */,
 				E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */,
 				D05B92875B687F85956F41CE /* Attachments.swift in Sources */,
+				185FE4741650353C7DB76AFB /* Attention.swift in Sources */,
 				EFB541351775E9D69EF1DB32 /* ChatCommands.swift in Sources */,
 				AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */,
 				677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */,

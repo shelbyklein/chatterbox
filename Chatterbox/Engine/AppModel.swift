@@ -176,6 +176,7 @@ final class AppModel {
     }
 
     private func save(_ session: ChatSession) {
+        Attention.shared.update(session, model: self)
         // A project chat is kept even before its first message, so the binding survives.
         guard !session.items.isEmpty || session.record.projectFolder != nil else { return }
         do {

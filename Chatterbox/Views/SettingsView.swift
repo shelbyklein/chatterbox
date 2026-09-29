@@ -6,6 +6,10 @@ struct SettingsView: View {
     @State private var detectedClaude: String?
 
     @AppStorage("defaultBackend") private var defaultBackend = Backend.claude
+    @AppStorage("notifyNeeds") private var notifyNeeds = true
+    @AppStorage("notifyReplies") private var notifyReplies = true
+    @AppStorage("notifySound") private var notifySound = true
+    @AppStorage("notifyBadge") private var notifyBadge = true
     @AppStorage("defaultModel") private var defaultModel = "default"
     @AppStorage("defaultEffort") private var defaultEffort = ""
     @AppStorage("codexDefaultModel") private var codexDefaultModel = ""
@@ -30,6 +34,18 @@ struct SettingsView: View {
 
     private var general: some View {
         Form {
+            Section {
+                Toggle("When an agent needs you", isOn: $notifyNeeds)
+                Toggle("When a reply finishes", isOn: $notifyReplies)
+                Toggle("Play a sound", isOn: $notifySound)
+                Toggle("Show a badge on the Dock icon", isOn: $notifyBadge)
+            } header: {
+                Text("Notifications")
+            } footer: {
+                Text("Only while you're away from the chat: Chatterbox isn't frontmost, or a different chat is open. Approvals can be allowed or denied right from the notification.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("New chats") {
                 Picker("Chat with", selection: $defaultBackend) {
                     ForEach(Backend.allCases) { Text($0.label).tag($0) }
