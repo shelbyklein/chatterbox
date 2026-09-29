@@ -65,6 +65,8 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var codexPlanItems: [String: UUID] = [:]
     @ObservationIgnored var codexTurnMessageItems: [UUID] = []
     @ObservationIgnored var codexStopRequested = false
+    /// Stopping so a message can go straight in ("Send Now"), not a plain Stop.
+    @ObservationIgnored var stoppingToSend = false
 
     nonisolated let id: UUID
     var items: [DisplayItem] { record.items }
@@ -113,6 +115,37 @@ final class ChatSession: Identifiable {
         switch record.backend {
         case .codex: codexSend(message)
         case .claude: claudeSend(message)
+        }
+    }
+
+    /// ⌘↩ while the agent works: stop what it's doing and take this message right away,
+    /// instead of waiting for its next step.
+    func sendNow(_ raw: String, attachments: [Attachment] = []) {
+        let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
+        guard !message.text.isEmpty || !attachments.isEmpty else { return }
+        guard isRunning, !message.text.hasPrefix("!") else { return send(raw, attachments: attachments) }
+        stoppingToSend = true
+        switch record.backend {
+        case .claude:
+            // Claude Code runs a queued message as soon as the turn it's in stops.
+            claudeSend(message)
+            claudeInterrupt()
+        case .codex:
+            let item = appendUserItem(message, steered: true)
+            pendingSteering.append(message)
+            pendingSteeringItems.append(item)
+            codexInterrupt()
+        }
+        onChange?(self)
+    }
+
+    /// "Send Now" on a message that's still queued.
+    func sendQueuedNow(_ itemID: UUID) {
+        guard isRunning, record.items.contains(where: { $0.id == itemID && $0.queued == true }) else { return }
+        stoppingToSend = true
+        switch record.backend {
+        case .claude: claudeInterrupt()
+        case .codex: codexInterrupt()
         }
     }
 

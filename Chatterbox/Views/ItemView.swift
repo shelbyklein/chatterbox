@@ -10,6 +10,7 @@ struct ItemView: View {
     var agent: Backend = .claude
     var onApproval: (UUID, DisplayItem.ApprovalState) -> Void = { _, _ in }
     var onAnswer: (UUID, [String: [String]]?) -> Void = { _, _ in }
+    var onSendNow: (UUID) -> Void = { _ in }
     @Environment(\.readerStyle) private var style
 
     var body: some View {
@@ -30,10 +31,16 @@ struct ItemView: View {
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: 3) {
             if item.queued == true {
-                Label("Queued", systemImage: "clock")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .help("Sent while the agent is working. It joins the reply at the agent's next step.")
+                HStack(spacing: 8) {
+                    Label("Queued", systemImage: "clock")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .help("Sent while the agent is working. It joins the reply at the agent's next step.")
+                    Button("Send Now") { onSendNow(item.id) }
+                        .buttonStyle(.link)
+                        .font(.caption2.weight(.semibold))
+                        .help("Stop what the agent is doing and take this message now (\u{2318}\u{21A9} when sending)")
+                }
             } else if item.steered {
                 Label("Sent while working", systemImage: "arrow.turn.down.right")
                     .font(.caption2)

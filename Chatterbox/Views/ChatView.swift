@@ -162,7 +162,8 @@ struct ChatView: View {
                                 } else {
                                     ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
                                              agent: agents[item.id] ?? session.record.backend,
-                                             onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+                                             onApproval: session.resolveApproval, onAnswer: session.answerQuestions,
+                                             onSendNow: session.sendQueuedNow)
                                 }
                             }
                             .padding(.vertical, rowPadding(item))
@@ -370,7 +371,11 @@ struct ChatView: View {
                 .onKeyPress(.downArrow) { moveCommandSelection(1) }
                 .onKeyPress(.tab) { completeCommand() }
                 .onKeyPress(.return, phases: .down) { press in
-                    press.modifiers.contains(.shift) ? .ignored : completeCommand()
+                    if press.modifiers.contains(.command), session.isRunning {
+                        submit(now: true)
+                        return .handled
+                    }
+                    return press.modifiers.contains(.shift) ? .ignored : completeCommand()
                 }
                 .onKeyPress(.escape) {
                     guard !commandMatches.isEmpty else { return .ignored }
@@ -421,18 +426,21 @@ struct ChatView: View {
             .buttonStyle(.plain)
             .foregroundStyle(canSend ? Color.primary : Color.secondary)
             .disabled(!canSend)
-            .help(session.isRunning ? "Steer the current reply" : "Send")
+            .help(session.isRunning ? "Add to the current reply (\u{21A9}), or \u{2318}\u{21A9} to stop and send now" : "Send")
         }
     }
 
-    private func submit() {
+    private func submit() { submit(now: false) }
+
+    /// `now`: ⌘↩ while the agent works stops it and sends this message right away.
+    private func submit(now: Bool) {
         guard canSend else { return }
         let text = draft
         let files = attachments
         draft = ""
         attachments = []
         attachError = nil
-        session.send(text, attachments: files)
+        if now { session.sendNow(text, attachments: files) } else { session.send(text, attachments: files) }
     }
 
     private var archivedBanner: some View {

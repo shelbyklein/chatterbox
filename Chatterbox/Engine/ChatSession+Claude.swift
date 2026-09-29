@@ -268,7 +268,8 @@ extension ChatSession {
         }
         let isError = result["is_error"]?.bool == true || result["subtype"]?.string != "success"
         if claudeStopRequested {
-            notice("Stopped.")
+            notice(stoppingToSend ? "Stopped to take your message." : "Stopped.")
+            stoppingToSend = false
         } else if isError {
             let errors = (result["errors"]?.array ?? []).compactMap(\.string).joined(separator: " ")
             let detail = result["result"]?.string ?? (errors.isEmpty ? result["subtype"]?.string ?? "" : errors)

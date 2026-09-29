@@ -399,8 +399,11 @@ extension ChatSession {
         }
         switch turn?["status"]?.string {
         case "interrupted":
-            notice("Stopped.")
-            codexFinish(startQueued: false)
+            notice(stoppingToSend ? "Stopped to take your message." : "Stopped.")
+            // "Send Now": the queued message starts the next turn right away.
+            let sendQueued = stoppingToSend
+            stoppingToSend = false
+            codexFinish(startQueued: sendQueued)
         case "failed":
             notice("Codex hit an error: \(turn?["error"]?["message"]?.string ?? "unknown error")")
             codexFinish(startQueued: false)
