@@ -116,6 +116,30 @@ extension ChatSession {
         guard let settings = record.codex else { throw CodexError(message: "This chat isn't set up for Codex.") }
         try await server.ensureStarted()
 
+        // A forked chat branches its source thread, keeping everything Codex knew.
+        if settings.threadId == nil, let source = settings.forkFrom {
+            record.codex?.forkFrom = nil
+            do {
+                var params = codexThreadParams(settings)
+                params["threadId"] = .string(source)
+                params["excludeTurns"] = true
+                let result = try await server.request("thread/fork", .object(params))
+                if let id = result["thread"]?["id"]?.string {
+                    record.codex?.threadId = id
+                    codexRegisterHandler(id)
+                    server.markLoaded(id)
+                    onChange?(self)
+                    return id
+                }
+            } catch {
+                // Fall back to a new thread caught up on the conversation.
+                let transcript = Self.transcript(record.items[...])
+                if !transcript.isEmpty, record.pendingHandoff == nil {
+                    record.pendingHandoff = Prompts.handoff(from: "", transcript: transcript, isWholeConversation: true)
+                }
+            }
+        }
+
         if let existing = settings.threadId {
             codexRegisterHandler(existing)
             if server.loadedThreads.contains(existing) { return existing }
@@ -131,15 +155,7 @@ extension ChatSession {
             }
         }
 
-        var params: [String: JSON] = [
-            "cwd": .string(settings.folder),
-            "approvalPolicy": approvalPolicy(settings),
-            "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
-            "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.boundFolder,
-                                                                         studio: studio)),
-        ]
-        if let model = settings.model { params["model"] = .string(model) }
-        let result = try await server.request("thread/start", .object(params))
+        let result = try await server.request("thread/start", .object(codexThreadParams(settings)))
         guard let id = result["thread"]?["id"]?.string else { throw CodexError(message: "Codex didn't return a thread.") }
         record.codex?.threadId = id
         record.sentPersonality = record.personality
@@ -150,6 +166,19 @@ extension ChatSession {
         server.markLoaded(id)
         onChange?(self)
         return id
+    }
+
+    /// Settings for a new (or forked) thread.
+    private func codexThreadParams(_ settings: CodexSettings) -> [String: JSON] {
+        var params: [String: JSON] = [
+            "cwd": .string(settings.folder),
+            "approvalPolicy": approvalPolicy(settings),
+            "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
+            "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.boundFolder,
+                                                                         studio: studio)),
+        ]
+        if let model = settings.model { params["model"] = .string(model) }
+        return params
     }
 
     /// Routes the thread's events to this chat. After a relaunch, lines the saved transcript

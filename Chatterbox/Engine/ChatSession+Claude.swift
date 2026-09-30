@@ -75,7 +75,8 @@ extension ChatSession {
             appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.boundFolder,
                                                          studio: studio),
             resumeSessionID: record.claudeSessionID,
-            extraDirectories: [Attachments.directory.path]
+            extraDirectories: [Attachments.directory.path],
+            forkSession: record.claudeForkPending == true
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {
@@ -84,6 +85,8 @@ extension ChatSession {
             record.sentStudioInstructions = studio?.trimmedInstructions ?? ""
             record.instructionsVersion = Prompts.instructionsVersion
         }
+        // The branch gets its own session id in its first `init` message.
+        record.claudeForkPending = nil
         claudeProcess = process
         return process
     }

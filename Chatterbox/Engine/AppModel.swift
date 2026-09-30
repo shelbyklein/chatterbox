@@ -149,7 +149,9 @@ final class AppModel {
     func delete(_ session: ChatSession) {
         session.shutdown()
         unsaved.remove(session.id)
-        Attachments.remove(session.allAttachments)
+        // A fork shares its original's attachment files; keep any another chat still shows.
+        let inUse = Set(sessions.filter { $0.id != session.id }.flatMap(\.allAttachments).map(\.path))
+        Attachments.remove(session.allAttachments.filter { !inUse.contains($0.path) })
         sessions.removeAll { $0.id == session.id }
         try? FileManager.default.removeItem(at: fileURL(session.id))
         if selectedID == session.id { selectedID = activeSessions.first?.id }
@@ -221,6 +223,14 @@ final class AppModel {
     }
 
     // MARK: - Persistence
+
+    /// Adds a chat made from a finished record (a fork) and saves it.
+    func insertSession(_ record: ConversationRecord) -> ChatSession {
+        let session = makeSession(record)
+        sessions.insert(session, at: 0)
+        scheduleSave(session, soon: true)
+        return session
+    }
 
     private func makeSession(_ record: ConversationRecord) -> ChatSession {
         let session = ChatSession(record: record)

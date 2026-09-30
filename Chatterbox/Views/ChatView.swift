@@ -569,6 +569,8 @@ struct ChatView: View {
     private func studioButton(_ studio: Studio) -> some View {
         Menu {
             Button("Studio Instructions\u{2026}") { model.editingStudioInstructions = studio.id }
+            Button("Fork This Chat") { model.fork(session) }
+                .disabled(!model.canFork(session))
             Divider()
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: studio.folder)]) }
             Button("Open Terminal Here  \u{2325}\u{2318}T") { model.openTerminal() }

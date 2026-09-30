@@ -34,6 +34,8 @@ struct CodexSettings: Codable, Equatable {
     var canEdit: Bool
     /// One of `PermissionModes.codex`.
     var mode: String?
+    /// A forked chat's source thread: Codex branches it on the next message.
+    var forkFrom: String?
 
     var modeID: String { mode ?? (canEdit ? "ask" : "readOnly") }
 }
@@ -117,6 +119,11 @@ struct ConversationRecord: Codable {
     var sentUserInstructions: String?
     /// The Studio's instructions as last given to this chat's agent.
     var sentStudioInstructions: String?
+    /// Set on a forked chat: the next Claude Code session branches off `claudeSessionID`
+    /// instead of continuing it, so the original chat is left as it was.
+    var claudeForkPending: Bool?
+    /// The chat this one was forked from.
+    var forkedFrom: UUID?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?

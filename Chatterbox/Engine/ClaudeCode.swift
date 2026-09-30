@@ -57,6 +57,8 @@ final class ClaudeCodeProcess {
         var appendSystemPrompt: String
         var resumeSessionID: String?
         var extraDirectories: [String] = []
+        /// Resume into a new session instead of continuing the old one (a forked chat).
+        var forkSession = false
     }
 
     /// Every message the CLI writes, except replies to our own control requests.
@@ -85,7 +87,10 @@ final class ClaudeCodeProcess {
                     "--allow-dangerously-skip-permissions",
                     "--append-system-prompt", config.appendSystemPrompt]
         if !config.effort.isEmpty { args += ["--effort", config.effort] }
-        if let id = config.resumeSessionID { args += ["--resume", id] }
+        if let id = config.resumeSessionID {
+            args += ["--resume", id]
+            if config.forkSession { args.append("--fork-session") }
+        }
         for dir in config.extraDirectories { args += ["--add-dir", dir] }
         return args
     }

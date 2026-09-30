@@ -102,6 +102,45 @@ extension AppModel {
         if let studio { setStudio(studio.id, collapsed: false) }
     }
 
+    /// Whether a chat can be forked: not mid-reply, and not a project's chat (a project
+    /// folder has one chat).
+    func canFork(_ session: ChatSession) -> Bool {
+        !session.isRunning && session.record.projectFolder == nil && !session.items.isEmpty
+    }
+
+    /// Copies a chat into a new one beside it (in the same Studio, if it's in one) that
+    /// carries on from the same point. Each agent branches its own memory of the
+    /// conversation on the fork's next message; the original is left as it was.
+    @discardableResult
+    func fork(_ session: ChatSession) -> ChatSession? {
+        guard canFork(session) else { return nil }
+        var record = session.record
+        record.id = UUID()
+        record.title = session.title.hasSuffix("(fork)") ? session.title : session.title + " (fork)"
+        record.createdAt = Date()
+        record.updatedAt = Date()
+        record.archivedAt = nil
+        record.forkedFrom = session.id
+        record.currentIssue = nil
+        record.turnStartedAt = nil
+        record.backgroundTasks = nil
+        record.claudeHost = nil
+        record.codexHost = nil
+        record.claudeForkPending = record.claudeSessionID != nil ? true : nil
+        if let thread = record.codex?.threadId {
+            record.codex?.forkFrom = thread
+            record.codex?.threadId = nil
+        }
+        for index in record.items.indices {
+            record.items[index].queued = nil
+            if record.items[index].approvalState == .pending { record.items[index].approvalState = .expired }
+        }
+        record.items.append(DisplayItem(kind: .notice, text: "Forked from \u{201C}\(session.title)\u{201D}. Nothing here changes the original."))
+        let fork = insertSession(record)
+        selectedID = fork.id
+        return fork
+    }
+
     func renameStudio(_ id: UUID, to name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

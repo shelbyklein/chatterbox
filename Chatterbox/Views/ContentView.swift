@@ -349,6 +349,10 @@ extension ContentView {
                     chatTitle = session.title
                     renamingChat = session
                 }
+                if session.record.projectFolder == nil, !session.items.isEmpty {
+                    Button("Fork Chat") { model.fork(session) }
+                        .disabled(!model.canFork(session))
+                }
                 if let folder = session.record.projectFolder {
                     Button("Rename Project\u{2026}") {
                         projectNickname = session.projectName
