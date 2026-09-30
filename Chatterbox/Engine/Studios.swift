@@ -88,9 +88,11 @@ extension AppModel {
         return session
     }
 
-    /// Puts a chat in a Studio, or takes it out with nil. A chat that's mid-reply stays put.
+    /// Puts a chat in a Studio, or takes it out with nil. A chat that's mid-reply, or a
+    /// project's chat, stays put.
     func move(_ session: ChatSession, to studio: Studio?) {
-        guard !session.isRunning else { return }
+        // Project chats belong to their project folder.
+        guard !session.isRunning, studio == nil || session.record.projectFolder == nil else { return }
         session.setStudio(studio)
         if let studio { setStudio(studio.id, collapsed: false) }
     }

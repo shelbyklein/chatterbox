@@ -21,6 +21,8 @@ struct ContentView: View {
     /// The chat that goes into the Studio being named, when making one from a chat.
     @State private var studioFromChat: ChatSession?
     @State private var renamingStudio: Studio?
+    /// The Studio a dragged chat is over, which lights up.
+    @State private var dropStudio: UUID?
     /// Show only projects with this tag; empty shows everything.
     @AppStorage("sidebarTagFilter") private var tagFilter = ""
 
@@ -85,12 +87,23 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem {
                     Menu {
+                        if let studio = model.selected.flatMap(model.studio(for:)), studio.archivedAt == nil {
+                            Button("New Chat in \u{201C}\(studio.name)\u{201D}") { model.newChat(in: studio) }
+                            Divider()
+                        }
                         Button("New Claude Chat") { model.newChat(backend: .claude) }
                         Button("New Codex Chat") { model.newChat(backend: .codex) }
                         Divider()
                         Button("New Project Chat\u{2026}") { model.chooseAndOpenProject() }
                         Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
                         Divider()
+                        if !model.activeStudios.isEmpty {
+                            Menu("New Chat in Studio") {
+                                ForEach(model.activeStudios) { studio in
+                                    Button(studio.name) { model.newChat(in: studio) }
+                                }
+                            }
+                        }
                         Button("New Studio\u{2026}") { beginNewStudio() }
                     } label: {
                         Label("New Chat", systemImage: "square.and.pencil")
@@ -229,7 +242,11 @@ extension ContentView {
         let expanded = Binding(get: { isFiltering || studio.collapsed != true },
                                set: { model.setStudio(studio.id, collapsed: !$0) })
         return DisclosureGroup(isExpanded: expanded) {
-            ForEach(chats.filter(isShown)) { session in row(session, number: numbers[session.id]) }
+            ForEach(chats.filter(isShown)) { session in
+                // Dropping onto a chat in the Studio moves the dragged one in too.
+                row(session, number: numbers[session.id])
+                    .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+            }
             if chats.isEmpty {
                 Button { model.newChat(in: studio) } label: {
                     Label("New Chat", systemImage: "square.and.pencil").foregroundStyle(.secondary)
@@ -237,14 +254,15 @@ extension ContentView {
                 .buttonStyle(.plain)
             }
         } label: {
-            StudioRow(studio: studio, chats: chats, collapsed: !expanded.wrappedValue)
+            StudioRow(studio: studio, chats: chats, collapsed: !expanded.wrappedValue,
+                      isDropTarget: dropStudio == studio.id, onNewChat: { model.newChat(in: studio) })
                 .contentShape(Rectangle())
                 .onTapGesture { expanded.wrappedValue.toggle() }
                 // Drop a chat here to move it in.
                 .dropDestination(for: String.self) { ids, _ in
-                    let moved = ids.compactMap(UUID.init(uuidString:)).compactMap { id in model.sessions.first { $0.id == id } }
-                    for session in moved { model.move(session, to: studio) }
-                    return !moved.isEmpty
+                    drop(ids, into: studio)
+                } isTargeted: { over in
+                    if over { dropStudio = studio.id } else if dropStudio == studio.id { dropStudio = nil }
                 }
                 .contextMenu {
                     Button("New Claude Chat") { model.newChat(in: studio, backend: .claude) }
@@ -261,6 +279,16 @@ extension ContentView {
                 }
                 .help(studio.folder)
         }
+    }
+
+    /// Moves dragged chats into a Studio. Project chats stay with their projects.
+    private func drop(_ ids: [String], into studio: Studio) -> Bool {
+        dropStudio = nil
+        let moved = ids.compactMap(UUID.init(uuidString:))
+            .compactMap { id in model.sessions.first { $0.id == id } }
+            .filter { $0.record.projectFolder == nil && $0.record.studioID != studio.id }
+        for session in moved { model.move(session, to: studio) }
+        return !moved.isEmpty
     }
 
     private var tagFilterMenu: some View {
@@ -298,8 +326,8 @@ extension ContentView {
         SidebarRow(session: session, shortcut: showShortcuts ? number : nil)
             .contentShape(Rectangle())
             .onTapGesture { model.selectedID = session.id }
-            // Drag onto a Studio to move the chat in.
-            .draggable(session.id.uuidString)
+            // Drag onto a Studio to move the chat in. Project chats stay put.
+            .modifier(ChatDrag(id: session.record.projectFolder == nil ? session.id : nil))
             .listRowBackground(
                 // Waiting on you wins over selection: the whole row turns yellow.
                 RoundedRectangle(cornerRadius: 8)
@@ -331,7 +359,7 @@ extension ContentView {
                     Button("Unbind from Folder") { session.unbindProject() }
                     Divider()
                 }
-                if session.record.archivedAt == nil {
+                if session.record.archivedAt == nil, session.record.projectFolder == nil {
                     Menu("Move to Studio") {
                         ForEach(model.activeStudios) { studio in
                             Button(studio.name) { model.move(session, to: studio) }
@@ -345,6 +373,8 @@ extension ContentView {
                         }
                     }
                     .disabled(session.isRunning)
+                }
+                if session.record.archivedAt == nil {
                     Button("Archive Chat") { model.archive(session) }
                 } else {
                     Button("Unarchive Chat") { model.unarchive(session) }
@@ -355,12 +385,23 @@ extension ContentView {
     }
 }
 
+/// Lets a chat row be dragged onto a Studio; `nil` (a project chat) isn't draggable.
+private struct ChatDrag: ViewModifier {
+    let id: UUID?
+
+    func body(content: Content) -> some View {
+        if let id { content.draggable(id.uuidString) } else { content }
+    }
+}
+
 /// A Studio's heading in the sidebar. While it's collapsed it shows whether a chat inside
 /// is working or waiting on you.
 private struct StudioRow: View {
     let studio: Studio
     let chats: [ChatSession]
     let collapsed: Bool
+    var isDropTarget = false
+    var onNewChat: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 6) {
@@ -378,7 +419,16 @@ private struct StudioRow: View {
                     Text("\(chats.count)").font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
                 }
             }
+            Button(action: onNewChat) { Image(systemName: "square.and.pencil") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("New chat in \(studio.name)")
+                .accessibilityLabel("New Chat in \(studio.name)")
         }
+        .padding(.vertical, 2)
+        .background(RoundedRectangle(cornerRadius: 6)
+            .fill(Color.highlight.opacity(isDropTarget ? 0.12 : 0))
+            .padding(.horizontal, -6))
     }
 }
 
