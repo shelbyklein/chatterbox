@@ -371,9 +371,11 @@ struct ChatView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("Attach files or images. You can also paste or drag them in.")
+            .accessibilityLabel("Attach Files")
 
             TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.record.backend.label)", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
+                .accessibilityLabel("Message")
                 .lineLimit(1...8)
                 .focused($composerFocused)
                 .onSubmit(submit)
@@ -423,6 +425,7 @@ struct ChatView: View {
                 .foregroundStyle(.secondary)
                 .keyboardShortcut(".", modifiers: .command)
                 .help("Stop (Esc or \u{2318}.)")
+                .accessibilityLabel("Stop")
                 // Esc stops the reply from anywhere in the chat. While the "/" menu is open,
                 // Esc closes the menu instead. Kept in the background so it takes no room in the row.
                 .background {
@@ -441,6 +444,9 @@ struct ChatView: View {
             .buttonStyle(.plain)
             .foregroundStyle(canSend ? Color.primary : Color.secondary)
             .disabled(!canSend)
+            // Named for VoiceOver and for assistants that work the Mac through Accessibility,
+            // which otherwise only see an unnamed arrow icon.
+            .accessibilityLabel("Send")
             .help(session.isRunning ? "Add to the current reply (\u{21A9}), or \u{2318}\u{21A9} to stop and send now" : "Send")
         }
     }
