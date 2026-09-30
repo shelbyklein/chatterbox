@@ -302,16 +302,39 @@ private struct TableView: View {
 
     private func cell(_ text: String, column: Int) -> some View {
         let alignment = alignments[column]
-        return Text(MarkdownText.inline(text, style: style, paths: paths))
-            .font(style.secondary)
-            .lineSpacing(style.lineSpacing * 0.6)
-            .multilineTextAlignment(alignment == .trailing ? .trailing : alignment == .center ? .center : .leading)
-            .textSelection(.enabled)
-            .frame(minWidth: 40, maxWidth: 360, alignment: Alignment(horizontal: alignment, vertical: .center))
-            .fixedSize(horizontal: false, vertical: true)
+        // Measured at the width it wraps to: inside the sideways scroll view a cell gets no
+        // width, and plain text would report a one-line height, so wrapped lines spilled
+        // over the rows below.
+        return WrappingWidth(maxWidth: 360) {
+            Text(MarkdownText.inline(text, style: style, paths: paths))
+                .font(style.secondary)
+                .lineSpacing(style.lineSpacing * 0.6)
+                .multilineTextAlignment(alignment == .trailing ? .trailing : alignment == .center ? .center : .leading)
+                .textSelection(.enabled)
+        }
+            // Fills its column, so the row's shading reaches across every cell.
+            .frame(minWidth: 40, maxWidth: .infinity, alignment: Alignment(horizontal: alignment, vertical: .center))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .gridColumnAlignment(alignment)
+    }
+}
+
+/// Lays text out no wider than `maxWidth`, and reports the height it takes at that width,
+/// even when the parent offers no width (as a sideways scroll view doesn't).
+private struct WrappingWidth: Layout {
+    var maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        let ideal = child.sizeThatFits(.unspecified).width
+        let width = min(proposal.width ?? ideal, ideal, maxWidth)
+        return child.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let width = min(bounds.width, maxWidth)
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: width, height: nil))
     }
 }
 
