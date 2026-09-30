@@ -10,9 +10,9 @@ struct PinSheetRequest: Identifiable {
     var current: PinPlace?
 }
 
-/// The pins at the top of the sidebar: global ones, then the open project's or Studio's.
-/// Click a pin to open it; drop an app, file, or link on a section to pin it there;
-/// right-click to rename, move, or remove; drag to reorder.
+/// The global pins at the top of the sidebar. A project's or Studio's own pins show as
+/// pills under its name instead (see PinPills). Click a pin to open it; drop an app, file,
+/// or link here to pin it; right-click to rename, move, or remove; drag to reorder.
 struct PinsSection: View {
     /// The project or Studio of the chat that's open.
     let place: PinPlace?
@@ -20,12 +20,10 @@ struct PinsSection: View {
     @State private var renaming: Pin?
     @State private var newTitle = ""
     @State private var dropTargeted = false
-    @State private var placeDropTargeted = false
     private var store: PinStore { .shared }
 
     var body: some View {
         let global = store.globalPins
-        let local = store.pins(in: place)
         Section {
             ForEach(Array(global.enumerated()), id: \.element.id) { index, pin in
                 row(pin, number: index < 9 ? index + 1 : nil)
@@ -44,21 +42,6 @@ struct PinsSection: View {
             Button("Cancel", role: .cancel) {}
         }
 
-        if let place {
-            Section {
-                ForEach(Array(local.enumerated()), id: \.element.id) { index, pin in
-                    let number = global.count + index + 1
-                    row(pin, number: number <= 9 ? number : nil)
-                }
-                if local.isEmpty {
-                    Text("Pin links and files for \(place.name) here. They show while you're in its chats.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            } header: {
-                header("\(place.name) Pins", help: "Add a pin for \(place.name)") { onAdd(PinSheetRequest(place: place, current: place)) }
-            }
-            .onDrop(of: [.fileURL, .url], isTargeted: $placeDropTargeted) { dropped($0, place: place) }
-        }
     }
 
     private func header(_ title: String, help: String, add: @escaping () -> Void) -> some View {
@@ -121,6 +104,75 @@ struct PinsSection: View {
                     guard let url, !url.isFileURL else { return }
                     Task { @MainActor in
                         PinStore.shared.add(Pin(title: url.host ?? url.absoluteString, kind: .website, target: url.absoluteString, place: key))
+                    }
+                }
+            }
+        }
+        return true
+    }
+}
+
+/// A project's or Studio's pins as small pills under its name in the sidebar. Click one to
+/// open it; right-click to rename, copy, show everywhere, or remove.
+struct PinPills: View {
+    let pins: [Pin]
+    @State private var renaming: Pin?
+    @State private var newTitle = ""
+    private var store: PinStore { .shared }
+
+    var body: some View {
+        FlowLayout(spacing: 4) {
+            ForEach(pins) { pin in
+                Button { store.open(pin) } label: {
+                    HStack(spacing: 4) {
+                        PinIcon(pin: pin).frame(width: 11, height: 11)
+                        Text(pin.title).lineLimit(1)
+                    }
+                    .font(.system(size: 10.5, weight: .medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.primary.opacity(0.09)))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(pin.target)
+                .contextMenu {
+                    Button("Open") { store.open(pin) }
+                    if pin.kind == .website {
+                        Button("Copy Link") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(pin.target, forType: .string)
+                        }
+                    }
+                    if pin.kind == .app || pin.kind == .file {
+                        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: pin.target)]) }
+                    }
+                    Button("Rename\u{2026}") { newTitle = pin.title; renaming = pin }
+                    Divider()
+                    Button("Show Everywhere") { store.setPlace(pin, to: nil) }
+                    Button("Remove Pin", role: .destructive) { store.remove(pin) }
+                }
+            }
+        }
+        .alert("Rename Pin", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Name", text: $newTitle)
+            Button("Rename") { if let pin = renaming { store.rename(pin, to: newTitle.trimmingCharacters(in: .whitespaces)) } }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    /// Pins a dropped link, file, or app to `place`.
+    static func drop(_ providers: [NSItemProvider], into place: PinPlace) -> Bool {
+        for provider in providers {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                Task { @MainActor in
+                    if url.isFileURL {
+                        let isApp = url.pathExtension == "app"
+                        PinStore.shared.add(Pin(title: isApp ? url.deletingPathExtension().lastPathComponent : url.lastPathComponent,
+                                                kind: isApp ? .app : .file, target: url.path, place: place.key))
+                    } else {
+                        PinStore.shared.add(Pin(title: url.host ?? url.absoluteString, kind: .website, target: url.absoluteString, place: place.key))
                     }
                 }
             }

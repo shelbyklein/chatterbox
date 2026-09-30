@@ -261,8 +261,10 @@ extension ContentView {
                 .buttonStyle(.plain)
             }
         } label: {
+            let place = PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)
             StudioRow(studio: studio, chats: chats, collapsed: !expanded.wrappedValue,
-                      isDropTarget: dropStudio == studio.id, onNewChat: { model.newChat(in: studio) })
+                      isDropTarget: dropStudio == studio.id, pins: PinStore.shared.pins(in: place),
+                      onNewChat: { model.newChat(in: studio) })
                 .contentShape(Rectangle())
                 .onTapGesture { expanded.wrappedValue.toggle() }
                 // Drop a chat here to move it in.
@@ -276,6 +278,7 @@ extension ContentView {
                     Button("New Codex Chat") { model.newChat(in: studio, backend: .codex) }
                     Divider()
                     Button("Studio Instructions\u{2026}") { model.editingStudioInstructions = studio.id }
+                    Button("Add Pin\u{2026}") { model.pinSheet = PinSheetRequest(place: place, current: place) }
                     Button("Rename Studio\u{2026}") {
                         studioName = studio.name
                         renamingStudio = studio
@@ -331,7 +334,13 @@ extension ContentView {
     }
 
     private func row(_ session: ChatSession, number: Int?) -> some View {
-        SidebarRow(session: session, shortcut: showShortcuts ? number : nil)
+        let place = session.record.projectFolder != nil ? model.pinPlace(for: session) : nil
+        return SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place))
+            // Drop a link or file on a project to pin it there.
+            .onDrop(of: [.url, .fileURL], isTargeted: nil) { providers in
+                guard let place else { return false }
+                return PinPills.drop(providers, into: place)
+            }
             .contentShape(Rectangle())
             .onTapGesture { model.selectedID = session.id }
             // Drag onto a Studio to move the chat in. Project chats stay put.
@@ -355,6 +364,9 @@ extension ContentView {
                         .disabled(!model.canFork(session))
                 }
                 if let folder = session.record.projectFolder {
+                    if let place {
+                        Button("Add Pin\u{2026}") { model.pinSheet = PinSheetRequest(place: place, current: place) }
+                    }
                     Button("Rename Project\u{2026}") {
                         projectNickname = session.projectName
                         renamingProject = session
@@ -413,9 +425,21 @@ private struct StudioRow: View {
     let chats: [ChatSession]
     let collapsed: Bool
     var isDropTarget = false
+    var pins: [Pin] = []
     var onNewChat: () -> Void = {}
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            heading
+            if !pins.isEmpty { PinPills(pins: pins).padding(.leading, 20) }
+        }
+        .padding(.vertical, 2)
+        .background(RoundedRectangle(cornerRadius: 6)
+            .fill(Color.highlight.opacity(isDropTarget ? 0.12 : 0))
+            .padding(.horizontal, -6))
+    }
+
+    private var heading: some View {
         HStack(spacing: 6) {
             Image(systemName: "paintpalette")
                 .font(.caption)
@@ -437,10 +461,6 @@ private struct StudioRow: View {
                 .help("New chat in \(studio.name)")
                 .accessibilityLabel("New Chat in \(studio.name)")
         }
-        .padding(.vertical, 2)
-        .background(RoundedRectangle(cornerRadius: 6)
-            .fill(Color.highlight.opacity(isDropTarget ? 0.12 : 0))
-            .padding(.horizontal, -6))
     }
 }
 
@@ -452,6 +472,8 @@ private struct SidebarRow: View {
     let session: ChatSession
     /// Shown while ⌘ is held.
     var shortcut: Int?
+    /// A project's own pins, shown as pills under its name.
+    var pins: [Pin] = []
     private let appearance = ReaderStyleSettings()
 
     var body: some View {
@@ -465,6 +487,9 @@ private struct SidebarRow: View {
                     Text(session.projectName).lineLimit(1)
                     if !session.tags.isEmpty {
                         TagPills(tags: session.tags)
+                    }
+                    if !pins.isEmpty {
+                        PinPills(pins: pins)
                     }
                     // What happened last, rather than the chat's title.
                     if let summary = session.lastActionSummary ?? (session.title != "New chat" ? session.title : nil) {
