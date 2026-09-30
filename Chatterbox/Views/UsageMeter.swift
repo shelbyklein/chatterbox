@@ -4,6 +4,8 @@ import SwiftUI
 /// numbers, click for them plus the account's usage limits. Drawn statically: it only redraws
 /// when the numbers change.
 struct UsageMeter: View {
+    /// Just the percentage, for the small floating chat.
+    var compact = false
     let session: ChatSession
     let color: Color
     @State private var isOpen = false
@@ -24,7 +26,8 @@ struct UsageMeter: View {
                             .rotationEffect(.degrees(-90))
                     }
                     .frame(width: 12, height: 12)
-                    Text(fraction.map { "Context \(Int(($0 * 100).rounded()))%" } ?? "\(Self.tokens(context.used)) tokens")
+                    Text(fraction.map { (compact ? "" : "Context ") + "\(Int(($0 * 100).rounded()))%" } ?? "\(Self.tokens(context.used))" + (compact ? "" : " tokens"))
+                        .lineLimit(1)
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(fraction.map { $0 >= 0.75 ? ringColor($0) : Color.secondary } ?? .secondary)
                 }

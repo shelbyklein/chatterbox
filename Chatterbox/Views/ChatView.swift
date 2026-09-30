@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 
 struct ChatView: View {
     @Environment(AppModel.self) private var model
+    /// The small chat floating over a page: fewer controls, tighter margins.
+    @Environment(\.compactChat) private var compact
     let session: ChatSession
     @State private var draft = ""
     @State private var attachments: [Attachment] = []
@@ -209,8 +211,8 @@ struct ChatView: View {
                         }
                         Color.clear.frame(height: 1).id("bottom")
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 20)
+                    .padding(.horizontal, compact ? 14 : 24)
+                    .padding(.vertical, compact ? 12 : 20)
                     .frame(maxWidth: appearance.style.contentWidth)
                     .environment(\.readerStyle, appearance.style)
                     .environment(\.reviewImage, ImageReviewAction { reviewing = $0 })
@@ -319,8 +321,8 @@ struct ChatView: View {
             composerRow
             modelStatus
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, compact ? 12 : 20)
+        .padding(.vertical, compact ? 10 : 12)
         .frame(maxWidth: appearance.style.contentWidth + 40)
         .frame(maxWidth: .infinity)
         .background(.bar)
@@ -597,7 +599,48 @@ struct ChatView: View {
     // MARK: - Model
 
     /// The model and effort this chat uses, under the message box, with preset buttons.
+    @ViewBuilder
     private var modelStatus: some View {
+        if compact { compactModelStatus } else { fullModelStatus }
+    }
+
+    /// The small floating chat: the model, context, and one menu for the mode and presets.
+    private var compactModelStatus: some View {
+        HStack(spacing: 8) {
+            ModelPicker(session: session, summary: modelSummary.short,
+                        color: appearance.style.color(for: session.record.backend),
+                        openRequest: commands.modelPopoverRequests)
+            UsageMeter(compact: true, session: session, color: appearance.style.color(for: session.record.backend))
+                .fixedSize()
+            Spacer(minLength: 0)
+            Menu {
+                Section("Mode") {
+                    ForEach(PermissionModes.modes(for: session.record.backend)) { mode in
+                        Button { session.setMode(mode.id) } label: {
+                            if mode.id == session.mode.id { Label(mode.title, systemImage: "checkmark") } else { Text(mode.title) }
+                        }
+                    }
+                }
+                Section("Presets") {
+                    ForEach(ModelPresets.shared.presets) { preset in
+                        Button(preset.title) { ModelPresets.shared.apply(preset, to: session) }
+                    }
+                }
+            } label: {
+                Image(systemName: session.mode.systemImage)
+                    .foregroundStyle(session.mode.isUnrestricted ? Color.orange : Color.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Mode: \(session.mode.title). Presets are here too.")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.leading, 34)
+    }
+
+    private var fullModelStatus: some View {
         HStack(spacing: 10) {
             modeMenu
                 .fixedSize()

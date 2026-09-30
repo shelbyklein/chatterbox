@@ -16,8 +16,21 @@ final class AppModel {
     var showingNewProject = false
     /// The Add Pin sheet, when open.
     var pinSheet: PinSheetRequest?
-    /// A website open inside Chatterbox, in the chat's place (see WebPane.swift).
-    var webPage: WebPage?
+    /// Websites open inside Chatterbox, each in its own project's (or Studio's, or chat's)
+    /// place: switching to another project shows its page, or its chat, instead.
+    var webPages: [String: WebPage] = [:]
+
+    /// Whose page the open chat shows: its project or Studio, or else the chat itself.
+    private var pageKey: String? {
+        guard let session = selected else { return nil }
+        return pinPlace(for: session)?.key ?? "chat:" + session.id.uuidString
+    }
+
+    /// The page open for the selected chat's project, if any.
+    var webPage: WebPage? {
+        get { pageKey.flatMap { webPages[$0] } }
+        set { if let key = pageKey { webPages[key] = newValue } }
+    }
 
     /// Shows a page in place of the chat; another page replaces the one that's open.
     func openPage(_ url: URL) {

@@ -172,27 +172,29 @@ private struct WebPageView: NSViewRepresentable {
     }
 }
 
-/// The chat, small, in the corner over a page. It can shrink to a button, or go back to
-/// full size (which closes the page).
+private struct CompactChatKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// The chat is the small one floating over a page: fewer controls, tighter margins.
+    var compactChat: Bool {
+        get { self[CompactChatKey.self] }
+        set { self[CompactChatKey.self] = newValue }
+    }
+}
+
+/// The chat, small, in the corner over a page. It can shrink to a round bubble, or go
+/// back to full size (which closes the page).
 struct FloatingChat: View {
     let session: ChatSession
     let onExpand: () -> Void
-    @State private var collapsed = false
+    @AppStorage("floatingChatCollapsed") private var collapsed = false
+    private let appearance = ReaderStyleSettings()
 
     var body: some View {
         if collapsed {
-            Button { collapsed = false } label: {
-                Label(session.title, systemImage: session.isRunning ? "ellipsis.bubble" : "bubble.left.and.bubble.right")
-                    .lineLimit(1)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
-                    .overlay(Capsule().strokeBorder(.quaternary))
-                    .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: 320)
-            .help("Show the chat")
+            bubble
         } else {
             VStack(spacing: 0) {
                 HStack(spacing: 8) {
@@ -210,12 +212,38 @@ struct FloatingChat: View {
                 Divider()
                 ChatView(session: session)
                     .id(session.id)
+                    .environment(\.compactChat, true)
             }
-            .frame(width: 420, height: 580)
+            .frame(width: 400, height: 560)
             .background(Color(nsColor: .windowBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.quaternary))
             .shadow(color: .black.opacity(0.3), radius: 18, y: 6)
         }
+    }
+
+    /// The chat shrunk to a round bubble. It shows when the agent is working, and turns
+    /// yellow when it's waiting on you.
+    private var bubble: some View {
+        let color = appearance.style.color(for: session.record.backend)
+        return Button { collapsed = false } label: {
+            ZStack {
+                Circle().fill(.regularMaterial)
+                Circle().strokeBorder(session.isWaitingOnYou ? Color.yellow : Color.primary.opacity(0.15),
+                                      lineWidth: session.isWaitingOnYou ? 2 : 1)
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(color)
+                if session.isRunning {
+                    ActivitySpinner(color: color).frame(width: 12, height: 12)
+                        .offset(x: 17, y: -17)
+                }
+            }
+            .frame(width: 52, height: 52)
+            .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(session.isWaitingOnYou ? "\(session.title) is waiting on you" : "Show the chat: \(session.title)")
     }
 }
