@@ -123,6 +123,12 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $addingPin) { AddPinSheet() }
+        .sheet(isPresented: Binding(get: { model.editingStudioInstructions != nil },
+                                    set: { if !$0 { model.editingStudioInstructions = nil } })) {
+            if let studio = model.studio(model.editingStudioInstructions) {
+                StudioInstructionsSheet(studio: studio).environment(model)
+            }
+        }
         .alert("Rename Chat", isPresented: Binding(get: { renamingChat != nil }, set: { if !$0 { renamingChat = nil } })) {
             TextField("Title", text: $chatTitle)
             Button("Rename") { renamingChat?.setTitle(chatTitle) }
@@ -268,6 +274,7 @@ extension ContentView {
                     Button("New Claude Chat") { model.newChat(in: studio, backend: .claude) }
                     Button("New Codex Chat") { model.newChat(in: studio, backend: .codex) }
                     Divider()
+                    Button("Studio Instructions\u{2026}") { model.editingStudioInstructions = studio.id }
                     Button("Rename Studio\u{2026}") {
                         studioName = studio.name
                         renamingStudio = studio

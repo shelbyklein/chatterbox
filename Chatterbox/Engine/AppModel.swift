@@ -9,6 +9,8 @@ final class AppModel {
     private(set) var sessions: [ChatSession] = []
     /// Groups of chats sharing a folder (see Studios.swift).
     var studios: [Studio] = []
+    /// The Studio whose instructions are open for editing.
+    var editingStudioInstructions: UUID?
     var selectedID: UUID?
     var showingCloneFromGitHub = false
 
@@ -80,6 +82,8 @@ final class AppModel {
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         loadStudios()
+        // Chats look their Studio up when they talk to their agent.
+        ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }

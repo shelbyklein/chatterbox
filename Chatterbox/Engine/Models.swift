@@ -115,6 +115,8 @@ struct ConversationRecord: Codable {
     var instructionsVersion: Int?
     /// Your every-chat instructions as last given to this chat's agent.
     var sentUserInstructions: String?
+    /// The Studio's instructions as last given to this chat's agent.
+    var sentStudioInstructions: String?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?

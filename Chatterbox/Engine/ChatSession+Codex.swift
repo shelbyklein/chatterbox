@@ -88,6 +88,7 @@ extension ChatSession {
                 input.append(Self.textInput(Prompts.userInstructionsUpdate(user)))
                 record.sentUserInstructions = user
             }
+            if let studioUpdate = takeStudioInstructionsUpdate() { input.append(Self.textInput(studioUpdate)) }
             input += inputs(for: message)
 
             var params: [String: JSON] = [
@@ -135,7 +136,7 @@ extension ChatSession {
             "approvalPolicy": approvalPolicy(settings),
             "sandbox": .string(["readOnly": "read-only", "fullAccess": "danger-full-access"][settings.modeID] ?? "workspace-write"),
             "developerInstructions": .string(Prompts.fullInstructions(record.personality, backend: .codex, projectFolder: record.boundFolder,
-                                                                         studioFolder: record.studioFolder)),
+                                                                         studio: studio)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
         let result = try await server.request("thread/start", .object(params))
@@ -143,6 +144,7 @@ extension ChatSession {
         record.codex?.threadId = id
         record.sentPersonality = record.personality
         record.sentUserInstructions = Prompts.userInstructions
+        record.sentStudioInstructions = studio?.trimmedInstructions ?? ""
         record.instructionsVersion = Prompts.instructionsVersion
         codexRegisterHandler(id)
         server.markLoaded(id)

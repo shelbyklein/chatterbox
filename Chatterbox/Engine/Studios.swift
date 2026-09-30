@@ -12,6 +12,11 @@ struct Studio: Codable, Identifiable, Equatable, Hashable {
     var archivedAt: Date?
     /// Collapsed in the sidebar. Optional so older saves still load.
     var collapsed: Bool?
+    /// What the Studio is for and where to look (sites, brand guides, tools), given to every
+    /// chat in it.
+    var instructions: String?
+
+    var trimmedInstructions: String { instructions?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
 }
 
 extension AppModel {
@@ -101,6 +106,11 @@ extension AppModel {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         updateStudio(id) { $0.name = trimmed }
+    }
+
+    func setInstructions(_ text: String, forStudio id: UUID) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        updateStudio(id) { $0.instructions = trimmed.isEmpty ? nil : trimmed }
     }
 
     func setStudio(_ id: UUID, collapsed: Bool) {

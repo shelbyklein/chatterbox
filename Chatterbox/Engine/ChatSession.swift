@@ -71,6 +71,19 @@ final class ChatSession: Identifiable {
     /// running when the reply ends carry on as background tasks.
     @ObservationIgnored var codexRunningCommands: [String: (command: String, processID: Int32?)] = [:]
 
+    /// Finds a chat's Studio (set by AppModel), for its instructions.
+    static var studioLookup: (UUID) -> Studio? = { _ in nil }
+    var studio: Studio? { record.studioID.flatMap(Self.studioLookup) }
+
+    /// The Studio's instructions if they changed since the agent last saw them, and marks
+    /// them seen. Moving into or out of a Studio counts as a change.
+    func takeStudioInstructionsUpdate() -> String? {
+        let current = studio?.trimmedInstructions ?? ""
+        guard current != (record.sentStudioInstructions ?? "") else { return nil }
+        record.sentStudioInstructions = current
+        return Prompts.studioInstructionsUpdate(studio: studio)
+    }
+
     nonisolated let id: UUID
     var items: [DisplayItem] { record.items }
     var title: String { record.title }

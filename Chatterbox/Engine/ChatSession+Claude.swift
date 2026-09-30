@@ -33,6 +33,7 @@ extension ChatSession {
                 content.append(.text(Prompts.userInstructionsUpdate(user)))
                 record.sentUserInstructions = user
             }
+            if let studioUpdate = takeStudioInstructionsUpdate() { content.append(.text(studioUpdate)) }
             content += Attachments.claudeContent(for: message)
             process.sendUser(content)
             if !steered {
@@ -72,7 +73,7 @@ extension ChatSession {
             effort: record.effort,
             permissionMode: claudePermissionMode,
             appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.boundFolder,
-                                                         studioFolder: record.studioFolder),
+                                                         studio: studio),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path]
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
@@ -80,6 +81,7 @@ extension ChatSession {
         if !resuming {
             record.sentPersonality = record.personality
             record.sentUserInstructions = Prompts.userInstructions
+            record.sentStudioInstructions = studio?.trimmedInstructions ?? ""
             record.instructionsVersion = Prompts.instructionsVersion
         }
         claudeProcess = process

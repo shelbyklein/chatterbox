@@ -568,6 +568,8 @@ struct ChatView: View {
     /// Stands in for the project button in a Studio chat.
     private func studioButton(_ studio: Studio) -> some View {
         Menu {
+            Button("Studio Instructions\u{2026}") { model.editingStudioInstructions = studio.id }
+            Divider()
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: studio.folder)]) }
             Button("Open Terminal Here  \u{2325}\u{2318}T") { model.openTerminal() }
             Divider()

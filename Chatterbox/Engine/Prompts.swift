@@ -41,9 +41,9 @@ enum Prompts {
 
     /// Everything Chatterbox adds for an agent: its own block, then yours, then the project's
     /// file meant for the other agent.
-    static func fullInstructions(_ p: Personality, backend: Backend, projectFolder: String?, studioFolder: String? = nil) -> String {
+    static func fullInstructions(_ p: Personality, backend: Backend, projectFolder: String?, studio: Studio? = nil) -> String {
         var parts = [agentInstructions(p)]
-        if let studioFolder { parts.append(studioNote(studioFolder)) }
+        if let studio { parts.append(studioNote(studio)) }
         let user = userInstructions
         if !user.isEmpty { parts.append("# The user's instructions for every chat\n\n" + user) }
         let project = crossAgentProjectFile(for: backend, folder: projectFolder)
@@ -51,12 +51,31 @@ enum Prompts {
         return parts.joined(separator: "\n\n")
     }
 
-    /// Tells a Studio chat that its folder is shared with other chats.
-    static func studioNote(_ folder: String) -> String {
+    /// Tells a Studio chat that its folder is shared with other chats, and gives it the
+    /// Studio's own instructions: what it's for, and the sites and tools to use.
+    static func studioNote(_ studio: Studio) -> String {
+        var note = """
+        # Studio: \(studio.name)
+        This chat is in a Chatterbox Studio: a folder, \(studio.folder), shared by several of the user's chats working on loosely related asks, often creative ones spanning different apps. It isn't a code project and may not be a git repository. Save what you make in this folder. Expect files there from other chats, and don't reorganize or delete work you didn't make unless the user asks.
         """
-        # Studio
-        This chat is in a Chatterbox Studio: a folder, \(folder), shared by several of the user's chats working on loosely related asks, often creative ones spanning different apps. It isn't a code project and may not be a git repository. Save what you make in this folder. Expect files there from other chats, and don't reorganize or delete work you didn't make unless the user asks.
-        """
+        let instructions = studio.trimmedInstructions
+        if !instructions.isEmpty {
+            note += "\n\n## The user's instructions for this Studio\nEvery chat in the Studio follows these. Use the sites, files, and tools they point to when a request calls for them.\n\n" + instructions
+        }
+        return note
+    }
+
+    /// Tells an agent mid-chat that its Studio's instructions changed, or that it joined or
+    /// left a Studio.
+    static func studioInstructionsUpdate(studio: Studio?) -> String {
+        guard let studio else {
+            return "<app_note>\nThis chat is no longer in a Studio. Ignore any earlier Studio instructions.\n</app_note>"
+        }
+        let instructions = studio.trimmedInstructions
+        let body = instructions.isEmpty
+            ? "The user cleared this Studio's instructions. Ignore the earlier ones.\n\n" + studioNote(studio)
+            : "The Studio's instructions are new or updated. These replace any earlier version:\n\n" + studioNote(studio)
+        return "<app_note>\n\(body)\n</app_note>"
     }
 
     /// Added to Claude Code's system prompt and to Codex's developer instructions.
