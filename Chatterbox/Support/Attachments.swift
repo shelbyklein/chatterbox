@@ -41,7 +41,9 @@ enum Attachments {
     /// Copies a file into the attachment store, converting images Claude can't read (HEIC, TIFF, …).
     static func importFile(_ source: URL) throws -> Attachment {
         let type = UTType(filenameExtension: source.pathExtension) ?? .data
-        if type.conforms(to: .image) {
+        // Only photos and screenshots are resized for the agent. Design files that macOS also
+        // counts as images (Illustrator, Photoshop, EPS, SVG) are kept as the original file.
+        if rasterTypes.contains(where: type.conforms(to:)) {
             return try importImage(at: source, name: source.deletingPathExtension().lastPathComponent)
         }
         let id = UUID()
@@ -50,6 +52,8 @@ enum Attachments {
         return Attachment(id: id, name: source.lastPathComponent, path: dest.path,
                           mediaType: type.preferredMIMEType ?? "application/octet-stream", kind: kind(of: type, at: dest))
     }
+
+    static let rasterTypes: [UTType] = [.png, .jpeg, .gif, .webP, .heic, .heif, .tiff, .bmp]
 
     /// Imports raw image data, such as a pasted screenshot.
     static func importImageData(_ data: Data, name: String = "Pasted image") throws -> Attachment {
