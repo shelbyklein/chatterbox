@@ -262,21 +262,68 @@ private struct GeneratedImages: View {
     private func picture(_ image: Attachment) -> some View {
                 Button { review.open(image) } label: {
                     AttachmentThumbnail(attachment: image, size: 360)
-                        .overlay(alignment: .bottomTrailing) {
-                            Label("Review", systemImage: "pencil.and.scribble")
-                                .font(.caption.weight(.medium))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .padding(8)
-                        }
                 }
                 .buttonStyle(.plain)
                 .help("Click to view larger and mark up")
+                .overlay(alignment: .bottomTrailing) {
+                    HStack(spacing: 6) {
+                        CopyImageButton(url: image.url)
+                        Button { review.open(image) } label: {
+                            Label("Review", systemImage: "pencil.and.scribble").imageOverlayPill()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                }
                 .contextMenu {
+                    Button("Copy Image") { ImageClipboard.copy(image.url) }
                     Button("Open in Preview") { NSWorkspace.shared.open(image.url) }
                     Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([image.url]) }
                 }
+    }
+}
+
+/// Puts an image on the clipboard, ready to paste into another app.
+enum ImageClipboard {
+    @discardableResult
+    static func copy(_ url: URL) -> Bool {
+        guard let image = NSImage(contentsOf: url) else { return false }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        // PNG as well as the default TIFF, which some apps (and the web) paste more reliably.
+        var ok = pasteboard.writeObjects([image])
+        if let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+            ok = pasteboard.setData(png, forType: .png) || ok
+        }
+        return ok
+    }
+}
+
+/// "Copy" on an image, which says "Copied" for a moment.
+private struct CopyImageButton: View {
+    let url: URL
+    @State private var copied = false
+
+    var body: some View {
+        Button {
+            guard ImageClipboard.copy(url) else { return NSSound.beep() }
+            copied = true
+            Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
+        } label: {
+            Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc").imageOverlayPill()
+        }
+        .buttonStyle(.plain)
+        .help("Copy the image to the clipboard")
+    }
+}
+
+private extension View {
+    /// The small frosted pill that sits on an image.
+    func imageOverlayPill() -> some View {
+        font(.caption.weight(.medium))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(.ultraThinMaterial, in: Capsule())
     }
 }
 
@@ -296,6 +343,11 @@ private struct SentAttachments: View {
                         }
                         .buttonStyle(.plain)
                         .help(image.name)
+                        .contextMenu {
+                            Button("Copy Image") { ImageClipboard.copy(image.url) }
+                            Button("Open in Preview") { NSWorkspace.shared.open(image.url) }
+                            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([image.url]) }
+                        }
                     }
                 }
             }

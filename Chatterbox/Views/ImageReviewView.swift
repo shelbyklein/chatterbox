@@ -168,6 +168,7 @@ struct ImageReviewView: View {
 
             HStack {
                 Menu("More") {
+                    Button("Copy Image") { ImageClipboard.copy(attachment.url) }
                     Button("Open in Preview") { NSWorkspace.shared.open(attachment.url) }
                     Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([attachment.url]) }
                     Button("Clear Marks") { marks.removeAll() }
