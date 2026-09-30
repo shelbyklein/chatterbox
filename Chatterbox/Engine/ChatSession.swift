@@ -227,7 +227,7 @@ final class ChatSession: Identifiable {
         var current = record.backend
         for item in record.items.reversed() {
             let isOldSwitch = item.kind == .notice && item.text.hasPrefix("Switched to ")
-            let isSwitch = item.isSettingsChange == true && item.text.hasSuffix("caught up on this chat.")
+            let isSwitch = item.isSettingsChange == true && Self.isAgentSwitchNote(item.text)
             if isOldSwitch || isSwitch {
                 // Before this note, the other agent was answering.
                 let toCodex = item.text.hasPrefix("Switched to Codex") || item.text.hasPrefix("Now using Codex")
@@ -299,11 +299,19 @@ final class ChatSession: Identifiable {
 
     /// Adds a line to the chat when the agent, model, or effort changes. Changes made in a row
     /// (a preset, dragging the effort slider) update the same line instead of adding more.
+    /// Added when the agent changes: the transcript of what it missed goes with the next message.
+    static let catchUpNote = " It'll be caught up with your next message."
+
+    /// Whether a settings note marks a switch of agent (including the wording older chats used).
+    static func isAgentSwitchNote(_ text: String) -> Bool {
+        text.hasSuffix(catchUpNote) || text.hasSuffix(" It has been caught up on this chat.")
+    }
+
     func noteSettingsChange(switchedAgent: Bool = false) {
         guard record.items.contains(where: { $0.kind == .user }) else { return }
-        let caughtUp = " It has been caught up on this chat."
+        let caughtUp = Self.catchUpNote
         if let last = record.items.indices.last, record.items[last].isSettingsChange == true {
-            let wasSwitch = record.items[last].text.hasSuffix(caughtUp)
+            let wasSwitch = Self.isAgentSwitchNote(record.items[last].text)
             record.items[last].text = "Now using \(settingsDescription)." + (switchedAgent || wasSwitch ? caughtUp : "")
         } else {
             record.items.append(DisplayItem(kind: .notice, text: "Now using \(settingsDescription)." + (switchedAgent ? caughtUp : ""),
