@@ -528,6 +528,7 @@ struct ChatView: View {
             ToneMenu(session: session)
 
             if let studio = model.studio(for: session) { studioButton(studio) } else { projectButton }
+            if let place = model.pinPlace(for: session) { pinsButton(place) }
             if let status = GitStatusStore.shared.status(for: session.record.projectFolder),
                let remote = status.remote(preferring: session.record.gitRemote), let repo = remote.repo {
                 RepoChip(repo: repo, remote: remote, status: status, folder: session.record.projectFolder ?? "",
@@ -563,6 +564,23 @@ struct ChatView: View {
         }
         .help(session.record.projectFolder.map { "This chat is bound to \($0). Claude and Codex work in this folder." }
               ?? "Bind this chat to a project folder so Claude or Codex can work in it. Each folder gets one chat.")
+    }
+
+    /// The project's or Studio's own pins, to open from the chat.
+    private func pinsButton(_ place: PinPlace) -> some View {
+        let pins = PinStore.shared.pins(in: place)
+        return Menu {
+            ForEach(pins) { pin in
+                Button { PinStore.shared.open(pin) } label: {
+                    Label { Text(pin.title) } icon: { PinIcon(pin: pin) }
+                }
+            }
+            if !pins.isEmpty { Divider() }
+            Button("Add Pin for \(place.name)\u{2026}") { model.pinSheet = PinSheetRequest(place: place, current: place) }
+        } label: {
+            ToolbarLabel(pins.isEmpty ? "Pins" : "Pins (\(pins.count))", systemImage: "pin")
+        }
+        .help("Links, files, and apps pinned to \(place.name). They also show in the sidebar while you're here.")
     }
 
     /// Stands in for the project button in a Studio chat.

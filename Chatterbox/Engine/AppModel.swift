@@ -14,6 +14,8 @@ final class AppModel {
     var selectedID: UUID?
     var showingCloneFromGitHub = false
     var showingNewProject = false
+    /// The Add Pin sheet, when open.
+    var pinSheet: PinSheetRequest?
 
     var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
 

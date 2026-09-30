@@ -5,7 +5,6 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @AppStorage("showArchived") private var showArchived = false
     @State private var pendingDelete: ChatSession?
-    @State private var pinSheet: PinSheetRequest?
     @State private var renamingProject: ChatSession?
     @State private var projectNickname = ""
     @State private var renamingChat: ChatSession?
@@ -37,7 +36,7 @@ struct ContentView: View {
                 let projects = model.sidebarProjects.filter(isShown)
                 let chats = model.sidebarChats.filter(isShown)
                 let archived = model.archivedSessions.filter(isShown)
-                if !isFiltering { PinsSection(place: model.selectedPinPlace) { pinSheet = $0 } }
+                if !isFiltering { PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 } }
                 if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
                     Text("No matching chats").foregroundStyle(.secondary)
                 }
@@ -124,7 +123,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
-        .sheet(item: $pinSheet) { AddPinSheet(request: $0) }
+        .sheet(item: $model.pinSheet) { AddPinSheet(request: $0) }
         .sheet(isPresented: Binding(get: { model.editingStudioInstructions != nil },
                                     set: { if !$0 { model.editingStudioInstructions = nil } })) {
             if let studio = model.studio(model.editingStudioInstructions) {
