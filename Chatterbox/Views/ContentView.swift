@@ -114,7 +114,16 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            if let session = model.selected {
+            if let page = model.webPage {
+                // A website pin: the page takes the chat's place, and the chat floats over it.
+                ZStack(alignment: .bottomTrailing) {
+                    WebPaneView(page: page) { model.webPage = nil }
+                    if let session = model.selected {
+                        FloatingChat(session: session) { model.webPage = nil }
+                            .padding(16)
+                    }
+                }
+            } else if let session = model.selected {
                 ChatView(session: session)
                     .id(session.id)
             } else {
@@ -264,6 +273,10 @@ extension ContentView {
             let place = PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)
             StudioRow(studio: studio, chats: chats, collapsed: !expanded.wrappedValue,
                       isDropTarget: dropStudio == studio.id, pins: PinStore.shared.pins(in: place),
+                      onOpenPin: {
+                          // Beside a page, the Studio's own chat (the one open, or its latest).
+                          if model.selected?.record.studioID != studio.id, let latest = chats.first { model.selectedID = latest.id }
+                      },
                       onNewChat: { model.newChat(in: studio) })
                 .contentShape(Rectangle())
                 .onTapGesture { expanded.wrappedValue.toggle() }
@@ -335,7 +348,8 @@ extension ContentView {
 
     private func row(_ session: ChatSession, number: Int?) -> some View {
         let place = session.record.projectFolder != nil ? model.pinPlace(for: session) : nil
-        return SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place))
+        return SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place),
+                          onOpenPin: { model.selectedID = session.id })
             // Drop a link or file on a project to pin it there.
             .onDrop(of: [.url, .fileURL], isTargeted: nil) { providers in
                 guard let place else { return false }
@@ -426,12 +440,13 @@ private struct StudioRow: View {
     let collapsed: Bool
     var isDropTarget = false
     var pins: [Pin] = []
+    var onOpenPin: () -> Void = {}
     var onNewChat: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             heading
-            if !pins.isEmpty { PinPills(pins: pins).padding(.leading, 20) }
+            if !pins.isEmpty { PinPills(pins: pins, onOpen: onOpenPin).padding(.leading, 20) }
         }
         .padding(.vertical, 2)
         .background(RoundedRectangle(cornerRadius: 6)
@@ -474,6 +489,8 @@ private struct SidebarRow: View {
     var shortcut: Int?
     /// A project's own pins, shown as pills under its name.
     var pins: [Pin] = []
+    /// Called before a pill opens, so the page opens with this chat beside it.
+    var onOpenPin: () -> Void = {}
     private let appearance = ReaderStyleSettings()
 
     var body: some View {
@@ -489,7 +506,7 @@ private struct SidebarRow: View {
                         TagPills(tags: session.tags)
                     }
                     if !pins.isEmpty {
-                        PinPills(pins: pins)
+                        PinPills(pins: pins, onOpen: onOpenPin)
                     }
                     // What happened last, rather than the chat's title.
                     if let summary = session.lastActionSummary ?? (session.title != "New chat" ? session.title : nil) {

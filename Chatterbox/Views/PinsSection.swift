@@ -63,6 +63,7 @@ struct PinsSection: View {
                     Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: pin.target)]) }
                 }
                 if pin.kind == .website {
+                    Button("Open in Browser") { if let url = PinStore.normalizedURL(pin.target) { NSWorkspace.shared.open(url) } }
                     Button("Copy Link") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(pin.target, forType: .string)
@@ -116,6 +117,7 @@ struct PinsSection: View {
 /// open it; right-click to rename, copy, show everywhere, or remove.
 struct PinPills: View {
     let pins: [Pin]
+    var onOpen: () -> Void = {}
     @State private var renaming: Pin?
     @State private var newTitle = ""
     private var store: PinStore { .shared }
@@ -123,7 +125,7 @@ struct PinPills: View {
     var body: some View {
         FlowLayout(spacing: 4) {
             ForEach(pins) { pin in
-                Button { store.open(pin) } label: {
+                Button { onOpen(); store.open(pin) } label: {
                     HStack(spacing: 4) {
                         PinIcon(pin: pin).frame(width: 11, height: 11)
                         Text(pin.title).lineLimit(1)
@@ -137,8 +139,9 @@ struct PinPills: View {
                 .buttonStyle(.plain)
                 .help(pin.target)
                 .contextMenu {
-                    Button("Open") { store.open(pin) }
+                    Button("Open") { onOpen(); store.open(pin) }
                     if pin.kind == .website {
+                        Button("Open in Browser") { if let url = PinStore.normalizedURL(pin.target) { NSWorkspace.shared.open(url) } }
                         Button("Copy Link") {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(pin.target, forType: .string)

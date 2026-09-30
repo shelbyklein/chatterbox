@@ -21,6 +21,7 @@ struct SettingsView: View {
     @AppStorage("claudeDefaultMode") private var claudeDefaultMode = PermissionModes.defaultClaude
     @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
     @AppStorage(AppModel.keepRepliesRunningKey) private var keepRepliesRunning = true
+    @AppStorage(PinStore.openInAppKey) private var openPinsInApp = true
 
     var body: some View {
         TabView {
@@ -69,6 +70,8 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Open website pins inside Chatterbox", isOn: $openPinsInApp)
+                    .help("The page takes the chat's place, and the chat floats in the corner. Off: pins open in your browser.")
                 Toggle("Keep replies running after Chatterbox quits", isOn: $keepRepliesRunning)
             } footer: {
                 Text(keepRepliesRunning

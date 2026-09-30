@@ -96,10 +96,18 @@ final class PinStore {
         save()
     }
 
+    /// Settings > General: website pins open inside Chatterbox, with the chat floating over
+    /// the page.
+    static let openInAppKey = "openWebsitePinsInApp"
+    static var opensInApp: Bool { UserDefaults.standard.object(forKey: openInAppKey) as? Bool ?? true }
+    /// Shows a page inside Chatterbox (set by AppModel).
+    @ObservationIgnored var showPage: ((URL) -> Void)?
+
     func open(_ pin: Pin) {
         switch pin.kind {
         case .website:
-            if let url = Self.normalizedURL(pin.target) { NSWorkspace.shared.open(url) }
+            guard let url = Self.normalizedURL(pin.target) else { return }
+            if Self.opensInApp, let showPage { showPage(url) } else { NSWorkspace.shared.open(url) }
         case .app:
             NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: pin.target), configuration: NSWorkspace.OpenConfiguration())
         case .file:

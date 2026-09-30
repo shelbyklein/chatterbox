@@ -16,6 +16,13 @@ final class AppModel {
     var showingNewProject = false
     /// The Add Pin sheet, when open.
     var pinSheet: PinSheetRequest?
+    /// A website open inside Chatterbox, in the chat's place (see WebPane.swift).
+    var webPage: WebPage?
+
+    /// Shows a page in place of the chat; another page replaces the one that's open.
+    func openPage(_ url: URL) {
+        webPage = WebPage(url: url)
+    }
 
     var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
 
@@ -93,6 +100,7 @@ final class AppModel {
             // The order chats load in stands until you next write to one.
             for session in sessions { orderedAtMessage[session.id] = session.items.last { $0.kind == .user }?.id }
         }
+        PinStore.shared.showPage = { [weak self] url in self?.openPage(url) }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
