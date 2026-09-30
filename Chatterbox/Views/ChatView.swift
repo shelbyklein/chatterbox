@@ -32,7 +32,12 @@ struct ChatView: View {
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
         // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
+        .environment(\.chatFolder, session.workingFolder)
         .environment(\.openURL, OpenURLAction { url in
+            if url.scheme == PathLinks.scheme {
+                PathLinks.reveal(url)
+                return .handled
+            }
             guard let file = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
             NSWorkspace.shared.open(file)
             return .handled

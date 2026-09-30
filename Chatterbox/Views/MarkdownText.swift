@@ -6,11 +6,13 @@ import SwiftUI
 struct MarkdownText: View {
     let text: String
     @Environment(\.readerStyle) private var style
+    @Environment(\.chatFolder) private var folder
 
     var body: some View {
+        let paths = PathLinks.context(for: text, folder: folder)
         VStack(alignment: .leading, spacing: style.paragraphSpacing) {
             ForEach(Array(Self.blocks(text).enumerated()), id: \.offset) { _, block in
-                BlockView(block: block)
+                BlockView(block: block, paths: paths)
             }
         }
     }
@@ -177,14 +179,19 @@ struct MarkdownText: View {
 
     // MARK: - Inline
 
-    /// Bold, italics, links, and code spans. Code gets a subtle chip.
-    static func inline(_ text: String, style: ReaderStyle = .defaults) -> AttributedString {
+    /// Bold, italics, links, and code spans. Code gets a subtle chip; code naming a file or
+    /// folder that exists links to it in Finder (see PathLinks).
+    static func inline(_ text: String, style: ReaderStyle = .defaults, paths: PathLinks? = nil) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
         for run in result.runs {
             if let intent = run.inlinePresentationIntent, intent.contains(.code) {
                 result[run.range].font = style.code
                 result[run.range].backgroundColor = Color.primary.opacity(0.09)
+                if run.link == nil, let paths, let url = paths.url(for: String(result[run.range].characters)) {
+                    result[run.range].link = url
+                    result[run.range].underlineStyle = Text.LineStyle(pattern: .dot)
+                }
             }
             if run.link != nil {
                 result[run.range].foregroundColor = Color.highlight
@@ -199,9 +206,10 @@ struct MarkdownText: View {
 
 private struct BlockView: View {
     let block: MarkdownText.Block
+    let paths: PathLinks
     @Environment(\.readerStyle) private var style
 
-    private func inline(_ text: String) -> AttributedString { MarkdownText.inline(text, style: style) }
+    private func inline(_ text: String) -> AttributedString { MarkdownText.inline(text, style: style, paths: paths) }
 
     var body: some View {
         switch block {
@@ -239,7 +247,7 @@ private struct BlockView: View {
             }
 
         case .table(let header, let rows, let alignments):
-            TableView(header: header, rows: rows, alignments: alignments)
+            TableView(header: header, rows: rows, alignments: alignments, paths: paths)
 
         case .quote(let text):
             HStack(alignment: .top, spacing: 10) {
@@ -265,6 +273,7 @@ private struct TableView: View {
     let header: [String]
     let rows: [[String]]
     let alignments: [HorizontalAlignment]
+    let paths: PathLinks
     @Environment(\.readerStyle) private var style
 
     var body: some View {
@@ -293,7 +302,7 @@ private struct TableView: View {
 
     private func cell(_ text: String, column: Int) -> some View {
         let alignment = alignments[column]
-        return Text(MarkdownText.inline(text, style: style))
+        return Text(MarkdownText.inline(text, style: style, paths: paths))
             .font(style.secondary)
             .lineSpacing(style.lineSpacing * 0.6)
             .multilineTextAlignment(alignment == .trailing ? .trailing : alignment == .center ? .center : .leading)

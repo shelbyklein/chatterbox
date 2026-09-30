@@ -12,6 +12,7 @@ struct ItemView: View {
     var onAnswer: (UUID, [String: [String]]?) -> Void = { _, _ in }
     var onSendNow: (UUID) -> Void = { _ in }
     @Environment(\.readerStyle) private var style
+    @Environment(\.chatFolder) private var chatFolder
 
     var body: some View {
         switch item.kind {
@@ -69,7 +70,7 @@ struct ItemView: View {
         if item.phase == .commentary {
             HStack(alignment: .firstTextBaseline, spacing: 7) {
                 Circle().frame(width: 4, height: 4).foregroundStyle(.tertiary)
-                Text(MarkdownText.inline(item.text, style: style))
+                Text(MarkdownText.inline(item.text, style: style, paths: PathLinks.context(for: item.text, folder: chatFolder)))
                     .font(style.secondary)
                     .lineSpacing(style.lineSpacing)
                     .foregroundStyle(.secondary)
