@@ -56,6 +56,14 @@ final class CodexAppServer {
     // MARK: - Lifecycle
 
     func ensureStarted() async throws {
+        // At launch, wait to learn whether a Codex from before the relaunch is still running:
+        // starting a second one would orphan any reply the first one is working on.
+        if !resumeChecked {
+            if resumeWaiters.isEmpty {
+                Task { try? await Task.sleep(for: .seconds(10)); self.finishResumeCheck() }
+            }
+            await withCheckedContinuation { resumeWaiters.append($0) }
+        }
         if running, startTask == nil { return }
         if let startTask { return try await startTask.value }
         let task = Task { try await self.launch() }
@@ -148,7 +156,22 @@ final class CodexAppServer {
 
     /// Reattaches to the app-server an earlier run left in the host and replays what it
     /// printed since. Chats register their thread handlers first, so nothing is dropped.
+    /// Whether the launch-time check for a Codex still running from before has happened.
+    private var resumeChecked = false
+    private var resumeWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Lets waiting starts go ahead. Called once the check is done, or after a while
+    /// regardless, so nothing waits forever if the check never runs.
+    private func finishResumeCheck() {
+        guard !resumeChecked else { return }
+        resumeChecked = true
+        let waiters = resumeWaiters
+        resumeWaiters = []
+        waiters.forEach { $0.resume() }
+    }
+
     func resume(_ processes: [HostProcess]) {
+        defer { finishResumeCheck() }
         guard !running, let data = try? Data(contentsOf: Self.resumeFile),
               let state = try? JSONDecoder().decode(ResumeState.self, from: data),
               let id = state.processID, processes.contains(where: { $0.id == id }) else { return }
