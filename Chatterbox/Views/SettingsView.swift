@@ -22,6 +22,7 @@ struct SettingsView: View {
     @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
     @AppStorage(AppModel.keepRepliesRunningKey) private var keepRepliesRunning = true
     @AppStorage(PinStore.openInAppKey) private var openPinsInApp = true
+    @AppStorage(ChatSession.remoteControlKey) private var remoteControl = false
 
     var body: some View {
         TabView {
@@ -70,6 +71,8 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Remote Control for Claude chats", isOn: $remoteControl)
+                    .help("Claude chats you use can be read and continued on claude.ai and in the Claude app, while Chatterbox is open. Turn it on or off for one chat from its toolbar.")
                 Toggle("Open website pins inside Chatterbox", isOn: $openPinsInApp)
                     .help("The page takes the chat's place, and the chat floats in the corner. Off: pins open in your browser.")
                 Toggle("Keep replies running after Chatterbox quits", isOn: $keepRepliesRunning)

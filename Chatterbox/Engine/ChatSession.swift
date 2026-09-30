@@ -67,6 +67,11 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var codexStopRequested = false
     /// Stopping so a message can go straight in ("Send Now"), not a plain Stop.
     @ObservationIgnored var stoppingToSend = false
+    /// The chat's page on claude.ai while Remote Control is on (see ChatSession+Remote).
+    var remoteURL: URL?
+    /// Messages sent from here that Claude Code hasn't echoed yet, to tell them apart from
+    /// ones typed on claude.ai or the Claude app.
+    @ObservationIgnored var claudeAwaitingEcho: [String] = []
     /// Codex commands in progress this turn (item id → command and process), so any still
     /// running when the reply ends carry on as background tasks.
     @ObservationIgnored var codexRunningCommands: [String: (command: String, processID: Int32?)] = [:]

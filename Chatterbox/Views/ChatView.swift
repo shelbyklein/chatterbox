@@ -537,6 +537,8 @@ struct ChatView: View {
                 IssueToolbarItems(session: session, panel: issuesPanel, repo: repo, branch: status.branch)
             }
 
+            if session.record.backend == .claude { remoteButton }
+
             ModelPicker(session: session, compact: true, summary: modelSummary.full,
                         color: appearance.style.color(for: session.record.backend))
         }
@@ -565,6 +567,32 @@ struct ChatView: View {
         }
         .help(session.record.projectFolder.map { "This chat is bound to \($0). Claude and Codex work in this folder." }
               ?? "Bind this chat to a project folder so Claude or Codex can work in it. Each folder gets one chat.")
+    }
+
+    /// Remote Control: whether this chat can be opened on claude.ai and in the Claude app.
+    private var remoteButton: some View {
+        Menu {
+            if let url = session.remoteURL {
+                Button("Open on claude.ai") { NSWorkspace.shared.open(url) }
+                Button("Copy Link") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(url.absoluteString, forType: .string)
+                }
+                Divider()
+                Button("Turn Off Remote Control") { session.setRemoteControl(false) }
+            } else if session.wantsRemoteControl {
+                Text("Connecting\u{2026}")
+                Button("Turn Off Remote Control") { session.setRemoteControl(false) }
+            } else {
+                Button("Turn On Remote Control") { session.setRemoteControl(true) }
+            }
+        } label: {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .foregroundStyle(session.remoteURL != nil ? Color.green : Color.secondary)
+        }
+        .help(session.remoteURL != nil
+              ? "Remote Control is on: this chat is on claude.ai and in the Claude app."
+              : "Remote Control: open this chat on claude.ai or in the Claude app")
     }
 
     /// Stands in for the project button in a Studio chat.

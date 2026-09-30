@@ -35,6 +35,7 @@ extension ChatSession {
             }
             if let studioUpdate = takeStudioInstructionsUpdate() { content.append(.text(studioUpdate)) }
             content += Attachments.claudeContent(for: message)
+            claudeAwaitingEcho.append(message.text)
             process.sendUser(content)
             if !steered {
                 isRunning = true
@@ -45,6 +46,11 @@ extension ChatSession {
             notice(error.localizedDescription)
         }
         onChange?(self)
+    }
+
+    /// Starts the Claude Code session without a message, for Remote Control.
+    func claudeStartForRemoteControl() throws -> ClaudeCodeProcess {
+        try claudeEnsureProcess(earlierItems: record.items.count)
     }
 
     func claudeInterrupt() {
@@ -88,6 +94,8 @@ extension ChatSession {
         // The branch gets its own session id in its first `init` message.
         record.claudeForkPending = nil
         claudeProcess = process
+        claudeAwaitingEcho = []
+        if wantsRemoteControl { Task { await enableRemoteControl() } }
         return process
     }
 
@@ -313,6 +321,7 @@ extension ChatSession {
         expirePendingApprovals()
         clearQueuedMessages()
         clearBackgroundTasks()
+        remoteURL = nil
         isRunning = false
         onChange?(self)
     }

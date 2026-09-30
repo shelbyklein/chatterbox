@@ -27,7 +27,23 @@ extension ChatSession {
         let queued = record.items.filter { $0.queued == true }
         let match = queued.first { !$0.text.isEmpty && text.contains($0.text) }
             ?? queued.first { $0.text.isEmpty && hasFiles }
-        if let match { markPickedUp(match.id) }
+        if let match {
+            markPickedUp(match.id)
+            claudeAwaitingEcho.removeAll { !$0.isEmpty && text.contains($0) }
+            return
+        }
+        if let sent = claudeAwaitingEcho.firstIndex(where: { $0.isEmpty ? hasFiles : text.contains($0) }) {
+            claudeAwaitingEcho.remove(at: sent)
+            return
+        }
+        // Not from here: typed on claude.ai or in the Claude app while Remote Control is on.
+        // (Claude Code's own notes to itself start with a tag, and aren't shown.)
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if remoteURL != nil, !typed.isEmpty, !typed.hasPrefix("<") {
+            appendItem(DisplayItem(kind: .user, text: typed, detail: "From the Claude app"))
+            if !isRunning { isRunning = true }
+            onChange?(self)
+        }
     }
 
     // MARK: - Context usage
