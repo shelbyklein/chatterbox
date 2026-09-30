@@ -65,6 +65,10 @@ final class AppModel {
 
     /// Chats with changes not yet written, saved together shortly after (see `scheduleSave`).
     @ObservationIgnored private var unsaved: Set<UUID> = []
+    /// Each chat's latest message from you when it last moved to the top. A chat moves up
+    /// when you send it something, not on every save, so two chats replying at once don't
+    /// keep swapping places.
+    @ObservationIgnored private var orderedAtMessage: [UUID: UUID] = [:]
     @ObservationIgnored private var saveSoonScheduled = false
     @ObservationIgnored private var saveLaterScheduled = false
 
@@ -82,6 +86,10 @@ final class AppModel {
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         loadStudios()
+        defer {
+            // The order chats load in stands until you next write to one.
+            for session in sessions { orderedAtMessage[session.id] = session.items.last { $0.kind == .user }?.id }
+        }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
@@ -327,9 +335,13 @@ final class AppModel {
         if let link = session.record.claudeHost, HostClient.shared.isConnected {
             HostClient.shared.ack(id: link.processID, offset: link.offset)
         }
-        // Keep the most recently active conversation at the top.
-        if let index = sessions.firstIndex(where: { $0.id == session.id }), index != 0, !sessions[0].items.isEmpty {
-            sessions.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
+        // The chat you last wrote to goes to the top.
+        let lastMessage = session.items.last { $0.kind == .user }?.id
+        if let lastMessage, orderedAtMessage[session.id] != lastMessage {
+            orderedAtMessage[session.id] = lastMessage
+            if let index = sessions.firstIndex(where: { $0.id == session.id }), index != 0, !sessions[0].items.isEmpty {
+                sessions.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
+            }
         }
     }
 
