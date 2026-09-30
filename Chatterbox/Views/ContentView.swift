@@ -444,6 +444,10 @@ private struct StudioRow: View {
 }
 
 private struct SidebarRow: View {
+    /// Centers a shape (spinner, dot) on the first line of text, which it's baseline-aligned
+    /// with; shapes have no baseline, so they'd otherwise sit on it and look low.
+    static func centerOnTextLine(_ d: ViewDimensions) -> CGFloat { d.height / 2 + 4 }
+
     let session: ChatSession
     /// Shown while ⌘ is held.
     var shortcut: Int?
@@ -478,6 +482,7 @@ private struct SidebarRow: View {
             if Attention.shared.unread.contains(session.id)
                 || session.items.contains(where: { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }) {
                 Circle().fill(Color.highlight).frame(width: 7, height: 7)
+                    .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
                     .help("Needs your attention")
             }
             if let shortcut {
@@ -498,11 +503,13 @@ private struct SidebarRow: View {
                 }
                 ActivitySpinner(color: appearance.style.color(for: session.record.backend))
                     .frame(width: 10, height: 10)
+                    .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
                     .help("\(session.record.backend.label) is working")
             } else if session.hasBackgroundWork {
                 // The reply is done, but a subagent or command is still going.
                 ActivitySpinner(color: .secondary)
                     .frame(width: 10, height: 10)
+                    .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
                     .help("Running in the background: \(session.backgroundTasks.map(\.title).joined(separator: ", "))")
             }
         }
