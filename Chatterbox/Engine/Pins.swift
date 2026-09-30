@@ -1,6 +1,14 @@
 import AppKit
 import Observation
 
+/// Where a pin shows: a project or a Studio, whose pins appear while you're in one of its
+/// chats. Pins with no place show everywhere.
+struct PinPlace: Equatable {
+    /// "project:<folder>" or "studio:<id>", stored on the pin.
+    var key: String
+    var name: String
+}
+
 /// Something you open often: a website, an app, a file or folder, or a macOS Shortcut.
 /// Shown at the top of the sidebar; the first nine open with ⌃⌘1–⌃⌘9.
 struct Pin: Codable, Identifiable, Equatable, Hashable {
@@ -22,6 +30,8 @@ struct Pin: Codable, Identifiable, Equatable, Hashable {
     var kind: Kind
     /// A URL, an app or file path, or a Shortcut's name.
     var target: String
+    /// The project or Studio it belongs to (a `PinPlace` key); nil shows it everywhere.
+    var place: String?
 }
 
 @MainActor
@@ -43,14 +53,32 @@ final class PinStore {
         }
     }
 
+    /// Pins that show everywhere.
+    var globalPins: [Pin] { pins.filter { $0.place == nil } }
+
+    func pins(in place: PinPlace?) -> [Pin] {
+        guard let place else { return [] }
+        return pins.filter { $0.place == place.key }
+    }
+
+    /// What's shown with this place open, in ⌃⌘-number order: global pins, then its own.
+    func visiblePins(in place: PinPlace?) -> [Pin] { globalPins + pins(in: place) }
+
     func add(_ pin: Pin) {
-        guard !pins.contains(where: { $0.kind == pin.kind && $0.target == pin.target }) else { return }
+        guard !pins.contains(where: { $0.kind == pin.kind && $0.target == pin.target && $0.place == pin.place }) else { return }
         pins.append(pin)
         save()
     }
 
     func remove(_ pin: Pin) {
         pins.removeAll { $0.id == pin.id }
+        save()
+    }
+
+    /// Moves a pin to a project or Studio, or makes it global with nil.
+    func setPlace(_ pin: Pin, to place: PinPlace?) {
+        guard let index = pins.firstIndex(where: { $0.id == pin.id }) else { return }
+        pins[index].place = place?.key
         save()
     }
 
@@ -84,9 +112,10 @@ final class PinStore {
         }
     }
 
-    func open(number: Int) {
-        guard pins.indices.contains(number - 1) else { return }
-        open(pins[number - 1])
+    func open(number: Int, in place: PinPlace?) {
+        let shown = visiblePins(in: place)
+        guard shown.indices.contains(number - 1) else { return }
+        open(shown[number - 1])
     }
 
     /// Adds "https://" when a URL was typed without a scheme.

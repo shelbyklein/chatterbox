@@ -2,64 +2,110 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Pins section at the top of the sidebar. Click a pin to open it; drop an app, file, or
-/// link here to pin it; right-click to rename or remove; drag to reorder.
+/// What the Add Pin sheet opens with: which place the new pin goes to, and the place
+/// that's open (offered as a choice).
+struct PinSheetRequest: Identifiable {
+    let id = UUID()
+    var place: PinPlace?
+    var current: PinPlace?
+}
+
+/// The pins at the top of the sidebar: global ones, then the open project's or Studio's.
+/// Click a pin to open it; drop an app, file, or link on a section to pin it there;
+/// right-click to rename, move, or remove; drag to reorder.
 struct PinsSection: View {
-    @Binding var addingPin: Bool
+    /// The project or Studio of the chat that's open.
+    let place: PinPlace?
+    let onAdd: (PinSheetRequest) -> Void
     @State private var renaming: Pin?
     @State private var newTitle = ""
     @State private var dropTargeted = false
+    @State private var placeDropTargeted = false
     private var store: PinStore { .shared }
 
     var body: some View {
+        let global = store.globalPins
+        let local = store.pins(in: place)
         Section {
-            ForEach(Array(store.pins.enumerated()), id: \.element.id) { index, pin in
-                PinRow(pin: pin, number: index < 9 ? index + 1 : nil)
-                    .contextMenu {
-                        Button("Open") { store.open(pin) }
-                        Button("Rename\u{2026}") { newTitle = pin.title; renaming = pin }
-                        if pin.kind == .app || pin.kind == .file {
-                            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: pin.target)]) }
-                        }
-                        if pin.kind == .website {
-                            Button("Copy Link") {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(pin.target, forType: .string)
-                            }
-                        }
-                        Divider()
-                        Button("Remove Pin", role: .destructive) { store.remove(pin) }
-                    }
-                    .draggable(pin.id.uuidString)
-                    .dropDestination(for: String.self) { ids, _ in
-                        guard let id = ids.first.flatMap(UUID.init(uuidString:)) else { return false }
-                        store.move(id, to: pin.id)
-                        return true
-                    }
+            ForEach(Array(global.enumerated()), id: \.element.id) { index, pin in
+                row(pin, number: index < 9 ? index + 1 : nil)
             }
-            if store.pins.isEmpty {
+            if global.isEmpty {
                 Text("Pin websites, apps, folders, or Shortcuts you open often. Drop them here, or click +.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } header: {
-            HStack {
-                Text("Pins")
-                Spacer()
-                Button { addingPin = true } label: { Image(systemName: "plus") }
-                    .buttonStyle(.borderless)
-                    .help("Add a pin")
-            }
+            header("Pins", help: "Add a pin that shows everywhere") { onAdd(PinSheetRequest(place: nil, current: place)) }
         }
-        .onDrop(of: [.fileURL, .url], isTargeted: $dropTargeted, perform: dropped)
+        .onDrop(of: [.fileURL, .url], isTargeted: $dropTargeted) { dropped($0, place: nil) }
         .alert("Rename Pin", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newTitle)
             Button("Rename") { if let pin = renaming { store.rename(pin, to: newTitle.trimmingCharacters(in: .whitespaces)) } }
             Button("Cancel", role: .cancel) {}
         }
+
+        if let place {
+            Section {
+                ForEach(Array(local.enumerated()), id: \.element.id) { index, pin in
+                    let number = global.count + index + 1
+                    row(pin, number: number <= 9 ? number : nil)
+                }
+                if local.isEmpty {
+                    Text("Pin links and files for \(place.name) here. They show while you're in its chats.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            } header: {
+                header("\(place.name) Pins", help: "Add a pin for \(place.name)") { onAdd(PinSheetRequest(place: place, current: place)) }
+            }
+            .onDrop(of: [.fileURL, .url], isTargeted: $placeDropTargeted) { dropped($0, place: place) }
+        }
+    }
+
+    private func header(_ title: String, help: String, add: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title).lineLimit(1)
+            Spacer()
+            Button(action: add) { Image(systemName: "plus") }
+                .buttonStyle(.borderless)
+                .help(help)
+        }
+    }
+
+    private func row(_ pin: Pin, number: Int?) -> some View {
+        PinRow(pin: pin, number: number)
+            .contextMenu {
+                Button("Open") { store.open(pin) }
+                Button("Rename\u{2026}") { newTitle = pin.title; renaming = pin }
+                if pin.kind == .app || pin.kind == .file {
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: pin.target)]) }
+                }
+                if pin.kind == .website {
+                    Button("Copy Link") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(pin.target, forType: .string)
+                    }
+                }
+                Divider()
+                if pin.place != nil {
+                    Button("Show Everywhere") { store.setPlace(pin, to: nil) }
+                } else if let place {
+                    Button("Move to \(place.name)") { store.setPlace(pin, to: place) }
+                }
+                Divider()
+                Button("Remove Pin", role: .destructive) { store.remove(pin) }
+            }
+            .draggable(pin.id.uuidString)
+            .dropDestination(for: String.self) { ids, _ in
+                guard let id = ids.first.flatMap(UUID.init(uuidString:)),
+                      let dragged = store.pins.first(where: { $0.id == id }), dragged.place == pin.place else { return false }
+                store.move(id, to: pin.id)
+                return true
+            }
     }
 
     /// Apps and files pin as themselves; links (say, dragged from a browser) pin as websites.
-    private func dropped(_ providers: [NSItemProvider]) -> Bool {
+    private func dropped(_ providers: [NSItemProvider], place: PinPlace?) -> Bool {
+        let key = place?.key
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -67,14 +113,14 @@ struct PinsSection: View {
                     Task { @MainActor in
                         let isApp = url.pathExtension == "app"
                         PinStore.shared.add(Pin(title: isApp ? url.deletingPathExtension().lastPathComponent : url.lastPathComponent,
-                                                kind: isApp ? .app : .file, target: url.path))
+                                                kind: isApp ? .app : .file, target: url.path, place: key))
                     }
                 }
             } else {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url, !url.isFileURL else { return }
                     Task { @MainActor in
-                        PinStore.shared.add(Pin(title: url.host ?? url.absoluteString, kind: .website, target: url.absoluteString))
+                        PinStore.shared.add(Pin(title: url.host ?? url.absoluteString, kind: .website, target: url.absoluteString, place: key))
                     }
                 }
             }
@@ -122,7 +168,9 @@ struct PinIcon: View {
 /// Adding a pin: pick the kind, then a site, app, file, or Shortcut. Apps you likely want
 /// (those not yet pinned) are suggested.
 struct AddPinSheet: View {
+    let request: PinSheetRequest
     @Environment(\.dismiss) private var dismiss
+    @State private var placeKey: String?
     @State private var kind: Pin.Kind = .website
     @State private var title = ""
     @State private var url = ""
@@ -133,7 +181,18 @@ struct AddPinSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add a Pin").font(.title3.weight(.semibold))
+            HStack {
+                Text("Add a Pin").font(.title3.weight(.semibold))
+                Spacer()
+                if let current = request.current {
+                    Picker("Show", selection: $placeKey) {
+                        Text("Everywhere").tag(String?.none)
+                        Text("In \(current.name)").tag(String?.some(current.key))
+                    }
+                    .fixedSize()
+                    .help("Where this pin shows: in every chat, or only in \(current.name)'s chats")
+                }
+            }
             Picker("Kind", selection: $kind) {
                 ForEach(Pin.Kind.allCases, id: \.self) { Text($0.label).tag($0) }
             }
@@ -157,6 +216,7 @@ struct AddPinSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .onAppear { placeKey = request.place?.key }
         .task { apps = PinStore.installedApps() }
         .task(id: kind) {
             if kind == .shortcut, !loadedShortcuts {
@@ -175,7 +235,7 @@ struct AddPinSheet: View {
                 Button("Add Pin") {
                     guard let link = PinStore.normalizedURL(url) else { return }
                     let name = title.trimmingCharacters(in: .whitespaces)
-                    PinStore.shared.add(Pin(title: name.isEmpty ? (link.host ?? link.absoluteString) : name, kind: .website, target: link.absoluteString))
+                    PinStore.shared.add(Pin(title: name.isEmpty ? (link.host ?? link.absoluteString) : name, kind: .website, target: link.absoluteString, place: placeKey))
                     url = ""
                     title = ""
                 }
@@ -190,9 +250,9 @@ struct AddPinSheet: View {
             TextField("Search apps", text: $appQuery).textFieldStyle(.roundedBorder)
             List {
                 ForEach(filteredApps, id: \.self) { app in
-                    let pinned = PinStore.shared.pins.contains { $0.kind == .app && $0.target == app.path }
+                    let pinned = PinStore.shared.pins.contains { $0.kind == .app && $0.target == app.path && $0.place == placeKey }
                     Button {
-                        PinStore.shared.add(Pin(title: app.deletingPathExtension().lastPathComponent, kind: .app, target: app.path))
+                        PinStore.shared.add(Pin(title: app.deletingPathExtension().lastPathComponent, kind: .app, target: app.path, place: placeKey))
                     } label: {
                         HStack {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: 18, height: 18)
@@ -228,7 +288,7 @@ struct AddPinSheet: View {
                 panel.prompt = "Pin"
                 guard panel.runModal() == .OK else { return }
                 for url in panel.urls {
-                    PinStore.shared.add(Pin(title: url.lastPathComponent, kind: url.pathExtension == "app" ? .app : .file, target: url.path))
+                    PinStore.shared.add(Pin(title: url.lastPathComponent, kind: url.pathExtension == "app" ? .app : .file, target: url.path, place: placeKey))
                 }
             }
         }
@@ -242,8 +302,8 @@ struct AddPinSheet: View {
                 Text("No Shortcuts found. Make one in the Shortcuts app, then come back.").foregroundStyle(.secondary)
             } else {
                 List(shortcuts, id: \.self) { name in
-                    let pinned = PinStore.shared.pins.contains { $0.kind == .shortcut && $0.target == name }
-                    Button { PinStore.shared.add(Pin(title: name, kind: .shortcut, target: name)) } label: {
+                    let pinned = PinStore.shared.pins.contains { $0.kind == .shortcut && $0.target == name && $0.place == placeKey }
+                    Button { PinStore.shared.add(Pin(title: name, kind: .shortcut, target: name, place: placeKey)) } label: {
                         HStack {
                             Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.secondary)
                             Text(name)

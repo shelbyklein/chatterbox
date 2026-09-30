@@ -102,6 +102,16 @@ extension AppModel {
         if let studio { setStudio(studio.id, collapsed: false) }
     }
 
+    /// The project or Studio whose pins show with this chat open.
+    func pinPlace(for session: ChatSession?) -> PinPlace? {
+        guard let session else { return nil }
+        if let folder = session.record.projectFolder { return PinPlace(key: "project:" + folder, name: session.projectName) }
+        if let studio = studio(for: session) { return PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name) }
+        return nil
+    }
+
+    var selectedPinPlace: PinPlace? { pinPlace(for: selected) }
+
     /// Whether a chat can be forked: not mid-reply, and not a project's chat (a project
     /// folder has one chat).
     func canFork(_ session: ChatSession) -> Bool {

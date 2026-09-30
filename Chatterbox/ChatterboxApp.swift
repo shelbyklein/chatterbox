@@ -57,9 +57,9 @@ struct ChatterboxApp: App {
 
             CommandMenu("Pins") {
                 ForEach(1...9, id: \.self) { number in
-                    let pins = PinStore.shared.pins
+                    let pins = PinStore.shared.visiblePins(in: model.selectedPinPlace)
                     Button(pins.indices.contains(number - 1) ? pins[number - 1].title : "Pin \(number)") {
-                        PinStore.shared.open(number: number)
+                        PinStore.shared.open(number: number, in: model.selectedPinPlace)
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: [.command, .control])
                     .disabled(!pins.indices.contains(number - 1))
