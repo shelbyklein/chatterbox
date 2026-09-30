@@ -758,6 +758,8 @@ enum FolderPicker {
         panel.allowsMultipleSelection = false
         panel.prompt = "Choose"
         panel.message = message
+        // "New Folder" in the panel, for making a folder on the spot.
+        panel.canCreateDirectories = true
         if let path { panel.directoryURL = URL(fileURLWithPath: path) }
         return panel.runModal() == .OK ? panel.url?.path : nil
     }

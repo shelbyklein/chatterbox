@@ -94,7 +94,8 @@ struct ContentView: View {
                         Button("New Claude Chat") { model.newChat(backend: .claude) }
                         Button("New Codex Chat") { model.newChat(backend: .codex) }
                         Divider()
-                        Button("New Project Chat\u{2026}") { model.chooseAndOpenProject() }
+                        Button("New Project\u{2026}") { model.showingNewProject = true }
+                        Button("Open Project\u{2026}") { model.chooseAndOpenProject() }
                         Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
                         Divider()
                         if !model.activeStudios.isEmpty {
@@ -122,6 +123,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
+        .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
         .sheet(isPresented: $addingPin) { AddPinSheet() }
         .sheet(isPresented: Binding(get: { model.editingStudioInstructions != nil },
                                     set: { if !$0 { model.editingStudioInstructions = nil } })) {

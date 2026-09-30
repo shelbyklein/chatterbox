@@ -13,6 +13,7 @@ final class AppModel {
     var editingStudioInstructions: UUID?
     var selectedID: UUID?
     var showingCloneFromGitHub = false
+    var showingNewProject = false
 
     var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
 
@@ -222,6 +223,37 @@ final class AppModel {
     func openTerminal() {
         guard let folder = selectedFolder else { return }
         openTerminal(at: folder)
+    }
+
+    /// Where New Project puts folders: the last place used, or wherever most projects are.
+    var newProjectLocation: String {
+        if let saved = UserDefaults.standard.string(forKey: "newProjectLocation"), FileManager.default.fileExists(atPath: saved) {
+            return saved
+        }
+        let parents = sessions.compactMap(\.record.projectFolder).map { ($0 as NSString).deletingLastPathComponent }
+        let counts = Dictionary(parents.map { ($0, 1) }, uniquingKeysWith: +)
+        return counts.max { $0.value < $1.value }?.key ?? NSHomeDirectory()
+    }
+
+    /// A folder name from a project name; slashes and colons can't be in one.
+    static func folderName(for name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+    }
+
+    /// Makes a new project folder (and a git repository in it, if asked) and opens its chat.
+    func createProject(named name: String, in parent: String, gitInit: Bool) async throws {
+        let folder = (parent as NSString).appendingPathComponent(Self.folderName(for: name))
+        guard !FileManager.default.fileExists(atPath: folder) else {
+            throw ClaudeCodeError(message: "\((folder as NSString).abbreviatingWithTildeInPath) already exists.")
+        }
+        try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+        if gitInit {
+            let result = await Git.run("/usr/bin/git", ["init", "--quiet"], in: folder)
+            if result.status != 0 { NSLog("Chatterbox: git init failed in \(folder): \(result.err)") }
+        }
+        UserDefaults.standard.set(parent, forKey: "newProjectLocation")
+        openProject(folder)
     }
 
     func chooseAndOpenProject() {

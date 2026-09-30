@@ -26,6 +26,8 @@ struct ChatterboxApp: App {
                 Button("New Codex Chat") { model.newChat(backend: .codex) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Divider()
+                Button("New Project\u{2026}") { model.showingNewProject = true }
+                    .keyboardShortcut("n", modifiers: [.command, .control])
                 Button("Open Project\u{2026}") { model.chooseAndOpenProject() }
                     .keyboardShortcut("o")
                 Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
