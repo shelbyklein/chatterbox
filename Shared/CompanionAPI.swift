@@ -27,6 +27,30 @@ enum Companion {
     struct ChatList: Codable {
         var revision: Int
         var groups: [ChatGroup]
+        /// Pins that show everywhere.
+        var pins: [Pin]? = nil
+    }
+
+    /// Something pinned on the Mac: a website (opens on the phone), or an app, file, or
+    /// Shortcut (opens on the Mac).
+    struct Pin: Codable, Hashable, Identifiable {
+        var id: UUID
+        var title: String
+        /// "website", "app", "file", or "shortcut".
+        var kind: String
+        var target: String
+    }
+
+    struct InstructionsRequest: Codable {
+        var text: String
+    }
+
+    /// A slash command or Codex skill the chat can use.
+    struct Command: Codable, Hashable, Identifiable {
+        var id: String { name }
+        var name: String
+        var detail: String
+        var argumentHint: String?
     }
 
     struct ChatGroup: Codable, Identifiable {
@@ -35,6 +59,10 @@ enum Companion {
         var kind: Kind
         var title: String
         var chats: [ChatSummary]
+        /// A Studio's id, instructions, and pins.
+        var studioID: UUID? = nil
+        var instructions: String? = nil
+        var pins: [Pin]? = nil
     }
 
     struct ChatSummary: Codable, Identifiable, Hashable {
@@ -48,6 +76,8 @@ enum Companion {
         var isRunning: Bool
         var isWaitingOnYou: Bool
         var updatedAt: Date
+        /// A project's own pins.
+        var pins: [Pin]? = nil
     }
 
     /// One chat, with its recent transcript.
@@ -70,6 +100,9 @@ enum Companion {
         /// How full the agent's context is, 0–1, once known.
         var contextFraction: Double? = nil
         var contextTokens: Int? = nil
+        /// Where `!` commands run.
+        var folder: String? = nil
+        var commands: [Command]? = nil
     }
 
     /// A chat's settings and the choices for each, as on the Mac.

@@ -239,6 +239,12 @@ struct ChatDetailView: View {
                 ChatStatusBar(detail: detail).padding(.horizontal, 4)
             }
             if !pendingImages.isEmpty { pendingTray }
+            if draft.hasPrefix("!") {
+                Label("Runs in your shell on the Mac\(detail?.folder.map { " in " + ($0 as NSString).abbreviatingWithTildeInPath } ?? ""). The output goes to the agent with your next message.",
+                      systemImage: "terminal")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if !commandMatches.isEmpty { commandMenu }
             composerRow
         }
         .padding(.horizontal, 12)
@@ -246,6 +252,37 @@ struct ChatDetailView: View {
         .frame(maxWidth: 784)
         .frame(maxWidth: .infinity)
         .background(.bar)
+    }
+
+    /// While the draft is "/" and part of a name: matching commands and skills.
+    private var commandMatches: [Companion.Command] {
+        guard draft.hasPrefix("/"), !draft.contains(where: \.isWhitespace) else { return [] }
+        let typed = draft.dropFirst().lowercased()
+        let commands = detail?.commands ?? []
+        let starts = commands.filter { $0.name.lowercased().hasPrefix(typed) }
+        let contains = commands.filter { !$0.name.lowercased().hasPrefix(typed) && $0.name.lowercased().contains(typed) }
+        return Array((starts + contains).prefix(6))
+    }
+
+    private var commandMenu: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(commandMatches) { command in
+                Button { draft = "/\(command.name) " } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("/" + command.name).font(.callout.weight(.semibold)).lineLimit(1)
+                        if let hint = command.argumentHint { Text(hint).font(.caption).foregroundStyle(.tertiary).lineLimit(1) }
+                        Text(command.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if command.id != commandMatches.last?.id { Divider() }
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
     }
 
     /// Images waiting to be sent; tap × to drop one.
@@ -426,11 +463,13 @@ private struct RemoteImage: View {
     let onMarkUp: (UIImage) -> Void
     @Environment(MobileStore.self) private var store
     @State private var image: UIImage?
+    @State private var viewing = false
 
     var body: some View {
         Group {
             if let image {
                 Image(uiImage: image).resizable().aspectRatio(contentMode: .fit)
+                    .onTapGesture { viewing = true }
             } else {
                 RoundedRectangle(cornerRadius: 10).fill(Color(uiColor: .secondarySystemBackground))
                     .frame(height: 160)
@@ -439,8 +478,12 @@ private struct RemoteImage: View {
         }
         .frame(maxWidth: 320)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .fullScreenCover(isPresented: $viewing) {
+            if let image { ImageViewer(image: image, onMarkUp: onMarkUp) }
+        }
         .contextMenu {
             if let image {
+                Button { viewing = true } label: { Label("View", systemImage: "arrow.up.left.and.arrow.down.right") }
                 Button { onMarkUp(image) } label: { Label("Mark Up", systemImage: "pencil.tip.crop.circle") }
                 Button { UIPasteboard.general.image = image } label: { Label("Copy", systemImage: "doc.on.doc") }
             }

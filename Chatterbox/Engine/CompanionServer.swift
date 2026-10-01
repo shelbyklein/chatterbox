@@ -232,6 +232,18 @@ final class CompanionServer {
             guard let fork = model.fork(session) else { return .error(409, "This chat can't be forked right now.") }
             if let shown { model.selectedID = shown }
             return .json(CompanionMapper.detail(fork, model: model))
+        case ("POST", 4) where parts[1] == "pins" && parts[3] == "open":
+            guard let id = UUID(uuidString: parts[2]), let pin = PinStore.shared.pins.first(where: { $0.id == id }) else {
+                return .error(404, "That pin is gone.")
+            }
+            // Opens on the Mac's screen, as clicking it there would.
+            PinStore.shared.open(pin)
+            return .json(Companion.Unchanged(unchanged: false, revision: 0))
+        case ("POST", 4) where parts[1] == "studios" && parts[3] == "instructions":
+            guard let id = UUID(uuidString: parts[2]), model.studio(id) != nil else { return .error(404, "That Studio is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.InstructionsRequest.self, from: request.body) else { return .error(400, "Bad request.") }
+            model.setInstructions(body.text, forStudio: id)
+            return .json(CompanionMapper.chatList(model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "stop":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
             if session.isRunning { session.interrupt() }
@@ -355,11 +367,19 @@ enum CompanionMapper {
         }
         for studio in model.activeStudios {
             let chats = model.chats(in: studio)
-            groups.append(.init(id: "studio-" + studio.id.uuidString, kind: .studio, title: studio.name, chats: chats.map(summary)))
+            let place = PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)
+            groups.append(.init(id: "studio-" + studio.id.uuidString, kind: .studio, title: studio.name, chats: chats.map(summary),
+                                studioID: studio.id, instructions: studio.instructions,
+                                pins: PinStore.shared.pins(in: place).map(pin)))
         }
         let chats = model.sidebarChats.filter { !$0.items.isEmpty }
         if !chats.isEmpty { groups.append(.init(id: "chats", kind: .chats, title: "Chats", chats: chats.map(summary))) }
-        return Companion.ChatList(revision: model.companionListRevision, groups: groups)
+        return Companion.ChatList(revision: model.companionListRevision, groups: groups, pins: PinStore.shared.globalPins.map(pin))
+    }
+
+    static func pin(_ pin: Pin) -> Companion.Pin {
+        .init(id: pin.id, title: pin.title, kind: pin.kind.rawValue,
+              target: pin.kind == .website ? (PinStore.normalizedURL(pin.target)?.absoluteString ?? pin.target) : pin.target)
     }
 
     static func summary(_ session: ChatSession) -> Companion.ChatSummary {
@@ -370,7 +390,8 @@ enum CompanionMapper {
                      backend: session.record.backend.rawValue,
                      isRunning: session.isRunning || session.hasBackgroundWork,
                      isWaitingOnYou: session.isWaitingOnYou,
-                     updatedAt: session.record.updatedAt)
+                     updatedAt: session.record.updatedAt,
+                     pins: isProject ? PinStore.shared.pins(in: PinPlace(key: "project:" + (session.record.projectFolder ?? ""), name: session.projectName)).map(pin) : nil)
     }
 
     static func detail(_ session: ChatSession, model: AppModel) -> Companion.ChatDetail {
@@ -386,7 +407,17 @@ enum CompanionMapper {
                          .init(id: $0.id, kind: $0.kind.rawValue, title: $0.title, detail: $0.detail, startedAt: $0.startedAt)
                      },
                      contextFraction: session.contextUsage[session.record.backend]?.fraction,
-                     contextTokens: session.contextUsage[session.record.backend]?.used)
+                     contextTokens: session.contextUsage[session.record.backend]?.used,
+                     folder: session.workingFolder,
+                     commands: commands(session).map { .init(name: $0.name, detail: $0.description, argumentHint: $0.argumentHint) })
+    }
+
+    /// The chat's slash commands, or its Codex skills, as the Mac's "/" menu lists them.
+    static func commands(_ session: ChatSession) -> [SlashCommand] {
+        if session.record.backend == .codex {
+            return session.record.codex.map { CodexAppServer.shared.skills[$0.folder] ?? [] } ?? []
+        }
+        return session.claudeCommands ?? ClaudeModels.shared.commands
     }
 
     static func options(_ session: ChatSession) -> Companion.ChatOptions {

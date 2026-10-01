@@ -11,6 +11,9 @@ struct ChatListView: View {
     @State private var opened: Companion.ChatSummary?
     /// On iPad, the chat list stays beside the chat, in portrait too.
     @State private var columns = NavigationSplitViewVisibility.all
+    @State private var search = ""
+    /// The Studio whose instructions are open.
+    @State private var editingStudio: Companion.ChatGroup?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
@@ -18,6 +21,12 @@ struct ChatListView: View {
                 .navigationTitle(store.connection?.macName ?? "Chatterbox")
                 .navigationBarTitleDisplayMode(.inline)
                 .refreshable { await store.loadChats() }
+                .searchable(text: $search, prompt: "Search chats")
+                .sheet(item: $editingStudio) { group in
+                    if let id = group.studioID {
+                        StudioInstructionsEditor(title: group.title, studio: id, initial: group.instructions ?? "")
+                    }
+                }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) { connectionMenu }
                     ToolbarItem(placement: .topBarTrailing) { newChatMenu }
@@ -64,8 +73,14 @@ struct ChatListView: View {
                 }
             }
             if let list = store.chatList {
-                ForEach(list.groups) { group in
+                if search.isEmpty, let pins = list.pins, !pins.isEmpty {
+                    Section("Pins") { MobilePinPills(pins: pins) }
+                }
+                ForEach(filtered(list.groups)) { group in
                     Section {
+                        if search.isEmpty, let pins = group.pins, !pins.isEmpty {
+                            MobilePinPills(pins: pins)
+                        }
                         ForEach(group.chats) { chat in
                             ChatRow(chat: chat).tag(chat.id)
                                 .swipeActions(edge: .trailing) {
@@ -73,7 +88,14 @@ struct ChatListView: View {
                                 }
                         }
                     } header: {
-                        Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+                        HStack {
+                            Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+                            Spacer()
+                            if group.kind == .studio {
+                                Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }
+                                    .accessibilityLabel("\(group.title) instructions")
+                            }
+                        }
                     }
                 }
             } else if store.problem == nil {
@@ -148,6 +170,20 @@ struct ChatListView: View {
         selection = chat.id
     }
 
+    /// Chats whose title, project, Studio, or latest line has every word searched for.
+    private func filtered(_ groups: [Companion.ChatGroup]) -> [Companion.ChatGroup] {
+        let words = search.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !words.isEmpty else { return groups }
+        return groups.compactMap { group in
+            var group = group
+            group.chats = group.chats.filter { chat in
+                let text = [chat.title, chat.project ?? "", chat.subtitle ?? "", group.title].joined(separator: " ")
+                return words.allSatisfy { text.localizedStandardContains($0) }
+            }
+            return group.chats.isEmpty ? nil : group
+        }
+    }
+
     private var allChats: [Companion.ChatSummary] { store.chatList?.groups.flatMap(\.chats) ?? [] }
 
     private var selectedChat: Companion.ChatSummary? {
@@ -171,6 +207,9 @@ private struct ChatRow: View {
                         .font(.caption)
                         .foregroundStyle(chat.isWaitingOnYou ? .yellow : .secondary)
                         .lineLimit(2)
+                }
+                if let pins = chat.pins, !pins.isEmpty {
+                    MobilePinPills(pins: pins)
                 }
             }
             Spacer(minLength: 0)

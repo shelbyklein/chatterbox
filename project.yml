@@ -74,6 +74,7 @@ targets:
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on your Mac over your network.
         NSBonjourServices: [_chatterbox._tcp]
+        NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats to Photos when you ask it to.
         # The Mac is reached by its home-network or Tailscale address, over plain HTTP on a
         # private network.
         NSAppTransportSecurity:

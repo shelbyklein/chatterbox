@@ -129,6 +129,16 @@ final class MobileStore {
         try await call("/v1/chats/\(chat.uuidString)/fork", method: "POST", body: Data("{}".utf8))
     }
 
+    /// Opens an app, file, or Shortcut pin on the Mac.
+    func openOnMac(_ pin: Companion.Pin) async throws {
+        _ = try await raw("/v1/pins/\(pin.id.uuidString)/open", method: "POST", body: Data("{}".utf8))
+    }
+
+    func setInstructions(_ text: String, studio: UUID) async throws {
+        chatList = try await call("/v1/studios/\(studio.uuidString)/instructions", method: "POST",
+                                  body: try JSONEncoder().encode(Companion.InstructionsRequest(text: text)))
+    }
+
     func sendQueuedNow(_ item: UUID, in chat: UUID) async throws -> Companion.ChatDetail {
         try await call("/v1/chats/\(chat.uuidString)/queued/\(item.uuidString)/now", method: "POST", body: Data("{}".utf8))
     }
