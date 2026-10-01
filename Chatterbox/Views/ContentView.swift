@@ -27,6 +27,8 @@ struct ContentView: View {
     @State private var dropStudio: UUID?
     /// Show only projects with this tag; empty shows everything.
     @AppStorage("sidebarTagFilter") private var tagFilter = ""
+    @AppStorage(ProjectSort.key) private var projectSort = ProjectSort.recent
+    @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
 
     var body: some View {
         @Bindable var model = model
@@ -36,7 +38,7 @@ struct ContentView: View {
             List {
                 // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
                 let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
-                let projects = model.sidebarProjects.filter(isShown)
+                let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
                 let chats = model.sidebarChats.filter(isShown)
                 let archived = model.archivedSessions.filter(isShown)
                 if !isFiltering {
@@ -47,14 +49,14 @@ struct ContentView: View {
                     Text("No matching chats").foregroundStyle(.secondary)
                 }
                 // The heading stays while a tag filter is on, so the filter can always be cleared.
-                if !projects.isEmpty || activeTag != nil {
+                if !projects.isEmpty || activeTag != nil || projectActivity != .all {
                     Section {
                         ForEach(projects) { session in row(session, number: numbers[session.id]) }
                     } header: {
                         HStack {
                             Text("Projects")
                             Spacer()
-                            if !model.allTags.isEmpty { tagFilterMenu }
+                            tagFilterMenu
                         }
                     }
                 }
@@ -377,22 +379,27 @@ extension ContentView {
 
     private var tagFilterMenu: some View {
         Menu {
-            Picker("Show", selection: Binding(get: { activeTag ?? "" }, set: { tagFilter = $0 })) {
-                Text("All Chats").tag("")
-                if !model.allTags.isEmpty {
-                    Section("Projects Tagged") {
-                        ForEach(model.allTags, id: \.self) { Text($0).tag($0) }
-                    }
-                }
+            Picker("Sort By", selection: $projectSort) {
+                ForEach(ProjectSort.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.inline)
+            Picker("Activity", selection: $projectActivity) {
+                ForEach(ProjectActivity.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.inline)
+            Picker("Tags", selection: Binding(get: { activeTag ?? "" }, set: { tagFilter = $0 })) {
+                Text("All Tags").tag("")
+                ForEach(model.allTags, id: \.self) { Text($0).tag($0) }
             }
             .pickerStyle(.inline)
         } label: {
-            Image(systemName: activeTag == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            Image(systemName: activeTag == nil && projectActivity == .all
+                  ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(activeTag.map { "Showing projects tagged \u{201C}\($0)\u{201D}" } ?? "Show only projects with a tag")
+        .help("Sort and filter projects")
     }
 
     /// Holding ⌘ alone shows the ⌘1–⌘9 badges right away; any other key or release hides them.
@@ -614,6 +621,13 @@ private struct SidebarRow: View {
                     .frame(width: 10, height: 10)
                     .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
                     .help("Running in the background: \(session.backgroundTasks.map(\.title).joined(separator: ", "))")
+            } else if session.record.projectFolder != nil {
+                // How long the project has been quiet; faded once it's gone stale.
+                let stale = session.isStale
+                Text(ShortAge.string(since: session.lastActivity))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(stale ? .tertiary : .secondary)
+                    .help("Last active \(session.lastActivity.formatted(.relative(presentation: .named)))" + (stale ? " (stale)" : ""))
             }
         }
     }

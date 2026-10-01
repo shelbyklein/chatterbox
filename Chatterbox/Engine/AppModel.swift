@@ -45,11 +45,16 @@ final class AppModel {
 
     var activeSessions: [ChatSession] { sessions.filter { $0.record.archivedAt == nil } }
 
-    /// Projects by name, then each open Studio's chats, then other chats by most recent: the
+    /// Projects (by recent activity, staleness, or name), then each open Studio's chats, then other chats by most recent: the
     /// sidebar's order, which the ⌘1–⌘9 shortcuts follow.
     var sidebarProjects: [ChatSession] {
-        activeSessions.filter { $0.record.projectFolder != nil && !$0.isDot }
-            .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
+        let projects = activeSessions.filter { $0.record.projectFolder != nil && !$0.isDot }
+        let byName: (ChatSession, ChatSession) -> Bool = { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
+        switch ProjectSort.current {
+        case .name: return projects.sorted(by: byName)
+        case .recent: return projects.sorted { $0.lastActivity != $1.lastActivity ? $0.lastActivity > $1.lastActivity : byName($0, $1) }
+        case .stalest: return projects.sorted { $0.lastActivity != $1.lastActivity ? $0.lastActivity < $1.lastActivity : byName($0, $1) }
+        }
     }
     /// Chats in neither a project nor a Studio. A chat whose Studio is gone shows here too.
     var sidebarChats: [ChatSession] {

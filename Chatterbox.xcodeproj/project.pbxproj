@@ -78,6 +78,7 @@
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
 		BC976CA7BD9AE7FB18B189EA /* UsageMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */; };
 		BEAE48E0B2CBC15ABD093D65 /* ChatSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8CC235964DF222CEF117DF4 /* ChatSettingsSheet.swift */; };
+		C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */; };
 		C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		C5AA2B923B13F157E0B511FA /* TranscriptViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C729E82E41C2C9B2BFD9932 /* TranscriptViews.swift */; };
 		C85296D19896FD1C9A314F1E /* IssuesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */; };
@@ -148,6 +149,7 @@
 		06B1A8FD57BD2D2C11BC4B51 /* Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Host.swift; sourceTree = "<group>"; };
 		080FC1114275CCF21740784E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuePrompts.swift; sourceTree = "<group>"; };
+		09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSorting.swift; sourceTree = "<group>"; };
 		0C729E82E41C2C9B2BFD9932 /* TranscriptViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptViews.swift; sourceTree = "<group>"; };
 		0DA9F0B419529549C12E3317 /* CompanionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionAPI.swift; sourceTree = "<group>"; };
 		104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewView.swift; sourceTree = "<group>"; };
@@ -335,6 +337,7 @@
 				080FC1114275CCF21740784E /* Models.swift */,
 				E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */,
 				A81413A73CF1A4475E1CF397 /* Pins.swift */,
+				09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */,
 				A125487FAFCF644CD583045D /* Prompts.swift */,
 				ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */,
 				8F15AA06275FEBC5A7954E50 /* Studios.swift */,
@@ -644,6 +647,7 @@
 				F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */,
 				0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */,
 				0D0AA5565003163647FC890D /* PinsSection.swift in Sources */,
+				C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */,
 				6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */,
 				7DDA7CD35006881E95258A76 /* QuickSwitcher.swift in Sources */,
 				1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */,
