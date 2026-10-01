@@ -186,12 +186,16 @@ final class CompanionServer {
                 var buffer = buffer
                 if let data { buffer.append(data) }
                 if buffer.count > Companion.maxRequestBytes || error != nil { return connection.cancel() }
-                if let request = HTTPRequest(buffer) {
+                switch HTTPRequest.parse(buffer) {
+                case .request(let request):
                     let response = self.respond(to: request, local: local)
                     connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
-                } else if isComplete {
+                case .invalid:
+                    let response = HTTPResponse.error(400, "Bad request.")
+                    connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
+                case .incomplete where isComplete:
                     connection.cancel()
-                } else {
+                case .incomplete:
                     self.receive(on: connection, buffer: buffer, local: local)
                 }
             }
@@ -593,28 +597,39 @@ struct HTTPRequest {
     var headers: [String: String]
     var body: Data
 
-    /// Parses a complete request, or returns nil while more bytes are still coming.
-    init?(_ data: Data) {
-        guard let end = data.range(of: Data("\r\n\r\n".utf8)) else { return nil }
+    enum Parse {
+        /// More bytes are still coming.
+        case incomplete
+        /// Can never become a valid request (a bad request line or Content-Length).
+        case invalid
+        case request(HTTPRequest)
+    }
+
+    /// Parses a request once all of it has arrived. This runs before pairing or the token is
+    /// checked, so anything malformed is rejected, never trusted.
+    static func parse(_ data: Data) -> Parse {
+        guard let end = data.range(of: Data("\r\n\r\n".utf8)) else { return .incomplete }
         let head = String(decoding: data[..<end.lowerBound], as: UTF8.self)
         var lines = head.components(separatedBy: "\r\n")
         let start = lines.removeFirst().split(separator: " ")
-        guard start.count >= 2 else { return nil }
+        guard start.count >= 2 else { return .invalid }
         var headers: [String: String] = [:]
         for line in lines {
             guard let colon = line.firstIndex(of: ":") else { continue }
             headers[line[..<colon].lowercased()] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
         }
-        let length = Int(headers["content-length"] ?? "0") ?? 0
+        // Only plain digits, within the request size limit ("-1", "+5", "1e3", "abc" are refused).
+        let lengthText = headers["content-length"] ?? "0"
+        guard !lengthText.isEmpty, lengthText.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let length = Int(lengthText), length <= Companion.maxRequestBytes else { return .invalid }
         let bodyStart = end.upperBound
-        guard data.count - bodyStart >= length else { return nil }
+        guard data.count - bodyStart >= length else { return .incomplete }
         let target = String(start[1])
         let components = URLComponents(string: target)
-        method = String(start[0])
-        path = components?.path ?? target
-        query = Dictionary((components?.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { $1 })
-        self.headers = headers
-        body = data[bodyStart..<(bodyStart + length)]
+        return .request(HTTPRequest(
+            method: String(start[0]), path: components?.path ?? target,
+            query: Dictionary((components?.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { $1 }),
+            headers: headers, body: Data(data[bodyStart..<(bodyStart + length)])))
     }
 }
 
