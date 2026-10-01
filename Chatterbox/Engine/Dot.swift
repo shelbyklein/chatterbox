@@ -83,6 +83,15 @@ extension AppModel {
         dot?.restartClaudeForNewTools()
     }
 
+    /// Puts Dot back on Claude if it was switched to Codex before it was kept on Claude. The
+    /// switch hands over what was said with Codex, so Dot is caught up.
+    func keepDotOnClaude() {
+        guard let dot, dot.record.backend != .claude, !dot.isRunning else { return }
+        dot.record.isDot = nil
+        dot.setBackend(.claude)
+        dot.record.isDot = true
+    }
+
     /// Dot's own chat, opened full size.
     func openDot() {
         selectedID = ensureDot().id

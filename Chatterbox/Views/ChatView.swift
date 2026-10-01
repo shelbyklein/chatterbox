@@ -789,7 +789,9 @@ private struct EmptyChatView: View {
             Text("What's on your mind?")
                 .font(.title2.weight(.semibold))
 
-            AgentSwitch(selection: session.record.backend, onSelect: session.setBackend)
+            if !session.isDot {
+                AgentSwitch(selection: session.record.backend, onSelect: session.setBackend)
+            }
 
             if session.record.boundFolder == nil, session.record.backend == .codex, let codex = session.record.codex {
                 Button {

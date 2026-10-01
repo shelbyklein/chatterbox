@@ -41,7 +41,8 @@ struct PresetPills: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(presets.presets) { preset in pill(preset) }
+            // Dot only takes Claude presets.
+            ForEach(presets.presets.filter { !session.isDot || $0.backend == .claude }) { preset in pill(preset) }
         }
         .alert("Rename Preset", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newTitle)

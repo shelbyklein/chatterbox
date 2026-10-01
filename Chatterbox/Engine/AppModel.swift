@@ -127,10 +127,14 @@ final class AppModel {
         PinStore.shared.showPage = { [weak self] url in self?.openPage(url) }
         CompanionServer.shared.model = self
         CompanionServer.shared.startAgentListener()
+        // Dot needs to know at once whether its computer is up, so its next session has the
+        // browser tools without anyone opening the Computer panel first.
+        Task { await DotComputer.shared.refresh() }
         if CompanionServer.shared.isEnabled { CompanionServer.shared.start() }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
+        keepDotOnClaude()
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in

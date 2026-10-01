@@ -263,7 +263,8 @@ final class ChatSession: Identifiable {
     /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
     /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
-        guard !isRunning, backend != record.backend else { return }
+        // Dot's tools and instructions live in its Claude Code session, so Dot stays on Claude.
+        guard !isRunning, backend != record.backend, !(isDot && backend != .claude) else { return }
         let leaving = record.backend
         if !record.items.isEmpty {
             let last = record.items.last?.id
