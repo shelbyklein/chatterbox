@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Dot: an assistant that runs your other chats. It's a Claude chat with Chatterbox's
@@ -30,6 +31,23 @@ extension ChatSession {
         let config: [String: Any] = ["mcpServers": servers]
         guard let data = try? JSONSerialization.data(withJSONObject: config) else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+}
+
+extension ChatSession {
+    /// GIFs, videos, and Lottie files a reply points to that exist, to play under it.
+    static func referencedMedia(in text: String, folder: String?) -> [URL] {
+        PathLinks.referencedFiles(in: text, folder: folder).map { URL(fileURLWithPath: $0) }
+            .filter { MediaKind.of($0) != nil }
+    }
+
+    /// A stable id for a file a reply points to, so the phone can fetch it.
+    static func mediaID(_ path: String) -> UUID {
+        var bytes = Array(SHA256.hash(data: Data(path.utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0f) | 0x40
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                           bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 }
 

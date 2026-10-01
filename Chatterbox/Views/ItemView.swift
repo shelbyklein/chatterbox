@@ -58,6 +58,7 @@ struct ItemView: View {
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(RoundedRectangle(cornerRadius: 14).fill(style.color(for: agent).opacity(style.bubbleStrength)))
+                    .contextMenu { Button("Copy Message") { MessageClipboard.copy(item.text) } }
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -80,11 +81,27 @@ struct ItemView: View {
             VStack(alignment: .leading, spacing: 6) {
                 MarkdownText(text: item.text)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if let seconds = item.workedSeconds {
-                    Label("Worked for \(ChatSession.durationText(seconds))", systemImage: "clock")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                // Animations the reply points to (made with a command, say), playing.
+                if item.phase == .final {
+                    ForEach(ChatSession.referencedMedia(in: item.text, folder: chatFolder), id: \.self) { url in
+                        if let kind = MediaKind.of(url) { MediaPreview(url: url, kind: kind).frame(maxWidth: 640, alignment: .leading) }
+                    }
                 }
+                if item.phase == .final {
+                    HStack(spacing: 12) {
+                        if let seconds = item.workedSeconds {
+                            Label("Worked for \(ChatSession.durationText(seconds))", systemImage: "clock")
+                        }
+                        CopyMessageButton(text: item.text)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                }
+            }
+            // Text selection stops at each paragraph, so the whole reply copies from here.
+            .contextMenu {
+                Button("Copy Message") { MessageClipboard.copy(item.text) }
+                Button("Copy as Plain Text") { MessageClipboard.copy(MessageClipboard.plain(item.text)) }
             }
         }
     }
@@ -239,6 +256,44 @@ private struct PlanCard: View {
 }
 
 /// Attachments on a sent message: images as previews, other files as chips. Click to open.
+/// Copies a whole message. Selecting text only reaches across one paragraph, since each is
+/// its own block.
+enum MessageClipboard {
+    static func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// Markdown without its marks: what the reply reads as.
+    static func plain(_ markdown: String) -> String {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return markdown.split(separator: "\n", omittingEmptySubsequences: false).map { line in
+            var text = String(line)
+            if let range = text.range(of: #"^\s*#{1,6}\s+"#, options: .regularExpression) { text.removeSubrange(range) }
+            if let range = text.range(of: #"^\s*[-*+]\s+"#, options: .regularExpression) { text.replaceSubrange(range, with: "• ") }
+            return (try? AttributedString(markdown: text, options: options)).map { String($0.characters) } ?? text
+        }.joined(separator: "\n")
+    }
+}
+
+/// "Copy" under a reply, which says "Copied" for a moment.
+private struct CopyMessageButton: View {
+    let text: String
+    @State private var copied = false
+
+    var body: some View {
+        Button {
+            MessageClipboard.copy(text)
+            copied = true
+            Task { try? await Task.sleep(for: .seconds(1.5)); copied = false }
+        } label: {
+            Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+        }
+        .buttonStyle(.plain)
+        .help("Copy the whole reply")
+    }
+}
+
 /// An image an agent made, shown in the reply. Click to open it for review.
 private struct GeneratedImages: View {
     let item: DisplayItem
@@ -249,6 +304,8 @@ private struct GeneratedImages: View {
             ForEach(item.attachments ?? []) { image in
                 if ["html", "htm", "svg"].contains(image.url.pathExtension.lowercased()) {
                     HTMLPreview(source: .file(image.url))
+                } else if let media = MediaKind.of(image.url) {
+                    MediaPreview(url: image.url, kind: media)
                 } else {
                     picture(image)
                 }
@@ -332,9 +389,16 @@ private struct SentAttachments: View {
     @Environment(\.reviewImage) private var review
 
     var body: some View {
-        let images = attachments.filter { $0.kind == .image }
-        let files = attachments.filter { $0.kind != .image }
+        // GIFs and videos play; other images are thumbnails; the rest are file chips.
+        let media = attachments.filter { MediaKind.of($0.url) != nil }
+        let images = attachments.filter { $0.kind == .image && MediaKind.of($0.url) == nil }
+        let files = attachments.filter { $0.kind != .image && MediaKind.of($0.url) == nil }
         VStack(alignment: .trailing, spacing: 6) {
+            ForEach(media) { file in
+                if let kind = MediaKind.of(file.url) {
+                    MediaPreview(url: file.url, kind: kind).frame(maxWidth: 420)
+                }
+            }
             if !images.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(images) { image in

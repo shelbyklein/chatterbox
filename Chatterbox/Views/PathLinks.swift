@@ -76,6 +76,24 @@ struct PathLinks {
     }
 
     #if canImport(AppKit)
+    /// Files a reply points to, in code (`out/logo.mp4`) or as links, that exist: absolute,
+    /// or found in a folder the reply names, or the chat's folder.
+    static func referencedFiles(in text: String, folder: String?) -> [String] {
+        let context = context(for: text, folder: folder)
+        var targets = codeSpans(in: text)
+        if let regex = try? NSRegularExpression(pattern: #"\]\(<?([^)>]+)>?\)"#) {
+            let ns = text as NSString
+            targets += regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).map { ns.substring(with: $0.range(at: 1)) }
+        }
+        var seen: [String] = []
+        for target in targets {
+            let cleaned = target.hasPrefix("file://") ? (URL(string: target)?.path ?? target) : (target.removingPercentEncoding ?? target)
+            guard let path = context.url(for: cleaned)?.path, !seen.contains(path) else { continue }
+            seen.append(path)
+        }
+        return seen
+    }
+
     /// Opens a folder in Finder, or shows a file selected in its folder.
     static func reveal(_ url: URL) {
         let path = url.path

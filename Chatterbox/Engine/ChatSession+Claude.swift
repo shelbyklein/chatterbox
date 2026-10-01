@@ -384,10 +384,16 @@ extension ChatSession {
         guard let call = claudeToolCalls.removeValue(forKey: useID),
               ["Write", "Edit", "MultiEdit"].contains(call.name),
               let path = call.input["file_path"]?.string else { return }
+        showWrittenFile(path)
+    }
+
+    /// A page, picture, or animation an agent wrote, shown in the reply (or the preview from
+    /// earlier this turn, refreshed). Used for Claude's writes and Codex's file changes.
+    func showWrittenFile(_ path: String) {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
-        guard ["html", "htm", "svg", "png", "jpg", "jpeg", "gif", "webp"].contains(ext),
-              FileManager.default.fileExists(atPath: path) else { return }
+        guard FileManager.default.fileExists(atPath: path),
+              ["html", "htm", "svg", "png", "jpg", "jpeg", "gif", "webp"].contains(ext) || MediaKind.of(url) != nil else { return }
         // An edit to a file already previewed this turn refreshes that preview instead of adding another.
         if let existing = record.items.lastIndex(where: { $0.kind == .image && $0.attachments?.first?.path == path }),
            record.items[existing...].allSatisfy({ $0.kind != .user }) {

@@ -30,6 +30,8 @@ targets:
         codeSign: true
         copy:
           destination: executables
+      # Video playback in replies.
+      - sdk: AVKit.framework
       # Chatterbox's chats as tools for agents (Dot), in Contents/MacOS.
       - target: ChatterboxMCP
         embed: true

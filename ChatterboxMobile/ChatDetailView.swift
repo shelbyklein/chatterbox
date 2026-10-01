@@ -473,10 +473,19 @@ private struct ItemRow: View {
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     MarkdownText(text: item.text)
-                    if let seconds = item.workedSeconds {
-                        Label("Worked for \(durationText(seconds))", systemImage: "clock")
-                            .font(.caption).foregroundStyle(.tertiary)
+                    // Animations the reply points to, playing.
+                    ForEach(item.attachments.filter(RemoteMedia.isMedia)) { file in
+                        RemoteMedia(file: file, chat: chat)
                     }
+                    HStack(spacing: 14) {
+                        if let seconds = item.workedSeconds {
+                            Label("Worked for \(durationText(seconds))", systemImage: "clock")
+                        }
+                        // Selecting stops at each paragraph; this copies the whole reply.
+                        Button { UIPasteboard.general.string = item.text } label: { Label("Copy", systemImage: "doc.on.doc") }
+                            .buttonStyle(.borderless)
+                    }
+                    .font(.caption).foregroundStyle(.tertiary)
                 }
             }
 
@@ -497,6 +506,9 @@ private struct ItemRow: View {
                 images
                 ForEach(item.attachments.filter(RemotePreview.isPreviewable)) { file in
                     RemotePreview(file: file, chat: chat)
+                }
+                ForEach(item.attachments.filter { !$0.isImage && RemoteMedia.isMedia($0) }) { file in
+                    RemoteMedia(file: file, chat: chat)
                 }
                 if !item.text.isEmpty { Text(item.text).font(.caption).foregroundStyle(.secondary) }
             }
@@ -522,8 +534,19 @@ private struct ItemRow: View {
 
     @ViewBuilder
     private var images: some View {
+        // A GIF plays; other images are pictures to view and mark up.
         ForEach(item.attachments.filter(\.isImage)) { file in
-            RemoteImage(file: file, chat: chat, onMarkUp: actions.markUp)
+            if (file.name as NSString).pathExtension.lowercased() == "gif" {
+                RemoteMedia(file: file, chat: chat)
+            } else {
+                RemoteImage(file: file, chat: chat, onMarkUp: actions.markUp)
+            }
+        }
+        // Videos you sent from the Mac.
+        if item.kind == .user {
+            ForEach(item.attachments.filter { !$0.isImage && RemoteMedia.isMedia($0) }) { file in
+                RemoteMedia(file: file, chat: chat)
+            }
         }
     }
 }

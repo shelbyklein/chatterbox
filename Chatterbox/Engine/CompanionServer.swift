@@ -317,10 +317,18 @@ final class CompanionServer {
             session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
         case ("GET", 5) where parts[1] == "chats" && parts[3] == "files":
-            guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]),
-                  let file = session.allAttachments.first(where: { $0.id == fileID }),
-                  let data = try? Data(contentsOf: file.url) else { return .error(404, "That file is gone.") }
-            return HTTPResponse(status: 200, contentType: file.mediaType, body: data)
+            guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]) else { return .error(404, "That file is gone.") }
+            if let file = session.allAttachments.first(where: { $0.id == fileID }), let data = try? Data(contentsOf: file.url) {
+                return HTTPResponse(status: 200, contentType: file.mediaType, body: data)
+            }
+            // An animation a reply points to.
+            for item in session.items where item.kind == .assistant {
+                for url in ChatSession.referencedMedia(in: item.text, folder: session.workingFolder)
+                where ChatSession.mediaID(url.path) == fileID {
+                    if let data = try? Data(contentsOf: url) { return HTTPResponse(status: 200, contentType: "application/octet-stream", body: data) }
+                }
+            }
+            return .error(404, "That file is gone.")
         default:
             return .error(404, "Not found")
         }
@@ -454,9 +462,10 @@ enum CompanionMapper {
     static func detail(_ session: ChatSession, model: AppModel) -> Companion.ChatDetail {
         let all = session.items.filter { !($0.kind == .thought && $0.text.isEmpty) }
         let shown = all.suffix(Companion.itemLimit)
+        let folder = session.workingFolder
         return .init(revision: model.companionRevision(of: session.id), summary: summary(session),
                      settings: session.settingsDescription,
-                     items: shown.map(item), earlierCount: all.count - shown.count,
+                     items: shown.map { item($0, folder: folder) }, earlierCount: all.count - shown.count,
                      options: options(session), isArchived: session.record.archivedAt != nil,
                      canFork: model.canFork(session),
                      turnStartedAt: session.isRunning ? session.record.turnStartedAt : nil,
@@ -522,7 +531,18 @@ enum CompanionMapper {
         }
     }
 
-    static func item(_ item: DisplayItem) -> Companion.Item {
+    static func item(_ item: DisplayItem, folder: String? = nil) -> Companion.Item {
+        var mapped = plainItem(item)
+        // Animations a final reply points to travel with it, to play on the phone.
+        if item.kind == .assistant, item.phase == .final {
+            mapped.attachments += ChatSession.referencedMedia(in: item.text, folder: folder).map {
+                .init(id: ChatSession.mediaID($0.path), name: $0.lastPathComponent, mediaType: "application/octet-stream", isImage: false)
+            }
+        }
+        return mapped
+    }
+
+    private static func plainItem(_ item: DisplayItem) -> Companion.Item {
         var text = item.text
         switch item.kind {
         case .questions:

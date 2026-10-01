@@ -424,6 +424,19 @@ extension ChatSession {
             let failed = item["failure"].map { $0 != .null } ?? false
             updateItem(id) { $0.toolState = failed ? .failed : .done }
             if !failed { showGeneratedImage(item) }
+        case "fileChange":
+            let status = item["status"]?.string
+            updateItem(id) {
+                if let label = Self.label(for: item) { $0.text = label }
+                $0.toolState = (status == nil || status == "completed") ? .done : .failed
+            }
+            // Pages, pictures, and animations it wrote show in the reply, as with Claude.
+            if status == nil || status == "completed" {
+                for change in item["changes"]?.array ?? [] {
+                    guard change["kind"]?["type"]?.string != "delete", let path = change["path"]?.string else { continue }
+                    showWrittenFile(path)
+                }
+            }
         default:
             let status = item["status"]?.string
             updateItem(id) {
