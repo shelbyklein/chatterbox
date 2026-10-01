@@ -42,6 +42,8 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
             MainActor.assumeIsolated { self.markSeen(self.model?.selectedID) }
         })
         for session in model.sessions { wasRunning[session.id] = session.isRunning; notified.formUnion(pendingItems(session).map(\.id)) }
+        // The first time, everything so far counts as read.
+        if dotSeenItem == nil, let dot = model.dot { markDotSeen(dot) }
     }
 
     /// The buttons notifications offer: Allow and Deny on approvals, and the email watch's
@@ -62,9 +64,45 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func markSeen(_ id: UUID?) {
+        if let id, let dot = model?.dot, dot.id == id { markDotSeen(dot) }
         guard let id, unread.remove(id) != nil else { return }
         refreshBadge()
     }
+
+    // MARK: - Dot's unread messages
+
+    /// The last of Dot's rows you've seen, kept across launches.
+    private(set) var dotSeenItem: UUID? = UserDefaults.standard.string(forKey: "dotSeenItem").flatMap(UUID.init(uuidString:))
+
+    private func markDotSeen(_ dot: ChatSession) {
+        guard let last = dot.items.last?.id, last != dotSeenItem else { return }
+        dotSeenItem = last
+        UserDefaults.standard.set(last.uuidString, forKey: "dotSeenItem")
+    }
+
+    /// Dot's replies since you last looked, one per reply (a check-in with nothing to say
+    /// leaves none). Before you've ever opened it, nothing counts as new.
+    private func unreadDotReplies(_ dot: ChatSession) -> [DisplayItem] {
+        guard let seen = dotSeenItem else { return [] }
+        let start = dot.items.firstIndex(where: { $0.id == seen }).map { $0 + 1 } ?? dot.items.count
+        var replies: [DisplayItem] = []
+        var latestInTurn: DisplayItem?
+        for item in dot.items[start...] {
+            if item.kind == .user {
+                if let latestInTurn { replies.append(latestInTurn) }
+                latestInTurn = nil
+            } else if item.kind == .assistant, item.phase == .final, !item.text.isEmpty {
+                latestInTurn = item
+            }
+        }
+        if let latestInTurn, !dot.isRunning { replies.append(latestInTurn) }
+        return replies
+    }
+
+    func dotUnreadCount(_ dot: ChatSession) -> Int { unreadDotReplies(dot).count }
+
+    /// The newest unread reply's text, for the sidebar.
+    func dotLatestUnread(_ dot: ChatSession) -> String? { unreadDotReplies(dot).last?.text }
 
     /// Chats waiting on you or with news, for the Dock badge.
     var attentionCount: Int {
@@ -90,9 +128,11 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         let running = session.isRunning
         let finished = wasRunning[session.id] == true && !running
         wasRunning[session.id] = running
+        if session.isDot, watching { markDotSeen(session) }
         if finished, session.skipFinishedAlert {
             // Dot's check-in sent its own alert, or had nothing to say.
             session.skipFinishedAlert = false
+            if session.isDot, !watching, dotUnreadCount(session) > 0 { unread.insert(session.id) }
         } else if finished {
             if watching {
                 unread.remove(session.id)

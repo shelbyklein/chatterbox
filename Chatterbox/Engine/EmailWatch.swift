@@ -124,7 +124,7 @@ final class EmailWatch {
         """
     }
 
-    private static let schema = """
+    nonisolated private static let schema = """
     {"type":"object","additionalProperties":false,"required":["emails"],"properties":{"emails":{"type":"array","maxItems":8,"items":{"type":"object","additionalProperties":false,"required":["account","from","subject","why","action","link","id"],"properties":{"account":{"type":"string"},"from":{"type":"string"},"subject":{"type":"string"},"why":{"type":"string"},"action":{"type":"string"},"link":{"type":"string"},"id":{"type":"string"}}}}}}
     """
 

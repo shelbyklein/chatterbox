@@ -332,17 +332,40 @@ extension ContentView {
     }
 
     /// Dot at the top of the sidebar: click to open it full size.
+    /// A message's first lines without Markdown marks, for a one-glance preview.
+    static func plainPreview(_ text: String) -> String {
+        text.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)^\s*(#+|[-*])\s+"#, with: "", options: .regularExpression)
+            .split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.joined(separator: " ")
+    }
+
     private var dotRow: some View {
         let dot = model.dot
         let selected = dot != nil && model.selectedID == dot?.id
+        let unread = dot.map(Attention.shared.dotUnreadCount) ?? 0
+        let latest = unread > 0 ? dot.flatMap(Attention.shared.dotLatestUnread) : nil
         return HStack(spacing: 8) {
             Image(systemName: "circle.circle.fill").foregroundStyle(Color.highlight)
             VStack(alignment: .leading, spacing: 1) {
-                Text(model.dotName).fontWeight(.medium)
-                Text(dot?.lastActionSummary ?? "Runs your chats for you. \u{2318}J from anywhere.")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(model.dotName).fontWeight(unread > 0 ? .bold : .medium)
+                if let latest {
+                    // The newest unread message, in full color, so it reads as news.
+                    Text(Self.plainPreview(latest)).font(.caption).foregroundStyle(.primary).lineLimit(2)
+                } else {
+                    Text(dot?.lastActionSummary ?? "Runs your chats for you. \u{2318}J from anywhere.")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
             }
             Spacer(minLength: 0)
+            if unread > 0 {
+                Text(unread == 1 ? "1 new" : "\(unread) new")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(Color.highlight))
+                    .help("\(unread) unread \(unread == 1 ? "message" : "messages") from \(model.dotName)")
+            }
             if dot?.isWaitingOnYou == true {
                 Circle().fill(Color.yellow).frame(width: 7, height: 7)
             } else if dot?.isRunning == true {
@@ -351,7 +374,10 @@ extension ContentView {
         }
         .contentShape(Rectangle())
         .onTapGesture { model.openDot() }
-        .listRowBackground(RoundedRectangle(cornerRadius: 8).fill(Color.highlight.opacity(selected ? 0.10 : 0)).padding(.horizontal, 10))
+        .listRowBackground(RoundedRectangle(cornerRadius: 8)
+            .fill(Color.highlight.opacity(selected ? 0.10 : unread > 0 ? 0.14 : 0))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.highlight.opacity(unread > 0 && !selected ? 0.5 : 0), lineWidth: 1))
+            .padding(.horizontal, 10))
         .contextMenu {
             Button("Open \(model.dotName)") { model.openDot() }
             Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }

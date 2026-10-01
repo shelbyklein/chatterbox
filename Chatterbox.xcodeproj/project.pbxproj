@@ -59,6 +59,7 @@
 		7DDA7CD35006881E95258A76 /* QuickSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */; };
 		81391861CA4A3E9466F6959F /* Child.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6115C97D436D69FEDDE1D /* Child.swift */; };
 		83DFF330821ADECCFAC9F161 /* ActivitySpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */; };
+		86B7AB9492D473645BCC6FA9 /* DotConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */; };
 		88E2F788E3E0BEA4CC762830 /* ModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23F411A39522520E8F10339 /* ModelPicker.swift */; };
 		8F2C622501AF80BFE5C23E4C /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		8FD50A86B332AEA5CCEBC1C5 /* ChatSession+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7786246032F89E4E0C70184 /* ChatSession+Status.swift */; };
@@ -188,6 +189,7 @@
 		667AC120BEF5177C4AB1C659 /* MobileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileStore.swift; sourceTree = "<group>"; };
 		67B6115C97D436D69FEDDE1D /* Child.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Child.swift; sourceTree = "<group>"; };
 		69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsAndExtras.swift; sourceTree = "<group>"; };
+		6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotConversation.swift; sourceTree = "<group>"; };
 		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
 		7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionSettingsView.swift; sourceTree = "<group>"; };
 		7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Remote.swift"; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 				7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */,
 				DD71DB30FA4E56547B5EDD95 /* ContentView.swift */,
 				3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */,
+				6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */,
 				B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */,
 				104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */,
 				8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */,
@@ -624,6 +627,7 @@
 				ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */,
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
 				24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */,
+				86B7AB9492D473645BCC6FA9 /* DotConversation.swift in Sources */,
 				9921B3994F4867053CC25CBF /* EmailWatch.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,

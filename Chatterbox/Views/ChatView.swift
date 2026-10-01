@@ -204,6 +204,13 @@ struct ChatView: View {
                         .padding(.top, 60)
                 } else {
                     let agents = session.agentsByItem
+                    Group {
+                    if session.isDot {
+                        VStack(spacing: 0) {
+                            DotConversation(session: session)
+                            Color.clear.frame(height: 1).id("bottom")
+                        }
+                    } else {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(visibleItems) { item in
                             Group {
@@ -223,6 +230,8 @@ struct ChatView: View {
                             TypingIndicator()
                         }
                         Color.clear.frame(height: 1).id("bottom")
+                    }
+                    }
                     }
                     .padding(.horizontal, compact ? 14 : 24)
                     .padding(.vertical, compact ? 12 : 20)
@@ -859,7 +868,7 @@ enum FolderPicker {
     }
 }
 
-private struct TypingIndicator: View {
+struct TypingIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {

@@ -1,0 +1,161 @@
+import SwiftUI
+
+/// Dot's chat as a conversation: your messages on the right, its replies in bubbles on the
+/// left, and the steps behind each reply (tools, notes) folded under it. Check-ins and other
+/// notes from Chatterbox are small centered labels; email alerts are cards.
+struct DotConversation: View {
+    let session: ChatSession
+    @State private var openSteps: Set<UUID> = []
+    @Environment(\.readerStyle) private var style
+    @Environment(\.chatFolder) private var chatFolder
+
+    private enum Row: Identifiable {
+        case mine(DisplayItem)
+        case label(DisplayItem)
+        case reply(DisplayItem, steps: [DisplayItem])
+        case steps(UUID, [DisplayItem])
+        case email(DisplayItem)
+        case other(DisplayItem)
+
+        var id: UUID {
+            switch self {
+            case .mine(let item), .label(let item), .reply(let item, _), .email(let item), .other(let item): item.id
+            case .steps(let id, _): id
+            }
+        }
+    }
+
+    /// Groups the transcript into conversation rows; steps still under way stay with the
+    /// working bubble instead.
+    private var rows: (rows: [Row], working: [DisplayItem]) {
+        var rows: [Row] = []
+        var steps: [DisplayItem] = []
+        func flushSteps() {
+            if let first = steps.first { rows.append(.steps(first.id, steps)) }
+            steps = []
+        }
+        for item in session.items {
+            switch item.kind {
+            case .user:
+                flushSteps()
+                rows.append(item.automatic == true ? .label(item) : .mine(item))
+            case .assistant where item.phase != .commentary:
+                guard !item.text.isEmpty else { continue }
+                rows.append(.reply(item, steps: steps))
+                steps = []
+            case .assistant, .tool, .thought, .plan:
+                steps.append(item)
+            case .notice:
+                rows.append(item.text.hasPrefix("Email for you") ? .email(item) : .label(item))
+            default:
+                rows.append(.other(item))
+            }
+        }
+        if session.isRunning { return (rows, steps) }
+        flushSteps()
+        return (rows, [])
+    }
+
+    var body: some View {
+        let grouped = rows
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(grouped.rows) { row in
+                view(for: row).id(row.id)
+            }
+            if session.isRunning { working(grouped.working) }
+        }
+    }
+
+    @ViewBuilder
+    private func view(for row: Row) -> some View {
+        switch row {
+        case .mine(let item):
+            ItemView(item: item, agent: session.record.backend, onSendNow: session.sendQueuedNow)
+        case .label(let item):
+            Text(item.kind == .user ? (item.detail ?? "Check-in") : item.text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 10).padding(.vertical, 3)
+                .background(Capsule().fill(.quaternary.opacity(0.6)))
+                .frame(maxWidth: .infinity)
+                .help(item.kind == .user ? item.text : "")
+        case .reply(let item, let steps):
+            VStack(alignment: .leading, spacing: 4) {
+                bubble(item)
+                if !steps.isEmpty { stepsToggle(item.id, steps) }
+            }
+        case .steps(let id, let steps):
+            stepsToggle(id, steps)
+        case .email(let item):
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: "envelope.fill").foregroundStyle(Color.highlight)
+                Text(item.text.replacingOccurrences(of: "Email for you \u{00B7} ", with: ""))
+                    .font(style.secondary)
+                    .textSelection(.enabled)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.highlight.opacity(0.4)))
+            .padding(.trailing, 80)
+        case .other(let item):
+            ItemView(item: item, agent: session.record.backend,
+                     onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+        }
+    }
+
+    /// One of Dot's replies, in a bubble on the left.
+    private func bubble(_ item: DisplayItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            MarkdownText(text: item.text)
+            if item.phase == .final {
+                ForEach(ChatSession.referencedMedia(in: item.text, folder: chatFolder), id: \.self) { url in
+                    if let kind = MediaKind.of(url) { MediaPreview(url: url, kind: kind).frame(maxWidth: 480, alignment: .leading) }
+                }
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 16).fill(.quaternary.opacity(0.55)))
+        .contextMenu {
+            Button("Copy Message") { MessageClipboard.copy(item.text) }
+            Button("Copy as Plain Text") { MessageClipboard.copy(MessageClipboard.plain(item.text)) }
+        }
+        .padding(.trailing, 60)
+    }
+
+    /// "3 steps", opening to show what Dot did behind a reply.
+    private func stepsToggle(_ id: UUID, _ steps: [DisplayItem]) -> some View {
+        let open = openSteps.contains(id)
+        return VStack(alignment: .leading, spacing: 4) {
+            Button {
+                if open { openSteps.remove(id) } else { openSteps.insert(id) }
+            } label: {
+                Label(steps.count == 1 ? "1 step" : "\(steps.count) steps", systemImage: open ? "chevron.down" : "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 14)
+            if open {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(steps) { ItemView(item: $0, agent: session.record.backend) }
+                }
+                .padding(.leading, 14)
+            }
+        }
+    }
+
+    /// The typing bubble while Dot works, with what it's doing right now.
+    private func working(_ steps: [DisplayItem]) -> some View {
+        HStack(spacing: 8) {
+            TypingIndicator()
+            if let step = steps.last(where: { $0.kind == .tool || $0.kind == .assistant }) {
+                Text(ContentView.plainPreview(step.text))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 16).fill(.quaternary.opacity(0.55)))
+    }
+}
