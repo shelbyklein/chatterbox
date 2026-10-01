@@ -7,15 +7,17 @@ struct ChatView: View {
     /// The small chat floating over a page: fewer controls, tighter margins.
     @Environment(\.compactChat) private var compact
     let session: ChatSession
-    /// The message box's text and attachments live on the chat (see ChatSession.draft), so
-    /// they're still there after looking at another chat.
-    private var draft: String {
-        get { session.draft }
-        nonmutating set { session.draft = newValue }
-    }
-    private var attachments: [Attachment] {
-        get { session.draftAttachments }
-        nonmutating set { session.draftAttachments = newValue }
+    /// The message box's text and attachments. Typing stays in this view; each change is
+    /// copied to the chat (ChatSession.draft), so it's still there after looking at another
+    /// chat. Binding the field to the chat itself redrew the whole chat on every keystroke,
+    /// which garbled wrapped lines.
+    @State private var draft: String
+    @State private var attachments: [Attachment]
+
+    init(session: ChatSession) {
+        self.session = session
+        _draft = State(initialValue: session.draft)
+        _attachments = State(initialValue: session.draftAttachments)
     }
     @State private var attachError: String?
     @State private var isDropTargeted = false
@@ -68,6 +70,8 @@ struct ChatView: View {
             composerFocused = true
             installPasteMonitor()
         }
+        .onChange(of: draft) { _, text in session.draft = text }
+        .onChange(of: attachments) { _, files in session.draftAttachments = files }
         .onDisappear {
             if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
             pasteMonitor = nil
@@ -412,7 +416,7 @@ struct ChatView: View {
             .help("Attach files or images. You can also paste or drag them in.")
             .accessibilityLabel("Attach Files")
 
-            TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.record.backend.label)", text: Binding(get: { session.draft }, set: { session.draft = $0 }), axis: .vertical)
+            TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.record.backend.label)", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .accessibilityLabel("Message")
                 .lineLimit(1...8)

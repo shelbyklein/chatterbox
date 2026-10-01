@@ -26,12 +26,16 @@ final class MobileStore {
     /// Why the last call failed, shown until one works again.
     private(set) var problem: String?
     @ObservationIgnored private var token: String?
-    /// Unsent text per chat, kept across switching chats and app restarts.
-    var drafts: [UUID: String] = [:] {
-        didSet { UserDefaults.standard.set(Dictionary(uniqueKeysWithValues: drafts.map { ($0.key.uuidString, $0.value) }), forKey: "drafts") }
-    }
+    /// Unsent text per chat, kept across switching chats and app restarts. Not observed:
+    /// the chat view keeps its own copy while you type.
+    @ObservationIgnored private(set) var drafts: [UUID: String] = [:]
     /// Images waiting to go with each chat's next message.
-    var pendingImages: [UUID: [PendingImage]] = [:]
+    @ObservationIgnored var pendingImages: [UUID: [PendingImage]] = [:]
+
+    func saveDraft(_ text: String, for chat: UUID) {
+        drafts[chat] = text.isEmpty ? nil : text
+        UserDefaults.standard.set(Dictionary(uniqueKeysWithValues: drafts.map { ($0.key.uuidString, $0.value) }), forKey: "drafts")
+    }
 
     var isPaired: Bool { connection != nil && token != nil }
 

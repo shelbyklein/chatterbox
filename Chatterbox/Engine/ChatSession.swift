@@ -69,8 +69,9 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var stoppingToSend = false
     /// What's typed in the message box but not sent yet, and files attached to it. Kept with
     /// the chat, so switching to another chat and back doesn't lose it.
-    var draft = ""
-    var draftAttachments: [Attachment] = []
+    /// Not observed: only ChatView sets them, and it keeps its own copy while you type.
+    @ObservationIgnored var draft = ""
+    @ObservationIgnored var draftAttachments: [Attachment] = []
     /// The chat's page on claude.ai while Remote Control is on (see ChatSession+Remote).
     var remoteURL: URL?
     /// Messages sent from here that Claude Code hasn't echoed yet, to tell them apart from

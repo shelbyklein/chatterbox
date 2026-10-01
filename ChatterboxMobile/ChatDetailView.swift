@@ -16,16 +16,11 @@ struct ChatDetailView: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var detail: Companion.ChatDetail?
-    /// The message box's text and images live in the store per chat, so they survive
-    /// switching chats (and, for text, quitting the app).
-    private var draft: String {
-        get { store.drafts[chat.id] ?? "" }
-        nonmutating set { store.drafts[chat.id] = newValue.isEmpty ? nil : newValue }
-    }
-    private var pendingImages: [PendingImage] {
-        get { store.pendingImages[chat.id] ?? [] }
-        nonmutating set { store.pendingImages[chat.id] = newValue.isEmpty ? nil : newValue }
-    }
+    /// The message box's text and images. Typing stays in this view; changes are copied to
+    /// the store per chat, so they survive switching chats (and, for text, quitting the app).
+    @State private var draft = ""
+    @State private var pendingImages: [PendingImage] = []
+    @State private var loadedDraft = false
     @State private var sending = false
     @State private var error: String?
     @FocusState private var composing: Bool
@@ -79,6 +74,14 @@ struct ChatDetailView: View {
             .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
         }
         .safeAreaInset(edge: .bottom) { composer }
+        .onAppear {
+            guard !loadedDraft else { return }
+            loadedDraft = true
+            draft = store.drafts[chat.id] ?? ""
+            pendingImages = store.pendingImages[chat.id] ?? []
+        }
+        .onChange(of: draft) { _, text in store.saveDraft(text, for: chat.id) }
+        .onChange(of: pendingImages.map(\.id)) { _, _ in store.pendingImages[chat.id] = pendingImages.isEmpty ? nil : pendingImages }
         .fullScreenCover(item: $sketch) { request in
             SketchView(request: request) { image in
                 if let data = image.pngData() {
@@ -383,7 +386,7 @@ struct ChatDetailView: View {
             .tint(.secondary)
             .accessibilityLabel("Add a photo, file, or sketch")
 
-            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: Binding(get: { draft }, set: { draft = $0 }), axis: .vertical)
+            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
                 .lineLimit(1...6)
                 .focused($composing)
                 .padding(.horizontal, 14)
