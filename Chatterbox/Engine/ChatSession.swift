@@ -87,6 +87,8 @@ final class ChatSession: Identifiable {
             restartForToolsAfterTurn = false
             DispatchQueue.main.async { [weak self] in self?.restartClaudeForNewTools() }
         }
+        if record.dotFollowing == true, !isDot, DotActivity.shared.followedChatFinished(self) { skipFinishedAlert = true }
+        if isDot { DotActivity.shared.dotTurnEnded(self) }
         guard automaticTurn else { return }
         automaticTurn = false
         if isDot, DotActivity.shared.finishedAutomaticTurn(self) { skipFinishedAlert = true }

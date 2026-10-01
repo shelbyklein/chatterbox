@@ -255,6 +255,8 @@ enum Companion {
         /// Stop the agent and send this right away ("Send Now"), rather than adding it to
         /// the reply in progress.
         var now: Bool? = nil
+        /// Sent by Dot, which then follows the chat and reports back when it's done.
+        var fromDot: Bool? = nil
     }
 
     struct Upload: Codable {

@@ -177,8 +177,8 @@ let tools: [Tool] = [
          required: ["chat", "text"]) { arguments in
         let id = try chatID(arguments)
         guard let text = arguments["text"] as? String, !text.isEmpty else { throw ToolError(message: "Nothing to send.") }
-        _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": text, "now": arguments["send_now"] as? Bool ?? false])
-        return "Sent. Use wait_for_reply to get the answer."
+        _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": text, "now": arguments["send_now"] as? Bool ?? false, "fromDot": true])
+        return "Sent. Use wait_for_reply to get the answer, or carry on: if you don't, Chatterbox tells you when the chat finishes so you can report back to the user."
     },
     Tool(name: "start_chat",
          description: "Start a new chat, on its own or inside a Studio, optionally with a first message. Returns the new chat's id.",
@@ -198,7 +198,7 @@ let tools: [Tool] = [
         guard let detail = try call("/v1/chats", method: "POST", body: body) as? [String: Any],
               let id = (detail["summary"] as? [String: Any])?["id"] as? String else { throw ToolError(message: "Couldn't start a chat.") }
         if let message = arguments["message"] as? String, !message.isEmpty {
-            _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": message])
+            _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": message, "fromDot": true])
             return "Started chat \(id) and sent the message. Use wait_for_reply with chat \(id)."
         }
         return "Started chat \(id)."

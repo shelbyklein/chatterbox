@@ -246,6 +246,7 @@ final class CompanionServer {
                 return .error(400, "Nothing to send.")
             }
             if body.now == true { session.sendNow(body.text, attachments: images) } else { session.send(body.text, attachments: images) }
+            if local, body.fromDot == true, !session.isDot { session.record.dotFollowing = true }
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 2) where parts[1] == "chats":
             let body = (try? Companion.decoder.decode(Companion.NewChatRequest.self, from: request.body)) ?? .init()

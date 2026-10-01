@@ -104,6 +104,52 @@ final class DotActivity {
         """)
     }
 
+    // MARK: - Chats Dot handed work to
+
+    /// Chats that finished while Dot was busy, to check on when it's free.
+    @ObservationIgnored private var finishedWhileBusy: [UUID] = []
+
+    /// A chat Dot sent work to finished. Dot reads it and tells you what came of it, unless
+    /// it's already waiting on that reply. Returns whether Dot's report replaces the usual
+    /// "finished" alert.
+    func followedChatFinished(_ session: ChatSession) -> Bool {
+        guard let model else { return false }
+        session.record.dotFollowing = nil
+        let dot = model.ensureDot()
+        if dot.isRunning {
+            // Likely waiting on this very reply; look again once Dot's turn ends.
+            finishedWhileBusy.append(session.id)
+            return false
+        }
+        DispatchQueue.main.async { [weak self] in self?.report(session, to: dot) }
+        return true
+    }
+
+    /// After Dot's own turn: report chats that finished meanwhile, unless Dot read them.
+    func dotTurnEnded(_ dot: ChatSession) {
+        guard !finishedWhileBusy.isEmpty, let model else { return }
+        let ids = finishedWhileBusy
+        finishedWhileBusy = []
+        let start = dot.record.items.lastIndex(where: { $0.kind == .user }) ?? 0
+        let checked = dot.record.items[start...].contains { item in
+            item.kind == .tool && ["wait_for_reply", "wait for reply", "read_chat", "read chat"].contains { item.text.localizedCaseInsensitiveContains($0) }
+        }
+        guard !checked else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            for id in ids { if let session = model.sessions.first(where: { $0.id == id }) { self.report(session, to: dot) } }
+        }
+    }
+
+    private func report(_ session: ChatSession, to dot: ChatSession) {
+        let name = session.record.projectFolder != nil ? session.projectName : session.title
+        dot.sendAutomatic(label: "\u{201C}\(name)\u{201D} finished", text: """
+        <app_note>
+        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)], which you handed work to, just finished its reply. Read it (read_chat) and tell the user in two or three lines what got done, and anything they need to do or decide. It reaches them as a notification, so lead with the point. If the chat is waiting on the user, say so.
+        </app_note>
+        """)
+    }
+
     // MARK: - After Dot answers
 
     /// Tidies an automatic turn: nothing to report becomes one quiet line; a report goes to
