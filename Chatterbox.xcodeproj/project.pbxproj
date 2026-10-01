@@ -72,6 +72,7 @@
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42971FF65DCD021D97664C9 /* DotComputer.swift */; };
 		AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */; };
+		ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0508B744152680991C2150CE /* DotActivity.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
 		BC976CA7BD9AE7FB18B189EA /* UsageMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */; };
@@ -140,6 +141,7 @@
 
 /* Begin PBXFileReference section */
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
+		0508B744152680991C2150CE /* DotActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotActivity.swift; sourceTree = "<group>"; };
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		064C3FB24651A1A367B53C36 /* CodexAppServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAppServer.swift; sourceTree = "<group>"; };
 		06B1A8FD57BD2D2C11BC4B51 /* Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Host.swift; sourceTree = "<group>"; };
@@ -320,6 +322,7 @@
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
 				439370872F6E041E6DB407AF /* Dot.swift */,
+				0508B744152680991C2150CE /* DotActivity.swift */,
 				B42971FF65DCD021D97664C9 /* DotComputer.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
@@ -612,6 +615,7 @@
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,
+				ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */,
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
 				24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,

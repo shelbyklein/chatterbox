@@ -73,6 +73,17 @@ final class ChatSession: Identifiable {
     /// the chat, so switching to another chat and back doesn't lose it.
     /// Not observed: only ChatView sets them, and it keeps its own copy while you type.
     @ObservationIgnored var draft = ""
+    /// The reply in progress answers a check-in Chatterbox sent (see DotActivity).
+    @ObservationIgnored var automaticTurn = false
+    /// Chatterbox's usual "finished" alert is skipped for this turn (Dot's quiet check-ins).
+    @ObservationIgnored var skipFinishedAlert = false
+
+    /// Called as a turn ends, before the change is saved: Dot's check-ins tidy up here.
+    func turnEnded() {
+        guard automaticTurn else { return }
+        automaticTurn = false
+        if isDot, DotActivity.shared.finishedAutomaticTurn(self) { skipFinishedAlert = true }
+    }
     @ObservationIgnored var draftAttachments: [Attachment] = []
     /// The chat's page on claude.ai while Remote Control is on (see ChatSession+Remote).
     var remoteURL: URL?

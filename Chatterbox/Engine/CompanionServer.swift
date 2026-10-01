@@ -543,6 +543,11 @@ enum CompanionMapper {
     }
 
     private static func plainItem(_ item: DisplayItem) -> Companion.Item {
+        // Dot's check-ins read as a small line on the phone too.
+        if item.kind == .user, item.automatic == true {
+            return .init(id: item.id, kind: .notice, text: item.detail ?? "Check-in", isStreaming: false, isCommentary: false,
+                         toolState: nil, isPending: false, attachments: [], isQueued: false)
+        }
         var text = item.text
         switch item.kind {
         case .questions:

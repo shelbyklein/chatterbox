@@ -331,6 +331,7 @@ extension ChatSession {
         claudeStreamedMessages = []
         isRunning = false
         record.updatedAt = Date()
+        turnEnded()
         onChange?(self)
     }
 

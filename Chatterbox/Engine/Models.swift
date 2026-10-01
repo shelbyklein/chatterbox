@@ -83,6 +83,8 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var answers: [String: [String]]?
     /// Approval rows: which buttons to show. nil is the usual Allow / Allow for This Chat / Deny.
     var approvalStyle: ApprovalStyle?
+    /// A user row Chatterbox sent for Dot (a check-in), shown by its label in `detail`.
+    var automatic: Bool?
 
     enum ApprovalStyle: String, Codable { case plan }
 }

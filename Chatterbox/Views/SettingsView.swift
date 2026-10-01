@@ -94,6 +94,8 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            DotActivitySettings()
+
             Section("New chats") {
                 Picker("Chat with", selection: $defaultBackend) {
                     ForEach(Backend.allCases) { Text($0.label).tag($0) }
@@ -560,5 +562,51 @@ func openForEditing(_ path: String) {
         NSWorkspace.shared.open(url)
     } else {
         NSWorkspace.shared.open([url], withApplicationAt: textEdit, configuration: NSWorkspace.OpenConfiguration())
+    }
+}
+
+/// Settings → General: Dot checking in on its own, and watching for chats that need you.
+private struct DotActivitySettings: View {
+    @Environment(AppModel.self) private var model
+    @AppStorage(DotActivity.checkInsKey) private var checkIns = true
+    @AppStorage(DotActivity.watchWaitingKey) private var watchWaiting = true
+    @State private var times = DotActivity.times
+
+    var body: some View {
+        Section {
+            Toggle("Check in on its own, weekdays", isOn: $checkIns)
+            if checkIns {
+                ForEach(times.indices, id: \.self) { index in
+                    DatePicker(index == 0 ? "First check-in" : "Then at", selection: Binding(
+                        get: { Self.date(times[index]) },
+                        set: { times[index] = Self.minutes($0); DotActivity.times = times }
+                    ), displayedComponents: .hourAndMinute)
+                }
+                HStack {
+                    if times.count < 4 {
+                        Button("Add a Time") { times.append(min((times.last ?? 15 * 60) + 120, 23 * 60)); DotActivity.times = times }
+                    }
+                    if times.count > 1 {
+                        Button("Remove Last") { times.removeLast(); DotActivity.times = times }
+                    }
+                    Spacer()
+                    Button("Check In Now") { DotActivity.shared.checkInNow() }
+                }
+            }
+            Toggle("Tell \(model.dotName) when a chat is waiting on you", isOn: $watchWaiting)
+        } header: {
+            Text(model.dotName)
+        } footer: {
+            Text("At each check-in, \(model.dotName) looks over your email, USA Archery in ClickUp, and your chats, and sends you a short briefing only when something needs you; otherwise it leaves a single quiet line. It runs while Chatterbox is open on a Mac that's awake, catching up within three hours if the Mac was asleep.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private static func date(_ minutes: Int) -> Date {
+        Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
+    }
+
+    private static func minutes(_ date: Date) -> Int {
+        Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
     }
 }

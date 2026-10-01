@@ -134,6 +134,8 @@ final class AppModel {
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
+        // After loading: what's already waiting isn't news for Dot.
+        DotActivity.shared.start(model: self)
         if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
             applyRequestedDotDefault()
         }

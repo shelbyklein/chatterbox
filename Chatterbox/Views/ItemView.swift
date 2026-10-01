@@ -29,7 +29,22 @@ struct ItemView: View {
         }
     }
 
+    @ViewBuilder
     private var userBubble: some View {
+        if item.automatic == true {
+            // A check-in Chatterbox sent Dot: its label, not the instructions behind it.
+            Label(item.detail ?? "Check-in", systemImage: "clock.arrow.circlepath")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .help(item.text)
+        } else {
+            typedBubble
+        }
+    }
+
+    private var typedBubble: some View {
         VStack(alignment: .trailing, spacing: 3) {
             if item.queued == true {
                 HStack(spacing: 8) {

@@ -71,6 +71,7 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     func update(_ session: ChatSession, model: AppModel) {
         if self.model == nil { start(model: model) }
         let watching = isWatching(session)
+        DotActivity.shared.noticeWaiting(in: session)
 
         for item in pendingItems(session) where !notified.contains(item.id) {
             notified.insert(item.id)
@@ -80,7 +81,10 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         let running = session.isRunning
         let finished = wasRunning[session.id] == true && !running
         wasRunning[session.id] = running
-        if finished {
+        if finished, session.skipFinishedAlert {
+            // Dot's check-in sent its own alert, or had nothing to say.
+            session.skipFinishedAlert = false
+        } else if finished {
             if watching {
                 unread.remove(session.id)
             } else {

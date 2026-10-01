@@ -287,6 +287,7 @@ extension ChatSession {
         codexTurnID = nil
         codexItems = [:]
         record.updatedAt = Date()
+        turnEnded()
         let queued = UserMessage(text: pendingSteering.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n"),
                                  attachments: pendingSteering.flatMap(\.attachments))
         let queuedItems = pendingSteeringItems
