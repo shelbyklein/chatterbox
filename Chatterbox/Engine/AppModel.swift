@@ -92,6 +92,11 @@ final class AppModel {
     /// when you send it something, not on every save, so two chats replying at once don't
     /// keep swapping places.
     @ObservationIgnored private var orderedAtMessage: [UUID: UUID] = [:]
+    /// Change counters for the iPhone app, so it only fetches what changed.
+    @ObservationIgnored private(set) var companionListRevision = 0
+    @ObservationIgnored private var companionRevisions: [UUID: Int] = [:]
+
+    func companionRevision(of id: UUID) -> Int { companionRevisions[id] ?? 0 }
     @ObservationIgnored private var saveSoonScheduled = false
     @ObservationIgnored private var saveLaterScheduled = false
 
@@ -114,6 +119,8 @@ final class AppModel {
             for session in sessions { orderedAtMessage[session.id] = session.items.last { $0.kind == .user }?.id }
         }
         PinStore.shared.showPage = { [weak self] url in self?.openPage(url) }
+        CompanionServer.shared.model = self
+        if CompanionServer.shared.isEnabled { CompanionServer.shared.start() }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
@@ -306,6 +313,8 @@ final class AppModel {
     /// matches how far its agent's output was read. Changes save on the next turn of the run
     /// loop; streamed text at most once a second.
     private func scheduleSave(_ session: ChatSession, soon: Bool) {
+        companionListRevision += 1
+        companionRevisions[session.id, default: 0] += 1
         unsaved.insert(session.id)
         if soon {
             guard !saveSoonScheduled else { return }

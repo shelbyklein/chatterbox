@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// Markdown renderer for replies: headings, paragraphs, bulleted and numbered lists,
@@ -346,7 +350,8 @@ private struct CodeBlock: View {
     @State private var copied = false
     @State private var showCode = false
 
-    /// HTML and SVG blocks can be previewed live.
+    #if canImport(AppKit)
+    /// HTML and SVG blocks can be previewed live (on the Mac; the iPhone shows the code).
     private var preview: PreviewSource? {
         let lang = language.lowercased()
         let head = code.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200).lowercased()
@@ -356,8 +361,10 @@ private struct CodeBlock: View {
         }
         return nil
     }
+    #endif
 
     var body: some View {
+        #if canImport(AppKit)
         if let preview, closed {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -376,12 +383,19 @@ private struct CodeBlock: View {
         } else {
             codeBody
         }
+        #else
+        codeBody
+        #endif
     }
 
     private var copyButton: some View {
         Button(copied ? "Copied" : "Copy") {
+            #if canImport(AppKit)
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(code, forType: .string)
+            #else
+            UIPasteboard.general.string = code
+            #endif
             copied = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
         }

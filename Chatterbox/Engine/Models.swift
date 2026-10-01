@@ -12,17 +12,6 @@ enum Personality: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum Backend: String, Codable, CaseIterable, Identifiable {
-    case claude, codex
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .claude: "Claude"
-        case .codex: "Codex"
-        }
-    }
-}
-
 /// Per-chat settings for the Codex backend. Codex keeps the conversation history itself.
 struct CodexSettings: Codable, Equatable {
     var threadId: String?

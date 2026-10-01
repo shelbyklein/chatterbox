@@ -14,6 +14,8 @@ targets:
     platform: macOS
     sources:
       - path: Chatterbox
+      # Shared with the iPhone app: what the two say to each other.
+      - path: Shared
       - path: prompts
         type: folder
         buildPhase: resources
@@ -50,3 +52,39 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES
+
+  # The Chatterbox iPhone app: reads and continues chats on the Mac (see Shared/CompanionAPI.swift).
+  ChatterboxMobile:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: ChatterboxMobile
+      - path: Shared
+      - path: Chatterbox/Views/MarkdownText.swift
+      - path: Chatterbox/Views/ReaderStyle.swift
+      - path: Chatterbox/Views/PathLinks.swift
+    info:
+      path: ChatterboxMobile/Info.plist
+      properties:
+        CFBundleDisplayName: Chatterbox
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on your Mac over your network.
+        NSBonjourServices: [_chatterbox._tcp]
+        # The Mac is reached by its home-network or Tailscale address, over plain HTTP on a
+        # private network.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.mobile
+        PRODUCT_NAME: Chatterbox
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_TEAM: 9F3MKVW9C5
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+

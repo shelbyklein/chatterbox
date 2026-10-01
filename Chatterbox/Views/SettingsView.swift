@@ -32,6 +32,8 @@ struct SettingsView: View {
                 .tabItem { Label("Appearance", systemImage: "textformat.size") }
             InstructionsSettingsView()
                 .tabItem { Label("Instructions", systemImage: "text.book.closed") }
+            CompanionSettingsView()
+                .tabItem { Label("iPhone", systemImage: "iphone") }
         }
     }
 

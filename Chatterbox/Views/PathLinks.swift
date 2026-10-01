@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// Paths an agent writes as code (`/Users/…/final/`, `svg/`, `logo.png`) become links that
@@ -71,6 +75,7 @@ struct PathLinks {
         }
     }
 
+    #if canImport(AppKit)
     /// Opens a folder in Finder, or shows a file selected in its folder.
     static func reveal(_ url: URL) {
         let path = url.path
@@ -83,6 +88,7 @@ struct PathLinks {
             NSWorkspace.shared.activateFileViewerSelecting([file])
         }
     }
+    #endif
 }
 
 private struct ChatFolderKey: EnvironmentKey {

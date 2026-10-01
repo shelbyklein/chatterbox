@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// How the transcript reads: font, sizes, and spacing, chosen in Settings → Appearance.
@@ -61,8 +65,14 @@ struct ReaderStyle: Equatable {
     }
 
     static func hex(_ color: Color) -> String {
+        #if canImport(AppKit)
         let c = NSColor(color).usingColorSpace(.sRGB) ?? .systemBlue
         return String(format: "#%02X%02X%02X", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
+        #else
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
+        #endif
     }
 }
 
@@ -131,7 +141,18 @@ struct HighlightButtonStyle: ButtonStyle {
             .font(.callout.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
-            .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+            .foregroundStyle(Color.windowBackground)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color.highlight.opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.3)))
+    }
+}
+
+extension Color {
+    /// The window's own background, on either platform.
+    static var windowBackground: Color {
+        #if canImport(AppKit)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color(uiColor: .systemBackground)
+        #endif
     }
 }
