@@ -139,6 +139,8 @@ extension ChatSession {
     /// caught up on the conversation so far.
     func claudeWorkingFolderChanged() {
         guard record.claudeSessionID != nil || claudeProcess != nil else { return }
+        // A new session starts with no tasks.
+        record.claudeTasks = nil
         claudeProcess?.terminate()
         claudeProcess = nil
         record.claudeSessionID = nil
@@ -185,6 +187,8 @@ extension ChatSession {
                 claudeToolCalls[useID] = (name, block["input"] ?? [:])
                 if name == Tools.todoTool {
                     showPlan(Tools.planSteps(block["input"]))
+                } else if Self.claudeTaskTools.contains(name) {
+                    claudeTaskToolUsed(name, input: block["input"] ?? [:], useID: useID)
                 } else if let item = claudeToolItems[useID] {
                     updateItem(item) { $0.text = Tools.label(name: name, input: block["input"]) }
                 }
@@ -196,6 +200,12 @@ extension ChatSession {
                 break
             }
             for block in message["message"]?["content"]?.array ?? [] where block["type"]?.string == "tool_result" {
+                if let useID = block["tool_use_id"]?.string, let call = claudeToolCalls[useID], Self.claudeTaskTools.contains(call.name) {
+                    let text = block["content"]?.string
+                        ?? (block["content"]?.array ?? []).compactMap { $0["text"]?.string }.joined(separator: "\n")
+                    claudeTaskResult(call.name, input: call.input, result: text)
+                    continue
+                }
                 guard let useID = block["tool_use_id"]?.string, let item = claudeToolItems[useID] else { continue }
                 let failed = block["is_error"]?.bool == true
                 updateItem(item) { $0.toolState = failed ? .failed : .done }
@@ -248,7 +258,7 @@ extension ChatSession {
                 markClaudeTextAsCommentary()
                 let name = block["name"]?.string ?? ""
                 // The plan card and question card stand in for these rows.
-                guard name != Tools.todoTool, name != "AskUserQuestion" else { break }
+                guard name != Tools.todoTool, name != "AskUserQuestion", !Self.claudeTaskTools.contains(name) else { break }
                 let id = appendItem(DisplayItem(kind: .tool, text: Tools.label(name: name, input: nil)))
                 claudeRender.itemForIndex[index] = id
                 if let useID = block["id"]?.string { claudeToolItems[useID] = id }
@@ -383,7 +393,7 @@ extension ChatSession {
         }
     }
 
-    private func showPlan(_ steps: [PlanStep]?) {
+    func showPlan(_ steps: [PlanStep]?) {
         guard let steps else { return }
         if let item = claudePlanItem {
             updateItem(item) { $0.planSteps = steps }

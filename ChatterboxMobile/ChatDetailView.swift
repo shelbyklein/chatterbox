@@ -24,6 +24,8 @@ struct ChatDetailView: View {
     @State private var sketch: SketchRequest?
     @State private var pendingImages: [PendingImage] = []
     @State private var photoPicks: [PhotosPickerItem] = []
+    @State private var choosingPhotos = false
+    @State private var choosingFiles = false
     @State private var showingSettings = false
     @State private var renaming = false
     @State private var newTitle = ""
@@ -71,13 +73,28 @@ struct ChatDetailView: View {
         .fullScreenCover(item: $sketch) { request in
             SketchView(request: request) { image in
                 if let data = image.pngData() {
-                    pendingImages.append(PendingImage(preview: image, upload: .init(name: "Sketch.png", data: data)))
+                    pendingImages.append(PendingImage(preview: image, upload: .init(name: "Sketch", data: data)))
                 }
             }
         }
+        .photosPicker(isPresented: $choosingPhotos, selection: $photoPicks, maxSelectionCount: 6, matching: .images)
         .onChange(of: photoPicks) { _, picks in
             guard !picks.isEmpty else { return }
             Task { await addPhotos(picks) }
+        }
+        .fileImporter(isPresented: $choosingFiles, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
+            guard case .success(let urls) = result else { return }
+            for url in urls {
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                if let data = try? Data(contentsOf: url) { addImage(data, name: url.lastPathComponent) }
+            }
+        }
+        // Images dragged in from Photos or Files (Split View on iPad).
+        .dropDestination(for: Data.self) { items, _ in
+            let before = pendingImages.count
+            for data in items { addImage(data, name: "Image") }
+            return pendingImages.count > before
         }
         .navigationTitle(summary.project ?? summary.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -223,12 +240,19 @@ struct ChatDetailView: View {
     /// Photos from the library, as JPEGs no bigger than the agents use.
     private func addPhotos(_ picks: [PhotosPickerItem]) async {
         for pick in picks {
-            guard let data = try? await pick.loadTransferable(type: Data.self), let image = UIImage(data: data) else { continue }
-            let scaled = image.scaledDown(toEdge: 2576)
-            guard let jpeg = scaled.jpegData(compressionQuality: 0.85) else { continue }
-            pendingImages.append(PendingImage(preview: scaled, upload: .init(name: "Photo.jpg", data: jpeg)))
+            if let data = try? await pick.loadTransferable(type: Data.self) { addImage(data, name: "Photo") }
         }
         photoPicks = []
+    }
+
+    /// Any image (photo, file, or drop), sized down to what the agents use and sent as JPEG.
+    /// The name goes without an extension; the Mac adds the right one.
+    private func addImage(_ data: Data, name: String) {
+        guard let image = UIImage(data: data) else { return }
+        let scaled = image.scaledDown(toEdge: 2576)
+        guard let jpeg = scaled.jpegData(compressionQuality: 0.85) else { return }
+        let base = (name as NSString).deletingPathExtension
+        pendingImages.append(PendingImage(preview: scaled, upload: .init(name: base.isEmpty ? "Image" : base, data: jpeg)))
     }
 
     // MARK: - Message box
@@ -308,18 +332,17 @@ struct ChatDetailView: View {
 
     private var composerRow: some View {
         HStack(alignment: .bottom, spacing: 8) {
+            // The pickers open from the chat, not from inside the menu, where iOS doesn't
+            // reliably show them.
             Menu {
+                Button { choosingPhotos = true } label: { Label("Photo Library", systemImage: "photo.on.rectangle") }
+                Button { choosingFiles = true } label: { Label("Files", systemImage: "folder") }
                 Button { sketch = SketchRequest(background: nil) } label: { Label("Sketch", systemImage: "pencil.tip.crop.circle") }
-                PhotosPicker(selection: $photoPicks, maxSelectionCount: 6, matching: .images) {
-                    Label("Photo Library", systemImage: "photo.on.rectangle")
-                }
             } label: {
                 Image(systemName: "plus.circle.fill").font(.system(size: 30))
-            } primaryAction: {
-                sketch = SketchRequest(background: nil)
             }
             .tint(.secondary)
-            .accessibilityLabel("Add a sketch or photo")
+            .accessibilityLabel("Add a photo, file, or sketch")
 
             TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
                 .lineLimit(1...6)

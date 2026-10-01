@@ -115,6 +115,8 @@ struct ConversationRecord: Codable {
     var forkedFrom: UUID?
     /// Remote Control for this chat, overriding the setting; nil follows the setting.
     var remoteControl: Bool?
+    /// Claude Code's tasks for this session, shown as the plan (see ChatSession+Tasks).
+    var claudeTasks: [ClaudeTask]?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?
