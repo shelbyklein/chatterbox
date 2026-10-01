@@ -75,6 +75,8 @@ targets:
         NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on your Mac over your network.
         NSBonjourServices: [_chatterbox._tcp]
         NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats to Photos when you ask it to.
+        NSMicrophoneUsageDescription: Chatterbox listens while you dictate a message.
+        NSSpeechRecognitionUsageDescription: Chatterbox turns what you say into the text of your message.
         # The Mac is reached by its home-network or Tailscale address, over plain HTTP on a
         # private network.
         NSAppTransportSecurity:

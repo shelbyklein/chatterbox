@@ -31,8 +31,12 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Chatterbox finds and talks to Chatterbox on your Mac over your network.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Chatterbox listens while you dictate a message.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Chatterbox saves images from your chats to Photos when you ask it to.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Chatterbox turns what you say into the text of your message.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
