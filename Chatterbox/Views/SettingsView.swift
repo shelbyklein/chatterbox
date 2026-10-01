@@ -619,6 +619,7 @@ private struct DotActivitySettings: View {
                         Text("Last swept \(last.formatted(.relative(presentation: .named)))").foregroundStyle(.secondary)
                     }
                     Spacer()
+                    Button("Send Test") { watch.sendTest() }
                     Button("Sweep Now") { watch.sweepNow() }.disabled(watch.isSweeping)
                 }
             }

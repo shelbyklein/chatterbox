@@ -114,7 +114,9 @@ final class EmailWatch {
         format.dateFormat = "EEEE, MMMM d, yyyy 'at' h:mm a zzz"
         let iso = ISO8601DateFormatter()
         return """
-        You are \(name)'s email sweep, running in the background for the user. Look at the email that arrived in all of the user's Gmail accounts from \(format.string(from: since)) (\(iso.string(from: since))) until now, \(format.string(from: now)). Use your Gmail tools. Only read: never send, draft, archive, label, mark as read, delete, or change anything.
+        You are \(name)'s email sweep, running in the background for the user. Find the email that arrived in all of the user's Gmail accounts since \(format.string(from: since)) (\(iso.string(from: since)) UTC). Use your Gmail tools. Only read: never send, draft, archive, label, mark as read, delete, or change anything.
+
+        To find it, search each account with exactly this query: after:\(Int(since.timeIntervalSince1970)) -in:sent -in:drafts (Gmail reads that number as the exact moment of the last sweep). Every result is new; don't filter by time yourself, since Gmail mixes time zones in its timestamps. Page through all results.
 
         First read the user's notes: \(AppModel.dotMemoryFolder.path)/MEMORY.md and the files it points to (especially the accounts and \(name)'s jobs). Follow them on what counts as important. Unless they say otherwise, flag mail that needs the user to do or decide something, or that they'd want to know about soon: school, appointments, bills or deadlines, clients and work requests (USA Archery and its forwards included), and personal messages from real people. Stay quiet about newsletters, promotions, receipts with nothing to do, automated notifications, and anything the user has already replied to.
 
@@ -175,6 +177,15 @@ final class EmailWatch {
 
     // MARK: - Notifications
 
+    /// A sample notification, to try the buttons. Its buttons say it's a test to Dot.
+    func sendTest() {
+        guard let model else { return }
+        notify(Email(account: "test", from: "Chatterbox (test)", subject: "Sample email notification",
+                     why: "This is a test of the email watch; no real email is behind it.",
+                     action: "Try Draft Reply, Tell \(model.dotName)\u{2026}, or Open.", link: "", id: ""),
+               dot: model.ensureDot())
+    }
+
     private func notify(_ email: Email, dot: ChatSession) {
         guard Bundle.main.bundleIdentifier != nil, let encoded = try? JSONEncoder().encode(email) else { return }
         let content = UNMutableNotificationContent()
@@ -202,6 +213,16 @@ final class EmailWatch {
     func handle(action: String, emailJSON: String, typed: String?) {
         guard let model, let email = try? JSONDecoder().decode(Email.self, from: Data(emailJSON.utf8)) else { return }
         let dot = model.ensureDot()
+        if email.account == "test" {
+            // From Settings' sample: nothing to look up.
+            dot.sendAutomatic(label: "Test notification \u{00B7} \(action == "tellDot" ? typed ?? "" : action)", text: """
+            <app_note>
+            The user is trying the email watch's notification buttons with a sample (no real email). They pressed \(action == "draftReply" ? "Draft Reply" : action == "tellDot" ? "Tell you, and wrote: \u{201C}\(typed ?? "")\u{201D}" : "Open"). Reply in one line confirming it reached you.
+            </app_note>
+            """)
+            if action != "draftReply", action != "tellDot" { model.selectedID = dot.id; NSApp.activate(ignoringOtherApps: true) }
+            return
+        }
         let about = """
         The email: from \(email.from), subject \u{201C}\(email.subject)\u{201D}, to \(email.account)\(email.id.isEmpty ? "" : ", message id \(email.id)")\(email.link.isEmpty ? "" : ", \(email.link)"). Your sweep noted: \(email.why) Suggested: \(email.action)
         """
