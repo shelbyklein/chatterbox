@@ -41,6 +41,8 @@ struct ChatListView: View {
         // Keeps the list current while it's on screen.
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
+            // The assistant's animations, kept in step with the Mac's.
+            Task { await MobileGolem.shared.load(from: store) }
             while !Task.isCancelled {
                 await store.loadChats()
                 #if DEBUG
@@ -89,8 +91,11 @@ struct ChatListView: View {
                         }
                     } header: {
                         HStack {
-                            Label(group.title, systemImage: group.kind == .dot ? "circle.circle.fill"
-                                  : group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+                            if group.kind == .dot {
+                                Label { Text(group.title) } icon: { MobileGolemHead(size: 13) }
+                            } else {
+                                Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+                            }
                             Spacer()
                             if group.kind == .studio {
                                 Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }

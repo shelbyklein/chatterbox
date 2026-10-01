@@ -142,6 +142,7 @@ final class AppModel {
         // After loading: what's already waiting isn't news for Dot.
         DotActivity.shared.start(model: self)
         EmailWatch.shared.start(model: self)
+        GolemAvatar.shared.refreshIfStale()
         if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
             applyRequestedDotDefault()
         }

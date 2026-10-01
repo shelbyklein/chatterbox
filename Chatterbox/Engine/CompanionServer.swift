@@ -326,6 +326,15 @@ final class CompanionServer {
             guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
             session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
+        case ("GET", 2) where parts[1] == "avatar":
+            return .json(CompanionMapper.avatarList())
+        case ("GET", 3) where parts[1] == "avatar":
+            // Only a file listed in the Avatar folder, by its plain name.
+            guard let file = CompanionMapper.avatarList().files.first(where: { $0.name == parts[2] }),
+                  let data = try? Data(contentsOf: GolemAvatar.folder.appendingPathComponent(file.name)) else {
+                return .error(404, "No such animation.")
+            }
+            return HTTPResponse(status: 200, contentType: file.name.hasSuffix(".png") ? "image/png" : "video/quicktime", body: data)
         case ("GET", 5) where parts[1] == "chats" && parts[3] == "files":
             guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]) else { return .error(404, "That file is gone.") }
             if let file = session.allAttachments.first(where: { $0.id == fileID }), let data = try? Data(contentsOf: file.url) {
@@ -457,6 +466,15 @@ enum CompanionMapper {
               target: pin.kind == .website ? (PinStore.normalizedURL(pin.target)?.absoluteString ?? pin.target) : pin.target)
     }
 
+    /// The animations (.mov) and head image in the assistant's Avatar folder.
+    static func avatarList() -> Companion.AvatarList {
+        let entries = (try? FileManager.default.contentsOfDirectory(at: GolemAvatar.folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return .init(files: entries.filter { ["mov", "png"].contains($0.pathExtension.lowercased()) }.map { url in
+            .init(name: url.lastPathComponent,
+                  modified: (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast)
+        }.sorted { $0.name < $1.name })
+    }
+
     static func summary(_ session: ChatSession) -> Companion.ChatSummary {
         let isProject = session.record.projectFolder != nil
         return .init(id: session.id, title: session.title,
@@ -466,7 +484,9 @@ enum CompanionMapper {
                      isRunning: session.isRunning || session.hasBackgroundWork,
                      isWaitingOnYou: session.isWaitingOnYou,
                      updatedAt: session.record.updatedAt,
-                     pins: isProject ? PinStore.shared.pins(in: PinPlace(key: "project:" + (session.record.projectFolder ?? ""), name: session.projectName)).map(pin) : nil)
+                     pins: isProject ? PinStore.shared.pins(in: PinPlace(key: "project:" + (session.record.projectFolder ?? ""), name: session.projectName)).map(pin) : nil,
+                     isDot: session.isDot ? true : nil,
+                     unread: session.isDot ? Attention.shared.dotUnreadCount(session) : nil)
     }
 
     static func detail(_ session: ChatSession, model: AppModel) -> Companion.ChatDetail {

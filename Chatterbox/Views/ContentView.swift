@@ -354,7 +354,7 @@ extension ContentView {
         let unread = dot.map(Attention.shared.dotUnreadCount) ?? 0
         let latest = unread > 0 ? dot.flatMap(Attention.shared.dotLatestUnread) : nil
         return HStack(spacing: 8) {
-            Image(systemName: "circle.circle.fill").foregroundStyle(Color.highlight)
+            GolemHead(size: 15)
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.dotName).fontWeight(unread > 0 ? .bold : .medium)
                 if let latest {

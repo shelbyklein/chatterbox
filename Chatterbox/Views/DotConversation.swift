@@ -63,11 +63,38 @@ struct DotConversation: View {
 
     var body: some View {
         let grouped = rows
+        let lastReply = grouped.rows.last { if case .reply = $0 { return true }; return false }?.id
         VStack(alignment: .leading, spacing: 10) {
             ForEach(grouped.rows) { row in
-                view(for: row).id(row.id)
+                // Golem sits beside his latest reply (or the typing bubble while he works).
+                if case .reply = row, GolemAvatar.shared.hasAnimations {
+                    HStack(alignment: .bottom, spacing: 8) {
+                        avatarColumn(show: row.id == lastReply && !session.isRunning)
+                        view(for: row)
+                    }
+                    .id(row.id)
+                } else {
+                    view(for: row).id(row.id)
+                }
             }
-            if session.isRunning { working(grouped.working) }
+            if session.isRunning {
+                HStack(alignment: .bottom, spacing: 8) {
+                    if GolemAvatar.shared.hasAnimations { avatarColumn(show: true) }
+                    working(grouped.working)
+                }
+            }
+        }
+    }
+
+    /// Room for Golem beside a reply; only the newest shows him, as a conversation would.
+    @ViewBuilder
+    private func avatarColumn(show: Bool) -> some View {
+        if show {
+            GolemAnimated(mood: GolemAvatar.mood(of: session))
+                .frame(width: 56, height: 56)
+                .padding(.bottom, -6)
+        } else {
+            Color.clear.frame(width: 56, height: 1)
         }
     }
 

@@ -78,6 +78,18 @@ enum Companion {
         var updatedAt: Date
         /// A project's own pins.
         var pins: [Pin]? = nil
+        /// The assistant's own chat, and how many of its replies you haven't read.
+        var isDot: Bool? = nil
+        var unread: Int? = nil
+    }
+
+    /// The assistant's animations and head image, to play on the phone too.
+    struct AvatarList: Codable {
+        struct File: Codable, Hashable {
+            var name: String
+            var modified: Date
+        }
+        var files: [File]
     }
 
     /// One chat, with its recent transcript.

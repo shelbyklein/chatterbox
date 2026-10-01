@@ -49,7 +49,16 @@ struct ChatDetailView: View {
                         ForEach(detail.items) { item in
                             ItemRow(item: item, chat: chat.id, actions: actions).id(item.id)
                         }
-                        if summary.isRunning {
+                        if summary.isDot == true, MobileGolem.shared.hasAnimations {
+                            // The assistant, below his latest message: thinking while he works.
+                            HStack(alignment: .bottom, spacing: 8) {
+                                MobileGolemAnimated(mood: MobileGolem.mood(summary)).frame(width: 80, height: 80)
+                                if summary.isRunning {
+                                    Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary).padding(.bottom, 12)
+                                }
+                            }
+                            .id("working")
+                        } else if summary.isRunning {
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
                                 Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary)

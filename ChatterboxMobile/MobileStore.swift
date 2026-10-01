@@ -155,6 +155,14 @@ final class MobileStore {
         try await call("/v1/chats/\(chat.uuidString)/queued/\(item.uuidString)/now", method: "POST", body: Data("{}".utf8))
     }
 
+    func avatarList() async throws -> Companion.AvatarList {
+        try Companion.decoder.decode(Companion.AvatarList.self, from: await raw("/v1/avatar"))
+    }
+
+    func avatarFile(_ name: String) async throws -> Data {
+        try await raw("/v1/avatar/" + (name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? name))
+    }
+
     func file(_ file: Companion.File, in chat: UUID) async throws -> Data {
         try await raw("/v1/chats/\(chat.uuidString)/files/\(file.id.uuidString)")
     }
