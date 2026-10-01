@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Dot: an assistant that runs your other chats. It's a Claude chat with Chatterbox's
+/// Dot: an assistant that runs your other chats. It's a Claude or Codex chat with Chatterbox's
 /// chats as tools (chatterbox-mcp): it lists, reads, starts, messages, waits on, and stops
 /// them. It can't answer approvals or question cards; those stay with you.
 extension ChatSession {
@@ -31,6 +31,33 @@ extension ChatSession {
         let config: [String: Any] = ["mcpServers": servers]
         guard let data = try? JSONSerialization.data(withJSONObject: config) else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+
+    /// Thread-local overrides: Dot's tools never leak into ordinary Codex chats.
+    var dotCodexConfig: JSON {
+        guard isDot, let server = Self.dotToolServer else { return .object([:]) }
+        var env: [String: JSON] = ["CHATTERBOX_OWN_CHAT": .string(id.uuidString)]
+        for key in ["CHATTERBOX_DATA_DIR", "CHATTERBOX_AGENT_PORT"] {
+            if let value = ProcessInfo.processInfo.environment[key] { env[key] = .string(value) }
+        }
+        let config: [String: JSON] = [
+            "mcp_servers.chatterbox": ["command": .string(server), "args": [], "env": .object(env),
+                                      "enabled": true, "default_tools_approval_mode": "approve"],
+            // Explicitly disable a previously configured computer after it stops.
+            "mcp_servers.computer": ["url": .string(DotComputer.shared.toolsURL),
+                                    "enabled": .bool(DotComputer.shared.isRunning),
+                                    "default_tools_approval_mode": "approve"],
+        ]
+        return .object(config)
+    }
+
+    var dotCodexInstructions: String {
+        Prompts.dotInstructions(name: title) + "\n\nYour shared persistent memory is at " + AppModel.dotMemoryFolder.path
+            + ". Read MEMORY.md there at the start of a session and follow its index to relevant files. Use this same memory when switching between Claude and Codex; do not create a separate competing index."
+    }
+
+    var dotCodexConfigurationKey: String {
+        String(decoding: (try? dotCodexConfig.encoded()) ?? Data(), as: UTF8.self) + dotCodexInstructions
     }
 }
 
@@ -93,6 +120,11 @@ extension AppModel {
         record.isDot = true
         record.claudeMode = PermissionModes.defaultClaude
         record.activeBackend = .claude
+        if defaults.string(forKey: "dotDefaultBackend") == Backend.codex.rawValue {
+            record.activeBackend = .codex
+            record.codex = CodexSettings(folder: Self.dotFolder, canEdit: false, mode: PermissionModes.defaultCodex)
+            record.codex?.model = defaults.string(forKey: "dotDefaultModel") ?? "gpt-6.1-sol"
+        }
         return insertSession(record)
     }
 
@@ -112,13 +144,17 @@ extension AppModel {
         dot?.restartClaudeForNewTools()
     }
 
-    /// Puts Dot back on Claude if it was switched to Codex before it was kept on Claude. The
-    /// switch hands over what was said with Codex, so Dot is caught up.
-    func keepDotOnClaude() {
-        guard let dot, dot.record.backend != .claude, !dot.isRunning else { return }
-        dot.record.isDot = nil
-        dot.setBackend(.claude)
-        dot.record.isDot = true
+    /// A requested default applies once to the existing assistant, after host reconnection.
+    /// Later manual model choices remain intact across launches.
+    func applyRequestedDotDefault() {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "dotApplyDefault"), let dot, !dot.isRunning else { return }
+        if defaults.string(forKey: "dotDefaultBackend") == Backend.codex.rawValue {
+            defaults.set(false, forKey: "dotApplyDefault")
+            dot.setBackend(.codex)
+            dot.setCodexFolder(Self.dotFolder)
+            dot.setCodexModel(defaults.string(forKey: "dotDefaultModel") ?? "gpt-6.1-sol")
+        }
     }
 
     /// What you call Dot. Its chat's title, so it shows wherever the chat does.

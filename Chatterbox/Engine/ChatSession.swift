@@ -65,6 +65,8 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var codexPlanItems: [String: UUID] = [:]
     @ObservationIgnored var codexTurnMessageItems: [UUID] = []
     @ObservationIgnored var codexStopRequested = false
+    /// Dot's per-thread tools/instructions last applied to the current Codex process.
+    @ObservationIgnored var codexDotConfiguration: String?
     /// Stopping so a message can go straight in ("Send Now"), not a plain Stop.
     @ObservationIgnored var stoppingToSend = false
     /// What's typed in the message box but not sent yet, and files attached to it. Kept with
@@ -263,8 +265,7 @@ final class ChatSession: Identifiable {
     /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
     /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
-        // Dot's tools and instructions live in its Claude Code session, so Dot stays on Claude.
-        guard !isRunning, backend != record.backend, !(isDot && backend != .claude) else { return }
+        guard !isRunning, backend != record.backend else { return }
         let leaving = record.backend
         if !record.items.isEmpty {
             let last = record.items.last?.id
@@ -278,13 +279,14 @@ final class ChatSession: Identifiable {
         if backend == .codex, record.codex == nil {
             let defaults = UserDefaults.standard
             record.codex = CodexSettings(
-                folder: record.boundFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory(),
+                folder: isDot ? AppModel.dotFolder : (record.boundFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()),
                 canEdit: false,
                 mode: PermissionModes.defaultCodex
             )
             record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
             record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
         }
+        if isDot, backend == .codex { record.codex?.folder = AppModel.dotFolder }
         record.activeBackend = backend
         // The incoming agent may not have seen the current tone.
         record.sentPersonality = nil

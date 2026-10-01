@@ -134,7 +134,9 @@ final class AppModel {
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
         load()
-        keepDotOnClaude()
+        if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
+            applyRequestedDotDefault()
+        }
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
@@ -315,7 +317,12 @@ final class AppModel {
 
     private func makeSession(_ record: ConversationRecord) -> ChatSession {
         let session = ChatSession(record: record)
-        session.onChange = { [weak self] session in self?.scheduleSave(session, soon: true) }
+        session.onChange = { [weak self] session in
+            self?.scheduleSave(session, soon: true)
+            if session.isDot, !session.isRunning, UserDefaults.standard.bool(forKey: "dotApplyDefault") {
+                DispatchQueue.main.async { [weak self] in self?.applyRequestedDotDefault() }
+            }
+        }
         session.onStreamed = { [weak self] session in self?.scheduleSave(session, soon: false) }
         return session
     }
@@ -363,6 +370,7 @@ final class AppModel {
             scheduleSave(session, soon: true)
         }
         CodexAppServer.shared.resume(processes)
+        applyRequestedDotDefault()
         // Logs of ended processes no chat points at anymore. Running ones are left alone: the
         // host lets an agent go once it's idle with no app attached.
         var known = Set(sessions.compactMap { $0.claudeProcess?.hostID })

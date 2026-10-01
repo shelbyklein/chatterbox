@@ -128,6 +128,7 @@ extension ChatSession {
                     record.codex?.threadId = id
                     codexRegisterHandler(id)
                     server.markLoaded(id)
+                    if isDot { codexDotConfiguration = dotCodexConfigurationKey }
                     onChange?(self)
                     return id
                 }
@@ -142,12 +143,19 @@ extension ChatSession {
 
         if let existing = settings.threadId {
             codexRegisterHandler(existing)
-            if server.loadedThreads.contains(existing) { return existing }
+            if server.loadedThreads.contains(existing), !isDot || codexDotConfiguration == dotCodexConfigurationKey { return existing }
             do {
-                _ = try await server.request("thread/resume", [
+                var params: [String: JSON] = [
                     "threadId": .string(existing), "cwd": .string(settings.folder), "excludeTurns": true,
-                ])
+                ]
+                if isDot {
+                    let threadParams = codexThreadParams(settings)
+                    params["config"] = threadParams["config"]
+                    params["developerInstructions"] = threadParams["developerInstructions"]
+                }
+                _ = try await server.request("thread/resume", .object(params))
                 server.markLoaded(existing)
+                if isDot { codexDotConfiguration = dotCodexConfigurationKey }
                 return existing
             } catch {
                 notice("Couldn't reopen the earlier Codex session, so this continues in a new one.")
@@ -164,6 +172,7 @@ extension ChatSession {
         record.instructionsVersion = Prompts.instructionsVersion
         codexRegisterHandler(id)
         server.markLoaded(id)
+        if isDot { codexDotConfiguration = dotCodexConfigurationKey }
         onChange?(self)
         return id
     }
@@ -178,6 +187,11 @@ extension ChatSession {
                                                                          studio: studio)),
         ]
         if let model = settings.model { params["model"] = .string(model) }
+        if isDot {
+            guard let instructions = params["developerInstructions"]?.string else { return params }
+            params["developerInstructions"] = .string(instructions + "\n\n" + dotCodexInstructions)
+            params["config"] = dotCodexConfig
+        }
         return params
     }
 

@@ -96,8 +96,6 @@ final class ModelPresets {
     }
 
     func apply(_ preset: ModelPreset, to session: ChatSession) {
-        // Dot stays on Claude (see ChatSession.setBackend).
-        guard !(session.isDot && preset.backend != .claude) else { return }
         session.setBackend(preset.backend)
         guard session.record.backend == preset.backend else { return } // a turn is still running
         switch preset.backend {
