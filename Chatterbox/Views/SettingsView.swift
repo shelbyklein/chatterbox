@@ -207,6 +207,13 @@ struct SettingsView: View {
         .map { ModelChoice(id: $0.value, name: $0.displayName, detail: $0.detail) }
     }
 
+    /// "GPT-6.1-Sol" → ("Sol", 6.1); "GPT-5.5" → ("", 5.5).
+    private static func codexFamilyAndVersion(_ name: String) -> (String, Double)? {
+        let parts = name.split(separator: "-")
+        guard parts.count >= 2, let version = Double(parts[1]) else { return nil }
+        return (parts.dropFirst(2).joined(separator: "-"), version)
+    }
+
     /// "Opus 4.8" → ("Opus", 4.8); nil for names like "Default (recommended)".
     private static func familyAndVersion(_ name: String) -> (String, Double)? {
         let parts = name.split(separator: " ")
@@ -216,8 +223,21 @@ struct SettingsView: View {
 
     private var codexOptions: [ModelChoice] { codexChoices(including: codexDefaultModel) }
 
+    /// Codex's current models: the newest of each family (GPT-6.1-Sol, not GPT-6-Sol), from
+    /// the newest generation only. An older one shows only when it's the one already chosen.
     private func codexChoices(including codexDefaultModel: String) -> [ModelChoice] {
-        let models = CodexAppServer.shared.models.filter { !$0.hidden || $0.model == codexDefaultModel }
+        let listed = CodexAppServer.shared.models.filter { !$0.hidden || $0.model == codexDefaultModel }
+        var newest: [String: Double] = [:]
+        var newestGeneration = 0.0
+        for model in listed {
+            guard let (family, version) = Self.codexFamilyAndVersion(model.displayName) else { continue }
+            newest[family] = max(newest[family] ?? 0, version)
+            newestGeneration = max(newestGeneration, version.rounded(.down))
+        }
+        let models = listed.filter { model in
+            guard model.model != codexDefaultModel, let (family, version) = Self.codexFamilyAndVersion(model.displayName) else { return true }
+            return version >= (newest[family] ?? 0) && version.rounded(.down) >= newestGeneration
+        }
         let fallback = models.first(where: \.isDefault)?.displayName
         var choices = [ModelChoice(id: "", name: "Codex's default", detail: fallback.map { "Currently \($0); follows Codex if that changes" } ?? "Whatever Codex picks")]
         choices += models.map { ModelChoice(id: $0.model, name: $0.displayName, detail: $0.isDefault ? "Codex's default right now" : "") }
