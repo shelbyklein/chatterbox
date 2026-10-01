@@ -106,6 +106,29 @@ final class MobileStore {
         return try await call("/v1/chats/\(chat.uuidString)/answers/\(item.uuidString)", method: "POST", body: body)
     }
 
+    // MARK: Chat settings and management
+
+    func newChat(in studio: UUID?, backend: String?) async throws -> Companion.ChatDetail {
+        let body = try JSONEncoder().encode(Companion.NewChatRequest(studio: studio, backend: backend))
+        return try await call("/v1/chats", method: "POST", body: body)
+    }
+
+    func change(_ settings: Companion.SettingsRequest, in chat: UUID) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(chat.uuidString)/settings", method: "POST", body: try JSONEncoder().encode(settings))
+    }
+
+    func rename(_ chat: UUID, to title: String) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(chat.uuidString)/rename", method: "POST", body: try JSONEncoder().encode(Companion.RenameRequest(title: title)))
+    }
+
+    func setArchived(_ archived: Bool, chat: UUID) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(chat.uuidString)/\(archived ? "archive" : "unarchive")", method: "POST", body: Data("{}".utf8))
+    }
+
+    func fork(_ chat: UUID) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(chat.uuidString)/fork", method: "POST", body: Data("{}".utf8))
+    }
+
     func sendQueuedNow(_ item: UUID, in chat: UUID) async throws -> Companion.ChatDetail {
         try await call("/v1/chats/\(chat.uuidString)/queued/\(item.uuidString)/now", method: "POST", body: Data("{}".utf8))
     }
@@ -146,7 +169,7 @@ final class MobileStore {
 
     private func request(host: String, path: String, method: String, body: Data?, token: String?) -> URLRequest {
         let address = host.contains(":") && !host.hasPrefix("[") ? "[\(host)]" : host
-        var request = URLRequest(url: URL(string: "http://\(address):\(Companion.port)\(path)")!)
+        var request = URLRequest(url: URL(string: "http://\(address):\(Self.port)\(path)")!)
         request.httpMethod = method
         request.httpBody = body
         // Images take longer to send than a message.
@@ -161,6 +184,14 @@ final class MobileStore {
         guard let http = response as? HTTPURLResponse, http.statusCode != 200 else { return }
         let message = (try? Companion.decoder.decode(Companion.ErrorResponse.self, from: data))?.error
         throw MobileError(message: message ?? "Chatterbox answered with error \(http.statusCode).")
+    }
+
+    /// Simulator tests reach a test copy of the Mac app on its own port, never the real one.
+    private static var port: UInt16 {
+        #if DEBUG
+        if let test = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"].flatMap(UInt16.init) { return test }
+        #endif
+        return Companion.port
     }
 
     private func moveToFront(_ host: String) {
@@ -218,32 +249,48 @@ final class MacFinder {
         if let ip = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options { ip.version = .v4 }
         let connection = NWConnection(to: mac.endpoint, using: parameters)
         return await withCheckedContinuation { continuation in
-            var finished = false
-            func finish(_ value: String?) {
-                guard !finished else { return }
-                finished = true
-                connection.cancel()
-                continuation.resume(returning: value)
-            }
+            let once = Once(continuation, connection: connection)
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     if case .hostPort(let host, _) = connection.currentPath?.remoteEndpoint {
                         var text = "\(host)"
                         if let percent = text.firstIndex(of: "%") { text = String(text[..<percent]) }
-                        finish(text)
+                        once.finish(text)
                     } else {
-                        finish(nil)
+                        once.finish(nil)
                     }
                 case .failed, .cancelled:
-                    finish(nil)
+                    once.finish(nil)
                 default:
                     break
                 }
             }
             connection.start(queue: .main)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { finish(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6) { once.finish(nil) }
         }
+    }
+}
+
+/// Resumes a lookup once, whichever comes first: an answer, a failure, or the timeout.
+private final class Once: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<String?, Never>?
+    private let connection: NWConnection
+
+    init(_ continuation: CheckedContinuation<String?, Never>, connection: NWConnection) {
+        self.continuation = continuation
+        self.connection = connection
+    }
+
+    func finish(_ value: String?) {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        guard let pending else { return }
+        connection.cancel()
+        pending.resume(returning: value)
     }
 }
 

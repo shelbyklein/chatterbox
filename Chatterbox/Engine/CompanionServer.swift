@@ -196,6 +196,42 @@ final class CompanionServer {
             }
             if body.now == true { session.sendNow(body.text, attachments: images) } else { session.send(body.text, attachments: images) }
             return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 2) where parts[1] == "chats":
+            let body = (try? Companion.decoder.decode(Companion.NewChatRequest.self, from: request.body)) ?? .init()
+            let backend = body.backend.flatMap(Backend.init(rawValue:))
+            // Starting a chat from the phone leaves the Mac showing what it was.
+            let shown = model.selectedID
+            let session: ChatSession
+            if let id = body.studio {
+                guard let studio = model.studio(id), studio.archivedAt == nil else { return .error(404, "That Studio is gone.") }
+                session = model.newChat(in: studio, backend: backend)
+            } else {
+                session = model.newChat(backend: backend)
+            }
+            if let shown, model.sessions.contains(where: { $0.id == shown }) { model.selectedID = shown }
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 4) where parts[1] == "chats" && parts[3] == "settings":
+            guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.SettingsRequest.self, from: request.body) else { return .error(400, "Bad settings.") }
+            CompanionMapper.apply(body, to: session)
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 4) where parts[1] == "chats" && parts[3] == "rename":
+            guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.RenameRequest.self, from: request.body) else { return .error(400, "Bad name.") }
+            session.setTitle(body.title)
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 4) where parts[1] == "chats" && (parts[3] == "archive" || parts[3] == "unarchive"):
+            guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            let shown = model.selectedID
+            if parts[3] == "archive" { model.archive(session) } else { session.setArchived(false) }
+            if let shown, shown != session.id, model.sessions.contains(where: { $0.id == shown }) { model.selectedID = shown }
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 4) where parts[1] == "chats" && parts[3] == "fork":
+            guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            let shown = model.selectedID
+            guard let fork = model.fork(session) else { return .error(409, "This chat can't be forked right now.") }
+            if let shown { model.selectedID = shown }
+            return .json(CompanionMapper.detail(fork, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "stop":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
             if session.isRunning { session.interrupt() }
@@ -309,6 +345,8 @@ final class CompanionServer {
 /// Turns chats into what the phone shows.
 @MainActor
 enum CompanionMapper {
+    private static var lastCodexModelsTry = Date.distantPast
+
     static func chatList(_ model: AppModel) -> Companion.ChatList {
         var groups: [Companion.ChatGroup] = []
         let projects = model.sidebarProjects
@@ -340,7 +378,54 @@ enum CompanionMapper {
         let shown = all.suffix(Companion.itemLimit)
         return .init(revision: model.companionRevision(of: session.id), summary: summary(session),
                      settings: session.settingsDescription,
-                     items: shown.map(item), earlierCount: all.count - shown.count)
+                     items: shown.map(item), earlierCount: all.count - shown.count,
+                     options: options(session), isArchived: session.record.archivedAt != nil,
+                     canFork: model.canFork(session))
+    }
+
+    static func options(_ session: ChatSession) -> Companion.ChatOptions {
+        let isCodex = session.record.backend == .codex
+        // The phone asking is reason enough to learn Codex's models, if nothing has yet.
+        if CodexAppServer.shared.models.isEmpty, Date().timeIntervalSince(lastCodexModelsTry) > 60 {
+            lastCodexModelsTry = Date()
+            Task { try? await CodexAppServer.shared.ensureStarted(); try? await CodexAppServer.shared.refreshModels() }
+        }
+        let claude = ClaudeModels.shared.models.map {
+            Companion.ModelOption(id: $0.value, name: $0.displayName, detail: $0.detail, efforts: $0.efforts, defaultEffort: nil)
+        }
+        let codex = [Companion.ModelOption(id: "", name: "Codex default", detail: "Whatever Codex uses when none is picked", efforts: [], defaultEffort: nil)]
+            + CodexAppServer.shared.models.filter { !$0.hidden }.map {
+                Companion.ModelOption(id: $0.model, name: $0.displayName, detail: $0.isDefault ? "Codex's default" : "",
+                                      efforts: $0.efforts, defaultEffort: $0.defaultEffort)
+            }
+        let modes = PermissionModes.modes(for: session.record.backend).map {
+            Companion.ModeOption(id: $0.id, title: $0.title, detail: $0.detail, systemImage: $0.systemImage, isUnrestricted: $0.isUnrestricted)
+        }
+        let presets = ModelPresets.shared.presets.map {
+            Companion.PresetOption(id: $0.id, title: $0.title, backend: $0.backend.rawValue, isActive: ModelPresets.shared.matches($0, session: session))
+        }
+        return .init(backend: session.record.backend.rawValue,
+                     model: isCodex ? (session.record.codex?.model ?? "") : session.record.model,
+                     effort: isCodex ? (session.record.codex?.effort ?? "") : session.record.effort,
+                     claudeModels: claude, codexModels: codex, modes: modes, mode: session.mode.id, presets: presets)
+    }
+
+    /// Changes a chat's settings the way the Mac's controls do.
+    static func apply(_ change: Companion.SettingsRequest, to session: ChatSession) {
+        if let backend = change.backend.flatMap(Backend.init(rawValue:)), backend != session.record.backend {
+            session.setBackend(backend)
+        }
+        let isCodex = session.record.backend == .codex
+        if let model = change.model {
+            if isCodex { session.setCodexModel(model.isEmpty ? nil : model) } else if !model.isEmpty { session.setModel(model) }
+        }
+        if let effort = change.effort {
+            if isCodex { session.setCodexEffort(effort.isEmpty ? nil : effort) } else { session.setEffort(effort) }
+        }
+        if let mode = change.mode { session.setMode(mode) }
+        if let id = change.preset, let preset = ModelPresets.shared.presets.first(where: { $0.id == id }) {
+            ModelPresets.shared.apply(preset, to: session)
+        }
     }
 
     static func item(_ item: DisplayItem) -> Companion.Item {

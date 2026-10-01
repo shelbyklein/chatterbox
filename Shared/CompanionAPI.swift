@@ -59,6 +59,71 @@ enum Companion {
         var items: [Item]
         /// Items before these that were left out.
         var earlierCount: Int
+        /// What can be changed: agent, model, effort, mode, presets.
+        var options: ChatOptions? = nil
+        var isArchived: Bool? = nil
+        /// A project's chat: there's one per folder, so it isn't forked.
+        var canFork: Bool? = nil
+    }
+
+    /// A chat's settings and the choices for each, as on the Mac.
+    struct ChatOptions: Codable, Hashable {
+        /// "claude" or "codex": who answers next.
+        var backend: String
+        /// The current model's id; for Codex, empty means Codex's default.
+        var model: String
+        /// Empty means the model's default.
+        var effort: String
+        var claudeModels: [ModelOption]
+        var codexModels: [ModelOption]
+        /// Modes for the current agent.
+        var modes: [ModeOption]
+        var mode: String
+        var presets: [PresetOption]
+    }
+
+    struct ModelOption: Codable, Hashable, Identifiable {
+        var id: String
+        var name: String
+        var detail: String
+        /// Effort levels, weakest first; empty when the model has none.
+        var efforts: [String]
+        var defaultEffort: String?
+    }
+
+    struct ModeOption: Codable, Hashable, Identifiable {
+        var id: String
+        var title: String
+        var detail: String
+        var systemImage: String
+        /// Can do anything without asking: shown in orange.
+        var isUnrestricted: Bool
+    }
+
+    struct PresetOption: Codable, Hashable, Identifiable {
+        var id: UUID
+        var title: String
+        var backend: String
+        var isActive: Bool
+    }
+
+    /// Change any of a chat's settings; leave the rest nil.
+    struct SettingsRequest: Codable {
+        var backend: String? = nil
+        var model: String? = nil
+        var effort: String? = nil
+        var mode: String? = nil
+        var preset: UUID? = nil
+    }
+
+    /// A new chat, in a Studio or on its own.
+    struct NewChatRequest: Codable {
+        var studio: UUID? = nil
+        var backend: String? = nil
+    }
+
+    struct RenameRequest: Codable {
+        var title: String
     }
 
     struct Item: Codable, Identifiable, Hashable {

@@ -18,13 +18,16 @@ struct ChatListView: View {
                 .navigationTitle(store.connection?.macName ?? "Chatterbox")
                 .navigationBarTitleDisplayMode(.inline)
                 .refreshable { await store.loadChats() }
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { connectionMenu } }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) { connectionMenu }
+                    ToolbarItem(placement: .topBarTrailing) { newChatMenu }
+                }
         } detail: {
             detail
         }
         .navigationSplitViewStyle(.balanced)
         .onChange(of: selection) { _, id in
-            opened = id.flatMap { id in allChats.first { $0.id == id } }
+            if let found = id.flatMap({ id in allChats.first { $0.id == id } }) { opened = found }
         }
         // Keeps the list current while it's on screen.
         .task(id: scenePhase) {
@@ -65,6 +68,9 @@ struct ChatListView: View {
                     Section {
                         ForEach(group.chats) { chat in
                             ChatRow(chat: chat).tag(chat.id)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) { archive(chat) } label: { Label("Archive", systemImage: "archivebox") }
+                                }
                         }
                     } header: {
                         Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
@@ -92,12 +98,54 @@ struct ChatListView: View {
     @ViewBuilder
     private var detail: some View {
         if let chat = selectedChat {
-            NavigationStack { ChatDetailView(chat: chat) }
+            NavigationStack { ChatDetailView(chat: chat, open: open) }
                 .id(chat.id)
         } else {
             ContentUnavailableView("Choose a Chat", systemImage: "bubble.left.and.bubble.right",
                                    description: Text("Your chats from \(store.connection?.macName ?? "your Mac") are in the sidebar."))
         }
+    }
+
+    /// New chats: on their own, or in a Studio.
+    private var newChatMenu: some View {
+        Menu {
+            Button { newChat(studio: nil, backend: "claude") } label: { Label("New Claude Chat", systemImage: "sparkle") }
+            Button { newChat(studio: nil, backend: "codex") } label: { Label("New Codex Chat", systemImage: "terminal") }
+            let studios = (store.chatList?.groups ?? []).filter { $0.kind == .studio }
+            if !studios.isEmpty {
+                Section("In a Studio") {
+                    ForEach(studios) { group in
+                        Button { newChat(studio: UUID(uuidString: String(group.id.dropFirst("studio-".count))), backend: nil) } label: {
+                            Label(group.title, systemImage: "paintpalette")
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "square.and.pencil")
+        }
+        .accessibilityLabel("New Chat")
+    }
+
+    private func newChat(studio: UUID?, backend: String?) {
+        Task {
+            if let detail = try? await store.newChat(in: studio, backend: backend) { open(detail.summary) }
+            await store.loadChats()
+        }
+    }
+
+    private func archive(_ chat: Companion.ChatSummary) {
+        Task {
+            _ = try? await store.setArchived(true, chat: chat.id)
+            if selection == chat.id { selection = nil }
+            await store.loadChats()
+        }
+    }
+
+    /// Opens a chat, even one the list doesn't show yet (a new, empty chat).
+    private func open(_ chat: Companion.ChatSummary) {
+        opened = chat
+        selection = chat.id
     }
 
     private var allChats: [Companion.ChatSummary] { store.chatList?.groups.flatMap(\.chats) ?? [] }

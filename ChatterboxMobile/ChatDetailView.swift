@@ -11,6 +11,8 @@ struct PendingImage: Identifiable {
 /// One chat: its transcript, kept current while it's open, and a message box.
 struct ChatDetailView: View {
     let chat: Companion.ChatSummary
+    /// Opens another chat (a fork) in this one's place.
+    var open: (Companion.ChatSummary) -> Void = { _ in }
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var detail: Companion.ChatDetail?
@@ -22,6 +24,9 @@ struct ChatDetailView: View {
     @State private var sketch: SketchRequest?
     @State private var pendingImages: [PendingImage] = []
     @State private var photoPicks: [PhotosPickerItem] = []
+    @State private var showingSettings = false
+    @State private var renaming = false
+    @State private var newTitle = ""
 
     private var summary: Companion.ChatSummary { detail?.summary ?? chat }
 
@@ -79,12 +84,35 @@ struct ChatDetailView: View {
         .toolbar {
             if let settings = detail?.settings {
                 ToolbarItem(placement: .principal) {
-                    VStack(spacing: 0) {
-                        Text(summary.project ?? summary.title).font(.headline).lineLimit(1)
-                        Text(settings).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    // Tap the title for the model, effort, and mode.
+                    Button { showingSettings = true } label: {
+                        VStack(spacing: 0) {
+                            Text(summary.project ?? summary.title).font(.headline).lineLimit(1).foregroundStyle(.primary)
+                            HStack(spacing: 3) {
+                                Text(settings).lineLimit(1)
+                                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+                            }
+                            .font(.caption2).foregroundStyle(.secondary)
+                        }
                     }
+                    .disabled(detail?.options == nil)
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) { chatMenu }
+        }
+        .sheet(isPresented: $showingSettings) {
+            if let options = detail?.options {
+                ChatSettingsSheet(options: options) { change in perform { try await store.change(change, in: chat.id) } }
+                    .presentationDetents([.medium, .large])
+            }
+        }
+        .alert("Rename Chat", isPresented: $renaming) {
+            TextField("Title", text: $newTitle)
+            Button("Rename") {
+                let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !title.isEmpty { perform { try await store.rename(chat.id, to: title) } }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         // Checks for changes often while the agent works, less when it's idle.
         .task(id: scenePhase) {
@@ -92,6 +120,39 @@ struct ChatDetailView: View {
             while !Task.isCancelled {
                 await refresh()
                 try? await Task.sleep(for: .seconds(summary.isRunning ? 1.2 : 4))
+            }
+        }
+    }
+
+    private var chatMenu: some View {
+        Menu {
+            Button { showingSettings = true } label: { Label("Chat Settings", systemImage: "slider.horizontal.3") }
+                .disabled(detail?.options == nil)
+            Button { newTitle = summary.title; renaming = true } label: { Label("Rename", systemImage: "pencil") }
+            if detail?.canFork == true {
+                Button { forkChat() } label: { Label("Fork", systemImage: "arrow.triangle.branch") }
+            }
+            Divider()
+            if detail?.isArchived == true {
+                Button { perform { try await store.setArchived(false, chat: chat.id) } } label: {
+                    Label("Unarchive", systemImage: "tray.and.arrow.up")
+                }
+            } else {
+                Button(role: .destructive) { perform { try await store.setArchived(true, chat: chat.id) } } label: {
+                    Label("Archive", systemImage: "archivebox")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+        }
+    }
+
+    private func forkChat() {
+        Task {
+            do {
+                open(try await store.fork(chat.id).summary)
+            } catch {
+                self.error = error.localizedDescription
             }
         }
     }
@@ -123,7 +184,14 @@ struct ChatDetailView: View {
         do {
             switch try await store.detail(chat.id, since: detail?.revision) {
             case .unchanged: break
-            case .detail(let fresh): detail = fresh
+            case .detail(let fresh):
+                detail = fresh
+                #if DEBUG
+                // Simulator tests: open Chat Settings.
+                if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SETTINGS"] != nil, !showingSettings, fresh.options != nil {
+                    showingSettings = true
+                }
+                #endif
             }
             error = nil
         } catch {
