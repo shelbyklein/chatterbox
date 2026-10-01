@@ -34,9 +34,14 @@ final class ClaudeModels {
     private(set) var statusMessage: String?
     @ObservationIgnored private var loading = false
 
-    /// The model for a `--model` value, matching aliases and full ids alike.
+    /// The model for a `--model` value, matching aliases and full ids alike. A full id
+    /// ("claude-opus-5-5") names its own model (Opus 5.5) before "Default", which may point
+    /// to the same one today.
     func info(_ value: String) -> ClaudeCodeModel {
-        models.first { $0.value == value } ?? models.first { $0.resolvedModel == value } ?? .unknown(value)
+        models.first { $0.value == value }
+            ?? models.first { $0.resolvedModel == value && $0.value != "default" }
+            ?? models.first { $0.resolvedModel == value }
+            ?? .unknown(value)
     }
 
     /// Whether two `--model` values currently mean the same model ("opus" and "claude-opus-5-5").

@@ -69,6 +69,34 @@ final class ModelPresets {
         save()
     }
 
+    /// A new preset, from Settings.
+    func add(_ preset: ModelPreset) {
+        presets.append(preset)
+        save()
+    }
+
+    /// Changes what a preset switches to. A name that was made from the old model and
+    /// effort follows them; a name you chose stays.
+    func update(_ id: UUID, backend: Backend, model: String?, effort: String?) {
+        guard let index = presets.firstIndex(where: { $0.id == id }) else { return }
+        let wasAutomatic = presets[index].title == Self.automaticTitle(presets[index])
+        presets[index].backend = backend
+        presets[index].model = model
+        presets[index].effort = effort
+        if wasAutomatic { presets[index].title = Self.automaticTitle(presets[index]) }
+        save()
+    }
+
+    /// "Opus 5.5 · Medium", "GPT-6.1-Sol · Low": the name a preset gets from its settings.
+    static func automaticTitle(_ preset: ModelPreset) -> String {
+        let model: String
+        switch preset.backend {
+        case .claude: model = preset.model.map { ClaudeModels.shared.info($0).displayName } ?? "Claude"
+        case .codex: model = preset.model.flatMap { id in CodexAppServer.shared.models.first { $0.model == id }?.displayName } ?? preset.model ?? "Codex"
+        }
+        return model + " \u{00B7} " + (preset.effort.map { ChatView.effortLabel($0) } ?? "Default")
+    }
+
     func remove(_ preset: ModelPreset) {
         presets.removeAll { $0.id == preset.id }
         save()
