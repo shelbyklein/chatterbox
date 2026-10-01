@@ -84,9 +84,30 @@ final class MobileStore {
         return .detail(try Companion.decoder.decode(Companion.ChatDetail.self, from: data))
     }
 
-    func send(_ text: String, to id: UUID) async throws -> Companion.ChatDetail {
-        let body = try JSONEncoder().encode(Companion.SendRequest(text: text))
+    /// `now` stops the agent and sends right away ("Send Now").
+    func send(_ text: String, images: [Companion.Upload] = [], now: Bool = false, to id: UUID) async throws -> Companion.ChatDetail {
+        let body = try JSONEncoder().encode(Companion.SendRequest(text: text, images: images.isEmpty ? nil : images, now: now ? true : nil))
         return try await call("/v1/chats/\(id.uuidString)/messages", method: "POST", body: body)
+    }
+
+    func stop(_ id: UUID) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(id.uuidString)/stop", method: "POST", body: Data("{}".utf8))
+    }
+
+    /// "approved", "approvedForSession", or "denied".
+    func decide(_ decision: String, item: UUID, in chat: UUID) async throws -> Companion.ChatDetail {
+        let body = try JSONEncoder().encode(Companion.DecisionRequest(decision: decision))
+        return try await call("/v1/chats/\(chat.uuidString)/approvals/\(item.uuidString)", method: "POST", body: body)
+    }
+
+    /// nil skips the questions.
+    func answer(_ answers: [String: [String]]?, item: UUID, in chat: UUID) async throws -> Companion.ChatDetail {
+        let body = try JSONEncoder().encode(Companion.AnswersRequest(answers: answers))
+        return try await call("/v1/chats/\(chat.uuidString)/answers/\(item.uuidString)", method: "POST", body: body)
+    }
+
+    func sendQueuedNow(_ item: UUID, in chat: UUID) async throws -> Companion.ChatDetail {
+        try await call("/v1/chats/\(chat.uuidString)/queued/\(item.uuidString)/now", method: "POST", body: Data("{}".utf8))
     }
 
     func file(_ file: Companion.File, in chat: UUID) async throws -> Data {
@@ -128,7 +149,8 @@ final class MobileStore {
         var request = URLRequest(url: URL(string: "http://\(address):\(Companion.port)\(path)")!)
         request.httpMethod = method
         request.httpBody = body
-        request.timeoutInterval = 6
+        // Images take longer to send than a message.
+        request.timeoutInterval = (body?.count ?? 0) > 200_000 ? 60 : 6
         if let token { request.setValue(token, forHTTPHeaderField: Companion.tokenHeader) }
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         return request

@@ -43,6 +43,11 @@ final class CompanionServer {
 
     var isEnabled: Bool { UserDefaults.standard.bool(forKey: Self.enabledKey) }
 
+    /// CHATTERBOX_COMPANION_PORT keeps tests off the port the real app uses.
+    static var port: UInt16 {
+        ProcessInfo.processInfo.environment["CHATTERBOX_COMPANION_PORT"].flatMap(UInt16.init) ?? Companion.port
+    }
+
     func setEnabled(_ on: Bool) {
         UserDefaults.standard.set(on, forKey: Self.enabledKey)
         on ? start() : stop()
@@ -53,8 +58,11 @@ final class CompanionServer {
         do {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
-            let listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: Companion.port)!)
-            listener.service = NWListener.Service(name: Host.current().localizedName ?? "Chatterbox", type: Companion.serviceType)
+            let listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: Self.port)!)
+            // A test copy on its own port stays off Bonjour, so phones don't see a second Mac.
+            if Self.port == Companion.port {
+                listener.service = NWListener.Service(name: Host.current().localizedName ?? "Chatterbox", type: Companion.serviceType)
+            }
             listener.stateUpdateHandler = { [weak self] state in
                 Task { @MainActor in self?.listenerChanged(state) }
             }
@@ -137,7 +145,7 @@ final class CompanionServer {
                 guard let self else { return connection.cancel() }
                 var buffer = buffer
                 if let data { buffer.append(data) }
-                if buffer.count > 2_000_000 || error != nil { return connection.cancel() }
+                if buffer.count > Companion.maxRequestBytes || error != nil { return connection.cancel() }
                 if let request = HTTPRequest(buffer) {
                     let response = self.respond(to: request)
                     connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
@@ -174,9 +182,45 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "messages":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
-            guard let body = try? Companion.decoder.decode(Companion.SendRequest.self, from: request.body),
-                  !body.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .error(400, "Nothing to send.") }
-            session.send(body.text)
+            guard let body = try? Companion.decoder.decode(Companion.SendRequest.self, from: request.body) else {
+                return .error(400, "Bad request.")
+            }
+            var images: [Attachment] = []
+            for upload in body.images ?? [] {
+                do { images.append(try Attachments.importImageData(upload.data, name: upload.name)) } catch {
+                    return .error(400, "Couldn't read \(upload.name): \(error.localizedDescription)")
+                }
+            }
+            guard !body.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty else {
+                return .error(400, "Nothing to send.")
+            }
+            if body.now == true { session.sendNow(body.text, attachments: images) } else { session.send(body.text, attachments: images) }
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 4) where parts[1] == "chats" && parts[3] == "stop":
+            guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            if session.isRunning { session.interrupt() }
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 5) where parts[1] == "chats" && parts[3] == "approvals":
+            guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.DecisionRequest.self, from: request.body),
+                  let decision = DisplayItem.ApprovalState(rawValue: body.decision),
+                  [.approved, .approvedForSession, .denied].contains(decision) else { return .error(400, "Bad decision.") }
+            guard session.items.contains(where: { $0.id == itemID && $0.approvalState == .pending }) else {
+                return .error(409, "That was already answered.")
+            }
+            session.resolveApproval(itemID, decision)
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 5) where parts[1] == "chats" && parts[3] == "answers":
+            guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.AnswersRequest.self, from: request.body) else { return .error(400, "Bad answers.") }
+            guard session.items.contains(where: { $0.id == itemID && $0.approvalState == .pending }) else {
+                return .error(409, "Those questions were already answered.")
+            }
+            session.answerQuestions(itemID, answers: body.answers)
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 6) where parts[1] == "chats" && parts[3] == "queued" && parts[5] == "now":
+            guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
         case ("GET", 5) where parts[1] == "chats" && parts[3] == "files":
             guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]),
@@ -318,7 +362,15 @@ enum CompanionMapper {
                      toolState: item.kind == .tool ? item.toolState.rawValue : nil,
                      isPending: item.approvalState == .pending,
                      attachments: (item.attachments ?? []).map { .init(id: $0.id, name: $0.name, mediaType: $0.mediaType, isImage: $0.kind == .image) },
-                     isQueued: item.queued == true)
+                     isQueued: item.queued == true,
+                     approval: item.kind == .approval
+                        ? .init(isPlan: item.approvalStyle == .plan, state: (item.approvalState ?? .expired).rawValue) : nil,
+                     questions: item.questions?.map { q in
+                         .init(id: q.id, header: q.header, question: q.question,
+                               options: q.options.map { .init(label: $0.label, detail: $0.detail) },
+                               multiSelect: q.multiSelect, isSecret: q.isSecret)
+                     },
+                     answers: item.answers)
     }
 }
 
@@ -371,7 +423,8 @@ struct HTTPResponse {
     }
 
     var data: Data {
-        let reason = [200: "OK", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 503: "Service Unavailable"][status] ?? "Error"
+        let reason = [200: "OK", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
+                      409: "Conflict", 503: "Service Unavailable"][status] ?? "Error"
         let head = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         return Data(head.utf8) + body
     }

@@ -1,4 +1,12 @@
+import PhotosUI
 import SwiftUI
+
+/// An image waiting to go with the next message: a sketch, or a photo from the library.
+struct PendingImage: Identifiable {
+    let id = UUID()
+    var preview: UIImage
+    var upload: Companion.Upload
+}
 
 /// One chat: its transcript, kept current while it's open, and a message box.
 struct ChatDetailView: View {
@@ -10,6 +18,10 @@ struct ChatDetailView: View {
     @State private var sending = false
     @State private var error: String?
     @FocusState private var composing: Bool
+    /// The sketch canvas, when open.
+    @State private var sketch: SketchRequest?
+    @State private var pendingImages: [PendingImage] = []
+    @State private var photoPicks: [PhotosPickerItem] = []
 
     private var summary: Companion.ChatSummary { detail?.summary ?? chat }
 
@@ -24,7 +36,7 @@ struct ChatDetailView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         ForEach(detail.items) { item in
-                            ItemRow(item: item, chat: chat.id).id(item.id)
+                            ItemRow(item: item, chat: chat.id, actions: actions).id(item.id)
                         }
                         if summary.isRunning {
                             HStack(spacing: 8) {
@@ -33,10 +45,11 @@ struct ChatDetailView: View {
                             }
                             .id("working")
                         }
-                    } else if let error {
-                        Text(error).foregroundStyle(.orange)
-                    } else {
+                    } else if error == nil {
                         ProgressView().frame(maxWidth: .infinity)
+                    }
+                    if let error {
+                        Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -50,6 +63,17 @@ struct ChatDetailView: View {
             .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
         }
         .safeAreaInset(edge: .bottom) { composer }
+        .fullScreenCover(item: $sketch) { request in
+            SketchView(request: request) { image in
+                if let data = image.pngData() {
+                    pendingImages.append(PendingImage(preview: image, upload: .init(name: "Sketch.png", data: data)))
+                }
+            }
+        }
+        .onChange(of: photoPicks) { _, picks in
+            guard !picks.isEmpty else { return }
+            Task { await addPhotos(picks) }
+        }
         .navigationTitle(summary.project ?? summary.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -72,27 +96,27 @@ struct ChatDetailView: View {
         }
     }
 
-    private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
-                .lineLimit(1...6)
-                .focused($composing)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(RoundedRectangle(cornerRadius: 20).fill(Color(uiColor: .secondarySystemBackground)))
-            Button {
-                Task { await send() }
-            } label: {
-                Image(systemName: sending ? "ellipsis.circle.fill" : "arrow.up.circle.fill")
-                    .font(.system(size: 34))
+    // MARK: - Actions
+
+    private var actions: ItemActions {
+        ItemActions(
+            decide: { item, decision in perform { try await store.decide(decision, item: item, in: chat.id) } },
+            answer: { item, answers in perform { try await store.answer(answers, item: item, in: chat.id) } },
+            sendQueuedNow: { item in perform { try await store.sendQueuedNow(item, in: chat.id) } },
+            markUp: { image in sketch = SketchRequest(background: image) }
+        )
+    }
+
+    /// Runs a call to the Mac and shows the chat as it comes back.
+    private func perform(_ call: @escaping () async throws -> Companion.ChatDetail) {
+        Task {
+            do {
+                detail = try await call()
+                error = nil
+            } catch {
+                self.error = error.localizedDescription
             }
-            .disabled(sending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(maxWidth: 784)
-        .frame(maxWidth: .infinity)
-        .background(.bar)
     }
 
     private func refresh() async {
@@ -107,17 +131,128 @@ struct ChatDetailView: View {
         }
     }
 
-    private func send() async {
+    private var canSend: Bool {
+        !sending && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingImages.isEmpty)
+    }
+
+    /// `now`: stop the agent and send this right away, instead of adding it to the reply.
+    private func send(now: Bool = false) async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || !pendingImages.isEmpty else { return }
         sending = true
         defer { sending = false }
         do {
-            detail = try await store.send(text, to: chat.id)
+            detail = try await store.send(text, images: pendingImages.map(\.upload), now: now, to: chat.id)
             draft = ""
+            pendingImages = []
+            error = nil
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    /// Photos from the library, as JPEGs no bigger than the agents use.
+    private func addPhotos(_ picks: [PhotosPickerItem]) async {
+        for pick in picks {
+            guard let data = try? await pick.loadTransferable(type: Data.self), let image = UIImage(data: data) else { continue }
+            let scaled = image.scaledDown(toEdge: 2576)
+            guard let jpeg = scaled.jpegData(compressionQuality: 0.85) else { continue }
+            pendingImages.append(PendingImage(preview: scaled, upload: .init(name: "Photo.jpg", data: jpeg)))
+        }
+        photoPicks = []
+    }
+
+    // MARK: - Message box
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !pendingImages.isEmpty { pendingTray }
+            composerRow
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: 784)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+    }
+
+    /// Images waiting to be sent; tap × to drop one.
+    private var pendingTray: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(pendingImages) { pending in
+                    Image(uiImage: pending.preview)
+                        .resizable().aspectRatio(contentMode: .fill)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(alignment: .topTrailing) {
+                            Button { pendingImages.removeAll { $0.id == pending.id } } label: {
+                                Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, .black.opacity(0.6))
+                            }
+                            .padding(3)
+                        }
+                }
+            }
+        }
+    }
+
+    private var composerRow: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            Menu {
+                Button { sketch = SketchRequest(background: nil) } label: { Label("Sketch", systemImage: "pencil.tip.crop.circle") }
+                PhotosPicker(selection: $photoPicks, maxSelectionCount: 6, matching: .images) {
+                    Label("Photo Library", systemImage: "photo.on.rectangle")
+                }
+            } label: {
+                Image(systemName: "plus.circle.fill").font(.system(size: 30)).foregroundStyle(.secondary)
+            } primaryAction: {
+                sketch = SketchRequest(background: nil)
+            }
+            .accessibilityLabel("Add a sketch or photo")
+
+            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
+                .lineLimit(1...6)
+                .focused($composing)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Color(uiColor: .secondarySystemBackground)))
+
+            if summary.isRunning {
+                Button { perform { try await store.stop(chat.id) } } label: {
+                    Image(systemName: "stop.circle.fill").font(.system(size: 34)).foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Stop")
+            }
+
+            // While the agent works, the send button adds to the reply; hold it to Send Now.
+            Button { Task { await send() } } label: {
+                Image(systemName: sending ? "ellipsis.circle.fill" : "arrow.up.circle.fill")
+                    .font(.system(size: 34))
+            }
+            .disabled(!canSend)
+            .contextMenu {
+                if summary.isRunning {
+                    Button { Task { await send(now: true) } } label: {
+                        Label("Send Now (stop and send)", systemImage: "bolt.fill")
+                    }
+                    .disabled(!canSend)
+                }
+            }
+            .accessibilityLabel("Send")
+        }
+    }
+}
+
+private extension UIImage {
+    func scaledDown(toEdge maxEdge: CGFloat) -> UIImage {
+        let edge = max(size.width, size.height)
+        guard edge > maxEdge else { return self }
+        let ratio = maxEdge / edge
+        let target = CGSize(width: size.width * ratio, height: size.height * ratio)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in draw(in: CGRect(origin: .zero, size: target)) }
     }
 }
 
@@ -125,6 +260,7 @@ struct ChatDetailView: View {
 private struct ItemRow: View {
     let item: Companion.Item
     let chat: UUID
+    let actions: ItemActions
 
     var body: some View {
         switch item.kind {
@@ -139,7 +275,11 @@ private struct ItemRow: View {
                 }
                 images
                 if item.isQueued {
-                    Text("Queued").font(.caption2).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text("Queued").font(.caption2).foregroundStyle(.secondary)
+                        Button("Send Now") { actions.sendQueuedNow(item.id) }
+                            .font(.caption2.weight(.semibold))
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -177,17 +317,15 @@ private struct ItemRow: View {
                 if !item.text.isEmpty { Text(item.text).font(.caption).foregroundStyle(.secondary) }
             }
 
-        case .approval, .questions:
-            VStack(alignment: .leading, spacing: 6) {
-                Label(item.isPending ? "Waiting for you on the Mac" : (item.kind == .approval ? "Approval" : "Questions"),
-                      systemImage: item.isPending ? "hand.raised.fill" : "checkmark.seal")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(item.isPending ? .yellow : .secondary)
-                Text(item.text).font(.callout).foregroundStyle(.secondary).lineLimit(8)
+        case .approval:
+            if let approval = item.approval {
+                ApprovalCard(item: item, approval: approval) { actions.decide(item.id, $0) }
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(item.isPending ? 0.12 : 0.04)))
+
+        case .questions:
+            if let questions = item.questions, !questions.isEmpty {
+                QuestionsCard(item: item, questions: questions) { actions.answer(item.id, $0) }
+            }
 
         case .notice:
             Text(item.text)
@@ -201,15 +339,16 @@ private struct ItemRow: View {
     @ViewBuilder
     private var images: some View {
         ForEach(item.attachments.filter(\.isImage)) { file in
-            RemoteImage(file: file, chat: chat)
+            RemoteImage(file: file, chat: chat, onMarkUp: actions.markUp)
         }
     }
 }
 
-/// An image from the chat, fetched from the Mac.
+/// An image from the chat, fetched from the Mac. Hold it to mark it up or copy it.
 private struct RemoteImage: View {
     let file: Companion.File
     let chat: UUID
+    let onMarkUp: (UIImage) -> Void
     @Environment(MobileStore.self) private var store
     @State private var image: UIImage?
 
@@ -225,6 +364,12 @@ private struct RemoteImage: View {
         }
         .frame(maxWidth: 320)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .contextMenu {
+            if let image {
+                Button { onMarkUp(image) } label: { Label("Mark Up", systemImage: "pencil.tip.crop.circle") }
+                Button { UIPasteboard.general.image = image } label: { Label("Copy", systemImage: "doc.on.doc") }
+            }
+        }
         .task {
             if image == nil, let data = try? await store.file(file, in: chat) { image = UIImage(data: data) }
         }

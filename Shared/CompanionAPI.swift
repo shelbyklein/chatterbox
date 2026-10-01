@@ -77,6 +77,42 @@ enum Companion {
         var attachments: [File]
         /// Queued while the agent works, not yet picked up.
         var isQueued: Bool
+        /// Approval rows: the decision asked for, and what was decided.
+        var approval: Approval? = nil
+        /// Question rows: what the agent asked, and the answers once sent.
+        var questions: [Question]? = nil
+        var answers: [String: [String]]? = nil
+    }
+
+    struct Approval: Codable, Hashable {
+        /// A plan to start building, rather than a single action to allow.
+        var isPlan: Bool
+        /// "pending", "approved", "approvedForSession", "denied", or "expired".
+        var state: String
+    }
+
+    struct Question: Codable, Hashable, Identifiable {
+        struct Option: Codable, Hashable {
+            var label: String
+            var detail: String
+        }
+        var id: String
+        var header: String
+        var question: String
+        var options: [Option]
+        var multiSelect: Bool
+        var isSecret: Bool
+    }
+
+    /// Allow or deny an action, or start building a plan.
+    struct DecisionRequest: Codable {
+        /// "approved", "approvedForSession", or "denied".
+        var decision: String
+    }
+
+    /// Answers by question id; nil skips the questions.
+    struct AnswersRequest: Codable {
+        var answers: [String: [String]]?
     }
 
     struct File: Codable, Identifiable, Hashable {
@@ -88,7 +124,20 @@ enum Companion {
 
     struct SendRequest: Codable {
         var text: String
+        /// Images sent with the message, such as a sketch (PNG or JPEG).
+        var images: [Upload]? = nil
+        /// Stop the agent and send this right away ("Send Now"), rather than adding it to
+        /// the reply in progress.
+        var now: Bool? = nil
     }
+
+    struct Upload: Codable {
+        var name: String
+        var data: Data
+    }
+
+    /// Requests can carry images, so allow this much.
+    static let maxRequestBytes = 40_000_000
 
     struct Unchanged: Codable {
         var unchanged = true
