@@ -36,7 +36,10 @@ struct ContentView: View {
                 let projects = model.sidebarProjects.filter(isShown)
                 let chats = model.sidebarChats.filter(isShown)
                 let archived = model.archivedSessions.filter(isShown)
-                if !isFiltering { PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 } }
+                if !isFiltering {
+                    Section { dotRow }
+                    PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 }
+                }
                 if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
                     Text("No matching chats").foregroundStyle(.secondary)
                 }
@@ -132,6 +135,13 @@ struct ContentView: View {
             } else if let session = model.selected {
                 ChatView(session: session)
                     .id(session.id)
+                    // ⌘J: Dot floats over the chat you're in.
+                    .overlay(alignment: .bottomTrailing) {
+                        if model.showingDot, !session.isDot, let dot = model.dot {
+                            FloatingChat(session: dot, icon: "circle.circle.fill", storageKey: "dotCollapsed") { model.openDot() }
+                                .padding(16)
+                        }
+                    }
             } else {
                 Text("No chat selected").foregroundStyle(.secondary)
             }
@@ -311,6 +321,34 @@ extension ContentView {
                 }
                 .help(studio.folder)
         }
+    }
+
+    /// Dot at the top of the sidebar: click to open it full size.
+    private var dotRow: some View {
+        let dot = model.dot
+        let selected = dot != nil && model.selectedID == dot?.id
+        return HStack(spacing: 8) {
+            Image(systemName: "circle.circle.fill").foregroundStyle(Color.highlight)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Dot").fontWeight(.medium)
+                Text(dot?.lastActionSummary ?? "Runs your chats for you. \u{2318}J from anywhere.")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if dot?.isWaitingOnYou == true {
+                Circle().fill(Color.yellow).frame(width: 7, height: 7)
+            } else if dot?.isRunning == true {
+                ActivitySpinner(color: .secondary).frame(width: 10, height: 10)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { model.openDot() }
+        .listRowBackground(RoundedRectangle(cornerRadius: 8).fill(Color.highlight.opacity(selected ? 0.10 : 0)).padding(.horizontal, 10))
+        .contextMenu {
+            Button("Open Dot") { model.openDot() }
+            Button(model.showingDot ? "Hide Floating Dot" : "Float Over Chats  \u{2318}J") { _ = model.ensureDot(); model.showingDot.toggle() }
+        }
+        .help("Dot runs your other chats: ask it to check on a project, hand work to a chat, or start one.")
     }
 
     /// Moves dragged chats into a Studio. Project chats stay with their projects.

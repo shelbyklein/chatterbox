@@ -79,10 +79,12 @@ extension ChatSession {
             effort: record.effort,
             permissionMode: claudePermissionMode,
             appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.boundFolder,
-                                                         studio: studio),
+                                                         studio: studio) + (isDot ? "\n\n" + Prompts.dotInstructions : ""),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path],
-            forkSession: record.claudeForkPending == true
+            forkSession: record.claudeForkPending == true,
+            mcpConfig: dotMCPConfig,
+            allowedTools: isDot ? Self.dotTools : []
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {
@@ -112,7 +114,8 @@ extension ChatSession {
     }
 
     private var claudeWorkingFolder: String {
-        record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        if isDot { return AppModel.dotFolder }
+        return record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     private var claudePermissionMode: String { record.claudeModeID }

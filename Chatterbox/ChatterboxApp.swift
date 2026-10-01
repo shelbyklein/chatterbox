@@ -47,6 +47,11 @@ struct ChatterboxApp: App {
             CommandMenu("Go") {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
                     .keyboardShortcut("k")
+                // Dot floats over the chat you're in; in Dot's own chat, it just stays.
+                Button(model.showingDot ? "Hide Dot" : "Ask Dot") {
+                    if model.selected?.isDot == true { model.showingDot = false } else { _ = model.ensureDot(); model.showingDot.toggle() }
+                }
+                .keyboardShortcut("j")
                 Divider()
                 Button("Next Chat") { model.selectAdjacentChat(1) }
                     .keyboardShortcut("]", modifiers: [.command, .shift])

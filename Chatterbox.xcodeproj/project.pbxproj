@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
 		0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
+		0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 199795CA97CD07D743A50C57 /* ChatterboxMCP */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81413A73CF1A4475E1CF397 /* Pins.swift */; };
 		0C05433F3D417EFBF927AD1F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90E1FEF54757E746B104D0F /* main.swift */; };
 		0D0AA5565003163647FC890D /* PinsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25AF49642A0603DB9DB1791 /* PinsSection.swift */; };
@@ -41,6 +42,7 @@
 		5CBC37DD0167C0D78291D969 /* CloneFromGitHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */; };
 		5E7A560F77F5DFA853740235 /* ChatSession+Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */; };
 		5FB81543834E300F4736AFE1 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
+		61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439370872F6E041E6DB407AF /* Dot.swift */; };
 		677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */; };
 		6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A125487FAFCF644CD583045D /* Prompts.swift */; };
 		6BB7A853F269907F28A02EDD /* Studios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F15AA06275FEBC5A7954E50 /* Studios.swift */; };
@@ -80,6 +82,7 @@
 		DA4C85566C711698B6BF66ED /* HostClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DE3A68946E9818C4FA0A43 /* HostClient.swift */; };
 		DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */; };
 		DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA6AEF5454AAA03F422E2A83 /* GitHub.swift */; };
+		DDA317C76C77D32F8E771879 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8964CD6CAA729D104D06907D /* main.swift */; };
 		E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00AEF264659F41BD565201 /* AppModel.swift */; };
 		E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
@@ -96,6 +99,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		36D9C35A2F71910A6A84E3D7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 332F3704E8BF10712F3EA051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 159C00E94E712B7D36CA0F6E;
+			remoteInfo = ChatterboxMCP;
+		};
 		EEB5BAC35F3D9AC5EA999551 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 332F3704E8BF10712F3EA051 /* Project object */;
@@ -113,6 +123,7 @@
 			dstSubfolderSpec = 6;
 			files = (
 				EF5DAB17947D2B1CE75CF17A /* ChatterboxHost in Embed Dependencies */,
+				0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -131,6 +142,7 @@
 		104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewView.swift; sourceTree = "<group>"; };
 		11C72805397B7C55E9C7D439 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		14558A0837B25DEDA47B363D /* ModelPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPresets.swift; sourceTree = "<group>"; };
+		199795CA97CD07D743A50C57 /* ChatterboxMCP */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxMCP; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AECAB552B28248B3461AC00 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
 		1E0A3400587A22E3D749EF5D /* StudioInstructionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioInstructionsSheet.swift; sourceTree = "<group>"; };
 		263AB703BFEE4CE044BF0EEE /* Cards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cards.swift; sourceTree = "<group>"; };
@@ -143,6 +155,7 @@
 		3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatControls.swift; sourceTree = "<group>"; };
 		3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCode.swift; sourceTree = "<group>"; };
 		3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMeter.swift; sourceTree = "<group>"; };
+		439370872F6E041E6DB407AF /* Dot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dot.swift; sourceTree = "<group>"; };
 		440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Tasks.swift"; sourceTree = "<group>"; };
 		44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySpinner.swift; sourceTree = "<group>"; };
 		480A4365D3D11CC93334737A /* ChatterboxHost */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxHost; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -165,6 +178,7 @@
 		810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxMobileApp.swift; sourceTree = "<group>"; };
 		81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
 		8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostProtocol.swift; sourceTree = "<group>"; };
+		8964CD6CAA729D104D06907D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSwitcher.swift; sourceTree = "<group>"; };
 		8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesPanel.swift; sourceTree = "<group>"; };
 		8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxApp.swift; sourceTree = "<group>"; };
@@ -235,6 +249,7 @@
 			children = (
 				0629105A36394E1CD3331ACD /* Chatterbox.app */,
 				480A4365D3D11CC93334737A /* ChatterboxHost */,
+				199795CA97CD07D743A50C57 /* ChatterboxMCP */,
 				CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */,
 			);
 			name = Products;
@@ -270,6 +285,7 @@
 				C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */,
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
+				439370872F6E041E6DB407AF /* Dot.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
 				53DE3A68946E9818C4FA0A43 /* HostClient.swift */,
@@ -293,10 +309,19 @@
 				F8396140D14FE6E04F22C13F /* prompts */,
 				154C18D3935765CA48CB7EE9 /* Chatterbox */,
 				02EA32BB5740413AEB84E174 /* ChatterboxHost */,
+				BEA4E58928416F73C90BFFA2 /* ChatterboxMCP */,
 				E2635671C5C6C1D1304588F2 /* ChatterboxMobile */,
 				C6B12A3603C9CF94D6D9FD59 /* Shared */,
 				2F9592D1030ED1DCAA887DA5 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		BEA4E58928416F73C90BFFA2 /* ChatterboxMCP */ = {
+			isa = PBXGroup;
+			children = (
+				8964CD6CAA729D104D06907D /* main.swift */,
+			);
+			path = ChatterboxMCP;
 			sourceTree = "<group>";
 		};
 		C6B12A3603C9CF94D6D9FD59 /* Shared */ = {
@@ -374,6 +399,7 @@
 			);
 			dependencies = (
 				BDFAB3564F6F8952CBE2E171 /* PBXTargetDependency */,
+				4A00938F9A13CE96D8CA4EB8 /* PBXTargetDependency */,
 			);
 			name = Chatterbox;
 			packageProductDependencies = (
@@ -381,6 +407,23 @@
 			productName = Chatterbox;
 			productReference = 0629105A36394E1CD3331ACD /* Chatterbox.app */;
 			productType = "com.apple.product-type.application";
+		};
+		159C00E94E712B7D36CA0F6E /* ChatterboxMCP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 277FD40FDB9FCF2D930BE55E /* Build configuration list for PBXNativeTarget "ChatterboxMCP" */;
+			buildPhases = (
+				0B90CC0D3DF40E753B114B7B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChatterboxMCP;
+			packageProductDependencies = (
+			);
+			productName = ChatterboxMCP;
+			productReference = 199795CA97CD07D743A50C57 /* ChatterboxMCP */;
+			productType = "com.apple.product-type.tool";
 		};
 		578988CD38A582FB0EF4CA0C /* ChatterboxMobile */ = {
 			isa = PBXNativeTarget;
@@ -429,6 +472,9 @@
 					0EDE58C1EB54E97B61C026DA = {
 						ProvisioningStyle = Manual;
 					};
+					159C00E94E712B7D36CA0F6E = {
+						ProvisioningStyle = Manual;
+					};
 					578988CD38A582FB0EF4CA0C = {
 						DevelopmentTeam = 9F3MKVW9C5;
 						ProvisioningStyle = Automatic;
@@ -454,6 +500,7 @@
 			targets = (
 				0EDE58C1EB54E97B61C026DA /* Chatterbox */,
 				D299F600849DAEBF23CE54AB /* ChatterboxHost */,
+				159C00E94E712B7D36CA0F6E /* ChatterboxMCP */,
 				578988CD38A582FB0EF4CA0C /* ChatterboxMobile */,
 			);
 		};
@@ -480,6 +527,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0B90CC0D3DF40E753B114B7B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDA317C76C77D32F8E771879 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		255DC9366C19CDD274DB94A8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -513,6 +568,7 @@
 				F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */,
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
+				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,
@@ -586,6 +642,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		4A00938F9A13CE96D8CA4EB8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 159C00E94E712B7D36CA0F6E /* ChatterboxMCP */;
+			targetProxy = 36D9C35A2F71910A6A84E3D7 /* PBXContainerItemProxy */;
+		};
 		BDFAB3564F6F8952CBE2E171 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D299F600849DAEBF23CE54AB /* ChatterboxHost */;
@@ -657,6 +718,24 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
+		};
+		6CB79042939DD5C387A18BFB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.MCP;
+				PRODUCT_NAME = "chatterbox-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
 		};
 		7322F848D9955166D178D256 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -841,9 +920,36 @@
 			};
 			name = Debug;
 		};
+		F55276855C0568F9061013F0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.MCP;
+				PRODUCT_NAME = "chatterbox-mcp";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		277FD40FDB9FCF2D930BE55E /* Build configuration list for PBXNativeTarget "ChatterboxMCP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F55276855C0568F9061013F0 /* Debug */,
+				6CB79042939DD5C387A18BFB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4AD292C40E7441FA1063C3B7 /* Build configuration list for PBXProject "Chatterbox" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

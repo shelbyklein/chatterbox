@@ -89,7 +89,8 @@ struct ChatListView: View {
                         }
                     } header: {
                         HStack {
-                            Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+                            Label(group.title, systemImage: group.kind == .dot ? "circle.circle.fill"
+                                  : group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
                             Spacer()
                             if group.kind == .studio {
                                 Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }

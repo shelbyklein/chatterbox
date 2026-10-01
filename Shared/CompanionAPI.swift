@@ -54,7 +54,7 @@ enum Companion {
     }
 
     struct ChatGroup: Codable, Identifiable {
-        enum Kind: String, Codable { case projects, studio, chats }
+        enum Kind: String, Codable { case dot, projects, studio, chats }
         var id: String
         var kind: Kind
         var title: String

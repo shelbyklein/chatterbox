@@ -16,6 +16,8 @@ final class AppModel {
     var showingNewProject = false
     /// Settings, shown in the main window in place of the chat.
     var showingSettings = false
+    /// Dot floating over the chat that's open (⌘J).
+    var showingDot = false
     /// The Add Pin sheet, when open.
     var pinSheet: PinSheetRequest?
     /// Websites open inside Chatterbox, each in its own project's (or Studio's, or chat's)
@@ -44,14 +46,14 @@ final class AppModel {
     /// Projects by name, then each open Studio's chats, then other chats by most recent: the
     /// sidebar's order, which the ⌘1–⌘9 shortcuts follow.
     var sidebarProjects: [ChatSession] {
-        activeSessions.filter { $0.record.projectFolder != nil }
+        activeSessions.filter { $0.record.projectFolder != nil && !$0.isDot }
             .sorted { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
     }
     /// Chats in neither a project nor a Studio. A chat whose Studio is gone shows here too.
     var sidebarChats: [ChatSession] {
         let studioIDs = Set(activeStudios.map(\.id))
         return activeSessions.filter { session in
-            session.record.projectFolder == nil && !(session.record.studioID.map(studioIDs.contains) ?? false)
+            session.record.projectFolder == nil && !session.isDot && !(session.record.studioID.map(studioIDs.contains) ?? false)
         }
     }
     var sidebarOrder: [ChatSession] {
@@ -122,6 +124,7 @@ final class AppModel {
         }
         PinStore.shared.showPage = { [weak self] url in self?.openPage(url) }
         CompanionServer.shared.model = self
+        CompanionServer.shared.startAgentListener()
         if CompanionServer.shared.isEnabled { CompanionServer.shared.start() }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
@@ -145,7 +148,7 @@ final class AppModel {
     func newChat(backend: Backend? = nil) -> ChatSession {
         let defaults = UserDefaults.standard
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
-        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil }) {
+        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil && !$0.isDot }) {
             empty.setBackend(backend)
             selectedID = empty.id
             return empty
@@ -387,8 +390,8 @@ final class AppModel {
 
     private func save(_ session: ChatSession) {
         Attention.shared.update(session, model: self)
-        // A project chat is kept even before its first message, so the binding survives.
-        guard !session.items.isEmpty || session.record.projectFolder != nil else { return }
+        // A project chat (and Dot) is kept even before its first message.
+        guard !session.items.isEmpty || session.record.projectFolder != nil || session.isDot else { return }
         session.prepareForSave()
         do {
             let encoder = JSONEncoder()

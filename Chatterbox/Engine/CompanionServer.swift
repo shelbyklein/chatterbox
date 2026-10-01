@@ -32,6 +32,10 @@ final class CompanionServer {
 
     @ObservationIgnored weak var model: AppModel?
     @ObservationIgnored private var listener: NWListener?
+    /// Agents on this Mac (Dot, through chatterbox-mcp) connect here: loopback only, with
+    /// a key made fresh at each launch and kept in a file only you can read.
+    @ObservationIgnored private var agentListener: NWListener?
+    @ObservationIgnored private var agentToken = ""
     @ObservationIgnored private var failedPairings = 0
 
     private init() {
@@ -73,6 +77,42 @@ final class CompanionServer {
             self.listener = listener
         } catch {
             problem = "Couldn't start: \(error.localizedDescription)"
+        }
+    }
+
+    static var agentPort: UInt16 {
+        ProcessInfo.processInfo.environment["CHATTERBOX_AGENT_PORT"].flatMap(UInt16.init) ?? 47_320
+    }
+
+    static var agentTokenFile: URL {
+        if let dir = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], !dir.isEmpty {
+            return URL(fileURLWithPath: dir).appendingPathComponent("agent-token")
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Chatterbox/agent-token")
+    }
+
+    /// Starts the local connection for agents. Runs whether or not the iPhone app is on.
+    func startAgentListener() {
+        guard agentListener == nil else { return }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        agentToken = bytes.map { String(format: "%02x", $0) }.joined()
+        let file = Self.agentTokenFile
+        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: file.path, contents: Data(agentToken.utf8), attributes: [.posixPermissions: 0o600])
+        do {
+            let parameters = NWParameters.tcp
+            parameters.allowLocalEndpointReuse = true
+            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: Self.agentPort)!)
+            let listener = try NWListener(using: parameters)
+            listener.newConnectionHandler = { [weak self] connection in
+                Task { @MainActor in self?.accept(connection, local: true) }
+            }
+            listener.start(queue: .main)
+            agentListener = listener
+        } catch {
+            NSLog("Chatterbox: couldn't start the agent connection: \(error)")
         }
     }
 
@@ -129,17 +169,17 @@ final class CompanionServer {
         }
     }
 
-    private func accept(_ connection: NWConnection) {
-        guard Self.isAllowed(connection.endpoint) else {
+    private func accept(_ connection: NWConnection, local: Bool = false) {
+        guard local ? Self.isLoopback(connection.endpoint) : Self.isAllowed(connection.endpoint) else {
             connection.cancel()
             return
         }
         connection.start(queue: .main)
-        receive(on: connection, buffer: Data())
+        receive(on: connection, buffer: Data(), local: local)
     }
 
     /// Reads one request (headers, then a body up to its Content-Length), answers it, and closes.
-    private func receive(on connection: NWConnection, buffer: Data) {
+    private func receive(on connection: NWConnection, buffer: Data, local: Bool) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { [weak self] data, _, isComplete, error in
             Task { @MainActor in
                 guard let self else { return connection.cancel() }
@@ -147,12 +187,12 @@ final class CompanionServer {
                 if let data { buffer.append(data) }
                 if buffer.count > Companion.maxRequestBytes || error != nil { return connection.cancel() }
                 if let request = HTTPRequest(buffer) {
-                    let response = self.respond(to: request)
+                    let response = self.respond(to: request, local: local)
                     connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
                 } else if isComplete {
                     connection.cancel()
                 } else {
-                    self.receive(on: connection, buffer: buffer)
+                    self.receive(on: connection, buffer: buffer, local: local)
                 }
             }
         }
@@ -160,14 +200,20 @@ final class CompanionServer {
 
     // MARK: - Routes
 
-    private func respond(to request: HTTPRequest) -> HTTPResponse {
+    private func respond(to request: HTTPRequest, local: Bool) -> HTTPResponse {
         let parts = request.path.split(separator: "/").map(String.init)
         guard parts.first == "v1" else { return .error(404, "Not found") }
-        if request.method == "POST", parts == ["v1", "pair"] { return pair(request) }
-
-        guard let device = authorize(request) else { return .error(401, "This iPhone isn't paired. Pair it again in the app.") }
-        if let index = devices.firstIndex(where: { $0.id == device.id }) {
-            devices[index].lastSeen = Date()
+        if local {
+            // Agents on this Mac: the launch's key, nothing else.
+            guard let token = request.headers[Companion.tokenHeader.lowercased()], !agentToken.isEmpty, token == agentToken else {
+                return .error(401, "Chatterbox's agent key doesn't match. Is Chatterbox running?")
+            }
+        } else {
+            if request.method == "POST", parts == ["v1", "pair"] { return pair(request) }
+            guard let device = authorize(request) else { return .error(401, "This iPhone isn't paired. Pair it again in the app.") }
+            if let index = devices.firstIndex(where: { $0.id == device.id }) {
+                devices[index].lastSeen = Date()
+            }
         }
         guard let model else { return .error(503, "Chatterbox is starting.") }
 
@@ -323,6 +369,15 @@ final class CompanionServer {
         SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    private static func isLoopback(_ endpoint: NWEndpoint) -> Bool {
+        guard case .hostPort(let host, _) = endpoint else { return false }
+        switch host {
+        case .ipv4(let address): return address.rawValue.first == 127
+        case .ipv6(let address): return address == .loopback
+        default: return false
+        }
+    }
+
     /// Only this Mac, the home network, and Tailscale may connect.
     private static func isAllowed(_ endpoint: NWEndpoint) -> Bool {
         guard case .hostPort(let host, _) = endpoint else { return false }
@@ -361,6 +416,8 @@ enum CompanionMapper {
 
     static func chatList(_ model: AppModel) -> Companion.ChatList {
         var groups: [Companion.ChatGroup] = []
+        // Dot first, as at the top of the sidebar.
+        groups.append(.init(id: "dot", kind: .dot, title: "Dot", chats: [summary(model.ensureDot())]))
         let projects = model.sidebarProjects
         if !projects.isEmpty {
             groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: projects.map(summary)))

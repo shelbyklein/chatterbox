@@ -189,8 +189,19 @@ extension EnvironmentValues {
 struct FloatingChat: View {
     let session: ChatSession
     let onExpand: () -> Void
-    @AppStorage("floatingChatCollapsed") private var collapsed = false
+    /// The bubble's symbol (Dot has its own).
+    var icon = "bubble.left.and.bubble.right.fill"
+    @AppStorage private var collapsed: Bool
     private let appearance = ReaderStyleSettings()
+
+    /// `storageKey` remembers whether this one is shrunk to its bubble.
+    init(session: ChatSession, icon: String = "bubble.left.and.bubble.right.fill", storageKey: String = "floatingChatCollapsed",
+         onExpand: @escaping () -> Void) {
+        self.session = session
+        self.icon = icon
+        self.onExpand = onExpand
+        _collapsed = AppStorage(wrappedValue: false, storageKey)
+    }
 
     var body: some View {
         if collapsed {
@@ -231,7 +242,7 @@ struct FloatingChat: View {
                 Circle().fill(.regularMaterial)
                 Circle().strokeBorder(session.isWaitingOnYou ? Color.yellow : Color.primary.opacity(0.15),
                                       lineWidth: session.isWaitingOnYou ? 2 : 1)
-                Image(systemName: "bubble.left.and.bubble.right.fill")
+                Image(systemName: icon)
                     .font(.system(size: 18))
                     .foregroundStyle(color)
                 if session.isRunning {

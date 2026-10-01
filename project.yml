@@ -26,6 +26,12 @@ targets:
         codeSign: true
         copy:
           destination: executables
+      # Chatterbox's chats as tools for agents (Dot), in Contents/MacOS.
+      - target: ChatterboxMCP
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox
@@ -48,6 +54,22 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Host
         PRODUCT_NAME: ChatterboxHost
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+
+  # chatterbox-mcp: the user's chats as MCP tools, talking to the running app over its local
+  # agent connection.
+  ChatterboxMCP:
+    type: tool
+    platform: macOS
+    sources:
+      - path: ChatterboxMCP
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.MCP
+        PRODUCT_NAME: chatterbox-mcp
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
         ENABLE_HARDENED_RUNTIME: YES

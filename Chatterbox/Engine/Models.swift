@@ -117,6 +117,8 @@ struct ConversationRecord: Codable {
     var remoteControl: Bool?
     /// Claude Code's tasks for this session, shown as the plan (see ChatSession+Tasks).
     var claudeTasks: [ClaudeTask]?
+    /// This is Dot's chat (see Dot.swift).
+    var isDot: Bool?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?
