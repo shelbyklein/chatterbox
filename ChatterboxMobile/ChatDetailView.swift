@@ -16,13 +16,21 @@ struct ChatDetailView: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var detail: Companion.ChatDetail?
-    @State private var draft = ""
+    /// The message box's text and images live in the store per chat, so they survive
+    /// switching chats (and, for text, quitting the app).
+    private var draft: String {
+        get { store.drafts[chat.id] ?? "" }
+        nonmutating set { store.drafts[chat.id] = newValue.isEmpty ? nil : newValue }
+    }
+    private var pendingImages: [PendingImage] {
+        get { store.pendingImages[chat.id] ?? [] }
+        nonmutating set { store.pendingImages[chat.id] = newValue.isEmpty ? nil : newValue }
+    }
     @State private var sending = false
     @State private var error: String?
     @FocusState private var composing: Bool
     /// The sketch canvas, when open.
     @State private var sketch: SketchRequest?
-    @State private var pendingImages: [PendingImage] = []
     @State private var photoPicks: [PhotosPickerItem] = []
     @State private var choosingPhotos = false
     @State private var choosingFiles = false
@@ -375,7 +383,7 @@ struct ChatDetailView: View {
             .tint(.secondary)
             .accessibilityLabel("Add a photo, file, or sketch")
 
-            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
+            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: Binding(get: { draft }, set: { draft = $0 }), axis: .vertical)
                 .lineLimit(1...6)
                 .focused($composing)
                 .padding(.horizontal, 14)

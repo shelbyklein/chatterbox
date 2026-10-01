@@ -26,6 +26,12 @@ final class MobileStore {
     /// Why the last call failed, shown until one works again.
     private(set) var problem: String?
     @ObservationIgnored private var token: String?
+    /// Unsent text per chat, kept across switching chats and app restarts.
+    var drafts: [UUID: String] = [:] {
+        didSet { UserDefaults.standard.set(Dictionary(uniqueKeysWithValues: drafts.map { ($0.key.uuidString, $0.value) }), forKey: "drafts") }
+    }
+    /// Images waiting to go with each chat's next message.
+    var pendingImages: [UUID: [PendingImage]] = [:]
 
     var isPaired: Bool { connection != nil && token != nil }
 
@@ -34,6 +40,8 @@ final class MobileStore {
             connection = try? JSONDecoder().decode(Connection.self, from: data)
         }
         token = Keychain.read("token")
+        let saved = UserDefaults.standard.dictionary(forKey: "drafts") as? [String: String] ?? [:]
+        drafts = Dictionary(uniqueKeysWithValues: saved.compactMap { key, value in UUID(uuidString: key).map { ($0, value) } })
     }
 
     // MARK: - Pairing

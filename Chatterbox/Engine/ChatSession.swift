@@ -67,6 +67,10 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var codexStopRequested = false
     /// Stopping so a message can go straight in ("Send Now"), not a plain Stop.
     @ObservationIgnored var stoppingToSend = false
+    /// What's typed in the message box but not sent yet, and files attached to it. Kept with
+    /// the chat, so switching to another chat and back doesn't lose it.
+    var draft = ""
+    var draftAttachments: [Attachment] = []
     /// The chat's page on claude.ai while Remote Control is on (see ChatSession+Remote).
     var remoteURL: URL?
     /// Messages sent from here that Claude Code hasn't echoed yet, to tell them apart from
