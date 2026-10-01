@@ -726,7 +726,7 @@ struct FlowLayout: Layout {
 private struct ThemedSidebar: ViewModifier {
     let background: String
     func body(content: Content) -> some View {
-        let color = Theme.background(background)
+        let color = Theme.sidebar(background)
         content
             .scrollContentBackground(color == nil ? .automatic : .hidden)
             .background(color ?? .clear)

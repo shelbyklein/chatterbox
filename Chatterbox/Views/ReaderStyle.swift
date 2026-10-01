@@ -154,6 +154,23 @@ enum Theme {
         }
     }
 
+    /// The sidebar: a shade off the background (lighter on dark ones, darker on light),
+    /// so it reads as its own column.
+    static func sidebar(_ id: String) -> Color? {
+        let hex: String
+        switch id {
+        case "standard", "": return nil
+        case "dim": hex = "#161618"
+        case "black": hex = "#000000"
+        default: hex = id
+        }
+        guard let value = Int(hex.dropFirst(), radix: 16) else { return background(id) }
+        let dark = luminance(hex) < 0.5
+        let shift = dark ? 0.055 : -0.04
+        func channel(_ shiftBits: Int) -> Double { min(max(Double((value >> shiftBits) & 0xFF) / 255 + shift, 0), 1) }
+        return Color(red: channel(16), green: channel(8), blue: channel(0))
+    }
+
     static var currentBackground: Color? { background(UserDefaults.standard.string(forKey: backgroundKey) ?? "standard") }
 
     /// 0 (black) to 1 (white) for a "#RRGGBB" color.
