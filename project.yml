@@ -70,6 +70,8 @@ targets:
         CFBundleDisplayName: Chatterbox
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # The iPad turns every way, which also lets it share the screen (Split View, Slide Over).
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on your Mac over your network.
         NSBonjourServices: [_chatterbox._tcp]
         # The Mac is reached by its home-network or Tailscale address, over plain HTTP on a
@@ -82,7 +84,8 @@ targets:
         PRODUCT_NAME: Chatterbox
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad.
+        TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: 9F3MKVW9C5
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

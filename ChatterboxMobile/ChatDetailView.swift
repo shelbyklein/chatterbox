@@ -41,6 +41,9 @@ struct ChatDetailView: View {
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(16)
+                // A readable width on iPad, centered.
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
@@ -87,6 +90,8 @@ struct ChatDetailView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .frame(maxWidth: 784)
+        .frame(maxWidth: .infinity)
         .background(.bar)
     }
 
