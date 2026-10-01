@@ -136,6 +136,7 @@ final class AppModel {
         load()
         // After loading: what's already waiting isn't news for Dot.
         DotActivity.shared.start(model: self)
+        EmailWatch.shared.start(model: self)
         if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
             applyRequestedDotDefault()
         }

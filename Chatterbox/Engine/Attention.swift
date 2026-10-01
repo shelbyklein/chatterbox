@@ -33,10 +33,7 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         guard Bundle.main.bundleIdentifier != nil else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let allow = UNNotificationAction(identifier: "allow", title: "Allow")
-        let deny = UNNotificationAction(identifier: "deny", title: "Deny", options: [.destructive])
-        center.setNotificationCategories([UNNotificationCategory(identifier: Self.approvalCategory, actions: [allow, deny],
-                                                                 intentIdentifiers: [])])
+        registerCategories()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             Task { @MainActor in self.authorized = granted }
         }
@@ -45,6 +42,18 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
             MainActor.assumeIsolated { self.markSeen(self.model?.selectedID) }
         })
         for session in model.sessions { wasRunning[session.id] = session.isRunning; notified.formUnion(pendingItems(session).map(\.id)) }
+    }
+
+    /// The buttons notifications offer: Allow and Deny on approvals, and the email watch's
+    /// (again after Dot is renamed, since one is named for it).
+    func registerCategories() {
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        let allow = UNNotificationAction(identifier: "allow", title: "Allow")
+        let deny = UNNotificationAction(identifier: "deny", title: "Deny", options: [.destructive])
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: Self.approvalCategory, actions: [allow, deny], intentIdentifiers: []),
+            EmailWatch.notificationCategory(name: model?.dotName ?? "Dot"),
+        ])
     }
 
     /// You're watching a chat when Chatterbox is frontmost and that chat is open.
@@ -160,8 +169,14 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         let sessionID = (info["session"] as? String).flatMap(UUID.init(uuidString:))
         let itemID = (info["item"] as? String).flatMap(UUID.init(uuidString:))
         let action = response.actionIdentifier
+        let email = info["email"] as? String
+        let typed = (response as? UNTextInputNotificationResponse)?.userText
         Task { @MainActor in
             defer { completionHandler() }
+            if let email {
+                EmailWatch.shared.handle(action: action, emailJSON: email, typed: typed)
+                return
+            }
             guard let model = self.model, let sessionID, let session = model.sessions.first(where: { $0.id == sessionID }) else { return }
             switch action {
             case "allow", "deny":

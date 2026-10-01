@@ -66,6 +66,7 @@
 		940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */; };
 		96757C4FC62A060878D6DFCD /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
+		9921B3994F4867053CC25CBF /* EmailWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71143A69C2726A534266C3D2 /* EmailWatch.swift */; };
 		9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */; };
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
@@ -185,6 +186,7 @@
 		667AC120BEF5177C4AB1C659 /* MobileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileStore.swift; sourceTree = "<group>"; };
 		67B6115C97D436D69FEDDE1D /* Child.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Child.swift; sourceTree = "<group>"; };
 		69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsAndExtras.swift; sourceTree = "<group>"; };
+		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
 		7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionSettingsView.swift; sourceTree = "<group>"; };
 		7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Remote.swift"; sourceTree = "<group>"; };
 		7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewProjectSheet.swift; sourceTree = "<group>"; };
@@ -324,6 +326,7 @@
 				439370872F6E041E6DB407AF /* Dot.swift */,
 				0508B744152680991C2150CE /* DotActivity.swift */,
 				B42971FF65DCD021D97664C9 /* DotComputer.swift */,
+				71143A69C2726A534266C3D2 /* EmailWatch.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
 				53DE3A68946E9818C4FA0A43 /* HostClient.swift */,
@@ -618,6 +621,7 @@
 				ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */,
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
 				24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */,
+				9921B3994F4867053CC25CBF /* EmailWatch.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,

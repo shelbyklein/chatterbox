@@ -117,7 +117,9 @@ final class DotActivity {
             // Nothing to tell: the prompt row says so, and the rest of the turn is cleared away.
             let label = dot.record.items[prompt].detail ?? "Check-in"
             dot.record.items[prompt].detail = label + " \u{00B7} nothing needs you"
-            dot.record.items.removeSubrange((prompt + 1)...)
+            // (Email-watch lines that landed meanwhile stay.)
+            let rest = dot.record.items[(prompt + 1)...].filter { $0.kind == .notice && $0.text.hasPrefix("Email for you") }
+            dot.record.items.replaceSubrange((prompt + 1)..., with: rest)
             return true
         }
         notify(dot, label: dot.record.items[prompt].detail ?? "Check-in", body: text)

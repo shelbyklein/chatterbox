@@ -570,6 +570,7 @@ private struct DotActivitySettings: View {
     @Environment(AppModel.self) private var model
     @AppStorage(DotActivity.checkInsKey) private var checkIns = true
     @AppStorage(DotActivity.watchWaitingKey) private var watchWaiting = true
+    @AppStorage(EmailWatch.enabledKey) private var emailWatch = true
     @State private var times = DotActivity.times
 
     var body: some View {
@@ -598,6 +599,31 @@ private struct DotActivitySettings: View {
             Text(model.dotName)
         } footer: {
             Text("At each check-in, \(model.dotName) looks over your email, USA Archery in ClickUp, and your chats, and sends you a short briefing only when something needs you; otherwise it leaves a single quiet line. It runs while Chatterbox is open on a Mac that's awake, catching up within three hours if the Mac was asleep.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        emailSection
+    }
+
+    @ViewBuilder private var emailSection: some View {
+        let watch = EmailWatch.shared
+        Section {
+            Toggle("Watch your email", isOn: $emailWatch)
+            if emailWatch {
+                HStack {
+                    if watch.isSweeping {
+                        ProgressView().controlSize(.small)
+                        Text("Sweeping\u{2026}").foregroundStyle(.secondary)
+                    } else if let problem = watch.problem {
+                        Label(problem, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).lineLimit(2)
+                    } else if let last = watch.lastSweep {
+                        Text("Last swept \(last.formatted(.relative(presentation: .named)))").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Sweep Now") { watch.sweepNow() }.disabled(watch.isSweeping)
+                }
+            }
+        } footer: {
+            Text("Every 15 minutes from 9 to 5, and every 30 the rest of the time, GPT-6-Luna reads the mail that arrived since the last sweep in your Gmail accounts, by the rules in \(model.dotName)'s memory. Each email that needs you comes as a notification with why it matters and a suggested next step, with Draft Reply, Tell \(model.dotName)\u{2026}, and Open. It only reads mail; nothing is sent without you.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

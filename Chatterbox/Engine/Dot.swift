@@ -166,6 +166,7 @@ extension AppModel {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let dot = ensureDot()
         dot.setTitle(trimmed.isEmpty ? "Dot" : trimmed)
+        Attention.shared.registerCategories()
         dot.restartClaudeForNewTools()
     }
 
