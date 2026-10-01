@@ -26,6 +26,8 @@ struct ChatDetailView: View {
     @State private var photoPicks: [PhotosPickerItem] = []
     @State private var choosingPhotos = false
     @State private var choosingFiles = false
+    /// The clipboard has an image, so a Paste button shows above the message box.
+    @State private var clipboardHasImage = UIPasteboard.general.hasImages
     @State private var showingSettings = false
     @State private var renaming = false
     @State private var newTitle = ""
@@ -76,6 +78,13 @@ struct ChatDetailView: View {
                     pendingImages.append(PendingImage(preview: image, upload: .init(name: "Sketch", data: data)))
                 }
             }
+        }
+        // Notices when something with an image is copied (here, or in another app).
+        .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in
+            clipboardHasImage = UIPasteboard.general.hasImages
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { clipboardHasImage = UIPasteboard.general.hasImages }
         }
         .photosPicker(isPresented: $choosingPhotos, selection: $photoPicks, maxSelectionCount: 6, matching: .images)
         .onChange(of: photoPicks) { _, picks in
@@ -263,6 +272,7 @@ struct ChatDetailView: View {
                 ChatStatusBar(detail: detail).padding(.horizontal, 4)
             }
             if !pendingImages.isEmpty { pendingTray }
+            if clipboardHasImage { pasteRow }
             if draft.hasPrefix("!") {
                 Label("Runs in your shell on the Mac\(detail?.folder.map { " in " + ($0 as NSString).abbreviatingWithTildeInPath } ?? ""). The output goes to the agent with your next message.",
                       systemImage: "terminal")
@@ -276,6 +286,34 @@ struct ChatDetailView: View {
         .frame(maxWidth: 784)
         .frame(maxWidth: .infinity)
         .background(.bar)
+    }
+
+    /// Apple's paste button: one tap, and iOS doesn't ask "Allow Paste?" first.
+    private var pasteRow: some View {
+        HStack(spacing: 8) {
+            PasteButton(supportedContentTypes: [.image]) { providers in
+                clipboardHasImage = false
+                for provider in providers {
+                    _ = provider.loadDataRepresentation(for: .image) { data, _ in
+                        guard let data else { return }
+                        Task { @MainActor in addImage(data, name: "Pasted image") }
+                    }
+                }
+            }
+            .buttonBorderShape(.capsule)
+            .labelStyle(.titleAndIcon)
+            .controlSize(.small)
+            Text("An image is on the clipboard").font(.caption).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// From the + menu. Reading the clipboard this way may ask "Allow Paste?" first.
+    private func pasteImages() {
+        clipboardHasImage = false
+        for image in UIPasteboard.general.images ?? [] {
+            if let data = image.pngData() { addImage(data, name: "Pasted image") }
+        }
     }
 
     /// While the draft is "/" and part of a name: matching commands and skills.
@@ -337,6 +375,8 @@ struct ChatDetailView: View {
             Menu {
                 Button { choosingPhotos = true } label: { Label("Photo Library", systemImage: "photo.on.rectangle") }
                 Button { choosingFiles = true } label: { Label("Files", systemImage: "folder") }
+                Button { pasteImages() } label: { Label("Paste Image", systemImage: "doc.on.clipboard") }
+                    .disabled(!UIPasteboard.general.hasImages)
                 Button { sketch = SketchRequest(background: nil) } label: { Label("Sketch", systemImage: "pencil.tip.crop.circle") }
             } label: {
                 Image(systemName: "plus.circle.fill").font(.system(size: 30))
