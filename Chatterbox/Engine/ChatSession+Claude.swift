@@ -34,6 +34,13 @@ extension ChatSession {
                 record.sentUserInstructions = user
             }
             if let studioUpdate = takeStudioInstructionsUpdate() { content.append(.text(studioUpdate)) }
+            // A resumed session keeps the name it started with, so a rename is said outright.
+            if isDot, record.sentDotName != title {
+                if record.sentDotName != nil {
+                    content.append(.text("<app_note>\nThe user renamed you: your name is now \(title). Use it from here on.\n</app_note>"))
+                }
+                record.sentDotName = title
+            }
             content += Attachments.claudeContent(for: message)
             claudeAwaitingEcho.append(message.text)
             process.sendUser(content)
@@ -87,7 +94,7 @@ extension ChatSession {
             effort: record.effort,
             permissionMode: claudePermissionMode,
             appendSystemPrompt: Prompts.fullInstructions(record.personality, backend: .claude, projectFolder: record.boundFolder,
-                                                         studio: studio) + (isDot ? "\n\n" + Prompts.dotInstructions : ""),
+                                                         studio: studio) + (isDot ? "\n\n" + Prompts.dotInstructions(name: title) : ""),
             resumeSessionID: record.claudeSessionID,
             extraDirectories: [Attachments.directory.path],
             forkSession: record.claudeForkPending == true,

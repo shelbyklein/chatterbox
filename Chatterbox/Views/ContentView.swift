@@ -20,6 +20,8 @@ struct ContentView: View {
     /// The chat that goes into the Studio being named, when making one from a chat.
     @State private var studioFromChat: ChatSession?
     @State private var renamingStudio: Studio?
+    @State private var renamingDot = false
+    @State private var dotName = ""
     /// The Studio a dragged chat is over, which lights up.
     @State private var dropStudio: UUID?
     /// Show only projects with this tag; empty shows everything.
@@ -132,12 +134,6 @@ struct ContentView: View {
                             .padding(16)
                     }
                 }
-            } else if let session = model.selected, session.isDot, model.showingDotComputer {
-                // Dot beside its computer's screen.
-                HSplitView {
-                    ChatView(session: session).id(session.id).frame(minWidth: 380)
-                    DotComputerPanel().frame(minWidth: 480, idealWidth: 720)
-                }
             } else if let session = model.selected {
                 ChatView(session: session)
                     .id(session.id)
@@ -154,6 +150,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
+        .sheet(isPresented: $model.editingDotMemory) { DotMemorySheet() }
         .sheet(item: $model.pinSheet) { AddPinSheet(request: $0) }
         .sheet(isPresented: Binding(get: { model.editingStudioInstructions != nil },
                                     set: { if !$0 { model.editingStudioInstructions = nil } })) {
@@ -336,7 +333,7 @@ extension ContentView {
         return HStack(spacing: 8) {
             Image(systemName: "circle.circle.fill").foregroundStyle(Color.highlight)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Dot").fontWeight(.medium)
+                Text(model.dotName).fontWeight(.medium)
                 Text(dot?.lastActionSummary ?? "Runs your chats for you. \u{2318}J from anywhere.")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -351,10 +348,18 @@ extension ContentView {
         .onTapGesture { model.openDot() }
         .listRowBackground(RoundedRectangle(cornerRadius: 8).fill(Color.highlight.opacity(selected ? 0.10 : 0)).padding(.horizontal, 10))
         .contextMenu {
-            Button("Open Dot") { model.openDot() }
+            Button("Open \(model.dotName)") { model.openDot() }
+            Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }
             Button(model.showingDot ? "Hide Floating Dot" : "Float Over Chats  \u{2318}J") { _ = model.ensureDot(); model.showingDot.toggle() }
         }
-        .help("Dot runs your other chats: ask it to check on a project, hand work to a chat, or start one.")
+        .help("\(model.dotName) runs your other chats: ask it to check on a project, hand work to a chat, or start one.")
+        .alert("Rename \(model.dotName)", isPresented: $renamingDot) {
+            TextField("Name", text: $dotName)
+            Button("Rename") { model.renameDot(dotName) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its name everywhere in Chatterbox, and what it's told it's called.")
+        }
     }
 
     /// Moves dragged chats into a Studio. Project chats stay with their projects.

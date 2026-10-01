@@ -425,7 +425,7 @@ enum CompanionMapper {
     static func chatList(_ model: AppModel) -> Companion.ChatList {
         var groups: [Companion.ChatGroup] = []
         // Dot first, as at the top of the sidebar.
-        groups.append(.init(id: "dot", kind: .dot, title: "Dot", chats: [summary(model.ensureDot())]))
+        groups.append(.init(id: "dot", kind: .dot, title: model.dotName, chats: [summary(model.ensureDot())]))
         let projects = model.sidebarProjects
         if !projects.isEmpty {
             groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: projects.map(summary)))

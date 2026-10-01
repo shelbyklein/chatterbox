@@ -119,6 +119,8 @@ struct ConversationRecord: Codable {
     var claudeTasks: [ClaudeTask]?
     /// This is Dot's chat (see Dot.swift).
     var isDot: Bool?
+    /// The name Dot was last told it has, so a rename reaches it with the next message.
+    var sentDotName: String?
     var items: [DisplayItem] = []
     /// The Claude Code session this chat continues, so it survives app restarts.
     var claudeSessionID: String?

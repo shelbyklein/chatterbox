@@ -68,6 +68,17 @@ extension AppModel {
         return folder.path
     }
 
+    /// Dot's memory: Claude Code's own memory for Dot's folder, which it loads into every
+    /// session (MEMORY.md is the index; each memory is a file beside it) and keeps up itself.
+    static var dotMemoryFolder: URL {
+        // The real path, as Claude Code names its folder ("/private/tmp", not "/tmp").
+        let cwd = realpath(dotFolder, nil).map { pointer in defer { free(pointer) }; return String(cString: pointer) } ?? dotFolder
+        let encoded = cwd.replacingOccurrences(of: "[^A-Za-z0-9-]", with: "-", options: .regularExpression)
+        let folder = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude/projects/\(encoded)/memory", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
     /// Dot's chat, made the first time it's asked for.
     @discardableResult
     func ensureDot() -> ChatSession {
@@ -110,6 +121,17 @@ extension AppModel {
         dot.record.isDot = true
     }
 
+    /// What you call Dot. Its chat's title, so it shows wherever the chat does.
+    var dotName: String { dot?.title ?? "Dot" }
+
+    /// Renames Dot. Its next session (the same conversation) starts with the new name.
+    func renameDot(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dot = ensureDot()
+        dot.setTitle(trimmed.isEmpty ? "Dot" : trimmed)
+        dot.restartClaudeForNewTools()
+    }
+
     /// Dot's own chat, opened full size.
     func openDot() {
         selectedID = ensureDot().id
@@ -118,10 +140,14 @@ extension AppModel {
 }
 
 extension Prompts {
-    /// What Dot is for, added to its system prompt.
-    static let dotInstructions = """
-    # You are Dot
-    You're the user's assistant inside Chatterbox. Your job is running their other chats: each is a Claude Code or Codex agent working in a project folder, a Studio (a shared folder for loosely related work), or on its own. Use the chatterbox tools to see what's going on (list_chats, read_chat), hand work to the right chat or start a new one (send_message, start_chat), wait for results (wait_for_reply), and stop a chat that's going the wrong way (stop_chat).
+    /// What Dot is for, added to its system prompt, under the name the user gave it.
+    static func dotInstructions(name: String) -> String {
+        dotInstructionsBody.replacingOccurrences(of: "{name}", with: name)
+    }
+
+    private static let dotInstructionsBody = """
+    # You are {name}
+    The user calls you {name}. You're their assistant inside Chatterbox. Your job is running their other chats: each is a Claude Code or Codex agent working in a project folder, a Studio (a shared folder for loosely related work), or on its own. Use the chatterbox tools to see what's going on (list_chats, read_chat), hand work to the right chat or start a new one (send_message, start_chat), wait for results (wait_for_reply), and stop a chat that's going the wrong way (stop_chat).
 
     - When the user names a project or chat, find it with list_chats, and read it before acting on it.
     - Prefer the chat that already has the context: the project's own chat for project work, a chat in the right Studio for creative work. Start a new chat when nothing fits, in a Studio if one matches.
@@ -129,6 +155,9 @@ extension Prompts {
     - Approvals and questions in other chats are for the user alone. Never claim to have answered one; tell the user it's waiting, and in which chat.
     - Report back briefly: what you did, which chats, and what came of it. Don't paste long transcripts; summarize them.
     - You can't see other chats' files directly. Ask that chat's agent, or read its transcript.
+
+    # Your memory
+    Your persistent memory (the one Claude Code keeps for your folder) holds who the user is, their projects, accounts, rules, and your standing jobs. Rely on it, and keep it current: when you learn something lasting (a decision, a preference, a recurring task, a new project or account), save it there; correct what's no longer true. Never store passwords or secrets. The user can read and edit it from Chatterbox; if they say they changed it, read it again.
 
     # Your computer
     When the computer tools (browser_*) are available, you have your own computer: a Linux machine with a Chromium browser, separate from the user's Mac, which can't see the user's files. Use it for web work: looking things up, checking sites, reading pages, filling forms. The user can watch its screen and take over.

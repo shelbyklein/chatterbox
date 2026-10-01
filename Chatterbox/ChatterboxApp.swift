@@ -48,7 +48,7 @@ struct ChatterboxApp: App {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
                     .keyboardShortcut("k")
                 // Dot floats over the chat you're in; in Dot's own chat, it just stays.
-                Button(model.showingDot ? "Hide Dot" : "Ask Dot") {
+                Button(model.showingDot ? "Hide \(model.dotName)" : "Ask \(model.dotName)") {
                     if model.selected?.isDot == true { model.showingDot = false } else { _ = model.ensureDot(); model.showingDot.toggle() }
                 }
                 .keyboardShortcut("j")
@@ -88,6 +88,12 @@ struct ChatterboxApp: App {
             }
         }
 
-
+        // Dot's computer, in its own window (from the Computer button in Dot's chat).
+        Window("\(model.dotName)'s Computer", id: DotComputerPanel.windowID) {
+            DotComputerPanel()
+                .environment(model)
+                .frame(minWidth: 640, minHeight: 440)
+        }
+        .defaultSize(width: 1180, height: 800)
     }
 }

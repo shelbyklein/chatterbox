@@ -18,8 +18,8 @@ final class AppModel {
     var showingSettings = false
     /// Dot floating over the chat that's open (⌘J).
     var showingDot = false
-    /// Dot's computer's screen beside Dot's chat.
-    var showingDotComputer = false
+    /// Dot's memory, open for editing.
+    var editingDotMemory = false
     /// The Add Pin sheet, when open.
     var pinSheet: PinSheetRequest?
     /// Websites open inside Chatterbox, each in its own project's (or Studio's, or chat's)

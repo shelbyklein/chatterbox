@@ -6,6 +6,7 @@ struct ChatView: View {
     @Environment(AppModel.self) private var model
     /// The small chat floating over a page: fewer controls, tighter margins.
     @Environment(\.compactChat) private var compact
+    @Environment(\.openWindow) private var openWindow
     let session: ChatSession
     /// The message box's text and attachments. Typing stays in this view; each change is
     /// copied to the chat (ChatSession.draft), so it's still there after looking at another
@@ -550,10 +551,12 @@ struct ChatView: View {
             }
 
             if session.isDot {
-                Button { model.showingDotComputer.toggle() } label: {
+                Button { model.editingDotMemory = true } label: { ToolbarLabel("Memory", systemImage: "brain") }
+                    .help("What Dot remembers about you and your work (MEMORY.md)")
+                Button { openWindow(id: DotComputerPanel.windowID) } label: {
                     ToolbarLabel("Computer", systemImage: "desktopcomputer")
                 }
-                .help("Dot's own computer: a browser it uses for web work, which you can watch and take over")
+                .help("Dot's own computer, in its own window: a browser it uses for web work, which you can watch and take over")
             }
             if session.record.backend == .claude { remoteButton }
 
