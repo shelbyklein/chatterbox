@@ -8,18 +8,20 @@ struct DotConversation: View {
     @State private var openSteps: Set<UUID> = []
     @Environment(\.readerStyle) private var style
     @Environment(\.chatFolder) private var chatFolder
+    @Environment(AppModel.self) private var model
 
     private enum Row: Identifiable {
         case mine(DisplayItem)
         case label(DisplayItem)
-        case reply(DisplayItem, steps: [DisplayItem])
+        /// A reply, the steps behind it, and the chats it's about (to jump to).
+        case reply(DisplayItem, steps: [DisplayItem], chats: [UUID])
         case steps(UUID, [DisplayItem])
         case email(DisplayItem)
         case other(DisplayItem)
 
         var id: UUID {
             switch self {
-            case .mine(let item), .label(let item), .reply(let item, _), .email(let item), .other(let item): item.id
+            case .mine(let item), .label(let item), .reply(let item, _, _), .email(let item), .other(let item): item.id
             case .steps(let id, _): id
             }
         }
@@ -30,6 +32,8 @@ struct DotConversation: View {
     private var rows: (rows: [Row], working: [DisplayItem]) {
         var rows: [Row] = []
         var steps: [DisplayItem] = []
+        // The message that started this turn: Chatterbox's notes name the chats they're about.
+        var prompt = ""
         func flushSteps() {
             if let first = steps.first { rows.append(.steps(first.id, steps)) }
             steps = []
@@ -38,10 +42,11 @@ struct DotConversation: View {
             switch item.kind {
             case .user:
                 flushSteps()
+                prompt = item.text
                 rows.append(item.automatic == true ? .label(item) : .mine(item))
             case .assistant where item.phase != .commentary:
                 guard !item.text.isEmpty else { continue }
-                rows.append(.reply(item, steps: steps))
+                rows.append(.reply(item, steps: steps, chats: chatIDs(in: prompt + "\n" + item.text)))
                 steps = []
             case .assistant, .tool, .thought, .plan:
                 steps.append(item)
@@ -80,9 +85,13 @@ struct DotConversation: View {
                 .background(Capsule().fill(.quaternary.opacity(0.6)))
                 .frame(maxWidth: .infinity)
                 .help(item.kind == .user ? item.text : "")
-        case .reply(let item, let steps):
+        case .reply(let item, let steps, let chats):
             VStack(alignment: .leading, spacing: 4) {
                 bubble(item)
+                if !chats.isEmpty {
+                    HStack(spacing: 6) { chatShortcuts(chats) }
+                        .padding(.leading, 10)
+                }
                 if !steps.isEmpty { stepsToggle(item.id, steps) }
             }
         case .steps(let id, let steps):
@@ -100,6 +109,42 @@ struct DotConversation: View {
         case .other(let item):
             ItemView(item: item, agent: session.record.backend,
                      onApproval: session.resolveApproval, onAnswer: session.answerQuestions)
+        }
+    }
+
+    /// Chat ids ("[UUID]") in a note or reply, for chats that still exist, in order.
+    private func chatIDs(in text: String) -> [UUID] {
+        guard let regex = try? NSRegularExpression(pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}") else { return [] }
+        let ns = text as NSString
+        var ids: [UUID] = []
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            guard let id = UUID(uuidString: ns.substring(with: match.range)), !ids.contains(id), id != session.id,
+                  model.sessions.contains(where: { $0.id == id }) else { continue }
+            ids.append(id)
+        }
+        return ids
+    }
+
+    /// "↗ SDHQ": opens that chat, to follow up there.
+    @ViewBuilder
+    private func chatShortcuts(_ ids: [UUID]) -> some View {
+        ForEach(ids, id: \.self) { id in
+            if let chat = model.sessions.first(where: { $0.id == id }) {
+                let name = chat.record.projectFolder != nil ? chat.projectName : chat.title
+                Button {
+                    if chat.record.archivedAt != nil { model.unarchive(chat) }
+                    model.selectedID = id
+                } label: {
+                    Label(name, systemImage: "arrow.up.right")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(.quaternary.opacity(0.7)))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Open \u{201C}\(name)\u{201D}")
+            }
         }
     }
 
