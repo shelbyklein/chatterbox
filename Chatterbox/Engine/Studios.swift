@@ -115,7 +115,8 @@ extension AppModel {
     /// Whether a chat can be forked: not mid-reply, and not a project's chat (a project
     /// folder has one chat).
     func canFork(_ session: ChatSession) -> Bool {
-        !session.isRunning && session.record.projectFolder == nil && !session.items.isEmpty
+        // Dot is one of a kind: a copy would take over as Dot (the first one found wins).
+        !session.isRunning && !session.isDot && session.record.projectFolder == nil && !session.items.isEmpty
     }
 
     /// Copies a chat into a new one beside it (in the same Studio, if it's in one) that
@@ -131,6 +132,10 @@ extension AppModel {
         record.updatedAt = Date()
         record.archivedAt = nil
         record.forkedFrom = session.id
+        // Never carry Dot's identity into a copy, even if a caller skips canFork.
+        record.isDot = nil
+        record.sentDotName = nil
+        record.dotFollowing = nil
         record.currentIssue = nil
         record.turnStartedAt = nil
         record.backgroundTasks = nil
