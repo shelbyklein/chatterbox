@@ -522,7 +522,7 @@ struct ChatView: View {
             Text(status).lineLimit(2)
             Spacer()
             Button("Retry") { Task { await ClaudeModels.shared.refresh(force: true) } }
-            SettingsLink { Text("Open Settings") }
+            Button("Open Settings") { model.showingSettings = true }
         }
         .font(.callout)
         .padding(.horizontal, 16)
@@ -743,7 +743,7 @@ struct ChatView: View {
             Image(systemName: "exclamationmark.triangle.fill")
             Text(status).lineLimit(2)
             Spacer()
-            SettingsLink { Text("Open Settings") }
+            Button("Open Settings") { model.showingSettings = true }
         }
         .font(.callout)
         .padding(.horizontal, 16)

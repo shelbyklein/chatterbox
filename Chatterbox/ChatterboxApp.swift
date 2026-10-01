@@ -38,6 +38,11 @@ struct ChatterboxApp: App {
         .commands {
             // ⌘⇧P belongs to the mode menu; there's nothing to print.
             CommandGroup(replacing: .printItem) {}
+            // Settings open in the main window rather than a window of their own.
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings\u{2026}") { model.showingSettings = true }
+                    .keyboardShortcut(",")
+            }
 
             CommandMenu("Go") {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
@@ -78,9 +83,6 @@ struct ChatterboxApp: App {
             }
         }
 
-        Settings {
-            SettingsView()
-                .environment(model)
-        }
+
     }
 }

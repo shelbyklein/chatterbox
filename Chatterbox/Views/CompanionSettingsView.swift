@@ -68,7 +68,7 @@ struct CompanionSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
+        .frame(maxWidth: 640)
     }
 }
 

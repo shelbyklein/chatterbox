@@ -51,6 +51,26 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            Section {
+                defaultModelPicker(title: "Claude", icon: "sparkle", options: claudeOptions,
+                                   model: Binding(get: { ClaudeModels.shared.info(defaultModel).value }, set: {
+                                       defaultModel = $0
+                                       if !ClaudeModels.shared.info($0).efforts.contains(defaultEffort) { defaultEffort = "" }
+                                   }),
+                                   effort: $defaultEffort,
+                                   efforts: ClaudeModels.shared.info(defaultModel).efforts)
+                defaultModelPicker(title: "Codex", icon: "terminal", options: codexOptions,
+                                   model: Binding(get: { codexDefaultModel }, set: { codexDefaultModel = $0; codexDefaultEffort = "" }),
+                                   effort: $codexDefaultEffort,
+                                   efforts: CodexAppServer.shared.models.first { $0.model == codexDefaultModel }?.efforts
+                                       ?? CodexAppServer.shared.models.first(where: \.isDefault)?.efforts ?? [])
+            } header: {
+                Text("Default models")
+            } footer: {
+                Text("What new chats start with. Change a chat's own model from the bar under its message box.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section("New chats") {
                 Picker("Chat with", selection: $defaultBackend) {
                     ForEach(Backend.allCases) { Text($0.label).tag($0) }
@@ -94,7 +114,6 @@ struct SettingsView: View {
                         Text(ClaudeModels.shared.statusMessage ?? "Checking\u{2026}").foregroundStyle(.secondary)
                     }
                 }
-                claudeDefaults
                 TextField("claude path", text: $claudePath, prompt: Text(detectedClaude ?? "Auto-detect"))
             } header: {
                 Text("Claude Code")
@@ -128,7 +147,6 @@ struct SettingsView: View {
             }
 
             Section {
-                codexDefaults
                 TextField("codex path", text: $codexPath, prompt: Text(detectedCodex ?? "Auto-detect"))
             } header: {
                 Text("Codex")
@@ -141,8 +159,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: 640)
         .task(id: codexPath) { detectedCodex = CodexAppServer.locateBinary() }
         .task(id: claudePath) {
             detectedClaude = ClaudeCodeProcess.locateBinary()
@@ -156,38 +173,86 @@ struct SettingsView: View {
         return "\(preset.backend.label) \u{00B7} \(model) \u{00B7} \(preset.effort.map { ChatView.effortLabel($0) } ?? "default effort")"
     }
 
-    @ViewBuilder
-    private var claudeDefaults: some View {
+    /// A model in the default-model picker: its id, name, and a line about it.
+    private struct ModelChoice: Identifiable {
+        var id: String
+        var name: String
+        var detail: String
+    }
+
+    private var claudeOptions: [ModelChoice] {
         let catalog = ClaudeModels.shared
         let current = catalog.info(defaultModel)
         let models = catalog.models.contains { $0.value == current.value } ? catalog.models : [current] + catalog.models
-        Picker("Model", selection: Binding(get: { current.value }, set: {
-            defaultModel = $0
-            if !catalog.info($0).efforts.contains(defaultEffort) { defaultEffort = "" }
-        })) {
-            ForEach(models) { Text($0.displayName).tag($0.value) }
-        }
-        if !current.efforts.isEmpty {
-            Picker("Effort", selection: $defaultEffort) {
-                Text("Model default").tag("")
-                ForEach(current.efforts, id: \.self) { Text(ChatView.effortLabel($0)).tag($0) }
-            }
-        }
+        return models.map { ModelChoice(id: $0.value, name: $0.displayName, detail: $0.detail) }
     }
 
-    @ViewBuilder
-    private var codexDefaults: some View {
-        let models = CodexAppServer.shared.models
-        let current = models.first { $0.model == codexDefaultModel }
-        Picker("Model", selection: Binding(get: { codexDefaultModel }, set: { codexDefaultModel = $0; codexDefaultEffort = "" })) {
-            Text("Codex default").tag("")
-            if !codexDefaultModel.isEmpty && current == nil { Text(codexDefaultModel).tag(codexDefaultModel) }
-            ForEach(models) { Text($0.displayName + ($0.hidden ? " (hidden)" : "")).tag($0.model) }
+    private var codexOptions: [ModelChoice] {
+        let models = CodexAppServer.shared.models.filter { !$0.hidden || $0.model == codexDefaultModel }
+        let fallback = models.first(where: \.isDefault)?.displayName
+        var choices = [ModelChoice(id: "", name: "Codex's default", detail: fallback.map { "Currently \($0); follows Codex if that changes" } ?? "Whatever Codex picks")]
+        choices += models.map { ModelChoice(id: $0.model, name: $0.displayName, detail: $0.isDefault ? "Codex's default right now" : "") }
+        if !codexDefaultModel.isEmpty, !models.contains(where: { $0.model == codexDefaultModel }) {
+            choices.append(ModelChoice(id: codexDefaultModel, name: codexDefaultModel, detail: "Not in Codex's list right now"))
         }
-        Picker("Effort", selection: $codexDefaultEffort) {
-            Text("Model default").tag("")
-            ForEach(current?.efforts ?? ["low", "medium", "high"], id: \.self) { Text(ChatView.effortLabel($0)).tag($0) }
+        return choices
+    }
+
+    /// One agent's default: its models as a list to pick from, then effort as a row of buttons.
+    private func defaultModelPicker(title: String, icon: String, options: [ModelChoice], model: Binding<String>,
+                                    effort: Binding<String>, efforts: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon).font(.headline)
+            if options.isEmpty {
+                Text("Models show up once \(title) has started.").font(.caption).foregroundStyle(.secondary)
+            }
+            VStack(spacing: 0) {
+                ForEach(options) { option in
+                    Button { model.wrappedValue = option.id } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: model.wrappedValue == option.id ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(model.wrappedValue == option.id ? Color.primary : Color.secondary)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(option.name)
+                                if !option.detail.isEmpty { Text(option.detail).font(.caption).foregroundStyle(.secondary) }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 8)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(model.wrappedValue == option.id ? 0.08 : 0)))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            if !efforts.isEmpty {
+                Picker("Effort", selection: effort) {
+                    Text("Default").tag("")
+                    ForEach(efforts, id: \.self) { Text(ChatView.effortLabel($0)).tag($0) }
+                }
+                .pickerStyle(.segmented)
+            }
         }
+        .padding(.vertical, 4)
+    }
+}
+
+/// Settings in the main window, in the chat's place (⌘,). Done, Esc, or picking a chat
+/// goes back.
+struct SettingsPage: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        SettingsView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Done") { model.showingSettings = false }
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
     }
 }
 
@@ -271,7 +336,7 @@ private struct AppearanceSettingsView: View {
             .background(Color(nsColor: .textBackgroundColor))
             .overlay(alignment: .top) { Divider() }
         }
-        .frame(width: 520, height: 820)
+        .frame(maxWidth: 640)
     }
 
     private func colorRow(_ title: String, selection: Binding<String>) -> some View {
@@ -364,7 +429,7 @@ private struct InstructionsSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 720)
+        .frame(maxWidth: 640, maxHeight: .infinity)
     }
 
     private func save() {

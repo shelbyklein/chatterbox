@@ -85,6 +85,10 @@ struct ContentView: View {
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
                 ToolbarItem {
+                    Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
+                        .help("Settings (\u{2318},)")
+                }
+                ToolbarItem {
                     Menu {
                         if let studio = model.selected.flatMap(model.studio(for:)), studio.archivedAt == nil {
                             Button("New Chat in \u{201C}\(studio.name)\u{201D}") { model.newChat(in: studio) }
@@ -114,7 +118,9 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            if let page = model.webPage {
+            if model.showingSettings {
+                SettingsPage()
+            } else if let page = model.webPage {
                 // A website pin: the page takes the chat's place, and the chat floats over it.
                 ZStack(alignment: .bottomTrailing) {
                     WebPaneView(page: page) { model.webPage = nil }
@@ -201,6 +207,8 @@ struct ContentView: View {
         .task { await model.refreshProjectRepos() }
         .task { Attention.shared.start(model: model) }
         .onChange(of: model.selectedID) { _, id in
+            // Picking a chat leaves Settings.
+            model.showingSettings = false
             Attention.shared.markSeen(id)
             // A chat you open (like a new one) never hides behind the search or tag filter.
             if let session = model.sessions.first(where: { $0.id == id }), !isShown(session) {

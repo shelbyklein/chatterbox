@@ -14,6 +14,8 @@ final class AppModel {
     var selectedID: UUID?
     var showingCloneFromGitHub = false
     var showingNewProject = false
+    /// Settings, shown in the main window in place of the chat.
+    var showingSettings = false
     /// The Add Pin sheet, when open.
     var pinSheet: PinSheetRequest?
     /// Websites open inside Chatterbox, each in its own project's (or Studio's, or chat's)

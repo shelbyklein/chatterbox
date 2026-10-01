@@ -5,7 +5,6 @@ import SwiftUI
 struct QuickSwitcher: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openSettings) private var openSettings
     @State private var query = ""
     @State private var selection = 0
     @FocusState private var searchFocused
@@ -41,7 +40,7 @@ struct QuickSwitcher: View {
             Action(title: "New Project\u{2026}", systemImage: "folder.badge.plus", shortcut: "\u{2303}\u{2318}N") { model.showingNewProject = true },
             Action(title: "Open Project\u{2026}", systemImage: "folder", shortcut: "\u{2318}O") { model.chooseAndOpenProject() },
             Action(title: "New Project from GitHub\u{2026}", systemImage: "arrow.down.circle", shortcut: "\u{21E7}\u{2318}O") { model.showingCloneFromGitHub = true },
-            Action(title: "Settings\u{2026}", systemImage: "gearshape", shortcut: "\u{2318},") { openSettings() },
+            Action(title: "Settings\u{2026}", systemImage: "gearshape", shortcut: "\u{2318},") { model.showingSettings = true },
         ]
     }
 
