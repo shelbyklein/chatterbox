@@ -270,7 +270,7 @@ final class CompanionServer {
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "rename":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
             guard let body = try? Companion.decoder.decode(Companion.RenameRequest.self, from: request.body) else { return .error(400, "Bad name.") }
-            session.setTitle(body.title)
+            if session.isDot { model.renameDot(body.title) } else { session.setTitle(body.title) }
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && (parts[3] == "archive" || parts[3] == "unarchive"):
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
