@@ -23,6 +23,26 @@ struct GitStatus: Equatable {
     }
 }
 
+/// Reads a pipe to its end on another thread, so it can drain while the caller reads a
+/// different one.
+final class PipeDrain: @unchecked Sendable {
+    private var data = Data()
+    private let done = DispatchSemaphore(value: 0)
+
+    init(_ pipe: Pipe) {
+        DispatchQueue.global(qos: .utility).async {
+            self.data = pipe.fileHandleForReading.readDataToEndOfFile()
+            self.done.signal()
+        }
+    }
+
+    /// Everything the pipe carried, once the writer has closed it.
+    func wait() -> Data {
+        done.wait()
+        return data
+    }
+}
+
 /// Runs git and gh. Both come from the user's own install, so gh uses their existing sign-in.
 enum Git {
     struct Output { var status: Int32; var out: String; var err: String }
@@ -39,9 +59,11 @@ enum Git {
             process.standardError = err
             process.standardInput = FileHandle.nullDevice
             do { try process.run() } catch { return Output(status: -1, out: "", err: error.localizedDescription) }
-            // Read before waiting so a large output can't fill the pipe and stall the process.
+            // Read both pipes at once, and before waiting: a child that fills one pipe while
+            // the other is being read to the end would otherwise stall forever.
+            let errors = PipeDrain(err)
             let outData = out.fileHandleForReading.readDataToEndOfFile()
-            let errData = err.fileHandleForReading.readDataToEndOfFile()
+            let errData = errors.wait()
             process.waitUntilExit()
             return Output(status: process.terminationStatus,
                           out: String(decoding: outData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines),

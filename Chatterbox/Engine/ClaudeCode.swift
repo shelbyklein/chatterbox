@@ -26,10 +26,11 @@ enum BinaryLocator {
         shell.arguments = ["-lic", "command -v \(name)"]
         let out = Pipe()
         shell.standardOutput = out
-        shell.standardError = Pipe()
+        shell.standardError = FileHandle.nullDevice
         guard (try? shell.run()) != nil else { return nil }
+        let output = out.fileHandleForReading.readDataToEndOfFile()
         shell.waitUntilExit()
-        let path = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let path = String(decoding: output, as: UTF8.self)
             .split(separator: "\n").last.map(String.init)?.trimmingCharacters(in: .whitespaces) ?? ""
         return fm.isExecutableFile(atPath: path) ? path : nil
     }
