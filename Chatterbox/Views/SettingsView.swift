@@ -173,6 +173,7 @@ struct SettingsView: View {
 
     /// "Codex · GPT-6.1-Sol · Low": what a preset switches to, in names rather than ids.
     private func presetDetail(_ preset: ModelPreset) -> String {
+        if preset.followsDefault == true { return "Follows your \(preset.backend.label) default" }
         let model: String
         switch preset.backend {
         case .claude: model = preset.model.map { ClaudeModels.shared.info($0).displayName } ?? "default model"
@@ -265,6 +266,10 @@ struct SettingsView: View {
                 Button { presets.remove(preset) } label: { Image(systemName: "minus.circle") }
                     .buttonStyle(.borderless)
                     .help("Remove preset")
+            }
+            if isEditing, preset.followsDefault == true {
+                Text("This one switches to your default \(preset.backend.label) model, set above. Changing it here makes it a fixed preset instead.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             if isEditing {
                 Picker("Agent", selection: Binding(get: { preset.backend }, set: { backend in
