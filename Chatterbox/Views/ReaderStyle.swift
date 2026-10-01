@@ -125,10 +125,61 @@ struct ReaderStyleSettings: DynamicProperty {
     }
 }
 
+/// The window's look, chosen in Settings → Appearance: light or dark, the background
+/// (standard, dim, black, or any color), and the highlight color.
+enum Theme {
+    static let schemeKey = "themeScheme"         // system | light | dark
+    static let backgroundKey = "themeBackground" // standard | dim | black | #RRGGBB
+    static let highlightKey = "themeHighlight"   // default | a preset id | #RRGGBB
+
+    static let backgrounds: [(id: String, label: String)] = [("standard", "Standard"), ("dim", "Dim"), ("black", "Black")]
+
+    /// The background to paint, or nil for the system's own.
+    static func background(_ id: String) -> Color? {
+        switch id {
+        case "standard", "": nil
+        case "dim": Color(red: 0.085, green: 0.085, blue: 0.095)
+        case "black": .black
+        default: ReaderStyle.bubbleColor(id)
+        }
+    }
+
+    /// Light or dark to match the background (dark text on black would vanish), else the
+    /// chosen theme; nil follows the system.
+    static func colorScheme(background id: String, scheme: String) -> ColorScheme? {
+        switch id {
+        case "standard", "": return scheme == "light" ? .light : scheme == "dark" ? .dark : nil
+        case "dim", "black": return .dark
+        default: return luminance(id) < 0.5 ? .dark : .light
+        }
+    }
+
+    static var currentBackground: Color? { background(UserDefaults.standard.string(forKey: backgroundKey) ?? "standard") }
+
+    /// 0 (black) to 1 (white) for a "#RRGGBB" color.
+    static func luminance(_ hex: String) -> Double {
+        guard hex.hasPrefix("#"), let value = Int(hex.dropFirst(), radix: 16) else { return 0.5 }
+        let r = Double((value >> 16) & 0xFF) / 255, g = Double((value >> 8) & 0xFF) / 255, b = Double(value & 0xFF) / 255
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+}
+
 extension Color {
     /// Chatterbox's own highlight: selection, progress, and emphasis. White in dark mode and
-    /// black in light mode, instead of the system's blue accent.
-    static let highlight = Color.primary
+    /// black in light mode unless you pick a color in Settings → Appearance.
+    static var highlight: Color {
+        let id = UserDefaults.standard.string(forKey: Theme.highlightKey) ?? "default"
+        return id == "default" ? .primary : ReaderStyle.bubbleColor(id)
+    }
+
+    /// Text on a highlight-filled shape: the window color on the plain highlight, else white
+    /// or black, whichever reads.
+    static var onHighlight: Color {
+        let id = UserDefaults.standard.string(forKey: Theme.highlightKey) ?? "default"
+        if id == "default" { return .windowBackground }
+        let hex = id.hasPrefix("#") ? id : ReaderStyle.hex(ReaderStyle.bubbleColor(id))
+        return Theme.luminance(hex) > 0.6 ? .black : .white
+    }
 }
 
 /// The main button in a card (Submit, Next): filled with the highlight, text in the
@@ -141,7 +192,7 @@ struct HighlightButtonStyle: ButtonStyle {
             .font(.callout.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
-            .foregroundStyle(Color.windowBackground)
+            .foregroundStyle(Color.onHighlight)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color.highlight.opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.3)))
     }
 }

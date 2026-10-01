@@ -27,6 +27,9 @@ struct ContentView: View {
     @State private var dropStudio: UUID?
     /// Show only projects with this tag; empty shows everything.
     @AppStorage("sidebarTagFilter") private var tagFilter = ""
+    @AppStorage(Theme.schemeKey) private var themeScheme = "system"
+    @AppStorage(Theme.backgroundKey) private var themeBackground = "standard"
+    @AppStorage(Theme.highlightKey) private var themeHighlight = "default"
     @AppStorage(ProjectSort.key) private var projectSort = ProjectSort.recent
     @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
 
@@ -90,6 +93,7 @@ struct ContentView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+            .modifier(ThemedSidebar(background: themeBackground))
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
                 ToolbarItem {
@@ -126,6 +130,7 @@ struct ContentView: View {
                 }
             }
         } detail: {
+            Group {
             if model.showingSettings {
                 SettingsPage()
             } else if let page = model.webPage {
@@ -150,7 +155,10 @@ struct ContentView: View {
             } else {
                 Text("No chat selected").foregroundStyle(.secondary)
             }
+            }
+            .modifier(ThemedDetail(background: themeBackground))
         }
+        .modifier(ThemedWindow(scheme: themeScheme, background: themeBackground, highlight: themeHighlight))
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
         .sheet(isPresented: $model.editingDotMemory) { DotMemorySheet() }
@@ -711,5 +719,42 @@ struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+    }
+}
+
+/// The sidebar on a chosen background.
+private struct ThemedSidebar: ViewModifier {
+    let background: String
+    func body(content: Content) -> some View {
+        let color = Theme.background(background)
+        content
+            .scrollContentBackground(color == nil ? .automatic : .hidden)
+            .background(color ?? .clear)
+    }
+}
+
+/// The chat side, and the toolbar over it, on a chosen background.
+private struct ThemedDetail: ViewModifier {
+    let background: String
+    func body(content: Content) -> some View {
+        let color = Theme.background(background)
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(color ?? .clear)
+            .toolbarBackground(color ?? .clear, for: .windowToolbar)
+            .toolbarBackground(color == nil ? .automatic : .visible, for: .windowToolbar)
+    }
+}
+
+/// Light or dark, and the highlight. Colors are read as views draw, so a change redraws all.
+private struct ThemedWindow: ViewModifier {
+    let scheme: String
+    let background: String
+    let highlight: String
+    func body(content: Content) -> some View {
+        content
+            .id(background + "|" + highlight)
+            .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
+            .tint(highlight == "default" ? nil : Color.highlight)
     }
 }

@@ -31,6 +31,8 @@ struct ChatView: View {
     private let commands = ChatCommands.shared
     /// The Issues panel on the right (see IssuesPanel.swift).
     @State private var issuesPanel = IssuesPanelState()
+    /// A page or file from the chat, open in the browser panel on the right.
+    @State private var preview: WebPage?
     @FocusState private var composerFocused: Bool
     private let appearance = ReaderStyleSettings()
 
@@ -47,15 +49,39 @@ struct ChatView: View {
         // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
         .environment(\.chatFolder, session.workingFolder)
         .environment(\.openURL, OpenURLAction { url in
+            let file: URL
             if url.scheme == PathLinks.scheme {
-                PathLinks.reveal(url)
+                // A path in a code span: pages preview, anything else shows in Finder.
+                let path = URL(fileURLWithPath: url.path)
+                guard ["html", "htm", "svg", "pdf"].contains(path.pathExtension.lowercased()) else {
+                    PathLinks.reveal(url)
+                    return .handled
+                }
+                file = path
+            } else {
+                guard let resolved = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
+                file = resolved
+            }
+            // Pages, SVGs, and PDFs slide out in the browser panel; ⌘-click opens them in their own app.
+            if ["html", "htm", "svg", "pdf"].contains(file.pathExtension.lowercased()), !NSEvent.modifierFlags.contains(.command) {
+                if let preview, preview.url == file { preview.reload() } else {
+                    withAnimation(.easeOut(duration: 0.2)) { preview = WebPage(url: file) }
+                }
                 return .handled
             }
-            guard let file = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
             NSWorkspace.shared.open(file)
             return .handled
         })
-        .inspector(isPresented: $issuesPanel.isOpen) { IssuesPanel(session: session, panel: issuesPanel) }
+        .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil },
+                                        set: { if !$0 { issuesPanel.isOpen = false; preview = nil } })) {
+            if let preview {
+                WebPaneView(page: preview) { withAnimation(.easeOut(duration: 0.2)) { self.preview = nil } }
+                    .inspectorColumnWidth(min: 360, ideal: 620, max: 1400)
+            } else {
+                IssuesPanel(session: session, panel: issuesPanel)
+            }
+        }
+        .onChange(of: issuesPanel.isOpen) { _, open in if open { preview = nil } }
         // Re-read git when the chat opens, its folder changes, or a turn ends (the agent may have committed).
         .task(id: "\(session.record.projectFolder ?? "")|\(session.isRunning)") {
             guard let folder = session.record.projectFolder, !session.isRunning else { return }
@@ -347,7 +373,7 @@ struct ChatView: View {
         .padding(.vertical, compact ? 10 : 12)
         .frame(maxWidth: appearance.style.contentWidth + 40)
         .frame(maxWidth: .infinity)
-        .background(.bar)
+        .background(Theme.currentBackground.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.bar))
     }
 
     // MARK: - Slash commands
@@ -1162,7 +1188,7 @@ private struct AgentSwitch: View {
                     Text(backend.label)
                         .font(.callout.weight(.medium))
                         .frame(width: 96, height: 24)
-                        .foregroundStyle(selected ? Color(nsColor: .windowBackgroundColor) : Color.primary)
+                        .foregroundStyle(selected ? Color.onHighlight : Color.primary)
                         .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.primary : Color.clear))
                         .contentShape(Rectangle())
                 }

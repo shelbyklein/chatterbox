@@ -20,7 +20,16 @@ final class WebPage {
 
     func load(_ url: URL) {
         self.url = url
-        webView?.load(URLRequest(url: url))
+        if let webView { Self.open(url, in: webView) }
+    }
+
+    /// A file on the Mac gets to read its own folder (its images, scripts, styles).
+    fileprivate static func open(_ url: URL, in webView: WKWebView) {
+        if url.isFileURL {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        } else {
+            webView.load(URLRequest(url: url))
+        }
     }
 
     func goBack() { webView?.goBack() }
@@ -94,7 +103,7 @@ private struct WebPageView: NSViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         context.coordinator.observe(webView)
         page.webView = webView
-        webView.load(URLRequest(url: page.url))
+        WebPage.open(page.url, in: webView)
         return webView
     }
 
@@ -103,7 +112,7 @@ private struct WebPageView: NSViewRepresentable {
         if context.coordinator.page !== page {
             context.coordinator.page = page
             page.webView = webView
-            webView.load(URLRequest(url: page.url))
+            WebPage.open(page.url, in: webView)
         }
     }
 

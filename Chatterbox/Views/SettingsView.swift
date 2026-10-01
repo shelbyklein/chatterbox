@@ -357,6 +357,9 @@ struct SettingsPage: View {
 /// Settings → Appearance: how the transcript reads, with a live preview.
 private struct AppearanceSettingsView: View {
     private let settings = ReaderStyleSettings()
+    @AppStorage(Theme.schemeKey) private var themeScheme = "system"
+    @AppStorage(Theme.backgroundKey) private var themeBackground = "standard"
+    @AppStorage(Theme.highlightKey) private var themeHighlight = "default"
 
     private static let preview = """
     ## A quick preview
@@ -374,6 +377,69 @@ private struct AppearanceSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
+                Section {
+                    Picker("Theme", selection: $themeScheme) {
+                        Text("System").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(themeBackground != "standard")
+                    LabeledContent("Background") {
+                        HStack(spacing: 8) {
+                            ForEach(Theme.backgrounds, id: \.id) { option in
+                                Button { themeBackground = option.id } label: {
+                                    VStack(spacing: 3) {
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(Theme.background(option.id) ?? Color.windowBackground)
+                                            .frame(width: 34, height: 22)
+                                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.primary.opacity(themeBackground == option.id ? 1 : 0.2),
+                                                                                                   lineWidth: themeBackground == option.id ? 2 : 1))
+                                        Text(option.label).font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            VStack(spacing: 3) {
+                                ColorPicker("Custom", selection: Binding(
+                                    get: { Theme.background(themeBackground) ?? .black },
+                                    set: { themeBackground = ReaderStyle.hex($0) }
+                                ), supportsOpacity: false)
+                                .labelsHidden()
+                                Text("Custom").font(.caption2).foregroundStyle(themeBackground.hasPrefix("#") ? .primary : .secondary)
+                            }
+                        }
+                    }
+                    LabeledContent("Highlight") {
+                        HStack(spacing: 6) {
+                            Button { themeHighlight = "default" } label: {
+                                Circle().fill(Color.primary).frame(width: 18, height: 18)
+                                    .overlay(Circle().strokeBorder(Color.secondary, lineWidth: themeHighlight == "default" ? 2 : 0).padding(-3))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Plain (white in dark mode, black in light)")
+                            ForEach(ReaderStyle.bubbleColors.filter { $0.id != "gray" }, id: \.id) { preset in
+                                Button { themeHighlight = preset.id } label: {
+                                    Circle().fill(preset.color).frame(width: 18, height: 18)
+                                        .overlay(Circle().strokeBorder(Color.primary, lineWidth: themeHighlight == preset.id ? 2 : 0).padding(-3))
+                                }
+                                .buttonStyle(.plain)
+                                .help(preset.label)
+                            }
+                            ColorPicker("Custom", selection: Binding(
+                                get: { Color.highlight },
+                                set: { themeHighlight = ReaderStyle.hex($0) }
+                            ), supportsOpacity: false)
+                            .labelsHidden()
+                            .help("Custom color")
+                        }
+                    }
+                } header: {
+                    Text("Window")
+                } footer: {
+                    Text("A dark background keeps Chatterbox in dark mode so text stays readable. The highlight marks selection, unread badges, progress, and main buttons.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Text") {
                     Picker("Font", selection: settings.$design) {
                         ForEach(ReaderStyle.designs, id: \.id) { Text($0.label).tag($0.id) }
