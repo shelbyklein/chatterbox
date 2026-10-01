@@ -360,6 +360,7 @@ private struct AppearanceSettingsView: View {
     @AppStorage(Theme.schemeKey) private var themeScheme = "system"
     @AppStorage(Theme.backgroundKey) private var themeBackground = "standard"
     @AppStorage(Theme.highlightKey) private var themeHighlight = "default"
+    @AppStorage("readerGroupSteps") private var groupSteps = true
 
     private static let preview = """
     ## A quick preview
@@ -462,6 +463,7 @@ private struct AppearanceSettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Steps and thinking") {
+                    Toggle("Group steps into one row", isOn: $groupSteps)
                     Toggle("Compact step rows", isOn: settings.$compactSteps)
                     Text("Tightens the spacing of \u{201C}Running\u{2026}\u{201D} rows, notes, and thinking.")
                         .font(.caption).foregroundStyle(.secondary)

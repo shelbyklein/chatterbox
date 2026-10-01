@@ -33,6 +33,9 @@ struct ChatView: View {
     @State private var issuesPanel = IssuesPanelState()
     /// A page or file from the chat, open in the browser panel on the right.
     @State private var preview: WebPage?
+    /// Step groups you've opened.
+    @State private var openStepGroups: Set<UUID> = []
+    @AppStorage("readerGroupSteps") private var groupSteps = true
     @FocusState private var composerFocused: Bool
     private let appearance = ReaderStyleSettings()
 
@@ -238,19 +241,32 @@ struct ChatView: View {
                         }
                     } else {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(visibleItems) { item in
-                            Group {
-                                if isWaitingOnYou(item) {
-                                    waitingMarker(item)
-                                } else {
-                                    ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
-                                             agent: agents[item.id] ?? session.record.backend,
-                                             onApproval: session.resolveApproval, onAnswer: session.answerQuestions,
-                                             onSendNow: session.sendQueuedNow)
+                        ForEach(transcriptRows) { row in
+                            switch row {
+                            case .item(let item):
+                                Group {
+                                    if isWaitingOnYou(item) {
+                                        waitingMarker(item)
+                                    } else {
+                                        ItemView(item: item, isActive: session.isRunning && item.id == session.items.last?.id,
+                                                 agent: agents[item.id] ?? session.record.backend,
+                                                 onApproval: session.resolveApproval, onAnswer: session.answerQuestions,
+                                                 onSendNow: session.sendQueuedNow)
+                                    }
                                 }
+                                .padding(.vertical, rowPadding(item))
+                                .id(item.id)
+                            case .steps(let steps, let seconds, let active):
+                                StepGroup(steps: steps, seconds: seconds, isActive: active,
+                                          expanded: Binding(get: { openStepGroups.contains(row.id) },
+                                                            set: { if $0 { openStepGroups.insert(row.id) } else { openStepGroups.remove(row.id) } })) { item in
+                                    ItemView(item: item, isActive: active && item.id == session.items.last?.id,
+                                             agent: agents[item.id] ?? session.record.backend)
+                                        .padding(.vertical, rowPadding(item))
+                                }
+                                .padding(.vertical, appearance.style.paragraphSpacing / 2)
+                                .id(row.id)
                             }
-                            .padding(.vertical, rowPadding(item))
-                            .id(item.id)
                         }
                         if session.isRunning && !isVisiblyWorking {
                             TypingIndicator()
@@ -271,6 +287,46 @@ struct ChatView: View {
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
             .onChange(of: session.items.last?.text) { scrollToBottom(proxy) }
         }
+    }
+
+    /// The transcript's rows: with grouping on (Settings → Appearance), each run of steps
+    /// between your message and the reply (tools, notes, thinking) is one collapsed row.
+    private enum TranscriptRow: Identifiable {
+        case item(DisplayItem)
+        case steps([DisplayItem], seconds: Int?, active: Bool)
+
+        var id: UUID {
+            switch self {
+            case .item(let item): item.id
+            case .steps(let steps, _, _): steps[0].id
+            }
+        }
+    }
+
+    private var transcriptRows: [TranscriptRow] {
+        let items = visibleItems
+        guard groupSteps else { return items.map(TranscriptRow.item) }
+        func isStep(_ item: DisplayItem) -> Bool {
+            switch item.kind {
+            case .tool, .thought, .notice: true
+            case .assistant: item.phase == .commentary
+            default: false
+            }
+        }
+        var rows: [TranscriptRow] = []
+        var run: [DisplayItem] = []
+        func flush(before next: DisplayItem?) {
+            defer { run = [] }
+            guard !run.isEmpty else { return }
+            // A lone step stays as it is; the reply after a run knows how long it took.
+            if run.count == 1 { rows.append(.item(run[0])); return }
+            rows.append(.steps(run, seconds: next?.workedSeconds, active: next == nil && session.isRunning))
+        }
+        for item in items {
+            if isStep(item) { run.append(item) } else { flush(before: item); rows.append(.item(item)) }
+        }
+        flush(before: nil)
+        return rows
     }
 
     /// Rows to show: thinking can be hidden in Settings → Appearance.
@@ -1199,5 +1255,53 @@ private struct AgentSwitch: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.08)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chat with")
+    }
+}
+
+/// A run of steps (tools, notes, thinking) folded into one row, like a thought: "18 steps ·
+/// 4m 12s". While the agent works it shows the step it's on.
+private struct StepGroup<Row: View>: View {
+    let steps: [DisplayItem]
+    let seconds: Int?
+    let isActive: Bool
+    @Binding var expanded: Bool
+    @ViewBuilder let row: (DisplayItem) -> Row
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button { withAnimation(.easeOut(duration: 0.15)) { expanded.toggle() } } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                    Image(systemName: isActive ? "ellipsis" : "checklist")
+                    Text(title)
+                    if isActive, !expanded, let current = steps.last(where: { $0.kind == .tool || $0.kind == .assistant }) {
+                        Text(ContentView.plainPreview(current.text))
+                            .lineLimit(1)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .shimmering(isActive)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if expanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(steps) { row($0) }
+                }
+                .padding(.leading, 18)
+                .padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var title: String {
+        let count = steps.count == 1 ? "1 step" : "\(steps.count) steps"
+        if isActive { return "Working \u{00B7} " + count }
+        return seconds.map { count + " \u{00B7} " + ChatSession.durationText($0) } ?? count
     }
 }
