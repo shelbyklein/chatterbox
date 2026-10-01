@@ -58,7 +58,8 @@ extension ChatSession {
     /// Ends the Claude Code process (not the session) so the next message starts a fresh one
     /// with the current tools, resuming the same conversation. Waits for a reply in progress.
     func restartClaudeForNewTools() {
-        guard !isRunning, let process = claudeProcess else { return }
+        if isRunning { restartForToolsAfterTurn = true; return }
+        guard let process = claudeProcess else { return }
         process.terminate()
         claudeProcess = nil
     }

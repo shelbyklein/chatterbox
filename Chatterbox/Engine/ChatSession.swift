@@ -77,9 +77,16 @@ final class ChatSession: Identifiable {
     @ObservationIgnored var automaticTurn = false
     /// Chatterbox's usual "finished" alert is skipped for this turn (Dot's quiet check-ins).
     @ObservationIgnored var skipFinishedAlert = false
+    /// Restart Claude Code once this reply ends, so the next message gets new tools.
+    @ObservationIgnored var restartForToolsAfterTurn = false
 
     /// Called as a turn ends, before the change is saved: Dot's check-ins tidy up here.
     func turnEnded() {
+        if restartForToolsAfterTurn {
+            // Tools changed during the reply (Dot turned its computer on or off).
+            restartForToolsAfterTurn = false
+            DispatchQueue.main.async { [weak self] in self?.restartClaudeForNewTools() }
+        }
         guard automaticTurn else { return }
         automaticTurn = false
         if isDot, DotActivity.shared.finishedAutomaticTurn(self) { skipFinishedAlert = true }

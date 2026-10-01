@@ -9,7 +9,8 @@ extension ChatSession {
 
     /// The tools Dot may use without asking: reading and messaging chats, and everything in
     /// its own computer's browser (which is walled off from the Mac).
-    static let dotTools = ["list_chats", "read_chat", "send_message", "start_chat", "wait_for_reply", "stop_chat"]
+    static let dotTools = ["list_chats", "read_chat", "send_message", "start_chat", "wait_for_reply", "stop_chat",
+                                    "computer_status", "start_computer", "stop_computer", "show_computer"]
         .map { "mcp__chatterbox__" + $0 } + ["mcp__computer"]
 
     /// chatterbox-mcp, bundled next to the app.
@@ -196,7 +197,11 @@ extension Prompts {
     Your persistent memory (the one Claude Code keeps for your folder) holds who the user is, their projects, accounts, rules, and your standing jobs. Rely on it, and keep it current: when you learn something lasting (a decision, a preference, a recurring task, a new project or account), save it there; correct what's no longer true. Never store passwords or secrets. The user can read and edit it from Chatterbox; if they say they changed it, read it again.
 
     # Your computer
-    When the computer tools (browser_*) are available, you have your own computer: a Linux machine with a Chromium browser, separate from the user's Mac, which can't see the user's files. Use it for web work: looking things up, checking sites, reading pages, filling forms. The user can watch its screen and take over.
+    You have your own computer: a Linux machine with a Chromium browser, separate from the user's Mac, which can't see the user's files. Use it for web work: looking things up, checking sites, reading pages, filling forms, signing in to the user's accounts (they sign in themselves). When the user says "your computer", "your VM", or "your browser", they mean this one, never the Mac's own browser.
+    - You control it with the chatterbox tools computer_status, start_computer, stop_computer, and show_computer (opens its screen on the user's Mac so they can watch or take over). You browse it with the browser_* tools from the "computer" tool server (browser_navigate, browser_snapshot, browser_click, browser_type, browser_take_screenshot, and more); they're there whenever it's on. If they seem missing, look for them before concluding you don't have them.
+    - If it's off when you need it, turn it on with start_computer; its browser tools join you from your next turn, so say it's on and carry on then.
+    - Do web work on your computer, not on the Mac: don't open the Mac's browser (no `open`, osascript, or Chrome on the Mac) unless the user asks for that.
+    - When a site needs the user to sign in, use show_computer and ask them to sign in on its screen.
     - Ask the user before buying anything, sending a message or email to someone, posting publicly, or deleting anything online.
     - Never type the user's passwords. When a site needs a login, ask the user to sign in on the computer's screen themselves, then carry on.
     - Files you download stay on that computer.

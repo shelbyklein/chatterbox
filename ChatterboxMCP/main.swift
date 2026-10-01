@@ -117,6 +117,23 @@ func transcript(_ detail: [String: Any], last: Int) -> String {
     return out.joined(separator: "\n\n")
 }
 
+// MARK: - The computer
+
+func computerState(_ status: Any) -> String { (status as? [String: Any])?["state"] as? String ?? "unknown" }
+
+func describeComputer(_ status: Any) throws -> String {
+    let detail = (status as? [String: Any])?["detail"] as? String ?? ""
+    switch computerState(status) {
+    case "running": return "Your computer is on. Its browser tools (browser_navigate, browser_snapshot, browser_click, browser_type, browser_take_screenshot, and more) are yours to use; if they aren't in this turn yet, they will be from your next."
+    case "stopped": return "Your computer is off. Turn it on with start_computer."
+    case "starting", "setting_up", "checking": return "Your computer is still starting" + (detail.isEmpty ? "." : ": " + detail)
+    case "not_set_up": return "Your computer hasn't been set up yet. start_computer sets it up (a few minutes the first time) and turns it on."
+    case "no_docker": return "Docker isn't installed on the Mac, so your computer can't run. The user can install Docker Desktop."
+    case "failed": throw ToolError(message: "Your computer had a problem: " + detail)
+    default: return "Your computer's state is unknown."
+    }
+}
+
 // MARK: - Tools
 
 struct Tool {
@@ -219,6 +236,35 @@ let tools: [Tool] = [
         let id = try chatID(arguments)
         _ = try call("/v1/chats/\(id)/stop", method: "POST", body: [String: Any]())
         return "Stopped."
+    },
+    Tool(name: "computer_status",
+         description: "Whether your own computer (the Linux machine with Chromium you browse through the browser_* tools) is running, stopped, starting, or not set up.",
+         properties: [:], required: []) { _ in
+        try describeComputer(call("/v1/computer"))
+    },
+    Tool(name: "start_computer",
+         description: "Turn on your own computer (opening Docker on the Mac if needed) and wait until its browser is ready, up to about two minutes. Its browser_* tools join you from your next turn; finish this turn by telling the user it's on.",
+         properties: [:], required: []) { _ in
+        var status = try call("/v1/computer/start", method: "POST", body: [String: Any]())
+        let start = Date()
+        while ["starting", "setting_up", "checking", "stopped"].contains(computerState(status)), Date().timeIntervalSince(start) < 150 {
+            Thread.sleep(forTimeInterval: 2)
+            status = try call("/v1/computer")
+        }
+        return try describeComputer(status)
+    },
+    Tool(name: "stop_computer",
+         description: "Turn off your own computer to free up the Mac. Its browser profile (sign-ins) is kept for next time.",
+         properties: [:], required: []) { _ in
+        _ = try call("/v1/computer/stop", method: "POST", body: [String: Any]())
+        Thread.sleep(forTimeInterval: 4)
+        return try describeComputer(call("/v1/computer"))
+    },
+    Tool(name: "show_computer",
+         description: "Open your computer's screen in a window on the user's Mac, so they can watch or take over (for example to sign in to a site themselves).",
+         properties: [:], required: []) { _ in
+        _ = try call("/v1/computer/show", method: "POST", body: [String: Any]())
+        return "The user's Mac is showing your computer's screen."
     },
 ]
 

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openWindow) private var openWindow
     @AppStorage("showArchived") private var showArchived = false
     @State private var pendingDelete: ChatSession?
     @State private var renamingProject: ChatSession?
@@ -151,6 +152,8 @@ struct ContentView: View {
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
         .sheet(isPresented: $model.editingDotMemory) { DotMemorySheet() }
+        // Dot asked to show you its computer.
+        .onReceive(NotificationCenter.default.publisher(for: .showDotComputer)) { _ in openWindow(id: DotComputerPanel.windowID) }
         .sheet(item: $model.pinSheet) { AddPinSheet(request: $0) }
         .sheet(isPresented: Binding(get: { model.editingStudioInstructions != nil },
                                     set: { if !$0 { model.editingStudioInstructions = nil } })) {

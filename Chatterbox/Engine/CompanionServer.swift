@@ -217,6 +217,11 @@ final class CompanionServer {
         }
         guard let model else { return .error(503, "Chatterbox is starting.") }
 
+        // Dot's computer, for Dot's own tools on this Mac.
+        if local, parts.count >= 2, parts[1] == "computer" {
+            return computerRoute(request.method, parts.count > 2 ? parts[2] : nil, model: model)
+        }
+
         switch (request.method, parts.count) {
         case ("GET", 2) where parts[1] == "chats":
             return .json(CompanionMapper.chatList(model))
@@ -610,6 +615,37 @@ struct HTTPRequest {
         self.headers = headers
         body = data[bodyStart..<(bodyStart + length)]
     }
+}
+
+extension CompanionServer {
+    /// What Dot's computer is doing, and starting, stopping, or showing it. Starting takes a
+    /// while (Docker may have to open), so it answers at once and the caller checks back.
+    fileprivate func computerRoute(_ method: String, _ action: String?, model: AppModel) -> HTTPResponse {
+        let computer = DotComputer.shared
+        switch (method, action) {
+        case ("GET", nil):
+            break
+        case ("POST", "start"):
+            switch computer.state {
+            case .running, .starting, .building: break
+            case .noDocker: return .error(409, "Docker isn't installed on this Mac, so the computer can't run. The user can install Docker Desktop.")
+            case .notSetUp: Task { await model.setUpDotComputer() }
+            default: Task { await model.startDotComputer() }
+            }
+        case ("POST", "stop"):
+            if computer.isRunning { Task { await model.stopDotComputer() } }
+        case ("POST", "show"):
+            NotificationCenter.default.post(name: .showDotComputer, object: nil)
+        default:
+            return .error(404, "Not found")
+        }
+        return .json(Companion.ComputerStatus(state: computer.stateName, detail: computer.stateDetail))
+    }
+}
+
+extension Notification.Name {
+    /// Opens the window with Dot's computer screen.
+    static let showDotComputer = Notification.Name("ChatterboxShowDotComputer")
 }
 
 struct HTTPResponse {

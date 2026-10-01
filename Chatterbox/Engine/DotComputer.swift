@@ -38,6 +38,26 @@ final class DotComputer {
     var toolsURL: String { "http://127.0.0.1:\(Self.toolsPort)/mcp" }
     var isRunning: Bool { state == .running }
 
+    /// The state in one word, for Dot's tools.
+    var stateName: String {
+        switch state {
+        case .checking: "checking"
+        case .noDocker: "no_docker"
+        case .notSetUp: "not_set_up"
+        case .building: "setting_up"
+        case .stopped: "stopped"
+        case .starting: "starting"
+        case .running: "running"
+        case .failed: "failed"
+        }
+    }
+
+    /// What's happening, or what went wrong.
+    var stateDetail: String {
+        if case .failed(let reason) = state { return reason }
+        return progress
+    }
+
     static var docker: String? {
         ["/usr/local/bin/docker", "/opt/homebrew/bin/docker", "/Applications/Docker.app/Contents/Resources/bin/docker"]
             .first(where: FileManager.default.isExecutableFile(atPath:))
