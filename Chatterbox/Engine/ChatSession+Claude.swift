@@ -48,6 +48,14 @@ extension ChatSession {
         onChange?(self)
     }
 
+    /// Ends the Claude Code process (not the session) so the next message starts a fresh one
+    /// with the current tools, resuming the same conversation. Waits for a reply in progress.
+    func restartClaudeForNewTools() {
+        guard !isRunning, let process = claudeProcess else { return }
+        process.terminate()
+        claudeProcess = nil
+    }
+
     /// Starts the Claude Code session without a message, for Remote Control.
     func claudeStartForRemoteControl() throws -> ClaudeCodeProcess {
         try claudeEnsureProcess(earlierItems: record.items.count)

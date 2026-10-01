@@ -6,9 +6,10 @@ import Foundation
 extension ChatSession {
     var isDot: Bool { record.isDot == true }
 
-    /// The tools Dot may use without asking: reading and messaging chats.
+    /// The tools Dot may use without asking: reading and messaging chats, and everything in
+    /// its own computer's browser (which is walled off from the Mac).
     static let dotTools = ["list_chats", "read_chat", "send_message", "start_chat", "wait_for_reply", "stop_chat"]
-        .map { "mcp__chatterbox__" + $0 }
+        .map { "mcp__chatterbox__" + $0 } + ["mcp__computer"]
 
     /// chatterbox-mcp, bundled next to the app.
     static var dotToolServer: String? {
@@ -23,7 +24,10 @@ extension ChatSession {
         for key in ["CHATTERBOX_DATA_DIR", "CHATTERBOX_AGENT_PORT"] {
             if let value = ProcessInfo.processInfo.environment[key] { env[key] = value }
         }
-        let config: [String: Any] = ["mcpServers": ["chatterbox": ["command": server, "args": [String](), "env": env]]]
+        var servers: [String: Any] = ["chatterbox": ["command": server, "args": [String](), "env": env]]
+        // Its own computer's browser, while that's running.
+        if DotComputer.shared.isRunning { servers["computer"] = ["type": "http", "url": DotComputer.shared.toolsURL] }
+        let config: [String: Any] = ["mcpServers": servers]
         guard let data = try? JSONSerialization.data(withJSONObject: config) else { return nil }
         return String(data: data, encoding: .utf8)
     }
@@ -63,6 +67,22 @@ extension AppModel {
         return insertSession(record)
     }
 
+    /// Starts Dot's computer, and makes Dot's next message pick up its browser tools.
+    func startDotComputer() async {
+        await DotComputer.shared.start()
+        dot?.restartClaudeForNewTools()
+    }
+
+    func setUpDotComputer() async {
+        await DotComputer.shared.setUp()
+        dot?.restartClaudeForNewTools()
+    }
+
+    func stopDotComputer() async {
+        await DotComputer.shared.stop()
+        dot?.restartClaudeForNewTools()
+    }
+
     /// Dot's own chat, opened full size.
     func openDot() {
         selectedID = ensureDot().id
@@ -82,5 +102,11 @@ extension Prompts {
     - Approvals and questions in other chats are for the user alone. Never claim to have answered one; tell the user it's waiting, and in which chat.
     - Report back briefly: what you did, which chats, and what came of it. Don't paste long transcripts; summarize them.
     - You can't see other chats' files directly. Ask that chat's agent, or read its transcript.
+
+    # Your computer
+    When the computer tools (browser_*) are available, you have your own computer: a Linux machine with a Chromium browser, separate from the user's Mac, which can't see the user's files. Use it for web work: looking things up, checking sites, reading pages, filling forms. The user can watch its screen and take over.
+    - Ask the user before buying anything, sending a message or email to someone, posting publicly, or deleting anything online.
+    - Never type the user's passwords. When a site needs a login, ask the user to sign in on the computer's screen themselves, then carry on.
+    - Files you download stay on that computer.
     """
 }

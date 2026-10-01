@@ -549,6 +549,12 @@ struct ChatView: View {
                 IssueToolbarItems(session: session, panel: issuesPanel, repo: repo, branch: status.branch)
             }
 
+            if session.isDot {
+                Button { model.showingDotComputer.toggle() } label: {
+                    ToolbarLabel("Computer", systemImage: "desktopcomputer")
+                }
+                .help("Dot's own computer: a browser it uses for web work, which you can watch and take over")
+            }
             if session.record.backend == .claude { remoteButton }
 
             ModelPicker(session: session, compact: true, summary: modelSummary.full,

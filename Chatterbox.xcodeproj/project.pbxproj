@@ -21,6 +21,7 @@
 		1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */; };
 		216A4A576879E8065789E82E /* CompanionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA9F0B419529549C12E3317 /* CompanionAPI.swift */; };
 		240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667AC120BEF5177C4AB1C659 /* MobileStore.swift */; };
+		24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */; };
 		25A75E689316C0AFEEA9CE52 /* WebPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABAE1B34A7039850D52C275 /* WebPane.swift */; };
 		27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */; };
 		286A355D770106A89DA0551C /* Dictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5955B401AB9BC438178B6BD /* Dictation.swift */; };
@@ -65,6 +66,7 @@
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
+		A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42971FF65DCD021D97664C9 /* DotComputer.swift */; };
 		AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
@@ -85,6 +87,7 @@
 		DDA317C76C77D32F8E771879 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8964CD6CAA729D104D06907D /* main.swift */; };
 		E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00AEF264659F41BD565201 /* AppModel.swift */; };
 		E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
+		E22DB2624AFD4563C0F980FF /* DotComputer in Resources */ = {isa = PBXBuildFile; fileRef = 93A0E090291B9EB427F7BF84 /* DotComputer */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		EF5DAB17947D2B1CE75CF17A /* ChatterboxHost in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 480A4365D3D11CC93334737A /* ChatterboxHost */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EFB541351775E9D69EF1DB32 /* ChatCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F02305CEDD843C4F7102555 /* ChatCommands.swift */; };
@@ -154,6 +157,7 @@
 		38A6B47F421A8E58569C626D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatControls.swift; sourceTree = "<group>"; };
 		3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCode.swift; sourceTree = "<group>"; };
+		3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotComputerPanel.swift; sourceTree = "<group>"; };
 		3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMeter.swift; sourceTree = "<group>"; };
 		439370872F6E041E6DB407AF /* Dot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dot.swift; sourceTree = "<group>"; };
 		440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Tasks.swift"; sourceTree = "<group>"; };
@@ -184,6 +188,7 @@
 		8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxApp.swift; sourceTree = "<group>"; };
 		8F15AA06275FEBC5A7954E50 /* Studios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Studios.swift; sourceTree = "<group>"; };
 		8FACABAADB1BC61CD83F6473 /* OutputBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputBuffer.swift; sourceTree = "<group>"; };
+		93A0E090291B9EB427F7BF84 /* DotComputer */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DotComputer; sourceTree = SOURCE_ROOT; };
 		975B4C8301A9C31E898E446F /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 		A125487FAFCF644CD583045D /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
 		A241350B2223FA06355C13DB /* IssueToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueToolbar.swift; sourceTree = "<group>"; };
@@ -193,6 +198,7 @@
 		A8CC235964DF222CEF117DF4 /* ChatSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSettingsSheet.swift; sourceTree = "<group>"; };
 		AA6AEF5454AAA03F422E2A83 /* GitHub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHub.swift; sourceTree = "<group>"; };
 		B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPreview.swift; sourceTree = "<group>"; };
+		B42971FF65DCD021D97664C9 /* DotComputer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotComputer.swift; sourceTree = "<group>"; };
 		B6987D2087FA491665C4A101 /* SketchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SketchView.swift; sourceTree = "<group>"; };
 		B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubIssues.swift; sourceTree = "<group>"; };
 		BACD3896247941A01A6F39FB /* PathLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathLinks.swift; sourceTree = "<group>"; };
@@ -286,6 +292,7 @@
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
 				439370872F6E041E6DB407AF /* Dot.swift */,
+				B42971FF65DCD021D97664C9 /* DotComputer.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
 				53DE3A68946E9818C4FA0A43 /* HostClient.swift */,
@@ -306,6 +313,7 @@
 		A7DB699FF1B4A1B6456E2A07 = {
 			isa = PBXGroup;
 			children = (
+				93A0E090291B9EB427F7BF84 /* DotComputer */,
 				F8396140D14FE6E04F22C13F /* prompts */,
 				154C18D3935765CA48CB7EE9 /* Chatterbox */,
 				02EA32BB5740413AEB84E174 /* ChatterboxHost */,
@@ -344,6 +352,7 @@
 				5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */,
 				7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */,
 				DD71DB30FA4E56547B5EDD95 /* ContentView.swift */,
+				3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */,
 				B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */,
 				104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */,
 				8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */,
@@ -520,6 +529,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				17BF765717748A9396DC6875 /* Assets.xcassets in Resources */,
+				E22DB2624AFD4563C0F980FF /* DotComputer in Resources */,
 				42E0AA7989519D1AC9812E73 /* prompts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -569,6 +579,8 @@
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,
+				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
+				24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,

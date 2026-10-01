@@ -132,6 +132,12 @@ struct ContentView: View {
                             .padding(16)
                     }
                 }
+            } else if let session = model.selected, session.isDot, model.showingDotComputer {
+                // Dot beside its computer's screen.
+                HSplitView {
+                    ChatView(session: session).id(session.id).frame(minWidth: 380)
+                    DotComputerPanel().frame(minWidth: 480, idealWidth: 720)
+                }
             } else if let session = model.selected {
                 ChatView(session: session)
                     .id(session.id)

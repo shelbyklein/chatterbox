@@ -19,6 +19,10 @@ targets:
       - path: prompts
         type: folder
         buildPhase: resources
+      # Dot's computer: its Dockerfile, built on first use.
+      - path: DotComputer
+        type: folder
+        buildPhase: resources
     dependencies:
       # The background host that keeps replies running after the app quits, in Contents/MacOS.
       - target: ChatterboxHost
