@@ -64,6 +64,12 @@ enum Companion {
         var isArchived: Bool? = nil
         /// A project's chat: there's one per folder, so it isn't forked.
         var canFork: Bool? = nil
+        /// When the reply in progress started, for its running time.
+        var turnStartedAt: Date? = nil
+        var backgroundTasks: [BackgroundTask]? = nil
+        /// How full the agent's context is, 0–1, once known.
+        var contextFraction: Double? = nil
+        var contextTokens: Int? = nil
     }
 
     /// A chat's settings and the choices for each, as on the Mac.
@@ -147,6 +153,28 @@ enum Companion {
         /// Question rows: what the agent asked, and the answers once sent.
         var questions: [Question]? = nil
         var answers: [String: [String]]? = nil
+        /// Approval detail (the command, or the plan) and `!` command output.
+        var detail: String? = nil
+        /// A plan's steps.
+        var planSteps: [PlanStep]? = nil
+        /// On a reply that ended a turn: how long the turn took.
+        var workedSeconds: Int? = nil
+    }
+
+    struct PlanStep: Codable, Hashable {
+        var step: String
+        /// "pending", "in_progress", or "completed".
+        var status: String
+    }
+
+    /// A subagent or background command still running apart from the reply.
+    struct BackgroundTask: Codable, Hashable, Identifiable {
+        var id: String
+        /// "agent" or "shell".
+        var kind: String
+        var title: String
+        var detail: String?
+        var startedAt: Date
     }
 
     struct Approval: Codable, Hashable {

@@ -380,7 +380,13 @@ enum CompanionMapper {
                      settings: session.settingsDescription,
                      items: shown.map(item), earlierCount: all.count - shown.count,
                      options: options(session), isArchived: session.record.archivedAt != nil,
-                     canFork: model.canFork(session))
+                     canFork: model.canFork(session),
+                     turnStartedAt: session.isRunning ? session.record.turnStartedAt : nil,
+                     backgroundTasks: session.backgroundTasks.map {
+                         .init(id: $0.id, kind: $0.kind.rawValue, title: $0.title, detail: $0.detail, startedAt: $0.startedAt)
+                     },
+                     contextFraction: session.contextUsage[session.record.backend]?.fraction,
+                     contextTokens: session.contextUsage[session.record.backend]?.used)
     }
 
     static func options(_ session: ChatSession) -> Companion.ChatOptions {
@@ -434,8 +440,6 @@ enum CompanionMapper {
         case .questions:
             let asked = (item.questions ?? []).map(\.question).joined(separator: "\n")
             if !asked.isEmpty { text = asked }
-        case .approval:
-            if let detail = item.detail, !detail.isEmpty { text += "\n" + detail }
         case .plan:
             text = item.planSteps.map { ($0.status == "completed" ? "✓ " : $0.status == "in_progress" ? "→ " : "○ ") + $0.step }.joined(separator: "\n")
         default:
@@ -455,7 +459,10 @@ enum CompanionMapper {
                                options: q.options.map { .init(label: $0.label, detail: $0.detail) },
                                multiSelect: q.multiSelect, isSecret: q.isSecret)
                      },
-                     answers: item.answers)
+                     answers: item.answers,
+                     detail: item.kind == .approval || item.kind == .shell ? item.detail.map { String($0.suffix(20_000)) } : nil,
+                     planSteps: item.kind == .plan ? item.planSteps.map { .init(step: $0.step, status: $0.status) } : nil,
+                     workedSeconds: item.workedSeconds)
     }
 }
 

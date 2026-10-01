@@ -21,10 +21,19 @@ struct ApprovalCard: View {
                   systemImage: approval.isPlan ? "list.bullet.clipboard" : "hand.raised.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(approval.state == "pending" ? .yellow : .secondary)
-            if approval.isPlan {
-                MarkdownText(text: item.text)
-            } else {
-                Text(item.text).font(.callout.monospaced()).textSelection(.enabled).lineLimit(14)
+            Text(item.text).font(.callout.weight(.medium))
+            if let detail = item.detail, !detail.isEmpty {
+                if approval.isPlan {
+                    ScrollView { MarkdownText(text: detail).frame(maxWidth: .infinity, alignment: .leading) }
+                        .frame(maxHeight: 360)
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(uiColor: .secondarySystemBackground)))
+                } else {
+                    Text(detail).font(.caption.monospaced()).textSelection(.enabled).lineLimit(14)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(uiColor: .secondarySystemBackground)))
+                }
             }
             if approval.state == "pending" {
                 ViewThatFits(in: .horizontal) {

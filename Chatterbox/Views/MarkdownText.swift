@@ -350,8 +350,7 @@ private struct CodeBlock: View {
     @State private var copied = false
     @State private var showCode = false
 
-    #if canImport(AppKit)
-    /// HTML and SVG blocks can be previewed live (on the Mac; the iPhone shows the code).
+    /// HTML and SVG blocks can be previewed live (HTMLPreview on the Mac, MobileHTMLPreview on iOS).
     private var preview: PreviewSource? {
         let lang = language.lowercased()
         let head = code.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200).lowercased()
@@ -361,10 +360,8 @@ private struct CodeBlock: View {
         }
         return nil
     }
-    #endif
 
     var body: some View {
-        #if canImport(AppKit)
         if let preview, closed {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -383,9 +380,6 @@ private struct CodeBlock: View {
         } else {
             codeBody
         }
-        #else
-        codeBody
-        #endif
     }
 
     private var copyButton: some View {

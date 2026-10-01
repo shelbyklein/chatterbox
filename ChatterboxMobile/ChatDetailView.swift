@@ -95,6 +95,7 @@ struct ChatDetailView: View {
                             .font(.caption2).foregroundStyle(.secondary)
                         }
                     }
+                    .buttonStyle(.plain)
                     .disabled(detail?.options == nil)
                 }
             }
@@ -234,6 +235,9 @@ struct ChatDetailView: View {
 
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let detail, detail.turnStartedAt != nil || !(detail.backgroundTasks ?? []).isEmpty || detail.contextFraction != nil {
+                ChatStatusBar(detail: detail).padding(.horizontal, 4)
+            }
             if !pendingImages.isEmpty { pendingTray }
             composerRow
         }
@@ -273,10 +277,11 @@ struct ChatDetailView: View {
                     Label("Photo Library", systemImage: "photo.on.rectangle")
                 }
             } label: {
-                Image(systemName: "plus.circle.fill").font(.system(size: 30)).foregroundStyle(.secondary)
+                Image(systemName: "plus.circle.fill").font(.system(size: 30))
             } primaryAction: {
                 sketch = SketchRequest(background: nil)
             }
+            .tint(.secondary)
             .accessibilityLabel("Add a sketch or photo")
 
             TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
@@ -357,31 +362,33 @@ private struct ItemRow: View {
             if item.isCommentary {
                 MarkdownText(text: item.text).font(.callout).foregroundStyle(.secondary)
             } else {
-                MarkdownText(text: item.text)
+                VStack(alignment: .leading, spacing: 6) {
+                    MarkdownText(text: item.text)
+                    if let seconds = item.workedSeconds {
+                        Label("Worked for \(durationText(seconds))", systemImage: "clock")
+                            .font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
             }
 
         case .thought:
-            EmptyView()
+            if !item.text.isEmpty { ThoughtRow(text: item.text) }
 
         case .tool:
-            Label {
-                Text(item.text).lineLimit(2)
-            } icon: {
-                Image(systemName: item.toolState == "failed" ? "xmark.circle" : item.toolState == "running" ? "circle.dotted" : "checkmark.circle")
-                    .foregroundStyle(item.toolState == "failed" ? .red : item.toolState == "running" ? .secondary : .green)
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+            ToolRow(item: item)
 
         case .plan:
-            Text(item.text).font(.footnote.monospaced()).foregroundStyle(.secondary)
+            if let steps = item.planSteps, !steps.isEmpty { PlanCard(steps: steps) }
 
         case .shell:
-            Text("$ " + item.text).font(.footnote.monospaced()).foregroundStyle(.secondary)
+            ShellRow(item: item)
 
         case .image:
             VStack(alignment: .leading, spacing: 6) {
                 images
+                ForEach(item.attachments.filter(RemotePreview.isPreviewable)) { file in
+                    RemotePreview(file: file, chat: chat)
+                }
                 if !item.text.isEmpty { Text(item.text).font(.caption).foregroundStyle(.secondary) }
             }
 
