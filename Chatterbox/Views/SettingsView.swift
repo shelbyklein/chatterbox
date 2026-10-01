@@ -571,6 +571,7 @@ private struct DotActivitySettings: View {
     @AppStorage(DotActivity.checkInsKey) private var checkIns = true
     @AppStorage(DotActivity.watchWaitingKey) private var watchWaiting = true
     @AppStorage(EmailWatch.enabledKey) private var emailWatch = true
+    @AppStorage(DotActivity.summarizeFinishedKey) private var summarizeFinished = true
     @State private var times = DotActivity.times
 
     var body: some View {
@@ -594,7 +595,8 @@ private struct DotActivitySettings: View {
                     Button("Check In Now") { DotActivity.shared.checkInNow() }
                 }
             }
-            Toggle("Tell \(model.dotName) when a chat is waiting on you", isOn: $watchWaiting)
+            Toggle("\(model.dotName) summarizes finished work", isOn: $summarizeFinished)
+            Toggle("\(model.dotName) briefs you when a chat is waiting on you", isOn: $watchWaiting)
         } header: {
             Text(model.dotName)
         } footer: {

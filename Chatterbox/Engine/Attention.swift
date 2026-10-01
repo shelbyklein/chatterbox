@@ -57,7 +57,7 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// You're watching a chat when Chatterbox is frontmost and that chat is open.
-    private func isWatching(_ session: ChatSession) -> Bool {
+    func isWatching(_ session: ChatSession) -> Bool {
         NSApp.isActive && model?.selectedID == session.id
     }
 

@@ -25,6 +25,8 @@ final class DotActivity {
 
     var checkInsOn: Bool { UserDefaults.standard.object(forKey: Self.checkInsKey) as? Bool ?? true }
     var watchWaiting: Bool { UserDefaults.standard.object(forKey: Self.watchWaitingKey) as? Bool ?? true }
+    static let summarizeFinishedKey = "dotSummarizeFinished"
+    var summarizeFinished: Bool { UserDefaults.standard.object(forKey: Self.summarizeFinishedKey) as? Bool ?? true }
 
     /// Check-in times as minutes after midnight (8:00 and 15:00 unless changed).
     static var times: [Int] {
@@ -99,55 +101,64 @@ final class DotActivity {
         let name = session.record.projectFolder != nil ? session.projectName : session.title
         model.ensureDot().sendAutomatic(label: "\u{201C}\(name)\u{201D} is waiting on you", text: """
         <app_note>
-        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)] is now waiting on the user for \(what). Chatterbox has already alerted them. Only if there's something worth adding that the alert doesn't say (why it matters, what it unblocks, a risk), reply in one or two lines. Otherwise reply with exactly \(Self.quietReply).
+        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)] is now waiting on the user for \(what). Read it (read_chat) and brief the user: what it has done so far, what exactly it needs from them, and your suggestion if you have one. Keep it to a few short lines. It reaches them as a notification, so lead with what's needed. Never answer it yourself.
         </app_note>
         """)
     }
 
-    // MARK: - Chats Dot handed work to
+    // MARK: - Finished work
 
-    /// Chats that finished while Dot was busy, to check on when it's free.
+    /// Chats that finished while Dot was busy, to report once it's free.
     @ObservationIgnored private var finishedWhileBusy: [UUID] = []
 
-    /// A chat Dot sent work to finished. Dot reads it and tells you what came of it, unless
-    /// it's already waiting on that reply. Returns whether Dot's report replaces the usual
-    /// "finished" alert.
-    func followedChatFinished(_ session: ChatSession) -> Bool {
-        guard let model else { return false }
+    /// A chat's reply ended. If it was real work (a minute or more, or tools), or Dot handed
+    /// it the work, Dot reads it and sends you a summary in place of the usual alert. Not for
+    /// the chat you're looking at. Returns whether Dot's summary replaces the alert.
+    func chatFinished(_ session: ChatSession, watching: Bool) -> Bool {
+        guard let model, !session.isDot else { return false }
+        let followed = session.record.dotFollowing == true
         session.record.dotFollowing = nil
+        guard followed || summarizeFinished, !watching, !session.isWaitingOnYou else { return false }
+        let lastPrompt = session.record.items.lastIndex(where: { $0.kind == .user && !$0.steered }) ?? 0
+        let turn = session.record.items[lastPrompt...]
+        let worked = turn.compactMap(\.workedSeconds).max() ?? 0
+        guard followed || worked >= 60 || turn.contains(where: { $0.kind == .tool }) else { return false }
+        if !finishedWhileBusy.contains(session.id) { finishedWhileBusy.append(session.id) }
         let dot = model.ensureDot()
-        if dot.isRunning {
-            // Likely waiting on this very reply; look again once Dot's turn ends.
-            finishedWhileBusy.append(session.id)
-            return false
-        }
-        DispatchQueue.main.async { [weak self] in self?.report(session, to: dot) }
+        // Busy: likely waiting on this very reply; it's reported after Dot's turn otherwise.
+        guard !dot.isRunning else { return true }
+        DispatchQueue.main.async { [weak self] in self?.reportFinished(to: dot) }
         return true
     }
 
-    /// After Dot's own turn: report chats that finished meanwhile, unless Dot read them.
+    /// After Dot's own turn: report chats that finished meanwhile, unless Dot already read them.
     func dotTurnEnded(_ dot: ChatSession) {
-        guard !finishedWhileBusy.isEmpty, let model else { return }
-        let ids = finishedWhileBusy
-        finishedWhileBusy = []
+        guard !finishedWhileBusy.isEmpty else { return }
         let start = dot.record.items.lastIndex(where: { $0.kind == .user }) ?? 0
-        let checked = dot.record.items[start...].contains { item in
+        let readOne = dot.record.items[start...].contains { item in
             item.kind == .tool && ["wait_for_reply", "wait for reply", "read_chat", "read chat"].contains { item.text.localizedCaseInsensitiveContains($0) }
         }
-        guard !checked else { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            for id in ids { if let session = model.sessions.first(where: { $0.id == id }) { self.report(session, to: dot) } }
-        }
+        if readOne, finishedWhileBusy.count == 1 { finishedWhileBusy = []; return }
+        DispatchQueue.main.async { [weak self] in self?.reportFinished(to: dot) }
     }
 
-    private func report(_ session: ChatSession, to dot: ChatSession) {
-        let name = session.record.projectFolder != nil ? session.projectName : session.title
-        dot.sendAutomatic(label: "\u{201C}\(name)\u{201D} finished", text: """
+    /// One message for every chat that finished: Dot reads each and tells you what got done.
+    private func reportFinished(to dot: ChatSession) {
+        guard let model, !dot.isRunning, !finishedWhileBusy.isEmpty else { return }
+        let sessions = finishedWhileBusy.compactMap { id in model.sessions.first { $0.id == id } }
+        finishedWhileBusy = []
+        guard !sessions.isEmpty else { return }
+        let names = sessions.map { Self.name(of: $0) }
+        let list = sessions.map { "\u{201C}\(Self.name(of: $0))\u{201D} [\($0.id.uuidString)]" }.joined(separator: ", ")
+        dot.sendAutomatic(label: names.count == 1 ? "\u{201C}\(names[0])\u{201D} finished" : "\(names.count) chats finished", text: """
         <app_note>
-        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)], which you handed work to, just finished its reply. Read it (read_chat) and tell the user in two or three lines what got done, and anything they need to do or decide. It reaches them as a notification, so lead with the point. If the chat is waiting on the user, say so.
+        Finished just now: \(list). Read \(sessions.count == 1 ? "it" : "each") (read_chat) and give the user a summary of what was done: the result, what changed (files, pages, commits, deploys), and anything they need to check, do, or decide next. A few short lines per chat, under its name, most important first. It reaches them as a notification, so lead with the outcome. Don't reply \(Self.quietReply); they want to hear about finished work.
         </app_note>
         """)
+    }
+
+    private static func name(of session: ChatSession) -> String {
+        session.record.projectFolder != nil ? session.projectName : session.title
     }
 
     // MARK: - After Dot answers
@@ -177,7 +188,7 @@ final class DotActivity {
         let content = UNMutableNotificationContent()
         content.title = dot.title
         content.subtitle = label
-        content.body = String(body.replacingOccurrences(of: "\n", with: " ").prefix(240))
+        content.body = String(body.prefix(900))
         content.sound = .default
         content.threadIdentifier = dot.id.uuidString
         content.userInfo = ["session": dot.id.uuidString, "item": ""]
