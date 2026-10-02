@@ -84,6 +84,7 @@
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42971FF65DCD021D97664C9 /* DotComputer.swift */; };
+		AAEBED41FF4FDC232BDAFB3B /* CompanionTransportProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */; };
 		AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */; };
 		ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0508B744152680991C2150CE /* DotActivity.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
@@ -263,6 +264,7 @@
 		F5955B401AB9BC438178B6BD /* Dictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dictation.swift; sourceTree = "<group>"; };
 		F8396140D14FE6E04F22C13F /* prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = prompts; sourceTree = SOURCE_ROOT; };
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
 		FB81F880A459C5B4411E0929 /* GolemMiniWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemMiniWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -457,6 +459,7 @@
 				975B4C8301A9C31E898E446F /* ChatListView.swift */,
 				A8CC235964DF222CEF117DF4 /* ChatSettingsSheet.swift */,
 				810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */,
+				FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */,
 				F5955B401AB9BC438178B6BD /* Dictation.swift */,
 				38A6B47F421A8E58569C626D /* Info.plist */,
 				EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */,
@@ -734,6 +737,7 @@
 				BEAE48E0B2CBC15ABD093D65 /* ChatSettingsSheet.swift in Sources */,
 				945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */,
 				216A4A576879E8065789E82E /* CompanionAPI.swift in Sources */,
+				AAEBED41FF4FDC232BDAFB3B /* CompanionTransportProbe.swift in Sources */,
 				286A355D770106A89DA0551C /* Dictation.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,

@@ -17,6 +17,7 @@ struct ChatterboxMobileApp: App {
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
             #if DEBUG
+            .task { await CompanionTransportProbe.runIfRequested() }
             .task {
                 // Simulator tests: pair from the environment instead of typing.
                 let env = ProcessInfo.processInfo.environment

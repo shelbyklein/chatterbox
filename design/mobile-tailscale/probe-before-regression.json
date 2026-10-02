@@ -1,0 +1,23 @@
+{
+  "ats" : {
+    "NSAllowsLocalNetworking" : true
+  },
+  "bundleID" : "com.shelbyklein.Chatterbox.mobile",
+  "results" : [
+    {
+      "errorCode" : -1022,
+      "errorDomain" : "NSURLErrorDomain",
+      "host" : "100.95.61.124"
+    },
+    {
+      "host" : "10.0.0.156",
+      "status" : 401
+    },
+    {
+      "errorCode" : -1022,
+      "errorDomain" : "NSURLErrorDomain",
+      "host" : "1.1.1.1"
+    }
+  ],
+  "testedAt" : "2026-10-02T08:10:13Z"
+}

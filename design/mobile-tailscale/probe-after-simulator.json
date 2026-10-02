@@ -1,0 +1,51 @@
+{
+  "ats" : {
+    "NSAllowsLocalNetworking" : true,
+    "NSExceptionDomains" : {
+      "::1" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "10.0.0.0\/8" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "100.64.0.0\/10" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "127.0.0.0\/8" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "169.254.0.0\/16" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "172.16.0.0\/12" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "192.168.0.0\/16" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "fc00::\/7" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      },
+      "fe80::\/10" : {
+        "NSExceptionAllowsInsecureHTTPLoads" : true
+      }
+    }
+  },
+  "bundleID" : "com.shelbyklein.Chatterbox.mobile",
+  "results" : [
+    {
+      "host" : "100.95.61.124",
+      "status" : 401
+    },
+    {
+      "host" : "10.0.0.156",
+      "status" : 401
+    },
+    {
+      "errorCode" : -1022,
+      "errorDomain" : "NSURLErrorDomain",
+      "host" : "1.1.1.1"
+    }
+  ],
+  "testedAt" : "2026-10-02T08:06:13Z"
+}
