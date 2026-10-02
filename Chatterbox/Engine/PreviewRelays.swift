@@ -1,5 +1,4 @@
 import Foundation
-import Network
 import Observation
 
 /// Local previews (SKD Studio sites and other dev servers on this Mac) that the agent
@@ -26,7 +25,7 @@ final class PreviewRelays {
     private(set) var enabled: Set<Int> = Set((UserDefaults.standard.array(forKey: key) as? [Int]) ?? [])
     private(set) var sites: [LocalSite] = []
     private(set) var scanning = false
-    @ObservationIgnored private var listeners: [Int: NWListener] = [:]
+    @ObservationIgnored private var listeners: [Int: SocketRelay] = [:]
 
     func start() {
         for port in enabled { openRelay(port) }
@@ -41,7 +40,7 @@ final class PreviewRelays {
     func setEnabled(_ port: Int, _ on: Bool) {
         if on { enabled.insert(port) } else { enabled.remove(port) }
         UserDefaults.standard.set(Array(enabled).sorted(), forKey: Self.key)
-        if on { openRelay(port) } else { listeners[port]?.cancel(); listeners[port] = nil }
+        if on { openRelay(port) } else { closeRelay(port) }
         Task {
             if on { await DotComputer.shared.forward(port: port) } else { await DotComputer.shared.unforward(port: port) }
         }
@@ -55,46 +54,16 @@ final class PreviewRelays {
     // MARK: - The relay on the Mac
 
     private func openRelay(_ port: Int) {
-        guard listeners[port] == nil, let nwPort = NWEndpoint.Port(rawValue: UInt16(clamping: port)) else { return }
-        let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: nwPort)
-        parameters.allowLocalEndpointReuse = true
+        guard listeners[port] == nil else { return }
         // The site may already answer on IPv4 loopback itself; then Docker reaches it directly
-        // and this listener fails to bind, which is fine.
-        guard let listener = try? NWListener(using: parameters) else { return }
-        listener.newConnectionHandler = { client in Self.relay(client, to: nwPort) }
-        listener.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { Task { @MainActor in self?.listeners[port] = nil } }
-        }
-        listener.start(queue: .global(qos: .userInitiated))
-        listeners[port] = listener
+        // and the bind fails, which is fine.
+        guard let relay = SocketRelay(port: UInt16(clamping: port)) else { return }
+        listeners[port] = relay
     }
 
-    nonisolated private static func relay(_ client: NWConnection, to port: NWEndpoint.Port) {
-        let upstream = NWConnection(host: "::1", port: port, using: .tcp)
-        let queue = DispatchQueue(label: "chatterbox.preview-relay")
-        func pump(_ from: NWConnection, _ to: NWConnection) {
-            from.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, done, error in
-                if let data, !data.isEmpty {
-                    to.send(content: data, completion: .contentProcessed { _ in pump(from, to) })
-                } else if done || error != nil {
-                    to.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in })
-                    from.cancel()
-                } else {
-                    pump(from, to)
-                }
-            }
-        }
-        upstream.stateUpdateHandler = { state in
-            switch state {
-            case .ready: pump(client, upstream); pump(upstream, client)
-            case .failed, .cancelled: client.cancel()
-            default: break
-            }
-        }
-        client.stateUpdateHandler = { state in if case .failed = state { upstream.cancel() } }
-        client.start(queue: queue)
-        upstream.start(queue: queue)
+    private func closeRelay(_ port: Int) {
+        listeners[port]?.close()
+        listeners[port] = nil
     }
 
     // MARK: - Finding local sites
@@ -135,5 +104,96 @@ final class PreviewRelays {
         }
         let title = html[start.upperBound..<end.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
         return title.isEmpty ? "localhost:\(port)" : title.replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&#8211;", with: "–")
+    }
+}
+
+/// Listens on 127.0.0.1:PORT only, and pipes each connection to [::1]:PORT.
+final class SocketRelay: @unchecked Sendable {
+    private let listener: Int32
+    private let port: UInt16
+    private var closed = false
+
+    init?(port: UInt16) {
+        self.port = port
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return nil }
+        var yes: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+        }
+        guard bound == 0, listen(fd, 32) == 0 else { Darwin.close(fd); return nil }
+        listener = fd
+        Thread.detachNewThread { [weak self] in self?.acceptLoop() }
+    }
+
+    func close() {
+        closed = true
+        shutdown(listener, SHUT_RDWR)
+        Darwin.close(listener)
+    }
+
+    private func acceptLoop() {
+        while !closed {
+            let client = accept(listener, nil, nil)
+            guard client >= 0 else { if closed { return }; continue }
+            var noSigPipe: Int32 = 1
+            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+            let port = self.port
+            Thread.detachNewThread {
+                guard let upstream = Self.connectIPv6Loopback(port) else { Darwin.close(client); return }
+                let pair = Pair(client, upstream)
+                Thread.detachNewThread { Self.pipe(client, upstream); pair.finished() }
+                Self.pipe(upstream, client); pair.finished()
+            }
+        }
+    }
+
+    private static func connectIPv6Loopback(_ port: UInt16) -> Int32? {
+        let fd = socket(AF_INET6, SOCK_STREAM, 0)
+        guard fd >= 0 else { return nil }
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in6()
+        address.sin6_family = sa_family_t(AF_INET6)
+        address.sin6_port = port.bigEndian
+        address.sin6_addr = in6addr_loopback
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in6>.size)) }
+        }
+        guard connected == 0 else { Darwin.close(fd); return nil }
+        return fd
+    }
+
+    /// Both sockets of one connection, closed once both directions are done.
+    private final class Pair: @unchecked Sendable {
+        private let a: Int32, b: Int32
+        private let lock = NSLock()
+        private var done = 0
+        init(_ a: Int32, _ b: Int32) { self.a = a; self.b = b }
+        func finished() {
+            lock.lock(); done += 1; let both = done == 2; lock.unlock()
+            if both { Darwin.close(a); Darwin.close(b) }
+        }
+    }
+
+    /// Copies one direction until it ends, then ends the other side's writes.
+    private static func pipe(_ from: Int32, _ to: Int32) {
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        copying: while true {
+            let n = read(from, &buffer, buffer.count)
+            if n <= 0 { break }
+            var sent = 0
+            while sent < n {
+                let w = buffer.withUnsafeBytes { write(to, $0.baseAddress! + sent, n - sent) }
+                if w <= 0 { break copying }
+                sent += w
+            }
+        }
+        shutdown(to, SHUT_WR)
     }
 }
