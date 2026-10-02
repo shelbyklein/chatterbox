@@ -25,7 +25,7 @@ git push origin main
 cmp build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/MacOS/Chatterbox \
   /Applications/Chatterbox.app/Contents/MacOS/Chatterbox
 for attempt in {1..20}; do
-  if ps -axo comm= | grep -Fxq /Applications/Chatterbox.app/Contents/MacOS/Chatterbox; then
+  if ps -axo comm= | grep -Fx /Applications/Chatterbox.app/Contents/MacOS/Chatterbox >/dev/null; then
     echo "Shipped $(git rev-parse --short HEAD): pushed, installed and running."
     exit 0
   fi
