@@ -113,7 +113,10 @@ struct ChatView: View {
         }
         .onDrop(of: [.fileURL, .image, .data], isTargeted: $isDropTargeted, perform: handleDrop)
         .sheet(item: $reviewing) { image in
+            // As big as the window allows, so the image or document gets the most room.
+            let window = (NSApp.mainWindow ?? NSApp.keyWindow)?.contentLayoutRect.size ?? NSSize(width: 1200, height: 800)
             ImageReviewView(attachment: image) { text, files in session.send(text, attachments: files) }
+                .frame(width: max(900, window.width - 40), height: max(600, window.height - 40))
         }
         .alert("That folder already has a chat", isPresented: Binding(get: { projectConflict != nil }, set: { if !$0 { projectConflict = nil } }), presenting: projectConflict) { owner in
             Button("Open That Chat") { model.selectedID = owner.id }
@@ -530,16 +533,36 @@ struct ChatView: View {
 
     private var composerRow: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            Button(action: chooseFiles) {
-                Image(systemName: "paperclip").font(.system(size: 17))
-                    .frame(height: 36)
+            if session.isDot {
+                // Golem's chat reads like a conversation: a round +, like iMessage.
+                Menu {
+                    Button("Attach Files\u{2026}", action: chooseFiles)
+                    Button("Paste Image") {
+                        if let files = Attachments.fromPasteboard() { attachments += files }
+                    }
+                } label: {
+                    Image(systemName: "plus").font(.system(size: 15, weight: .semibold))
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.primary.opacity(0.1)))
+                        .contentShape(Circle())
+                }
+                .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+                .help("Attach files or images. You can also paste or drag them in.")
+                .accessibilityLabel("Attach")
+            } else {
+                Button(action: chooseFiles) {
+                    Image(systemName: "paperclip").font(.system(size: 17))
+                        .frame(height: 36)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Attach files or images. You can also paste or drag them in.")
+                .accessibilityLabel("Attach Files")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("Attach files or images. You can also paste or drag them in.")
-            .accessibilityLabel("Attach Files")
 
-            TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.record.backend.label)", text: $draft, axis: .vertical)
+            TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.isDot ? session.title : session.record.backend.label)", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .accessibilityLabel("Message")
                 .lineLimit(1...8)
@@ -567,12 +590,24 @@ struct ChatView: View {
                 }
                 .onChange(of: draft) { commandIndex = 0 }
                 .padding(.vertical, 9)
-                .padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(.background))
-                .overlay(RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(appearance.style.color(for: session.record.backend).opacity(composerFocused ? 0.8 : 0.45),
-                                  lineWidth: composerFocused ? 1.5 : 1))
+                .padding(.horizontal, session.isDot ? 14 : 12)
+                .background(RoundedRectangle(cornerRadius: session.isDot ? 17 : 12, style: session.isDot ? .circular : .continuous).fill(.background))
+                .overlay(RoundedRectangle(cornerRadius: session.isDot ? 17 : 12, style: session.isDot ? .circular : .continuous)
+                    .strokeBorder(session.isDot ? Color.primary.opacity(composerFocused ? 0.3 : 0.18)
+                                  : appearance.style.color(for: session.record.backend).opacity(composerFocused ? 0.8 : 0.45),
+                                  lineWidth: session.isDot ? 1 : (composerFocused ? 1.5 : 1)))
                 .animation(.easeOut(duration: 0.15), value: session.record.backend)
+
+            if session.isDot {
+                // Only what a conversation needs: how full the context is, and the cog.
+                UsageMeter(compact: true, session: session, color: appearance.style.color(for: session.record.backend))
+                    .fixedSize()
+                    .frame(height: 36)
+                ChatSettingsCog(session: session, modelRequest: commands.modelPopoverRequests,
+                                modeRequest: commands.modePopoverRequests,
+                                handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
+                    .padding(.bottom, 3)
+            }
 
             if session.isRunning, let started = session.record.turnStartedAt {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -774,7 +809,8 @@ struct ChatView: View {
     /// The model and effort this chat uses, under the message box, with preset buttons.
     @ViewBuilder
     private var modelStatus: some View {
-        if compact { compactModelStatus } else { fullModelStatus }
+        // Golem's chat keeps these behind its cog.
+        if session.isDot { EmptyView() } else if compact { compactModelStatus } else { fullModelStatus }
     }
 
     /// The small floating chat: the model, context, and one menu for the mode and presets.
