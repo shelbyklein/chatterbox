@@ -135,6 +135,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            SecretsSection()
             ProxySection()
             DiagnosticsSection()
 
@@ -834,6 +835,167 @@ private struct ProxySection: View {
             for session in model.sessions where !session.isDot && session.record.backend == .claude {
                 session.restartClaudeForNewTools()
             }
+        }
+    }
+}
+
+/// Secrets & accounts for agents: kept in Keychain, given to chats as environment variables.
+struct SecretsSection: View {
+    @Environment(AppModel.self) private var model
+    private let vault = SecretVault.shared
+    @State private var editing: SecretEntry?
+    @State private var removing: SecretEntry?
+
+    var body: some View {
+        Section {
+            if vault.entries.isEmpty {
+                Text("No secrets yet. Add an API key, a token, or an account's password, and agents can use it in commands without ever seeing it.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(vault.entries) { entry in
+                HStack(spacing: 10) {
+                    Image(systemName: entry.isAccount ? "person.badge.key" : "key")
+                        .foregroundStyle(vault.hasValue(entry) ? Color.secondary : Color.orange)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.name)
+                        Text("$\(entry.variable)\(entry.isAccount ? " \u{00B7} \(entry.username)" : "") \u{00B7} \(scope(entry))")
+                            .font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer()
+                    if !vault.hasValue(entry) { Text("No value").font(.caption).foregroundStyle(.orange) }
+                    Button("Edit") { editing = entry }
+                    Button(role: .destructive) { removing = entry } label: { Image(systemName: "trash") }
+                        .buttonStyle(.borderless).help("Remove \(entry.name)").accessibilityLabel("Remove \(entry.name)")
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Add Secret\u{2026}") { editing = SecretEntry(name: "", variable: "") }
+            }
+        } header: {
+            Text("Secrets & Accounts")
+        } footer: {
+            Text("Values are kept in your Mac's Keychain and never shown here again. Chats in scope get each one as an environment variable for the commands their agent runs; the agent is told only its name and what it's for, and any value that shows up in a chat is masked. A command that prints a value would still show it to the agent's model, so agents are told never to.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .sheet(item: $editing) { entry in
+            SecretEditor(entry: entry, isNew: !vault.entries.contains { $0.id == entry.id },
+                         projects: model.sidebarProjects.compactMap { session in
+                             session.record.projectFolder.map { (name: session.projectName, folder: $0) }
+                         }) { saved, value in
+                try vault.save(saved, value: value)
+                restartClaudeChats()
+            }
+        }
+        .alert("Remove \(removing?.name ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
+            Button("Remove", role: .destructive) {
+                if let entry = removing { vault.remove(entry); restartClaudeChats() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Deletes it from Keychain. Chats lose $\(removing?.variable ?? "") with their next message.")
+        }
+    }
+
+    private func scope(_ entry: SecretEntry) -> String {
+        if entry.projects.isEmpty { return "all chats" }
+        let names = entry.projects.compactMap { folder in model.session(boundTo: folder)?.projectName }
+        return names.isEmpty ? "\(entry.projects.count) project\(entry.projects.count == 1 ? "" : "s")" : names.joined(separator: ", ")
+    }
+
+    /// Claude Code reads its environment at launch: idle chats restart into the new one.
+    private func restartClaudeChats() {
+        for session in model.sessions where session.record.backend == .claude { session.restartClaudeForNewTools() }
+    }
+}
+
+struct SecretEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var entry: SecretEntry
+    let isNew: Bool
+    let projects: [(name: String, folder: String)]
+    let onSave: (SecretEntry, String?) throws -> Void
+    @State private var value = ""
+    @State private var isAccount = false
+    @State private var everywhere = true
+    @State private var error: String?
+    @State private var variableEdited = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Form {
+                Section {
+                    Picker("Kind", selection: $isAccount) {
+                        Text("API key or token").tag(false)
+                        Text("Account").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    TextField("Name", text: $entry.name, prompt: Text(isAccount ? "SDHQ WordPress admin" : "Stripe test key"))
+                        .onChange(of: entry.name) { _, name in
+                            if !variableEdited { entry.variable = SecretEntry.variableName(from: name) }
+                        }
+                    TextField("Variable", text: Binding(get: { entry.variable }, set: { entry.variable = $0.uppercased(); variableEdited = true }))
+                    if isAccount {
+                        TextField("User name", text: $entry.username)
+                    }
+                    SecureField(isAccount ? "Password" : "Value", text: $value,
+                                prompt: Text(isNew ? "Paste it here" : "Leave empty to keep the saved one"))
+                    TextField("What it's for", text: $entry.note, prompt: Text("Told to agents, e.g. \u{201C}Stripe test mode for the PlayCase store\u{201D}"), axis: .vertical)
+                        .lineLimit(1...3)
+                } footer: {
+                    Text(isAccount
+                         ? "Agents get $\(entry.variable.isEmpty ? "NAME" : entry.variable) (the password) and $\(entry.variable.isEmpty ? "NAME" : entry.variable)_USER."
+                         : "Agents get it as $\(entry.variable.isEmpty ? "NAME" : entry.variable).")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("Available to") {
+                    Toggle("All chats", isOn: $everywhere)
+                    if !everywhere {
+                        ForEach(projects, id: \.folder) { project in
+                            Toggle(project.name, isOn: Binding(
+                                get: { entry.projects.contains(project.folder) },
+                                set: { on in
+                                    if on { entry.projects.append(project.folder) } else { entry.projects.removeAll { $0 == project.folder } }
+                                }))
+                        }
+                        if projects.isEmpty { Text("No projects yet.").foregroundStyle(.secondary) }
+                    }
+                }
+                if let error {
+                    Text(error).foregroundStyle(.orange)
+                }
+            }
+            .formStyle(.grouped)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(isNew ? "Add" : "Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(entry.name.trimmingCharacters(in: .whitespaces).isEmpty || !SecretEntry.isValidVariable(entry.variable)
+                              || (isNew && value.isEmpty) || (!everywhere && entry.projects.isEmpty))
+            }
+            .padding(16)
+        }
+        .frame(width: 480, height: 560)
+        .onAppear {
+            isAccount = entry.isAccount
+            everywhere = entry.projects.isEmpty
+            variableEdited = !isNew
+        }
+    }
+
+    private func save() {
+        var saved = entry
+        saved.name = saved.name.trimmingCharacters(in: .whitespaces)
+        if !isAccount { saved.username = "" }
+        if everywhere { saved.projects = [] }
+        do {
+            try onSave(saved, value.isEmpty ? nil : value)
+            value = ""
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 }

@@ -34,6 +34,7 @@ extension ChatSession {
                 record.sentUserInstructions = user
             }
             if let studioUpdate = takeStudioInstructionsUpdate() { content.append(.text(studioUpdate)) }
+            if let secrets = takeSecretsUpdate() { content.append(.text(secrets)) }
             // A resumed session keeps the name it started with, so a rename is said outright.
             if isDot, record.sentDotName != title {
                 if record.sentDotName != nil {
@@ -101,7 +102,7 @@ extension ChatSession {
             forkSession: record.claudeForkPending == true,
             mcpConfig: dotMCPConfig,
             allowedTools: isDot ? Self.dotTools : [],
-            environment: claudeProxyEnvironment
+            environment: claudeProxyEnvironment.merging(SecretVault.shared.environment(for: self)) { $1 }
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {

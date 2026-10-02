@@ -96,6 +96,7 @@ extension ChatSession {
                 record.sentUserInstructions = user
             }
             if let studioUpdate = takeStudioInstructionsUpdate() { input.append(Self.textInput(studioUpdate)) }
+            if let secrets = takeSecretsUpdate() { input.append(Self.textInput(secrets)) }
             input += inputs(for: message)
 
             var params: [String: JSON] = [
@@ -204,13 +205,21 @@ extension ChatSession {
             // Explicit, so a thread that used the proxy goes back to the direct connection.
             params["config"] = .object(["model_provider": .string(EasyCLIProxy.directCodexProvider)])
         }
+        // Saved secrets in scope, as variables for the commands this thread runs.
+        let secrets = SecretVault.shared.environment(for: self)
+        if !secrets.isEmpty {
+            var config = params["config"]?.object ?? [:]
+            config["shell_environment_policy.set"] = .object(secrets.mapValues { .string($0) })
+            params["config"] = .object(config)
+        }
         return params
     }
 
     /// What the thread was loaded with; a change (the proxy switched on or off) reloads it.
     var codexConfigurationKey: String {
-        if isDot { return dotCodexConfigurationKey }
-        return EasyCLIProxy.shared.active(for: .codex).map { "proxy:" + $0.base } ?? "direct"
+        let secrets = "|secrets:" + SecretVault.shared.fingerprint(for: self)
+        if isDot { return dotCodexConfigurationKey + secrets }
+        return (EasyCLIProxy.shared.active(for: .codex).map { "proxy:" + $0.base } ?? "direct") + secrets
     }
 
     /// Routes the thread's events to this chat. After a relaunch, lines the saved transcript

@@ -110,6 +110,8 @@ struct ConversationRecord: Codable {
     var instructionsVersion: Int?
     /// Your every-chat instructions as last given to this chat's agent.
     var sentUserInstructions: String?
+    /// The saved secrets this chat was last told about (names and notes, not values).
+    var sentSecretsKey: String?
     /// The Studio's instructions as last given to this chat's agent.
     var sentStudioInstructions: String?
     /// Set on a forked chat: the next Claude Code session branches off `claudeSessionID`

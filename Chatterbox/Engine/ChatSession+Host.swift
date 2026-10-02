@@ -7,6 +7,7 @@ extension ChatSession {
     /// Brings the saved links up to date just before the record is written.
     func prepareForSave() {
         guard !awaitingHostResume else { return }
+        redactSecrets()
         if let process = claudeProcess, process.isRunning, let id = process.hostID {
             record.claudeHost = HostLink(processID: id, offset: process.offset,
                                          running: isRunning && record.backend == .claude, claude: claudeTurnState)
