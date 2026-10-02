@@ -14,7 +14,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     static let sizes: [(label: String, scale: CGFloat)] = [("Small", 0.75), ("Medium", 1), ("Large", 1.4), ("Extra Large", 1.85)]
     /// How big Golem is on screen, minimized and open.
     var scale: CGFloat = CGFloat(UserDefaults.standard.object(forKey: GolemMiniWindow.sizeKey) as? Double ?? 1)
-    var avatarSize: CGFloat { 96 * scale }
+    var avatarSize: CGFloat { characterSize + 12 }   // Minimized, he stays the size he is open.
     var characterSize: CGFloat { 124 * scale }
     /// Where Golem's middle sits in the open panel, from its bottom-left (measured as it draws).
     @ObservationIgnored var characterCenter: CGPoint?
