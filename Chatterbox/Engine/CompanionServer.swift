@@ -244,7 +244,7 @@ final class CompanionServer {
 
         // Dot's computer, for Dot's own tools on this Mac.
         if local, parts.count >= 2, parts[1] == "computer" {
-            return computerRoute(request.method, parts.count > 2 ? parts[2] : nil, model: model)
+            return computerRoute(request.method, parts.count > 2 ? parts[2] : nil, body: request.body, model: model)
         }
 
         switch (request.method, parts.count) {
@@ -711,9 +711,28 @@ struct HTTPRequest {
 extension CompanionServer {
     /// What Dot's computer is doing, and starting, stopping, or showing it. Starting takes a
     /// while (Docker may have to open), so it answers at once and the caller checks back.
-    fileprivate func computerRoute(_ method: String, _ action: String?, model: AppModel) -> HTTPResponse {
+    fileprivate func computerRoute(_ method: String, _ action: String?, body: Data, model: AppModel) -> HTTPResponse {
         let computer = DotComputer.shared
         switch (method, action) {
+        case ("GET", "downloads"):
+            return .json(ComputerHandoff.downloads())
+        case ("POST", "handoff"):
+            guard let request = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+                  let file = request["file"] as? String,
+                  let chat = (request["chat"] as? String).flatMap(UUID.init(uuidString:)),
+                  let session = model.sessions.first(where: { $0.id == chat }) else {
+                return .error(400, "Say which downloaded file to hand off.")
+            }
+            do {
+                return .json(try ComputerHandoff.handOff(file, to: request["to"] as? String, for: session))
+            } catch {
+                return .error(400, error.localizedDescription)
+            }
+        case ("GET", "previews"):
+            let previews = PreviewRelays.shared
+            return .json(previews.enabled.sorted().map { port in
+                ["url": "http://localhost:\(port)", "title": previews.sites.first { $0.port == port }?.title ?? "localhost:\(port)"]
+            })
         case ("GET", nil):
             break
         case ("POST", "start"):
@@ -760,5 +779,78 @@ struct HTTPResponse {
                       409: "Conflict", 503: "Service Unavailable"][status] ?? "Error"
         let head = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         return Data(head.utf8) + body
+    }
+}
+
+/// Files the agent computer downloaded, and handing one to a chat's project on the Mac.
+/// Only the computer's Downloads folder is read, and a file only ever lands inside the
+/// chat's own folder (its project, Studio, or working folder).
+enum ComputerHandoff {
+    struct Download: Encodable {
+        var name: String
+        var bytes: Int
+        var modified: Date
+    }
+
+    struct Result: Encodable {
+        var path: String
+        var bytes: Int
+    }
+
+    struct Failure: LocalizedError {
+        var message: String
+        var errorDescription: String? { message }
+    }
+
+    static func downloads() -> [Download] {
+        let folder = DotComputer.downloadsFolder
+        let urls = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey],
+                                                                  options: [.skipsHiddenFiles])) ?? []
+        return urls.compactMap { url in
+            let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey])
+            guard values?.isRegularFile == true, !url.lastPathComponent.hasSuffix(".crdownload") else { return nil }
+            return Download(name: url.lastPathComponent, bytes: values?.fileSize ?? 0, modified: values?.contentModificationDate ?? .distantPast)
+        }
+        .sorted { $0.modified > $1.modified }
+    }
+
+    /// Copies `name` from the computer's Downloads into the chat's folder: `to` (a path
+    /// relative to that folder, a folder if it ends in /), or handoff/<name> by default.
+    @MainActor
+    static func handOff(_ name: String, to destination: String?, for session: ChatSession) throws -> Result {
+        let fm = FileManager.default
+        let inbox = DotComputer.downloadsFolder.standardizedFileURL.resolvingSymlinksInPath()
+        let source = inbox.appendingPathComponent(name).standardizedFileURL.resolvingSymlinksInPath()
+        guard !name.contains("/"), source.deletingLastPathComponent().path == inbox.path,
+              fm.fileExists(atPath: source.path) else {
+            throw Failure(message: "No downloaded file named \u{201C}\(name)\u{201D}. Use list_computer_downloads to see what's there.")
+        }
+        let root = URL(fileURLWithPath: session.workingFolder).standardizedFileURL.resolvingSymlinksInPath()
+        let relative = (destination?.trimmingCharacters(in: .whitespaces)).flatMap { $0.isEmpty ? nil : $0 } ?? "handoff/"
+        guard !relative.hasPrefix("/"), !relative.hasPrefix("~") else {
+            throw Failure(message: "Give a path inside this chat's folder, like handoff/ or assets/photos/.")
+        }
+        var target = root.appendingPathComponent(relative)
+        if relative.hasSuffix("/") { target = target.appendingPathComponent(name) }
+        target = target.standardizedFileURL
+        guard target.path.hasPrefix(root.path + "/") else {
+            throw Failure(message: "That's outside this chat's folder (\(root.path)).")
+        }
+        try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // The resolved parent must still be inside (no symlink out of the project).
+        guard target.deletingLastPathComponent().resolvingSymlinksInPath().path.hasPrefix(root.path) else {
+            throw Failure(message: "That's outside this chat's folder.")
+        }
+        // Never overwrite: a second copy gets a number.
+        var final = target
+        var n = 2
+        while fm.fileExists(atPath: final.path) {
+            let base = target.deletingPathExtension().lastPathComponent, ext = target.pathExtension
+            final = target.deletingLastPathComponent().appendingPathComponent("\(base)-\(n)" + (ext.isEmpty ? "" : ".\(ext)"))
+            n += 1
+        }
+        try fm.copyItem(at: source, to: final)
+        let bytes = (try? final.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        return Result(path: final.path, bytes: bytes)
     }
 }

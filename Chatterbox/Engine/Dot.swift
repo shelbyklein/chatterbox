@@ -10,7 +10,8 @@ extension ChatSession {
     /// The tools Dot may use without asking: reading and messaging chats, and everything in
     /// its own computer's browser (which is walled off from the Mac).
     static let dotTools = ["list_chats", "read_chat", "send_message", "start_chat", "wait_for_reply", "stop_chat",
-                                    "computer_status", "start_computer", "stop_computer", "show_computer"]
+                                    "computer_status", "start_computer", "stop_computer", "show_computer",
+                                    "list_computer_downloads", "hand_off_download", "list_previews"]
         .map { "mcp__chatterbox__" + $0 } + ["mcp__computer"]
 
     /// chatterbox-mcp, bundled next to the app.

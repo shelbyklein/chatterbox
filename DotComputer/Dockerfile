@@ -22,9 +22,14 @@ RUN npm install -g @playwright/mcp@0.0.83 \
     && npx playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* /root/.npm
 
-RUN useradd -m dot && mkdir -p /home/dot/profile && chown -R dot /home/dot
+# Downloads are the one folder shared with the Mac (Chatterbox mounts it). The forwarder
+# reaches local previews the user enabled.
+RUN useradd -m dot && mkdir -p /home/dot/profile /home/dot/Downloads && chown -R dot /home/dot
 COPY start.sh /start.sh
-RUN chmod +x /start.sh
+COPY forward.py /usr/local/bin/chatterbox-forward
+RUN chmod +x /start.sh /usr/local/bin/chatterbox-forward
+# Chatterbox compares this to know when to rebuild.
+LABEL chatterbox.computer.version="2"
 
 USER dot
 EXPOSE 6080 8931

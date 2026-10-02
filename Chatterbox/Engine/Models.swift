@@ -112,6 +112,9 @@ struct ConversationRecord: Codable {
     var sentUserInstructions: String?
     /// The saved secrets this chat was last told about (names and notes, not values).
     var sentSecretsKey: String?
+    /// "Use agent computer" (see ChatComputer), and whether the agent was told it's on.
+    var useComputer: Bool?
+    var sentComputerNote: Bool?
     /// The Studio's instructions as last given to this chat's agent.
     var sentStudioInstructions: String?
     /// Set on a forked chat: the next Claude Code session branches off `claudeSessionID`

@@ -260,6 +260,32 @@ let tools: [Tool] = [
         Thread.sleep(forTimeInterval: 4)
         return try describeComputer(call("/v1/computer"))
     },
+    Tool(name: "list_computer_downloads",
+         description: "List files your computer's browser has downloaded (newest first). They're in the computer's Downloads folder, the only folder it shares with the Mac.",
+         properties: [:], required: []) { _ in
+        guard let files = try call("/v1/computer/downloads") as? [[String: Any]], !files.isEmpty else { return "No downloads yet." }
+        return files.map { "\($0["name"] as? String ?? "?") (\(($0["bytes"] as? Int ?? 0) / 1024) KB)" }.joined(separator: "\n")
+    },
+    Tool(name: "hand_off_download",
+         description: "Copy one file your computer's browser downloaded into this chat's project folder on the Mac, where Mac-side tools (SKD Studio, design apps, scripts) can use it. Lands in handoff/ unless you give a folder (ending in /) or path inside the project. Never overwrites.",
+         properties: ["file": ["type": "string", "description": "The downloaded file's name, from list_computer_downloads."],
+                      "to": ["type": "string", "description": "Optional: a folder (ending in /) or file path inside the project, like wp-content/uploads/originals/."]],
+         required: ["file"]) { arguments in
+        guard let file = arguments["file"] as? String, !file.isEmpty else { throw ToolError(message: "Which file?") }
+        guard let ownChat else { throw ToolError(message: "This tool server isn't attached to a chat.") }
+        var body: [String: Any] = ["file": file, "chat": ownChat.uuidString]
+        if let to = arguments["to"] as? String, !to.isEmpty { body["to"] = to }
+        let result = try call("/v1/computer/handoff", method: "POST", body: body) as? [String: Any]
+        return "Copied to \(result?["path"] as? String ?? "the project") on the Mac."
+    },
+    Tool(name: "list_previews",
+         description: "Local previews (like SKD Studio sites) the user has let your computer's browser open, with their addresses. Open them with browser_navigate at exactly that address. If the one you need isn't listed, ask the user to turn it on in Chatterbox's Computer window.",
+         properties: [:], required: []) { _ in
+        guard let previews = try call("/v1/computer/previews") as? [[String: Any]], !previews.isEmpty else {
+            return "No local previews are turned on. Ask the user to enable the one you need in Chatterbox's Computer window (Local previews)."
+        }
+        return previews.map { "\($0["url"] as? String ?? "") — \($0["title"] as? String ?? "")" }.joined(separator: "\n")
+    },
     Tool(name: "show_computer",
          description: "Open your computer's screen in a window on the user's Mac, so they can watch or take over (for example to sign in to a site themselves).",
          properties: [:], required: []) { _ in
@@ -267,6 +293,12 @@ let tools: [Tool] = [
         return "The user's Mac is showing your computer's screen."
     },
 ]
+
+/// A project chat gets only the computer's tools; the assistant gets all of them.
+let computerOnly = ProcessInfo.processInfo.environment["CHATTERBOX_MCP_TOOLS"] == "computer"
+let computerTools: Set<String> = ["computer_status", "start_computer", "stop_computer", "show_computer",
+                                  "list_computer_downloads", "hand_off_download", "list_previews"]
+let shownTools = computerOnly ? tools.filter { computerTools.contains($0.name) } : tools
 
 // MARK: - The protocol
 
@@ -291,7 +323,7 @@ while let line = readLine(strippingNewline: true) {
                         "serverInfo": ["name": "chatterbox", "version": "0.1.0"],
                         "instructions": "Tools for the user's Chatterbox chats: list, read, start, message, wait on, and stop them. Approvals and questions in a chat are only for the user."])
     case "tools/list":
-        reply(id ?? 0, ["tools": tools.map { tool in
+        reply(id ?? 0, ["tools": shownTools.map { tool in
             ["name": tool.name, "description": tool.description,
              "inputSchema": ["type": "object", "properties": tool.properties, "required": tool.required]]
         }])
@@ -299,7 +331,7 @@ while let line = readLine(strippingNewline: true) {
         let params = message["params"] as? [String: Any] ?? [:]
         let name = params["name"] as? String ?? ""
         let arguments = params["arguments"] as? [String: Any] ?? [:]
-        guard let tool = tools.first(where: { $0.name == name }) else {
+        guard let tool = shownTools.first(where: { $0.name == name }) else {
             reply(id ?? 0, ["content": [["type": "text", "text": "No tool named \(name)."]], "isError": true])
             continue
         }

@@ -6,6 +6,7 @@ import WebKit
 struct DotComputerPanel: View {
     static let windowID = "dot-computer"
     @Environment(AppModel.self) private var model
+    @State private var showingPreviews = false
     private var computer: DotComputer { .shared }
 
     var body: some View {
@@ -15,6 +16,13 @@ struct DotComputerPanel: View {
                 Text("\(model.dotName)'s Computer").font(.headline)
                 statusLabel
                 Spacer()
+                Button { NSWorkspace.shared.open(DotComputer.downloadsFolder) } label: { Label("Downloads", systemImage: "folder") }
+                    .help("The computer's downloads, the one folder it shares with your Mac")
+                Button { showingPreviews.toggle() } label: {
+                    Label("Local Previews\(PreviewRelays.shared.enabled.isEmpty ? "" : " (\(PreviewRelays.shared.enabled.count))")", systemImage: "network")
+                }
+                .help("Let the computer's browser open local sites on this Mac, such as SKD Studio previews")
+                .popover(isPresented: $showingPreviews, arrowEdge: .bottom) { LocalPreviewsPopover() }
                 actions
             }
             .padding(.horizontal, 12)
@@ -170,4 +178,47 @@ private struct LiveScreen: NSViewRepresentable {
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {}
+}
+
+/// Local sites on this Mac, each with a switch: on, the computer's browser can open it at
+/// its usual http://localhost:PORT address. Nothing is reachable from the network.
+private struct LocalPreviewsPopover: View {
+    private let previews = PreviewRelays.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Local Previews").font(.headline)
+                Spacer()
+                if previews.scanning { ProgressView().controlSize(.small) }
+                Button { Task { await previews.scan() } } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless).help("Look again").accessibilityLabel("Refresh")
+            }
+            Text("Turn on a site to let the computer's browser open it, at the same localhost address you use. Only this Mac can reach it; nothing is shared on the network.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Divider()
+            if previews.sites.isEmpty && !previews.scanning {
+                Text("No local sites found. Start the site in SKD Studio, then refresh.").foregroundStyle(.secondary)
+            }
+            ForEach(previews.sites) { site in
+                Toggle(isOn: Binding(get: { previews.enabled.contains(site.port) }, set: { previews.setEnabled(site.port, $0) })) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(site.title).lineLimit(1)
+                        Text("localhost:\(site.port)").font(.caption.monospaced()).foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+            }
+            // Turned on earlier but not running now.
+            ForEach(previews.enabled.sorted().filter { port in !previews.sites.contains { $0.port == port } }, id: \.self) { port in
+                Toggle(isOn: Binding(get: { true }, set: { previews.setEnabled(port, $0) })) {
+                    Text("localhost:\(port) (not running)").foregroundStyle(.secondary)
+                }
+                .toggleStyle(.switch)
+            }
+        }
+        .padding(14)
+        .frame(width: 340)
+        .task { await previews.scan() }
+    }
 }

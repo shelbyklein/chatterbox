@@ -172,6 +172,7 @@ final class AppModel {
         EmailWatch.shared.start(model: self)
         GolemAvatar.shared.refreshIfStale()
         KeepAwake.shared.apply()
+        PreviewRelays.shared.start()
         if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
             applyRequestedDotDefault()
         }

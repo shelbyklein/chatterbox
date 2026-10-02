@@ -755,6 +755,20 @@ struct ChatView: View {
                 }
                 .help("Dot's own computer, in its own window: a browser it uses for web work, which you can watch and take over")
             }
+            if !session.isDot {
+                Menu {
+                    Toggle("Use Agent Computer", isOn: Binding(get: { session.record.useComputer == true },
+                                                               set: { session.setUsesComputer($0) }))
+                    Divider()
+                    Button("Show Computer Screen") { openWindow(id: DotComputerPanel.windowID) }
+                    Button("Open Downloads Folder") { NSWorkspace.shared.open(DotComputer.downloadsFolder) }
+                } label: {
+                    ToolbarLabel("Computer", systemImage: session.record.useComputer == true ? "desktopcomputer.and.arrow.down" : "desktopcomputer")
+                }
+                .help(session.record.useComputer == true
+                      ? "This chat browses in the agent computer, not your Mac's browser"
+                      : "Let this chat browse in the agent computer instead of your Mac's browser")
+            }
             if session.record.backend == .claude { remoteButton }
 
             ModelPicker(session: session, compact: true, summary: modelSummary.full,

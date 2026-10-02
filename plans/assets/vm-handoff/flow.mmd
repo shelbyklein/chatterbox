@@ -1,0 +1,19 @@
+flowchart LR
+  subgraph VM["Agent computer (Docker, own sessions)"]
+    B["Chromium\n(Dropbox signed in by Shelby)"]
+    D["/home/dot/Downloads"]
+    F["forward: localhost:PORT"]
+  end
+  subgraph Mac
+    I["~/Chatterbox/Computer/Downloads\n(the only shared folder)"]
+    H["Chatterbox: Hand Off\n(copies one file into the chat's project)"]
+    P["Project folder\n…/geekifyinc.com/handoff/"]
+    R["relay 127.0.0.1:PORT\n(only ports you enable)"]
+    S["SKD Studio site\n[::1]:PORT"]
+    A["Mac-side agent\n(Codex/Claude, SKD Studio, design tools)"]
+  end
+  B -- download --> D
+  D == bind mount ==> I
+  I --> H --> P --> A
+  B -- "http://localhost:PORT" --> F
+  F -- host.docker.internal --> R --> S

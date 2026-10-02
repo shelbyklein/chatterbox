@@ -96,19 +96,51 @@ final class DotComputer {
         await start()
     }
 
+    /// The image Chatterbox ships (its LABEL chatterbox.computer.version). An older image
+    /// is rebuilt on the next start; the browser profile (sign-ins) is a volume and is kept.
+    static let imageVersion = "2"
+
+    /// The one folder the computer shares with the Mac: its browser's downloads.
+    nonisolated static var downloadsFolder: URL {
+        let base: URL
+        if let dir = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], !dir.isEmpty {
+            base = URL(fileURLWithPath: dir)
+        } else {
+            base = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Chatterbox")
+        }
+        let folder = base.appendingPathComponent("Computer/Downloads", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
     func start() async {
         guard let docker = Self.docker else { state = .noDocker; return }
         state = .starting
         progress = "Starting Docker\u{2026}"
         guard await ensureDaemon(docker) else { state = .failed("Docker didn't start. Open Docker Desktop and try again."); return }
         guard await imageExists(docker) else { state = .notSetUp; return }
+        // An older computer: rebuild its image (quick; most layers are cached) and replace
+        // the container. The profile volume, and so every sign-in, is kept.
+        let label = await Git.run(docker, ["image", "inspect", Self.image, "--format", "{{index .Config.Labels \"chatterbox.computer.version\"}}"])
+        var replace = label.out.trimmingCharacters(in: .whitespacesAndNewlines) != Self.imageVersion
+        if replace, let folder = Bundle.main.url(forResource: "DotComputer", withExtension: nil) {
+            progress = "Updating the computer (a minute)\u{2026}"
+            let build = await Git.run(docker, ["build", "-t", Self.image, folder.path])
+            guard build.status == 0 else { state = .failed("Updating didn't work: " + String((build.err.isEmpty ? build.out : build.err).suffix(300))); return }
+        }
+        let mounts = await Git.run(docker, ["inspect", "-f", "{{range .Mounts}}{{.Destination}} {{end}}", Self.container])
+        if mounts.status == 0, !mounts.out.contains("/home/dot/Downloads") { replace = true }
+        if replace { _ = await Git.run(docker, ["rm", "-f", Self.container]) }
         progress = "Starting the computer\u{2026}"
-        let started = await Git.run(docker, ["start", Self.container])
+        let started = replace ? Git.Output(status: 1, out: "", err: "") : await Git.run(docker, ["start", Self.container])
         if started.status != 0 {
             let run = await Git.run(docker, [
                 "run", "-d", "--name", Self.container,
                 "-p", "127.0.0.1:\(Self.viewPort):6080", "-p", "127.0.0.1:\(Self.toolsPort):8931",
-                "-v", "\(Self.volume):/home/dot/profile", "--shm-size=1g",
+                "-v", "\(Self.volume):/home/dot/profile",
+                // Only this folder of the Mac's: what the browser downloads.
+                "-v", "\(Self.downloadsFolder.path):/home/dot/Downloads",
+                "--shm-size=1g",
                 // Your Mac's time zone, so times on pages match yours.
                 "-e", "TZ=\(TimeZone.current.identifier)", Self.image,
             ])
@@ -119,11 +151,24 @@ final class DotComputer {
             if await toolsAnswer() {
                 state = .running
                 progress = ""
+                await PreviewRelays.shared.applyToComputer()
                 return
             }
             try? await Task.sleep(for: .milliseconds(500))
         }
         state = .failed("The computer started but its browser didn't come up.")
+    }
+
+    /// Runs the in-computer forwarder for a preview port (idempotent: a second one can't bind).
+    func forward(port: Int) async {
+        guard isRunning, let docker = Self.docker else { return }
+        _ = await Git.run(docker, ["exec", "-d", Self.container, "chatterbox-forward", String(port)])
+    }
+
+    /// Stops the in-computer forwarder for a port.
+    func unforward(port: Int) async {
+        guard isRunning, let docker = Self.docker else { return }
+        _ = await Git.run(docker, ["exec", Self.container, "pkill", "-f", "chatterbox-forward \(port)$"])
     }
 
     func stop() async {
