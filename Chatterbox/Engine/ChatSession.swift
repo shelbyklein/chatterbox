@@ -82,6 +82,7 @@ final class ChatSession: Identifiable {
 
     /// Called as a turn ends, before the change is saved: Dot's check-ins tidy up here.
     func turnEnded() {
+        Diagnostics.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
         record.updatedAt = Date()
         if restartForToolsAfterTurn {
             // Tools changed during the reply (Dot turned its computer on or off).
@@ -154,6 +155,7 @@ final class ChatSession: Identifiable {
     func send(_ raw: String, attachments: [Attachment] = []) {
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
+        Diagnostics.note("Sent a message in \u{201C}\(title)\u{201D}\(isRunning ? " while it worked" : "")")
         // Sending counts as activity (a reply in progress doesn't, so rows don't jump around).
         record.updatedAt = Date()
         // Writing in an archived chat brings it back.

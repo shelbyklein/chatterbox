@@ -18,6 +18,10 @@ struct ChatterboxApp: App {
                 .frame(minWidth: 760, minHeight: 520)
         }
         .commands {
+            CommandGroup(after: .help) {
+                Button("Report a Freeze") { Diagnostics.shared.reportFreeze() }
+                    .keyboardShortcut("d", modifiers: [.control, .option, .command])
+            }
             CommandGroup(replacing: .newItem) {
                 Button("New Chat") { model.newChat() }
                     .keyboardShortcut("n")

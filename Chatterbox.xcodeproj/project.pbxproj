@@ -15,6 +15,7 @@
 		0D0AA5565003163647FC890D /* PinsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25AF49642A0603DB9DB1791 /* PinsSection.swift */; };
 		0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
 		1417AE929D75C1B17835DCF3 /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
+		1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07846B056A3EC031B8C536B /* Diagnostics.swift */; };
 		17BF765717748A9396DC6875 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F3DC91A879146D9B37CA06E3 /* Assets.xcassets */; };
 		185FE4741650353C7DB76AFB /* Attention.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B3EA688DB4D5120202F4A /* Attention.swift */; };
 		1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */; };
@@ -231,6 +232,7 @@
 		C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		CD00AEF264659F41BD565201 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChatterboxMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D07846B056A3EC031B8C536B /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
 		D23F411A39522520E8F10339 /* ModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPicker.swift; sourceTree = "<group>"; };
 		D3AE88BF63DE274A9EC0194F /* Backend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
 		DBCA3F2B7277E38C199221AE /* Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachments.swift; sourceTree = "<group>"; };
@@ -333,6 +335,7 @@
 				C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */,
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
+				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				439370872F6E041E6DB407AF /* Dot.swift */,
 				0508B744152680991C2150CE /* DotActivity.swift */,
 				B42971FF65DCD021D97664C9 /* DotComputer.swift */,
@@ -632,6 +635,7 @@
 				F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */,
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
+				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
 				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,
 				ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */,
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,

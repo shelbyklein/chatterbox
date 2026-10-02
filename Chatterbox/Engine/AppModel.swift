@@ -11,7 +11,12 @@ final class AppModel {
     var studios: [Studio] = []
     /// The Studio whose instructions are open for editing.
     var editingStudioInstructions: UUID?
-    var selectedID: UUID?
+    var selectedID: UUID? {
+        didSet {
+            guard selectedID != oldValue, let session = sessions.first(where: { $0.id == selectedID }) else { return }
+            Diagnostics.note("Opened \u{201C}\(session.title)\u{201D} (\(session.items.count) rows\(session.isRunning ? ", working" : ""))")
+        }
+    }
     var showingCloneFromGitHub = false
     var showingNewProject = false
     /// Settings, shown in the main window in place of the chat.
@@ -124,6 +129,15 @@ final class AppModel {
             directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // First, so a hang during launch is caught too.
+        Diagnostics.shared.start()
+        #if DEBUG
+        // Tests: open a chat some seconds after launch, like clicking it ("8:<chat id>").
+        if let spec = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_OPEN_AFTER"], let colon = spec.firstIndex(of: ":"),
+           let seconds = Double(spec[..<colon]), let id = UUID(uuidString: String(spec[spec.index(after: colon)...])) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in self?.selectedID = id }
+        }
+        #endif
         loadStudios()
         defer {
             // The order chats load in stands until you next write to one.
@@ -156,6 +170,7 @@ final class AppModel {
 
     /// Replies keep running in the background host after the app quits, unless turned off.
     private func applicationWillTerminate() {
+        Diagnostics.shared.stop()
         saveUnsaved()
         guard !Self.keepRepliesRunning else { return }
         for session in sessions { session.claudeProcess?.terminate() }

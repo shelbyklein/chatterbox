@@ -135,6 +135,8 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            DiagnosticsSection()
+
             Section {
                 LabeledContent("Signed in") {
                     if let email = ClaudeModels.shared.accountEmail {
@@ -709,5 +711,45 @@ private struct DotActivitySettings: View {
 
     private static func minutes(_ date: Date) -> Int {
         Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
+    }
+}
+
+/// Hang and crash reports: what Chatterbox recorded when it stopped responding or didn't
+/// quit cleanly.
+private struct DiagnosticsSection: View {
+    private let diagnostics = Diagnostics.shared
+
+    var body: some View {
+        Section {
+            if diagnostics.reports.isEmpty {
+                Text("No reports. If Chatterbox stops responding for more than 2 seconds, or doesn't close properly, a report shows up here. If the window looks stuck, press ⌃⌥⌘D (Help → Report a Freeze) to capture one on the spot.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(diagnostics.reports.prefix(8)) { report in
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(report.title)
+                        Text(report.date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString((try? String(contentsOf: report.url, encoding: .utf8)) ?? "", forType: .string)
+                    }
+                    .help("Copy the whole report, to paste into a chat")
+                    Button("Show") { NSWorkspace.shared.activateFileViewerSelecting([report.url]) }
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Open Reports Folder") { NSWorkspace.shared.open(Diagnostics.folder) }
+            }
+        } header: {
+            Text("Diagnostics")
+        } footer: {
+            Text("Reports are plain text in \(Diagnostics.folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")). Paste one into a chat, or ask an agent to read the newest, to find what froze.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .onAppear { diagnostics.reload() }
     }
 }
