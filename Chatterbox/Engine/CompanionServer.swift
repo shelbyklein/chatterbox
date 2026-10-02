@@ -809,6 +809,11 @@ enum ComputerHandoff {
         return urls.compactMap { url in
             let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .isRegularFileKey])
             guard values?.isRegularFile == true, !url.lastPathComponent.hasSuffix(".crdownload") else { return nil }
+            // The browser tool's own page snapshots: not downloads. Old ones are cleared away.
+            if url.lastPathComponent.range(of: #"^page-\d{4}-.*\.yml$"#, options: .regularExpression) != nil {
+                if Date().timeIntervalSince(values?.contentModificationDate ?? Date()) > 600 { try? FileManager.default.removeItem(at: url) }
+                return nil
+            }
             return Download(name: url.lastPathComponent, bytes: values?.fileSize ?? 0, modified: values?.contentModificationDate ?? .distantPast)
         }
         .sorted { $0.modified > $1.modified }
