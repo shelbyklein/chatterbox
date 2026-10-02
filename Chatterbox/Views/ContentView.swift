@@ -13,6 +13,10 @@ struct ContentView: View {
     @State private var dragStartWeights: [Double]?
     @State private var pendingDelete: ChatSession?
     @State private var renamingProject: ChatSession?
+    @State private var worktreeParent: ChatSession?
+    @State private var worktreeName = ""
+    @State private var removingWorktree: ChatSession?
+    @State private var worktreeError: String?
     @State private var projectNickname = ""
     @State private var renamingChat: ChatSession?
     @State private var chatTitle = ""
@@ -146,6 +150,7 @@ struct ContentView: View {
                 StudioInstructionsSheet(studio: studio).environment(model)
             }
         }
+        .modifier(WorktreeAlerts(parent: $worktreeParent, name: $worktreeName, removing: $removingWorktree, error: $worktreeError))
         .alert("Rename Chat", isPresented: Binding(get: { renamingChat != nil }, set: { if !$0 { renamingChat = nil } })) {
             TextField("Title", text: $chatTitle)
             Button("Rename") { renamingChat?.setTitle(chatTitle) }
@@ -457,6 +462,11 @@ extension ContentView {
                 if let folder = session.record.projectFolder {
                     if let place {
                         Button("Add Pin\u{2026}") { model.pinSheet = PinSheetRequest(place: place, current: place) }
+                    }
+                    if session.record.worktreeOf == nil {
+                        Button("New Worktree\u{2026}") { worktreeName = ""; worktreeParent = session }
+                    } else {
+                        Button("Remove Worktree\u{2026}") { removingWorktree = session }
                     }
                     Button("Rename Project\u{2026}") {
                         projectNickname = session.projectName
@@ -877,7 +887,19 @@ extension ContentView {
             switch section {
             case .projects:
                 let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
-                ForEach(projects) { session in row(session, number: numbers[session.id]) }
+                ForEach(projects) { session in
+                    row(session, number: numbers[session.id])
+                    // Its worktrees, indented beneath it.
+                    ForEach(model.worktrees(of: session)) { worktree in
+                        row(worktree, number: numbers[worktree.id])
+                            .padding(.leading, 18)
+                            .overlay(alignment: .leading) {
+                                Image(systemName: "arrow.triangle.branch")
+                                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                                    .padding(.leading, 2)
+                            }
+                    }
+                }
                 if projects.isEmpty {
                     Text(isFiltering || activeTag != nil || projectActivity != .all ? "No matching projects" : "Open or create a project from the + menu.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -1068,5 +1090,43 @@ private struct DividerHandle: NSViewRepresentable {
             startY = nil
             onEnd?()
         }
+    }
+}
+
+/// New Worktree (name it), Remove Worktree (confirm), and what git said if either failed.
+private struct WorktreeAlerts: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Binding var parent: ChatSession?
+    @Binding var name: String
+    @Binding var removing: ChatSession?
+    @Binding var error: String?
+
+    func body(content: Content) -> some View {
+        content
+            .alert("New Worktree", isPresented: Binding(get: { parent != nil }, set: { if !$0 { parent = nil } })) {
+                TextField("Branch name", text: $name)
+                Button("Create") {
+                    guard let project = parent else { return }
+                    let branch = name
+                    Task { do { try await model.newWorktree(of: project, name: branch) } catch { self.error = error.localizedDescription } }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("A separate copy of \(parent?.projectName ?? "the project") on its own branch, next to it, with its own chat. Work there won't touch main until you merge it.")
+            }
+            .alert("Remove Worktree?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
+                Button("Remove", role: .destructive) {
+                    guard let chat = removing else { return }
+                    Task { do { try await model.removeWorktree(chat) } catch { self.error = error.localizedDescription } }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Deletes the worktree folder and archives its chat. The branch \u{201C}\(removing?.record.worktreeBranch ?? "")\u{201D} stays, so committed work isn't lost. Git won't remove it if it has uncommitted changes.")
+            }
+            .alert("Worktree", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(error ?? "")
+            }
     }
 }

@@ -67,7 +67,7 @@ final class AppModel {
     /// Projects (by recent activity, staleness, or name), then each open Studio's chats, then other chats by most recent: the
     /// sidebar's order, which the ⌘1–⌘9 shortcuts follow.
     var sidebarProjects: [ChatSession] {
-        let projects = activeSessions.filter { $0.record.projectFolder != nil && !$0.isDot }
+        let projects = activeSessions.filter { $0.record.projectFolder != nil && $0.record.worktreeOf == nil && !$0.isDot }
         let byName: (ChatSession, ChatSession) -> Bool = { $0.projectName.localizedStandardCompare($1.projectName) == .orderedAscending }
         switch ProjectSort.current {
         case .name: return projects.sorted(by: byName)
@@ -83,7 +83,7 @@ final class AppModel {
         }
     }
     var sidebarOrder: [ChatSession] {
-        sidebarProjects + activeStudios.filter { $0.collapsed != true }.flatMap(chats(in:)) + sidebarChats
+        sidebarProjects.flatMap { [$0] + worktrees(of: $0) } + activeStudios.filter { $0.collapsed != true }.flatMap(chats(in:)) + sidebarChats
     }
 
     /// Every tag in use, for the Tags menu.
@@ -270,6 +270,73 @@ final class AppModel {
         if let owner = self.session(boundTo: folder), owner.id != session.id { return owner }
         session.bindProject(Self.normalize(folder))
         return nil
+    }
+
+    // MARK: - Worktrees
+
+    /// A project's worktree chats, newest first.
+    func worktrees(of project: ChatSession) -> [ChatSession] {
+        guard let folder = project.record.projectFolder.map(Self.normalize) else { return [] }
+        return activeSessions.filter { $0.record.worktreeOf.map(Self.normalize) == folder }
+            .sorted { $0.record.createdAt > $1.record.createdAt }
+    }
+
+    struct WorktreeError: LocalizedError {
+        var message: String
+        var errorDescription: String? { message }
+
+        /// Git's reason, not its progress chatter ("Preparing worktree…").
+        static func git(_ output: Git.Output) -> WorktreeError {
+            let text = output.err.isEmpty ? output.out : output.err
+            let reasons = text.split(separator: "\n").filter { $0.hasPrefix("fatal:") || $0.hasPrefix("error:") }
+            let message = reasons.isEmpty ? text : reasons.joined(separator: "\n")
+            return WorktreeError(message: message.replacingOccurrences(of: "fatal: ", with: "").replacingOccurrences(of: "error: ", with: ""))
+        }
+    }
+
+    /// Makes a git worktree of `project` on a new branch, beside the repo
+    /// (Chatterbox → Chatterbox-<branch>), and a chat that works in it, with the same agent.
+    @discardableResult
+    func newWorktree(of project: ChatSession, name: String) async throws -> ChatSession {
+        guard let main = project.record.projectFolder else { throw WorktreeError(message: "That chat isn't a project.") }
+        let branch = name.lowercased()
+            .replacingOccurrences(of: "[^a-z0-9._/-]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-./"))
+        guard !branch.isEmpty else { throw WorktreeError(message: "Give the worktree a name, like \u{201C}new-sidebar\u{201D}.") }
+        let root = await Git.git(["rev-parse", "--show-toplevel"], in: main)
+        guard root.status == 0, !root.out.isEmpty else { throw WorktreeError(message: "\(project.projectName) isn't a git repository.") }
+        let repo = URL(fileURLWithPath: root.out)
+        let base = repo.deletingLastPathComponent().appendingPathComponent(repo.lastPathComponent + "-" + branch.replacingOccurrences(of: "/", with: "-"))
+        var path = base.path
+        var n = 2
+        while FileManager.default.fileExists(atPath: path) { path = base.path + "-\(n)"; n += 1 }
+        // A new branch from where main is now; an existing branch is checked out as it is.
+        let exists = await Git.git(["rev-parse", "--verify", "--quiet", "refs/heads/" + branch], in: main).status == 0
+        let add = await Git.git(["worktree", "add", path] + (exists ? [branch] : ["-b", branch]), in: main)
+        guard add.status == 0 else { throw WorktreeError.git(add) }
+        let chat = newChat(backend: project.record.backend)
+        chat.bindProject(Self.normalize(path))
+        chat.record.worktreeOf = Self.normalize(main)
+        chat.record.worktreeBranch = branch
+        chat.setProjectNickname(branch)
+        chat.setTitle(branch)
+        selectedID = chat.id
+        return chat
+    }
+
+    /// Removes the worktree folder (git refuses if it has uncommitted changes) and archives
+    /// its chat. The branch is kept, so nothing committed is lost.
+    func removeWorktree(_ chat: ChatSession) async throws {
+        guard let path = chat.record.projectFolder, let main = chat.record.worktreeOf else { return }
+        if FileManager.default.fileExists(atPath: path) {
+            let remove = await Git.git(["worktree", "remove", path], in: main)
+            guard remove.status == 0 else {
+                throw WorktreeError(message: WorktreeError.git(remove).message
+                                    + "\n\nCommit or discard its changes first, then try again.")
+            }
+        }
+        if selectedID == chat.id, let project = session(boundTo: main) { selectedID = project.id }
+        archive(chat)
     }
 
     /// Opens the folder's chat, creating one if the folder doesn't have one yet.

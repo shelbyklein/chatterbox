@@ -138,6 +138,10 @@ struct ConversationRecord: Codable {
 
     /// The project folder this chat is bound to. At most one chat per folder.
     var projectFolder: String?
+    /// A git worktree of another project: that project's folder, and the worktree's branch.
+    /// Listed under its project in the sidebar.
+    var worktreeOf: String?
+    var worktreeBranch: String?
     /// The Studio this chat belongs to, and that Studio's folder, which the chat works in.
     /// The folder is kept here too so the chat can start its agent without looking it up.
     var studioID: UUID?
