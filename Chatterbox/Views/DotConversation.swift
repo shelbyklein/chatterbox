@@ -138,7 +138,7 @@ struct DotConversation: View {
             stepsToggle(id, steps)
         case .email(let item):
             HStack(alignment: .top, spacing: 9) {
-                Image(systemName: "envelope.fill").foregroundStyle(Color.highlight)
+                Image("Gmail").resizable().scaledToFit().frame(width: 20, height: 20).accessibilityLabel("Gmail")
                 Text(item.text.replacingOccurrences(of: "Email for you \u{00B7} ", with: ""))
                     .font(style.secondary)
                     .textSelection(.enabled)

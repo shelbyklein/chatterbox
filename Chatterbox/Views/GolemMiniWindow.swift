@@ -398,8 +398,10 @@ private struct GolemMiniContent: View {
     private var dot: some View {
         let lit = unread > 0 || session.isWaitingOnYou
         return barShape(lit ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.primary.opacity(0.25)))
-            .frame(width: lit ? 14 : 10, height: 6)
-            .shadow(color: lit ? .white.opacity(0.6) : .clear, radius: 4)
+            .frame(width: controller.characterSize * 0.43, height: 5 * controller.scale)
+            .blur(radius: 1.5 * controller.scale)
+            .shadow(color: lit ? .white.opacity(0.6) : .black.opacity(0.3), radius: 5 * controller.scale)
+            .offset(y: -32 * controller.scale)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .onTapGesture { controller.setCollapsed(false) }
