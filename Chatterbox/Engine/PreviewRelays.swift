@@ -30,6 +30,12 @@ final class PreviewRelays {
 
     func start() {
         for port in enabled { openRelay(port) }
+        // A computer already running from before Chatterbox restarted needs its forwarders too.
+        guard !enabled.isEmpty else { return }
+        Task {
+            await DotComputer.shared.refresh()
+            await applyToComputer()
+        }
     }
 
     func setEnabled(_ port: Int, _ on: Bool) {
