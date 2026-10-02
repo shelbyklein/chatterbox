@@ -184,6 +184,7 @@ final class DotActivity {
     }
 
     private func notify(_ dot: ChatSession, label: String, body: String) {
+        MobilePush.shared.post(title: "\(dot.title) · \(label)", body: body, chat: dot.id, kind: "golem")
         guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
         content.title = dot.title

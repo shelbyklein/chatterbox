@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct ChatterboxMobileApp: App {
+    @UIApplicationDelegateAdaptor(MobilePushAppDelegate.self) private var delegate
     @State private var store = MobileStore()
 
     var body: some Scene {

@@ -187,6 +187,8 @@ final class EmailWatch {
     }
 
     private func notify(_ email: Email, dot: ChatSession) {
+        MobilePush.shared.post(title: email.from + " · " + email.subject,
+            body: email.why + " Suggested: " + email.action, chat: dot.id, kind: "email")
         guard Bundle.main.bundleIdentifier != nil, let encoded = try? JSONEncoder().encode(email) else { return }
         let content = UNMutableNotificationContent()
         content.title = email.from

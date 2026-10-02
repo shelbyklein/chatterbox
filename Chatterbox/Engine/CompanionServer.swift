@@ -18,6 +18,7 @@ final class CompanionServer {
         var tokenHash: String
         var pairedAt = Date()
         var lastSeen: Date?
+        var push: Companion.PushRegistration? = nil
     }
 
     static let enabledKey = "companionEnabled"
@@ -223,6 +224,22 @@ final class CompanionServer {
                 devices[index].lastSeen = Date()
             }
         }
+        if !local, parts == ["v1", "push"], let device = authorize(request) {
+            if request.method == "DELETE" {
+                clearPush(device.id)
+                return .json(["ok": true])
+            }
+            if request.method == "POST" {
+                guard var registration = try? Companion.decoder.decode(Companion.PushRegistration.self, from: request.body), registration.valid else {
+                    return .error(400, "Invalid push registration.")
+                }
+                registration.token = registration.token.lowercased()
+                guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return .error(401, "Device revoked.") }
+                devices[index].push = registration
+                saveDevices()
+                return .json(["ok": true])
+            }
+        }
         guard let model else { return .error(503, "Chatterbox is starting.") }
 
         // Dot's computer, for Dot's own tools on this Mac.
@@ -388,6 +405,13 @@ final class CompanionServer {
         guard let token = request.headers[Companion.tokenHeader.lowercased()], !token.isEmpty else { return nil }
         let hash = Self.hash(token)
         return devices.first { $0.tokenHash == hash }
+    }
+
+    func clearPush(_ device: UUID, token: String? = nil) {
+        guard let index = devices.firstIndex(where: { $0.id == device }),
+              token == nil || devices[index].push?.token == token else { return }
+        devices[index].push = nil
+        saveDevices()
     }
 
     private func saveDevices() {

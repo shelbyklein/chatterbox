@@ -11,6 +11,16 @@ enum Companion {
     /// The newest items a chat sends at once; older ones are left out.
     static let itemLimit = 300
 
+    struct PushRegistration: Codable, Equatable, Sendable {
+        var token: String
+        /// sandbox for development installs, production for TestFlight/App Store.
+        var environment: String
+        var enabled: Bool
+        var valid: Bool {
+            ["sandbox", "production"].contains(environment) && token.range(of: "^[0-9a-fA-F]{64,512}$", options: .regularExpression) != nil
+        }
+    }
+
     struct PairRequest: Codable {
         var code: String
         var deviceName: String

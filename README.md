@@ -109,3 +109,9 @@ PDFs attached to a chat or named by a reply have a **Review PDF** tile. Markdown
 Opened PDFs stay in **Saved PDFs**, under the chat list's connection menu, for offline review. **Refresh PDF** fetches a newer copy; a failed or invalid download preserves the previous copy. The Mac must be reachable for the first download or a refresh. Transfers use the existing paired connection and chat-scoped file IDs; they do not expose an arbitrary filesystem endpoint.
 
 Verification: `scripts/test-companion-pdf.sh` tests the Mac route and bounded transport; `scripts/test-pdf-cache.sh` tests replacement integrity; `scripts/test-mobile-pdf.sh iphone` (or `ipad`) tests the viewer, Files export, cancellation/retry and offline library on an isolated simulator/server.
+
+## iPhone and iPad push notifications
+
+On the Mac, Settings → iPhone → Push notifications accepts an APNs Key ID and .p8 signing key (stored in Keychain). Enable the companion server, then on each paired mobile device tap the bell in the chat list and turn on Notifications. The Mac can send a test to each registered device.
+
+Approvals/questions, finished replies, Golem briefings and important emails can each be enabled separately; previews and sound are optional. The Mac must stay awake with Chatterbox open. Notifications arrive through Apple on cellular as well as Wi-Fi; tapping into the actual chat still needs a connection to the Mac. Debug installs use APNs sandbox; Release uses production. See [validation and setup limits](design/mobile-push/delivery.md).

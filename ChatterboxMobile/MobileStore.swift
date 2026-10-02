@@ -62,9 +62,19 @@ final class MobileStore {
         connection = Connection(macName: reply.macName, hosts: hosts)
         saveConnection()
         problem = nil
+        syncedPush = nil
+        await syncPushRegistration(force: true)
     }
 
     func forget() {
+        // Capture the authenticated request before erasing pairing. Best effort; removing
+        // the device on the Mac always revokes it, even when this phone is offline.
+        if let host = connection?.hosts.first, let token {
+            let revoke = request(host: host, path: "/v1/push", method: "DELETE", body: nil, token: token)
+            URLSession.shared.dataTask(with: revoke).resume()
+        }
+        syncedPush = nil
+
         Keychain.delete("token")
         token = nil
         connection = nil
@@ -77,10 +87,29 @@ final class MobileStore {
     func loadChats() async {
         do {
             chatList = try await call("/v1/chats")
+            await syncPushRegistration()
             if Date().timeIntervalSince(addressesChecked) > 60 { await refreshAddresses() }
         } catch {
             note(error)
         }
+    }
+
+    @ObservationIgnored private var syncedPush: Companion.PushRegistration?
+    @ObservationIgnored private var pushSyncing = false
+    @ObservationIgnored private var pushChecked = Date.distantPast
+    func syncPushRegistration(force: Bool = false) async {
+        guard isPaired, !pushSyncing else { return }
+        let service = MobilePushNotifications.shared
+        guard let registration = service.registration,
+              force || registration != syncedPush && Date().timeIntervalSince(pushChecked) > 30 else { return }
+        pushSyncing = true; pushChecked = Date()
+        defer { pushSyncing = false }
+        do {
+            let body = try JSONEncoder().encode(registration)
+            _ = try await raw("/v1/push", method: "POST", body: body)
+            syncedPush = registration
+            service.synced()
+        } catch { service.syncFailed(error) }
     }
 
     @ObservationIgnored private var addressesChecked = Date.distantPast

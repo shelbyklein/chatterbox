@@ -96,6 +96,7 @@ targets:
       path: ChatterboxMobile/Info.plist
       properties:
         CFBundleDisplayName: Chatterbox
+        ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # The iPad turns every way, which also lets it share the screen (Split View, Slide Over).
@@ -142,4 +143,10 @@ targets:
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: "5.0"
+        CODE_SIGN_ENTITLEMENTS: ChatterboxMobile/ChatterboxMobile.entitlements
+      configs:
+        Debug:
+          APNS_ENVIRONMENT: development
+        Release:
+          APNS_ENVIRONMENT: production
 

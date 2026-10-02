@@ -1,0 +1,10 @@
+# Push notifications
+The phone/iPad can read chats but has no APNs registration, entitlement or provider. Deliver native notifications for waiting approvals/questions, finished work, Golem briefings and important email; taps open the relevant chat. Add the authentic Gmail icon to Mac email cards as Shelby requested during this work.
+
+Scope confirmed by request to do what is needed for mobile push; execute now. No cloud relay, background polling, mobile notification approval actions, auto-install or Mac restart. Existing pairing, local network restrictions, Mac notifications and running sessions remain intact. Apple account key/ID are requested; credential availability gates the live send test, not implementation.
+
+[Flow sketch](flow.svg). Mac setup lives in Settings → iPhone: key ID, import p8, status and test to paired devices. Phone settings: notifications permission and status. Key stays in macOS Keychain, never git/defaults; optional APNs tokens extend existing device records. Rollback: revert scoped commits; remove signing key and opt out/revoke device, original pairing records still decode.
+
+Success: locally verify ES256 JWT; only authenticated devices register/disable valid tokens; phone taps navigate; event types reach sender without changing Mac behavior; signed mobile build contains correct entitlement. Tests: isolated Swift JWT/provider/registration harness; Mac and mobile xcodebuild; inspect signed profile; rendered settings and Gmail card; live APNs acceptance plus physical delivery if key/devices accessible. No simulator result will be claimed as cellular delivery.
+
+Deliver code/tests/docs scoped commit, builds; installation and push await user instruction. Tasks PN-1 provider/registration/setup, PN-2 mobile lifecycle/events, PN-3 validation. Tracker local:C3EA1CD4-1E65-458E-B60D-5A23E668A323. Linear gpt-6.1-sol / medium to keep shared lifecycle files under one owner. Readiness R1-R13 pass; no blocking scope question. Live credential/device check may remain pending and will be reported separately.

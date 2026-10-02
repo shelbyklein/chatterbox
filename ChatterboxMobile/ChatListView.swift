@@ -7,6 +7,7 @@ struct ChatListView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var savedPDFs = false
+    @State private var notificationSettings = false
     @State private var selection: UUID?
     /// The chat that's open, kept if it drops out of the list (archived on the Mac).
     @State private var opened: Companion.ChatSummary?
@@ -33,15 +34,36 @@ struct ChatListView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) { connectionMenu }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { notificationSettings = true } label: { Image(systemName: "bell") }.accessibilityLabel("Notifications")
+                    }
                     ToolbarItem(placement: .topBarTrailing) { newChatMenu }
                 }
         } detail: {
             detail
         }
         .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $notificationSettings) {
+            NavigationStack {
+                MobileNotificationSettings().environment(store)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { notificationSettings = false } } }
+            }
+        }
+        .task(id: "\(MobilePushNotifications.shared.pendingChat?.uuidString ?? "")|\(scenePhase)") {
+            guard let id = MobilePushNotifications.shared.pendingChat else { return }
+            await store.loadChats()
+            if let chat = allChats.first(where: { $0.id == id }) {
+                open(chat); MobilePushNotifications.shared.pendingChat = nil
+            } else if let result = try? await store.detail(id, since: nil), case .detail(let detail) = result {
+                open(detail.summary); MobilePushNotifications.shared.pendingChat = nil
+            }
+        }
         .sheet(isPresented: $savedPDFs) { SavedPDFsView() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { history?.refresh(in: store, force: true) }
+            if phase == .active {
+                history?.refresh(in: store, force: true)
+                Task { await MobilePushNotifications.shared.refreshPermission() }
+            }
         }
         // Keep request ownership in the stable navigation parent. A detail view can
         // appear without its lifecycle tasks restarting after Back or a column change.
@@ -147,6 +169,10 @@ struct ChatListView: View {
             // stack can retain the old detail or reset compact-column navigation.
             ChatDetailView(chat: chat, open: open, history: history)
                 .id(chat.id)
+                .onAppear { MobilePushNotifications.shared.readingChat = chat.id }
+                .onDisappear {
+                    if MobilePushNotifications.shared.readingChat == chat.id { MobilePushNotifications.shared.readingChat = nil }
+                }
         } else {
             ContentUnavailableView("Choose a Chat", systemImage: "bubble.left.and.bubble.right",
                                    description: Text("Your chats from \(store.connection?.macName ?? "your Mac") are in the sidebar."))

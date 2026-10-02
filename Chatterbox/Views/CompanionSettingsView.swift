@@ -48,6 +48,8 @@ struct CompanionSettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
+                MobilePushSettings()
+
                 Section("Paired iPhones") {
                     if server.devices.isEmpty {
                         Text("None yet.").foregroundStyle(.secondary)

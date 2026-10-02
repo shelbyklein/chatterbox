@@ -129,6 +129,8 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
 
         for item in pendingItems(session) where !notified.contains(item.id) {
             notified.insert(item.id)
+            let need = item.questions?.first?.question ?? item.text
+            MobilePush.shared.post(title: title(for: session), body: need, chat: session.id, kind: "needs")
             if !watching, notifyNeeds { notifyNeed(item, in: session) }
         }
 
@@ -141,6 +143,8 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
             session.skipFinishedAlert = false
             if session.isDot, !watching, dotUnreadCount(session) > 0 { unread.insert(session.id) }
         } else if finished {
+            let reply = session.items.last { $0.kind == .assistant && $0.phase == .final }?.text ?? "Reply finished."
+            MobilePush.shared.post(title: title(for: session), body: reply, chat: session.id, kind: "replies")
             if watching {
                 unread.remove(session.id)
             } else {
