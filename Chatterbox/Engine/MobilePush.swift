@@ -8,11 +8,27 @@ struct PushCredentials: Codable, Sendable {
     var teamID: String
     var pem: String
     static let service = "com.shelbyklein.Chatterbox.apns"
-    static func read() throws -> PushCredentials {
+    private static let accessLock = NSLock()
+    static func read(allowInteraction: Bool = false) throws -> PushCredentials {
+        accessLock.lock()
+        defer { accessLock.unlock() }
+        // This item lives in the login keychain. Its legacy ACL dialogs also need
+        // the classic Keychain switch; authentication UI options alone aren't enough.
+        var previousInteraction: DarwinBoolean = true
+        if !allowInteraction {
+            guard SecKeychainGetUserInteractionAllowed(&previousInteraction) == errSecSuccess,
+                  SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else {
+                throw PushFailure.message("Couldn't safely access Keychain without prompting.")
+            }
+        }
+        defer { if !allowInteraction { SecKeychainSetUserInteractionAllowed(previousInteraction.boolValue) } }
         var value: CFTypeRef?
         let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service,
-            kSecAttrAccount: "provider", kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, &value)
-        guard status == errSecSuccess, let data = value as? Data else { throw PushFailure.message("Import your APNs key first.") }
+            kSecAttrAccount: "provider", kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
+            kSecUseAuthenticationUI: allowInteraction ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail] as CFDictionary, &value)
+        guard status == errSecSuccess, let data = value as? Data else {
+            throw PushFailure.message(status == errSecItemNotFound ? "Import your APNs key first." : "Keychain access needs attention. In Settings → iPhone → Push notifications, click Authorize Keychain Access.")
+        }
         return try JSONDecoder().decode(Self.self, from: data)
     }
     func save() throws {
@@ -128,6 +144,13 @@ actor APNsProvider {
     func test(_ device: UUID) {
         guard enabled else { status = "Import a key and turn on mobile notifications first."; return }
         enqueue(Event(title: "Chatterbox", body: "Push notifications are connected. Tap to open Chatterbox.", chat: nil, kind: "test", target: device))
+    }
+    /// Only a deliberate Settings action may bring up a system authorization dialog.
+    func authorizeKeychain() {
+        do {
+            _ = try PushCredentials.read(allowInteraction: true)
+            status = "Keychain access verified. Choose Always Allow in the system prompt to keep future sends automatic."
+        } catch { status = error.localizedDescription }
     }
     private func enqueue(_ event: Event) {
         guard queue.count < 100 else { status = "Too many updates waiting; a push was skipped."; return }

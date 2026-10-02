@@ -26,6 +26,7 @@ struct MobilePushSettings: View {
             Text(push.configured ? "Signing key stored in this Mac’s Keychain." : "Create an APNs key in your Apple Developer account, then import its .p8 file.")
                 .font(.caption).foregroundStyle(.secondary)
             if push.configured {
+                Button("Authorize Keychain Access") { push.authorizeKeychain() }
                 Toggle("Approvals and questions", isOn: $needs)
                 Toggle("Finished replies", isOn: $replies)
                 Toggle("Golem briefings", isOn: $golem)

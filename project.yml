@@ -47,7 +47,8 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         CODE_SIGN_ENTITLEMENTS: Chatterbox/Chatterbox.entitlements
         CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: YES
   ChatterboxHost:
     type: tool
@@ -61,7 +62,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Host
         PRODUCT_NAME: ChatterboxHost
         CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES
 
@@ -77,7 +79,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.MCP
         PRODUCT_NAME: chatterbox-mcp
         CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES
 
