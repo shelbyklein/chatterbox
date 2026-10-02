@@ -38,6 +38,7 @@ final class CompanionServer {
     @ObservationIgnored private var agentListener: NWListener?
     @ObservationIgnored private var agentToken = ""
     @ObservationIgnored private var failedPairings = 0
+    @ObservationIgnored private let mutations = CompanionMutationLedger()
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.devicesKey),
@@ -209,7 +210,21 @@ final class CompanionServer {
 
     // MARK: - Routes
 
-    private func respond(to request: HTTPRequest, local: Bool) -> HTTPResponse {
+    func respond(to request: HTTPRequest, local: Bool) -> HTTPResponse {
+        var response: HTTPResponse
+        let mutation = request.method != "GET" && request.method != "HEAD"
+        if !local, mutation, request.path != "/v1/pair", let device = authorize(request) {
+            response = mutations.respond(device: device.id, request: request) {
+                route(request, local: local)
+            }
+        } else {
+            response = route(request, local: local)
+        }
+        response.headers.merge(mutations.headers()) { _, new in new }
+        return response
+    }
+
+    private func route(_ request: HTTPRequest, local: Bool) -> HTTPResponse {
         let parts = request.path.split(separator: "/").map(String.init)
         guard parts.first == "v1" else { return .error(404, "Not found") }
         if local {
@@ -763,6 +778,7 @@ struct HTTPResponse {
     var contentType: String
     var body: Data
     var fileURL: URL? = nil
+    var headers: [String: String] = [:]
 
     static func json<T: Encodable>(_ value: T) -> HTTPResponse {
         HTTPResponse(status: 200, contentType: "application/json", body: (try? Companion.encoder.encode(value)) ?? Data())
@@ -777,7 +793,8 @@ struct HTTPResponse {
     var data: Data {
         let reason = [200: "OK", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found",
                       409: "Conflict", 503: "Service Unavailable"][status] ?? "Error"
-        let head = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+        let extra = headers.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)\r\n" }.joined()
+        let head = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\(extra)\r\n"
         return Data(head.utf8) + body
     }
 }

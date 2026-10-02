@@ -35,6 +35,7 @@
 		286A355D770106A89DA0551C /* Dictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5955B401AB9BC438178B6BD /* Dictation.swift */; };
 		28DEC7A04F7372851A27B9B6 /* ChatImageGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */; };
 		2CFB8E2B4A0501FAE90F8DC0 /* SketchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6987D2087FA491665C4A101 /* SketchView.swift */; };
+		2D48AEA40066889EB6AFFD04 /* CompanionRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */; };
 		2DDAEA2004F04D51E4EF2430 /* GolemAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1767B59C4C4C368214261D /* GolemAvatar.swift */; };
 		3676EB8F6588D30D5BB9A400 /* PathLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACD3896247941A01A6F39FB /* PathLinks.swift */; };
 		36C8961B485B4DB26F4B01B7 /* Cards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263AB703BFEE4CE044BF0EEE /* Cards.swift */; };
@@ -55,6 +56,7 @@
 		4F31230D3EEFEF05A548AC25 /* MobilePush.swift in Sources */ = {isa = PBXBuildFile; fileRef = C39831B5DD1FA91C7E353C65 /* MobilePush.swift */; };
 		56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8EB85AF0736434980646DAF /* ChatSession.swift */; };
 		57D138F3E0F30EAC4F1EF78D /* Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B1A8FD57BD2D2C11BC4B51 /* Host.swift */; };
+		5832EF2321E145BFF16680CF /* CompanionRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */; };
 		59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */; };
 		5A603897A9E87CC8D5BA7122 /* MobileHTMLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */; };
 		5CBC37DD0167C0D78291D969 /* CloneFromGitHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */; };
@@ -135,6 +137,7 @@
 		F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */; };
 		F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350619589BFFE4830DF574FF /* CompanionServer.swift */; };
 		F21C81EE917C3DB8A4CFD123 /* Usage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB7CFE60E88616572724762 /* Usage.swift */; };
+		F4B65E6120E71A57B4B32AD5 /* CompanionMutationLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E57D8A0521922845EFD029A /* CompanionMutationLedger.swift */; };
 		F72F71755FD8B1FC399BFE7E /* ImageReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */; };
 		FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
 		FC8BFEAC696C3CA2113BA6E3 /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
@@ -218,6 +221,7 @@
 		4ABAE1B34A7039850D52C275 /* WebPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPane.swift; sourceTree = "<group>"; };
 		4BB7CFE60E88616572724762 /* Usage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Usage.swift; sourceTree = "<group>"; };
 		4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		4E57D8A0521922845EFD029A /* CompanionMutationLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionMutationLedger.swift; sourceTree = "<group>"; };
 		505EA4AEFE9AD144D1946F33 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		50C34CF3713DD45D9DE202B1 /* BackgroundTasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTasks.swift; sourceTree = "<group>"; };
 		50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watcher.swift; sourceTree = "<group>"; };
@@ -292,6 +296,7 @@
 		EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileConversationStyle.swift; sourceTree = "<group>"; };
 		ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommands.swift; sourceTree = "<group>"; };
 		EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPFileTransfer.swift; sourceTree = "<group>"; };
+		F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionRetry.swift; sourceTree = "<group>"; };
 		F2C1C43F95036114D2130B81 /* Chatterbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Chatterbox.entitlements; sourceTree = "<group>"; };
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F590872692259FADBC73667E /* DocumentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewer.swift; sourceTree = "<group>"; };
@@ -391,6 +396,7 @@
 				C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */,
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */,
+				4E57D8A0521922845EFD029A /* CompanionMutationLedger.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
 				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				439370872F6E041E6DB407AF /* Dot.swift */,
@@ -448,6 +454,7 @@
 			children = (
 				D3AE88BF63DE274A9EC0194F /* Backend.swift */,
 				0DA9F0B419529549C12E3317 /* CompanionAPI.swift */,
+				F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */,
 				DBB3E7574B1E942517B6B8BE /* GolemRig.swift */,
 				71CC4D063499C80994DAACA1 /* GolemRigView.swift */,
 				3E506CEBABA8892B98B49AE9 /* MediaKind.swift */,
@@ -721,6 +728,8 @@
 				38C35AD484F69B297C79B9B8 /* CodexAppServer.swift in Sources */,
 				46F0BBABEE7FA9EEAE34F7F5 /* CompanionAPI.swift in Sources */,
 				62274C8508FBA7F285193C28 /* CompanionDocuments.swift in Sources */,
+				F4B65E6120E71A57B4B32AD5 /* CompanionMutationLedger.swift in Sources */,
+				5832EF2321E145BFF16680CF /* CompanionRetry.swift in Sources */,
 				F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */,
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
@@ -807,6 +816,7 @@
 				BEAE48E0B2CBC15ABD093D65 /* ChatSettingsSheet.swift in Sources */,
 				945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */,
 				216A4A576879E8065789E82E /* CompanionAPI.swift in Sources */,
+				2D48AEA40066889EB6AFFD04 /* CompanionRetry.swift in Sources */,
 				AAEBED41FF4FDC232BDAFB3B /* CompanionTransportProbe.swift in Sources */,
 				286A355D770106A89DA0551C /* Dictation.swift in Sources */,
 				8AFDD089F57A9859AFFEFFF1 /* GolemRig.swift in Sources */,

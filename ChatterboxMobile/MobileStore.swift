@@ -262,38 +262,37 @@ final class MobileStore {
     // MARK: - Plumbing
 
     private func call<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
-        try Companion.decoder.decode(T.self, from: try await raw(path, method: method, body: body))
+        try CompanionRetry.decode(T.self, data: try await raw(path, method: method, body: body), method: method)
     }
 
     /// Tries each known address until one answers, and remembers the one that did.
     private func raw(_ path: String, method: String = "GET", body: Data? = nil) async throws -> Data {
         guard let connection, let token else { throw MobileError(message: "This iPhone isn't paired.") }
-        var lastError: Error = MobileError(message: "Couldn't reach \(connection.macName).")
-        for host in connection.hosts {
-            try Task.checkCancellation()
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request(host: host, path: path, method: method, body: body, token: token))
+        do {
+            let result = try await CompanionRetry.load(hosts: connection.hosts, method: method, request: { host, probe in
+                request(host: host, path: probe ? "/v1/addresses" : path,
+                        method: probe ? "GET" : method, body: probe ? nil : body, token: token)
+            }, validate: { data, response in
                 if let http = response as? HTTPURLResponse, http.statusCode == 401 {
                     forget()
                     throw MobileError(message: "This iPhone was removed from Chatterbox on the Mac. Pair it again.")
                 }
                 try checkStatus(data, response)
-                if host != connection.hosts.first { moveToFront(host) }
-                if problem != nil { problem = nil }
-                return data
-            } catch let error as MobileError {
-                throw error
-            } catch {
-                // Leaving a chat cancels its poll. Don't turn that into more address
-                // attempts or a misleading network/Tailscale error.
-                try Task.checkCancellation()
-                lastError = error
-            }
+            })
+            if result.host != connection.hosts.first { moveToFront(result.host) }
+            if problem != nil { problem = nil }
+            return result.data
+        } catch let error as MobileError {
+            throw error
+        } catch let error as CompanionRetry.Failure {
+            throw MobileError(message: error.message)
+        } catch {
+            try Task.checkCancellation()
+            let away = connection.hosts.contains(where: Self.isTailscale)
+                ? "Away from home, Tailscale has to be on, on this phone and on the Mac."
+                : "To reach it away from home, turn on Tailscale on the Mac and this phone, then open Chatterbox at home once."
+            throw MobileError(message: "Can't reach \(connection.macName). Make sure it's awake and Chatterbox is open. \(away) (\(error.localizedDescription))")
         }
-        let away = connection.hosts.contains(where: Self.isTailscale)
-            ? "Away from home, Tailscale has to be on, on this phone and on the Mac."
-            : "To reach it away from home, turn on Tailscale on the Mac and this phone, then open Chatterbox at home once."
-        throw MobileError(message: "Can't reach \(connection.macName). Make sure it's awake and Chatterbox is open. \(away) (\(lastError.localizedDescription))")
     }
 
     private func request(host: String, path: String, method: String, body: Data?, token: String?) -> URLRequest {

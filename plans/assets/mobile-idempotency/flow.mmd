@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant Phone
+    participant Mac
+    Phone->>Mac: Authenticated GET capability (read only)
+    Mac-->>Phone: Server incarnation and issuance time
+    Phone->>Mac: POST with stable operation UUID + incarnation + time
+    Mac->>Mac: Authenticate device, validate window, reserve operation
+    Mac->>Mac: Execute once, retain original response
+    Mac--xPhone: First response lost
+    Phone->>Mac: Same POST via another saved address
+    Mac-->>Phone: Original response; no second mutation
+    Note over Phone,Mac: Restart, expiry, legacy server or uncertain result: stop and show check-before-retry error
