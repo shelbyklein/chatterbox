@@ -8,6 +8,11 @@ setsid()
 signal(SIGPIPE, SIG_IGN)
 signal(SIGHUP, SIG_IGN)
 
+// Watch mode: the app's outside watchdog (see Watcher.swift), not a host.
+if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--watch", let pid = pid_t(CommandLine.arguments[2]) {
+    Watcher(pid: pid, folder: URL(fileURLWithPath: CommandLine.arguments[3])).run()
+}
+
 let host = Host(directory: HostPaths.directory)
 host.start()
 dispatchMain()

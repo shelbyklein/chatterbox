@@ -53,6 +53,7 @@ final class Diagnostics {
         if let data = try? JSONSerialization.data(withJSONObject: marker) { try? data.write(to: runningMarker) }
         watchdog = Watchdog()
         watchdog?.start()
+        startOutsideWatcher()
         reload()
         #if DEBUG
         // Tests: freeze the main thread on purpose, to check a hang gets reported.
@@ -72,6 +73,24 @@ final class Diagnostics {
         try? FileManager.default.moveItem(at: runningMarker, to: lastRunMarker)
         try? FileManager.default.removeItem(at: runningMarker)
     }
+
+    // MARK: - The watcher outside the app
+
+    /// The host binary in watch mode: if the heartbeat the main thread touches goes quiet,
+    /// it samples this app from outside and writes the report, even if everything in here is
+    /// stuck. It exits with the app.
+    private func startOutsideWatcher() {
+        guard let binary = HostClient.hostBinary else { return }
+        let process = Process()
+        process.executableURL = binary
+        process.arguments = ["--watch", String(ProcessInfo.processInfo.processIdentifier), Self.folder.path]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+    }
+
+    nonisolated static var heartbeat: URL { folder.appendingPathComponent("heartbeat") }
 
     // MARK: - Breadcrumbs
 
@@ -369,6 +388,7 @@ private final class Watchdog: @unchecked Sendable {
 
     private func beat() {
         let now = ProcessInfo.processInfo.systemUptime
+        Self.touchHeartbeat()
         lock.lock()
         lastBeat = now
         waiting = false
@@ -392,6 +412,18 @@ private final class Watchdog: @unchecked Sendable {
                 }
             }
         }
+    }
+
+    private static let heartbeatPath = Diagnostics.heartbeat.path
+    private static var heartbeatMade = false
+
+    /// Sets the heartbeat file's time to now (one cheap system call).
+    private static func touchHeartbeat() {
+        if !heartbeatMade {
+            FileManager.default.createFile(atPath: heartbeatPath, contents: nil)
+            heartbeatMade = true
+        }
+        utimes(heartbeatPath, nil)
     }
 
     // MARK: - Reading the main thread's stack
