@@ -10,6 +10,10 @@ enum MediaKind: Equatable {
     case dotLottie
 
     static let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "webm"]
+    /// Pictures that sit still (screenshots, renders, proofs), shown under a reply that names them.
+    static let stillImageExtensions: Set<String> = ["png", "jpg", "jpeg", "webp", "heic", "tif", "tiff", "bmp"]
+
+    static func isStillImage(_ name: String) -> Bool { stillImageExtensions.contains((name as NSString).pathExtension.lowercased()) }
 
     /// What a file is, by its name (and, for .json, a look inside to tell Lottie from data).
     static func of(name: String, contents: () -> Data?) -> MediaKind? {

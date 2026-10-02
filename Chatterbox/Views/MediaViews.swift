@@ -1,4 +1,5 @@
 import AVKit
+import ImageIO
 import SwiftUI
 
 /// A GIF, video, or Lottie animation in the chat, playing. Videos loop silently with
@@ -100,5 +101,67 @@ private struct LoopingVideo: View {
                 }
             }
             .onDisappear { player?.pause() }
+    }
+}
+
+/// Screenshots and renders a reply points to: one shown large, or several as a grid of
+/// thumbnails. Clicking one opens it in the image viewer.
+struct ReplyImages: View {
+    let urls: [URL]
+    @Environment(\.reviewImage) private var review
+
+    var body: some View {
+        if urls.count == 1, let url = urls.first {
+            thumbnail(url, maxHeight: 520).frame(maxWidth: 640, alignment: .leading)
+        } else if urls.count > 1 {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 320), spacing: 8, alignment: .top)], alignment: .leading, spacing: 8) {
+                ForEach(urls, id: \.self) { thumbnail($0, maxHeight: 260) }
+            }
+            .frame(maxWidth: 680, alignment: .leading)
+        }
+    }
+
+    private func thumbnail(_ url: URL, maxHeight: CGFloat) -> some View {
+        Button { review.open(Attachment(name: url.lastPathComponent, path: url.path, mediaType: "image/" + url.pathExtension.lowercased(), kind: .image)) } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                AsyncLocalImage(url: url)
+                    .frame(maxHeight: maxHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+                Text(url.deletingPathExtension().lastPathComponent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("View \(url.lastPathComponent)")
+        .contextMenu {
+            Button("Open") { NSWorkspace.shared.open(url) }
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        }
+    }
+}
+
+/// A picture from disk, loaded off the main thread and downsized for the chat.
+private struct AsyncLocalImage: View {
+    let url: URL
+    @State private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+            } else {
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)).frame(height: 120)
+            }
+        }
+        .task(id: url) {
+            image = await Task.detached(priority: .utility) { () -> NSImage? in
+                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                      let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                                                              kCGImageSourceThumbnailMaxPixelSize: 1400,
+                                                                              kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary)
+                else { return nil }
+                return NSImage(cgImage: cg, size: NSSize(width: cg.width / 2, height: cg.height / 2))
+            }.value
+        }
     }
 }

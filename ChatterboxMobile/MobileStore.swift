@@ -77,9 +77,29 @@ final class MobileStore {
     func loadChats() async {
         do {
             chatList = try await call("/v1/chats")
+            if Date().timeIntervalSince(addressesChecked) > 60 { await refreshAddresses() }
         } catch {
             note(error)
         }
+    }
+
+    @ObservationIgnored private var addressesChecked = Date.distantPast
+
+    /// Learns the Mac's current addresses, such as its Tailscale one if Tailscale was off when
+    /// this phone paired, so it can still reach the Mac away from home.
+    static func isTailscale(_ host: String) -> Bool {
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+        return (parts.count == 4 && parts[0] == 100 && (64...127).contains(parts[1])) || host.lowercased().hasPrefix("fd7a:115c:a1e0")
+    }
+
+    private func refreshAddresses() async {
+        addressesChecked = Date()
+        guard var connection, let reply: Companion.Addresses = try? await call("/v1/addresses") else { return }
+        let new = reply.addresses.filter { !connection.hosts.contains($0) }
+        guard !new.isEmpty else { return }
+        connection.hosts += new
+        self.connection = connection
+        saveConnection()
     }
 
     enum DetailResult {
@@ -194,7 +214,10 @@ final class MobileStore {
                 lastError = error
             }
         }
-        throw MobileError(message: "Can't reach \(connection.macName). Make sure Chatterbox is open on it, and that you're on the same Wi-Fi or Tailscale is on. (\(lastError.localizedDescription))")
+        let away = connection.hosts.contains(where: Self.isTailscale)
+            ? "Away from home, Tailscale has to be on, on this phone and on the Mac."
+            : "To reach it away from home, turn on Tailscale on the Mac and this phone, then open Chatterbox at home once."
+        throw MobileError(message: "Can't reach \(connection.macName). Make sure it's awake and Chatterbox is open. \(away) (\(lastError.localizedDescription))")
     }
 
     private func request(host: String, path: String, method: String, body: Data?, token: String?) -> URLRequest {

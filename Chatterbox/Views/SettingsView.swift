@@ -23,6 +23,7 @@ struct SettingsView: View {
     @AppStorage("claudeDefaultMode") private var claudeDefaultMode = PermissionModes.defaultClaude
     @AppStorage("codexDefaultMode") private var codexDefaultMode = PermissionModes.defaultCodex
     @AppStorage(AppModel.keepRepliesRunningKey) private var keepRepliesRunning = true
+    @AppStorage(KeepAwake.key) private var keepAwake = true
     @AppStorage(PinStore.openInAppKey) private var openPinsInApp = true
     @AppStorage(ChatSession.remoteControlKey) private var remoteControl = false
 
@@ -123,6 +124,9 @@ struct SettingsView: View {
                 Toggle("Open website pins inside Chatterbox", isOn: $openPinsInApp)
                     .help("The page takes the chat's place, and the chat floats in the corner. Off: pins open in your browser.")
                 Toggle("Keep replies running after Chatterbox quits", isOn: $keepRepliesRunning)
+                Toggle("Keep this Mac awake while Chatterbox is open", isOn: $keepAwake)
+                    .onChange(of: keepAwake) { KeepAwake.shared.apply() }
+                    .help("So your phone can reach it, and agents, check-ins, and the email watch keep running. The display still sleeps; closing a laptop's lid still puts it to sleep.")
             } footer: {
                 Text(keepRepliesRunning
                      ? "A reply in progress finishes in the background and is waiting when you reopen Chatterbox, along with any question it asked."

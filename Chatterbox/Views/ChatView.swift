@@ -33,6 +33,9 @@ struct ChatView: View {
     @State private var issuesPanel = IssuesPanelState()
     /// A page or file from the chat, open in the browser panel on the right.
     @State private var preview: WebPage?
+    /// How many of the newest rows to draw; "Show earlier" adds a page at a time.
+    @State private var shownRowCount = ChatView.rowPage
+    static let rowPage = 120
     /// Step groups you've opened.
     @State private var openStepGroups: Set<UUID> = []
     @AppStorage("readerGroupSteps") private var groupSteps = true
@@ -241,7 +244,22 @@ struct ChatView: View {
                         }
                     } else {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(transcriptRows) { row in
+                        let rows = transcriptRows
+                        // Long chats draw only their newest rows; the rest wait behind a button.
+                        if rows.count > shownRowCount {
+                            Button {
+                                shownRowCount += Self.rowPage
+                            } label: {
+                                Label("Show \(min(Self.rowPage, rows.count - shownRowCount)) earlier", systemImage: "arrow.up.circle")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 10)
+                            .help("\(rows.count - shownRowCount) earlier rows in this chat")
+                        }
+                        ForEach(rows.suffix(shownRowCount)) { row in
                             switch row {
                             case .item(let item):
                                 Group {

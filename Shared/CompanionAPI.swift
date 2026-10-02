@@ -16,6 +16,12 @@ enum Companion {
         var deviceName: String
     }
 
+    /// Where the Mac can be reached right now (its addresses change, and Tailscale may have
+    /// been off when the phone paired).
+    struct Addresses: Codable {
+        var addresses: [String]
+    }
+
     struct PairResponse: Codable {
         var token: String
         var macName: String

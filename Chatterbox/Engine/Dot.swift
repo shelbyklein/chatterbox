@@ -69,6 +69,29 @@ extension ChatSession {
             .filter { MediaKind.of($0) != nil }
     }
 
+    /// Screenshots, renders, and proofs a reply points to, to show under it: image files it
+    /// names, and the images in a folder it names for review ("Review Screenshots/"). At most 8.
+    static func referencedImages(in text: String, folder: String?) -> [URL] {
+        let fm = FileManager.default
+        var images: [URL] = []
+        for path in PathLinks.referencedFiles(in: text, folder: folder) {
+            let url = URL(fileURLWithPath: path)
+            var isDirectory: ObjCBool = false
+            guard fm.fileExists(atPath: path, isDirectory: &isDirectory) else { continue }
+            if !isDirectory.boolValue {
+                if MediaKind.isStillImage(path) { images.append(url) }
+            } else if url.lastPathComponent.range(of: "screenshot|review|proof|preview|render|mockup", options: [.regularExpression, .caseInsensitive]) != nil {
+                // Not every folder: "Links/" full of placed photos isn't for review.
+                let inside = ((try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? [])
+                    .filter { MediaKind.isStillImage($0.path) }
+                    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+                images += inside
+            }
+        }
+        var seen = Set<String>()
+        return Array(images.filter { seen.insert($0.path).inserted }.prefix(8))
+    }
+
     /// A stable id for a file a reply points to, so the phone can fetch it.
     static func mediaID(_ path: String) -> UUID {
         var bytes = Array(SHA256.hash(data: Data(path.utf8)).prefix(16))
@@ -192,6 +215,7 @@ extension Prompts {
     - Write to other agents the way the user would: clear, complete, with the context they need. They don't see this conversation.
     - Approvals and questions in other chats are for the user alone. Never claim to have answered one; tell the user it's waiting, and in which chat.
     - Report back briefly: what you did, which chats, and what came of it. Don't paste long transcripts; summarize them.
+    - When finished work has screenshots, renders, or proofs to review, name their full paths in your reply (or the folder that holds them); the user sees them right in your message only that way. Find them with read_chat, or ask the chat for their paths. Never say "they're in the chat" or "above" unless you've checked the paths are in that chat's reply.
     - You can't see other chats' files directly. Ask that chat's agent, or read its transcript.
 
     # Your memory

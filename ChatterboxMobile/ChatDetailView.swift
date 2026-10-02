@@ -483,9 +483,11 @@ private struct ItemRow: View {
                 VStack(alignment: .leading, spacing: 6) {
                     MarkdownText(text: item.text)
                     // Animations the reply points to, playing.
-                    ForEach(item.attachments.filter(RemoteMedia.isMedia)) { file in
+                    ForEach(item.attachments.filter { !$0.isImage && RemoteMedia.isMedia($0) }) { file in
                         RemoteMedia(file: file, chat: chat)
                     }
+                    // Screenshots and renders it points to, to view and save.
+                    images
                     HStack(spacing: 14) {
                         if let seconds = item.workedSeconds {
                             Label("Worked for \(durationText(seconds))", systemImage: "clock")

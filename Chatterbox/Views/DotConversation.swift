@@ -6,6 +6,8 @@ import SwiftUI
 struct DotConversation: View {
     let session: ChatSession
     @State private var openSteps: Set<UUID> = []
+    /// Only the newest rows are drawn, so a long history stays quick.
+    @State private var shown = 80
     @Environment(\.readerStyle) private var style
     @Environment(\.chatFolder) private var chatFolder
     @Environment(AppModel.self) private var model
@@ -65,7 +67,14 @@ struct DotConversation: View {
         let grouped = rows
         let lastReply = grouped.rows.last { if case .reply = $0 { return true }; return false }?.id
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(grouped.rows) { row in
+            if grouped.rows.count > shown {
+                Button { shown += 80 } label: {
+                    Label("Show earlier", systemImage: "arrow.up.circle").font(.callout).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+            }
+            ForEach(grouped.rows.suffix(shown)) { row in
                 // Golem sits beside his latest reply (or the typing bubble while he works).
                 if case .reply = row, GolemAvatar.shared.hasAnimations {
                     HStack(alignment: .bottom, spacing: 8) {
@@ -183,6 +192,7 @@ struct DotConversation: View {
                 ForEach(ChatSession.referencedMedia(in: item.text, folder: chatFolder), id: \.self) { url in
                     if let kind = MediaKind.of(url) { MediaPreview(url: url, kind: kind).frame(maxWidth: 480, alignment: .leading) }
                 }
+                ReplyImages(urls: ChatSession.referencedImages(in: item.text, folder: chatFolder))
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)

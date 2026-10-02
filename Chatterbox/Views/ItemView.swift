@@ -101,6 +101,7 @@ struct ItemView: View {
                     ForEach(ChatSession.referencedMedia(in: item.text, folder: chatFolder), id: \.self) { url in
                         if let kind = MediaKind.of(url) { MediaPreview(url: url, kind: kind).frame(maxWidth: 640, alignment: .leading) }
                     }
+                    ReplyImages(urls: ChatSession.referencedImages(in: item.text, folder: chatFolder))
                 }
                 if item.phase == .final {
                     HStack(spacing: 12) {

@@ -326,6 +326,8 @@ final class CompanionServer {
             guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
             session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
+        case ("GET", 2) where parts[1] == "addresses":
+            return .json(Companion.Addresses(addresses: Self.addresses))
         case ("GET", 2) where parts[1] == "avatar":
             return .json(CompanionMapper.avatarList())
         case ("GET", 3) where parts[1] == "avatar":
@@ -342,7 +344,7 @@ final class CompanionServer {
             }
             // An animation a reply points to.
             for item in session.items where item.kind == .assistant {
-                for url in ChatSession.referencedMedia(in: item.text, folder: session.workingFolder)
+                for url in ChatSession.referencedMedia(in: item.text, folder: session.workingFolder) + ChatSession.referencedImages(in: item.text, folder: session.workingFolder)
                 where ChatSession.mediaID(url.path) == fileID {
                     if let data = try? Data(contentsOf: url) { return HTTPResponse(status: 200, contentType: "application/octet-stream", body: data) }
                 }
@@ -567,6 +569,10 @@ enum CompanionMapper {
         if item.kind == .assistant, item.phase == .final {
             mapped.attachments += ChatSession.referencedMedia(in: item.text, folder: folder).map {
                 .init(id: ChatSession.mediaID($0.path), name: $0.lastPathComponent, mediaType: "application/octet-stream", isImage: false)
+            }
+            // Screenshots and renders it names, as pictures to view.
+            mapped.attachments += ChatSession.referencedImages(in: item.text, folder: folder).map {
+                .init(id: ChatSession.mediaID($0.path), name: $0.lastPathComponent, mediaType: "image/" + $0.pathExtension.lowercased(), isImage: true)
             }
         }
         return mapped
