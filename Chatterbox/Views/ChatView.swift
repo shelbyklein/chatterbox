@@ -39,6 +39,9 @@ struct ChatView: View {
     @State private var issuesPanel = IssuesPanelState()
     /// A page or file from the chat, open in the browser panel on the right.
     @State private var preview: WebPage?
+    @State private var previewLink: PreviewLink?
+    @State private var selectedPreview: (URL, PreviewDestination)?
+    @State private var previewOpenError: String?
     /// How many of the newest rows to draw; "Show earlier" adds a page at a time.
     @State private var shownRowCount = ChatView.rowPage
     static let rowPage = 40
@@ -81,6 +84,10 @@ struct ChatView: View {
                 }
                 file = path
             } else {
+                if ["http", "https"].contains(url.scheme?.lowercased() ?? ""), !NSEvent.modifierFlags.contains(.command) {
+                    previewLink = PreviewLink(url: url)
+                    return .handled
+                }
                 guard let resolved = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
                 file = resolved
             }
@@ -91,14 +98,21 @@ struct ChatView: View {
             }
             // Web pages and SVGs keep their live browser preview.
             if ["html", "htm", "svg"].contains(file.pathExtension.lowercased()), !NSEvent.modifierFlags.contains(.command) {
-                if let preview, preview.url == file { preview.reload() } else {
-                    withAnimation(.easeOut(duration: 0.2)) { preview = WebPage(url: file) }
-                }
+                previewLink = PreviewLink(url: file)
                 return .handled
             }
             NSWorkspace.shared.open(file)
             return .handled
         })
+        .sheet(item: $previewLink, onDismiss: openSelectedPreview) { link in
+            PreviewDestinationChooser(url: link.url) { destination in
+                selectedPreview = (link.url, destination)
+                previewLink = nil
+            }
+        }
+        .alert("Couldn't open preview", isPresented: Binding(get: { previewOpenError != nil }, set: { if !$0 { previewOpenError = nil } })) {
+            Button("OK") { previewOpenError = nil }
+        } message: { Text(previewOpenError ?? "") }
         .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil },
                                         set: { if !$0 { issuesPanel.isOpen = false; preview = nil } })) {
             if let preview {
@@ -779,16 +793,13 @@ struct ChatView: View {
             }
             if session.record.backend == .claude { remoteButton }
 
-            ModelPicker(session: session, compact: true, summary: modelSummary.full,
-                        color: appearance.style.color(for: session.record.backend))
-
-            Button { showingImages = true } label: { ToolbarLabel("Images", systemImage: "photo.on.rectangle.angled") }
-                .help("Every image made in this chat")
+            Button { showingImages = true } label: { Image(systemName: "photo.on.rectangle.angled") }
+                .help("Every image made in this chat").accessibilityLabel("Images")
             Button { withAnimation(.smooth(duration: 0.25)) { showingTerminal.toggle() } } label: {
-                ToolbarLabel("Terminal", systemImage: "terminal")
+                Image(systemName: "terminal")
             }
             .keyboardShortcut("`", modifiers: .control)
-            .help("A terminal in this chat's folder, at the bottom of the window (\u{2303}`)")
+            .help("A terminal in this chat's folder, at the bottom of the window (\u{2303}`)").accessibilityLabel("Terminal")
         }
     }
 
@@ -862,6 +873,26 @@ struct ChatView: View {
             ToolbarLabel(studio.name, systemImage: "paintpalette")
         }
         .help("This chat is in the \(studio.name) Studio. Its chats share \(studio.folder).")
+    }
+
+    private func openSelectedPreview() {
+        guard let (url, destination) = selectedPreview else { return }
+        selectedPreview = nil
+        switch destination {
+        case .sidebar:
+            if let preview, preview.url == url { preview.reload() }
+            else { withAnimation(.easeOut(duration: 0.2)) { preview = WebPage(url: url) } }
+        case .fullScreen, .window:
+            BrowserPreviewWindows.shared.open(url, fullScreen: destination == .fullScreen)
+        case .chrome, .chromium, .safari:
+            guard let application = destination.application else {
+                previewOpenError = "That browser isn't installed on this Mac."
+                return
+            }
+            NSWorkspace.shared.open([url], withApplicationAt: application, configuration: .init()) { _, error in
+                if let error { Task { @MainActor in previewOpenError = error.localizedDescription } }
+            }
+        }
     }
 
     private func chooseProject() {

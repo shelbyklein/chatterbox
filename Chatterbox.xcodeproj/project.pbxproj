@@ -118,6 +118,7 @@
 		D47A8E4BD002D63560FFCEA4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
 		D8BEA37E7DD21B08FBCAACAB /* ChatComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39303FD805DEF3103AAB3 /* ChatComputer.swift */; };
 		D97B67C5784EABAA2444D438 /* IssueToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A241350B2223FA06355C13DB /* IssueToolbar.swift */; };
+		D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178D4801E24EF3B55783AF8A /* PreviewDestination.swift */; };
 		DA4C85566C711698B6BF66ED /* HostClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DE3A68946E9818C4FA0A43 /* HostClient.swift */; };
 		DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E506CEBABA8892B98B49AE9 /* MediaKind.swift */; };
 		DB8211863B9A77DFA2C82FEA /* GolemRig.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB3E7574B1E942517B6B8BE /* GolemRig.swift */; };
@@ -187,6 +188,7 @@
 		104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewView.swift; sourceTree = "<group>"; };
 		11C72805397B7C55E9C7D439 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		14558A0837B25DEDA47B363D /* ModelPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPresets.swift; sourceTree = "<group>"; };
+		178D4801E24EF3B55783AF8A /* PreviewDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewDestination.swift; sourceTree = "<group>"; };
 		199795CA97CD07D743A50C57 /* ChatterboxMCP */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxMCP; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AECAB552B28248B3461AC00 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
 		1CE3430D1F51F793F8FC03FD /* MobileHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileHome.swift; sourceTree = "<group>"; };
@@ -483,6 +485,7 @@
 				7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */,
 				BACD3896247941A01A6F39FB /* PathLinks.swift */,
 				A25AF49642A0603DB9DB1791 /* PinsSection.swift */,
+				178D4801E24EF3B55783AF8A /* PreviewDestination.swift */,
 				8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */,
 				2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */,
 				505EA4AEFE9AD144D1946F33 /* SettingsView.swift */,
@@ -760,6 +763,7 @@
 				F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */,
 				0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */,
 				0D0AA5565003163647FC890D /* PinsSection.swift in Sources */,
+				D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */,
 				A422C393619850F01BD44C50 /* PreviewRelays.swift in Sources */,
 				C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */,
 				6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */,

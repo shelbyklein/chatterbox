@@ -33,7 +33,7 @@ struct ChatSettingsSheet: View {
                             apply(.init(effort: $0))
                         }
                         .id(options.model)
-                        if isCodex, let fast = options.fastMode {
+                        if let fast = options.fastMode {
                             Toggle(isOn: Binding(get: { fast }, set: { apply(.init(fastMode: $0)) })) {
                                 Label("Fast mode", systemImage: "hare")
                             }
@@ -41,8 +41,8 @@ struct ChatSettingsSheet: View {
                     } header: {
                         Text("Effort")
                     } footer: {
-                        if isCodex, options.fastMode != nil {
-                            Text("Fast mode gives faster replies with higher usage. Applies to the next reply; availability depends on your model and plan.")
+                        if options.fastMode != nil {
+                            Text(isCodex ? "Fast mode gives faster replies with higher usage. Applies to the next reply; availability depends on your model and plan." : "Requires usage credits and account support; billed outside your subscription allowance. Applies after the current reply.")
                         }
                     }
                 }

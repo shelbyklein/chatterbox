@@ -103,6 +103,8 @@ struct ConversationRecord: Codable {
     var model: String
     /// Claude Code effort level; empty means the model's default.
     var effort: String
+    /// Session-local Claude Fast preference; absent in older chats means standard speed.
+    var claudeFastMode: Bool? = nil
     var personality: Personality
     /// The personality most recently sent to the agent, so it's re-sent only when it changes.
     var sentPersonality: Personality?

@@ -103,7 +103,8 @@ extension ChatSession {
             forkSession: record.claudeForkPending == true,
             mcpConfig: claudeMCPConfig,
             allowedTools: claudeAllowedTools,
-            environment: claudeProxyEnvironment.merging(SecretVault.shared.environment(for: self)) { $1 }
+            environment: claudeProxyEnvironment.merging(SecretVault.shared.environment(for: self)) { $1 },
+            fastMode: record.claudeFastMode == true && supportsClaudeFastMode
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {
@@ -140,6 +141,32 @@ extension ChatSession {
     private var claudePermissionMode: String { record.claudeModeID }
 
     // MARK: - Live settings
+
+    var supportsClaudeFastMode: Bool {
+        let model = ClaudeModels.shared.info(record.model).resolvedModel.lowercased().split(separator: "[").first.map(String.init) ?? ""
+        return model == "opus" || ["claude-opus-5-5", "claude-opus-5", "claude-opus-4-8"].contains {
+            model == $0 || (model.hasPrefix($0 + "-") && model.dropFirst($0.count + 1).count == 8 && model.dropFirst($0.count + 1).allSatisfy(\.isNumber))
+        }
+    }
+
+    var fastMode: Bool { record.backend == .codex ? record.codex?.fastMode == true : record.claudeFastMode == true && supportsClaudeFastMode }
+    var supportsFastMode: Bool { record.backend == .codex || supportsClaudeFastMode }
+    var fastModeNote: String {
+        record.backend == .claude
+            ? "Requires usage credits and account support; billed outside your subscription allowance. Applies after the current reply."
+            : "Faster replies with higher usage. Applies to the next reply; availability depends on your model and plan."
+    }
+
+    func setFastMode(_ enabled: Bool) {
+        if record.backend == .codex { setCodexFastMode(enabled); return }
+        guard !enabled || supportsClaudeFastMode, record.claudeFastMode != enabled else { return }
+        record.claudeFastMode = enabled
+        // Startup --settings is supported by this CLI. Resume the same conversation,
+        // waiting for the current reply just as when its tool configuration changes.
+        restartClaudeForNewTools()
+        noteSettingsChange()
+        onChange?(self)
+    }
 
     func claudeApplyModel() {
         guard let process = claudeProcess, process.isRunning else { return }

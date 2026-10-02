@@ -59,11 +59,11 @@ struct ChatSettingsCog: View {
 
     var main: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if session.record.backend == .codex {
-                Toggle("Fast mode", isOn: Binding(get: { session.record.codex?.fastMode == true },
-                                                 set: { session.setCodexFastMode($0) }))
+            if session.supportsFastMode {
+                Toggle("Fast mode", isOn: Binding(get: { session.fastMode },
+                                                 set: { session.setFastMode($0) }))
                     .toggleStyle(.switch)
-                Text("Faster replies with higher usage. Starts with your next reply.")
+                Text(session.fastModeNote)
                     .font(.caption).foregroundStyle(.secondary)
                 Divider()
             }

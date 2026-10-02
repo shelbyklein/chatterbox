@@ -94,12 +94,12 @@ struct ModelPopover: View {
 
             Divider()
             effortSection
-            if tab == .codex {
-                Toggle("Fast mode", isOn: Binding(get: { session.record.codex?.fastMode == true },
-                                                 set: { session.setCodexFastMode($0) }))
+            if tab == active, session.supportsFastMode {
+                Toggle("Fast mode", isOn: Binding(get: { session.fastMode },
+                                                 set: { session.setFastMode($0) }))
                     .toggleStyle(.switch)
-                    .disabled(active != .codex)
-                Text("Faster replies with higher usage. Applies to the next reply; availability depends on your model and plan.")
+                    .disabled(locked)
+                Text(session.fastModeNote)
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -120,6 +120,7 @@ struct ModelPopover: View {
         }
         .padding(14)
         .frame(width: Self.size.width, height: Self.size.height, alignment: .top)
+        .onChange(of: session.record.backend) { _, backend in tab = backend }
     }
 
     // MARK: - Models

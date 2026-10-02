@@ -66,6 +66,7 @@ final class ClaudeCodeProcess {
         var allowedTools: [String] = []
         /// Added to the environment (EasyCLIProxyAPI's address and key).
         var environment: [String: String] = [:]
+        var fastMode = false
     }
 
     /// Every message the CLI writes, except replies to our own control requests.
@@ -93,6 +94,7 @@ final class ClaudeCodeProcess {
                     // Only makes "Bypass permissions" selectable later; the mode above still applies.
                     "--allow-dangerously-skip-permissions",
                     "--append-system-prompt", config.appendSystemPrompt]
+        args += ["--settings", config.fastMode ? "{\"fastMode\":true}" : "{\"fastMode\":false}"]
         if !config.effort.isEmpty { args += ["--effort", config.effort] }
         if let id = config.resumeSessionID {
             args += ["--resume", id]

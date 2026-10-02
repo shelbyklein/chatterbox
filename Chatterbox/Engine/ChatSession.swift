@@ -325,7 +325,7 @@ final class ChatSession: Identifiable {
         case .claude:
             let model = ClaudeModels.shared.info(record.model)
             let effort = record.effort.isEmpty ? "default effort" : "\(ChatView.effortLabel(record.effort)) effort"
-            return "Claude \u{00B7} \(model.displayName)" + (model.efforts.isEmpty ? "" : " \u{00B7} \(effort)")
+            return "Claude \u{00B7} \(model.displayName)" + (model.efforts.isEmpty ? "" : " \u{00B7} \(effort)") + (fastMode ? " \u{00B7} Fast mode" : "")
         case .codex:
             let models = CodexAppServer.shared.models
             let name = models.first { $0.model == record.codex?.model }?.displayName
@@ -489,7 +489,7 @@ final class ChatSession: Identifiable {
         record.model = model
         let efforts = ClaudeModels.shared.info(model).efforts
         if !record.effort.isEmpty, !efforts.contains(record.effort) { record.effort = "" }
-        claudeApplyModel()
+        if record.claudeFastMode == true { restartClaudeForNewTools() } else { claudeApplyModel() }
         if record.backend == .claude { noteSettingsChange() }
         onChange?(self)
     }
