@@ -26,6 +26,7 @@ struct ChatView: View {
     @State private var windowNumber: Int?
     @State private var projectConflict: ChatSession?
     @State private var reviewing: Attachment?
+    @State private var showingImages = false
     @State private var viewingDocument: LocalDocument?
     @State private var commandIndex = 0
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
@@ -122,6 +123,9 @@ struct ChatView: View {
             let window = (NSApp.mainWindow ?? NSApp.keyWindow)?.contentLayoutRect.size ?? NSSize(width: 1200, height: 800)
             DocumentViewer(document: document)
                 .frame(width: max(600, window.width - 40), height: max(400, window.height - 40))
+        }
+        .sheet(isPresented: $showingImages) {
+            ChatImageGallery(session: session) { reviewing = $0 }
         }
         .sheet(item: $reviewing) { image in
             // As big as the window allows, so the image or document gets the most room.
@@ -732,6 +736,9 @@ struct ChatView: View {
 
             ModelPicker(session: session, compact: true, summary: modelSummary.full,
                         color: appearance.style.color(for: session.record.backend))
+
+            Button { showingImages = true } label: { ToolbarLabel("Images", systemImage: "photo.on.rectangle.angled") }
+                .help("Every image made in this chat")
         }
     }
 
