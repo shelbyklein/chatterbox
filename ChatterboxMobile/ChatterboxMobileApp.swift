@@ -9,7 +9,8 @@ struct ChatterboxMobileApp: App {
         WindowGroup {
             Group {
                 if store.isPaired {
-                    ChatListView()
+                    // iPhone: Golem as the home screen, the list a tab away. iPad: the list beside the chat.
+                    if UIDevice.current.userInterfaceIdiom == .phone { MobileHome() } else { ChatListView() }
                 } else {
                     ConnectView()
                 }

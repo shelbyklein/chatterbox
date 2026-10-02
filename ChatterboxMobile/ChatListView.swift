@@ -3,6 +3,8 @@ import SwiftUI
 /// The Mac's chats, grouped like its sidebar: projects, each Studio, then other chats. On
 /// iPad the open chat sits beside them; on iPhone it opens over them.
 struct ChatListView: View {
+    /// On iPhone Golem has his own tab, so the list leaves him out.
+    var hidesAssistant = false
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -115,7 +117,7 @@ struct ChatListView: View {
                 if search.isEmpty, let pins = list.pins, !pins.isEmpty {
                     Section("Pins") { MobilePinPills(pins: pins) }
                 }
-                ForEach(filtered(list.groups)) { group in
+                ForEach(filtered(list.groups.filter { !hidesAssistant || $0.kind != .dot })) { group in
                     Section {
                         if search.isEmpty, let pins = group.pins, !pins.isEmpty {
                             MobilePinPills(pins: pins)
