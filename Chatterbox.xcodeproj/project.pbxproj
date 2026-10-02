@@ -101,6 +101,7 @@
 		C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		C5AA2B923B13F157E0B511FA /* TranscriptViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C729E82E41C2C9B2BFD9932 /* TranscriptViews.swift */; };
 		C85296D19896FD1C9A314F1E /* IssuesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */; };
+		CAA043E61CFFAEBAA59152B1 /* EasyCLIProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */; };
 		CD177B0129A911BCBAFC510C /* ChatSession+Issues.swift in Sources */ = {isa = PBXBuildFile; fileRef = A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */; };
 		CE30B4EEBFE555395108BE6D /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		CF8128373420B57317F96D90 /* NewProjectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */; };
@@ -262,6 +263,7 @@
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePDFViewer.swift; sourceTree = "<group>"; };
 		E34B3EA688DB4D5120202F4A /* Attention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attention.swift; sourceTree = "<group>"; };
+		E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyCLIProxy.swift; sourceTree = "<group>"; };
 		E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Shell.swift"; sourceTree = "<group>"; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
@@ -371,6 +373,7 @@
 				439370872F6E041E6DB407AF /* Dot.swift */,
 				0508B744152680991C2150CE /* DotActivity.swift */,
 				B42971FF65DCD021D97664C9 /* DotComputer.swift */,
+				E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */,
 				71143A69C2726A534266C3D2 /* EmailWatch.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
@@ -692,6 +695,7 @@
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
 				24A8E16AFA68E1C800EC40D2 /* DotComputerPanel.swift in Sources */,
 				86B7AB9492D473645BCC6FA9 /* DotConversation.swift in Sources */,
+				CAA043E61CFFAEBAA59152B1 /* EasyCLIProxy.swift in Sources */,
 				9921B3994F4867053CC25CBF /* EmailWatch.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,

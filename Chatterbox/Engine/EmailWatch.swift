@@ -147,6 +147,8 @@ final class EmailWatch {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: codex)
             process.arguments = ["exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only", "-m", model,
+                                 // Direct, never through a proxy: Gmail comes with the ChatGPT sign-in.
+                                 "-c", "model_provider=openai",
                                  "-C", folder, "--output-schema", schemaFile.path,
                                  "-o", answerFile.path, prompt]
             process.environment = BinaryLocator.environment

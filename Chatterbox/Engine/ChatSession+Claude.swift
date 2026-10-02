@@ -100,7 +100,8 @@ extension ChatSession {
             extraDirectories: [Attachments.directory.path],
             forkSession: record.claudeForkPending == true,
             mcpConfig: dotMCPConfig,
-            allowedTools: isDot ? Self.dotTools : []
+            allowedTools: isDot ? Self.dotTools : [],
+            environment: claudeProxyEnvironment
         ), id: "claude-\(id.uuidString)-\(UUID().uuidString.prefix(8))")
         // A fresh session gets the current tone and instructions in its system prompt.
         if !resuming {
@@ -516,5 +517,13 @@ extension ChatSession {
         }
         updateItem(itemID) { $0.approvalState = decision }
         onChange?(self)
+    }
+}
+
+extension ChatSession {
+    /// EasyCLIProxyAPI for this chat's Claude Code, when it's on (never for the assistant).
+    var claudeProxyEnvironment: [String: String] {
+        guard !isDot, let proxy = EasyCLIProxy.shared.active(for: .claude) else { return [:] }
+        return ["ANTHROPIC_BASE_URL": proxy.base, "ANTHROPIC_AUTH_TOKEN": proxy.key, "ANTHROPIC_API_KEY": ""]
     }
 }

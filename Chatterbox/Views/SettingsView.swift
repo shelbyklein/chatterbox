@@ -135,6 +135,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            ProxySection()
             DiagnosticsSection()
 
             Section {
@@ -787,5 +788,52 @@ private struct DiagnosticsSection: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .onAppear { diagnostics.reload() }
+    }
+}
+
+/// EasyCLIProxyAPI: send Claude and Codex chats through the local proxy that pools your
+/// accounts. The assistant and the email watch always connect directly.
+private struct ProxySection: View {
+    @AppStorage(EasyCLIProxy.claudeKey) private var claude = false
+    @AppStorage(EasyCLIProxy.codexKey) private var codex = false
+    @Environment(AppModel.self) private var model
+    private let proxy = EasyCLIProxy.shared
+
+    var body: some View {
+        Section {
+            LabeledContent("Status") {
+                HStack(spacing: 6) {
+                    Circle().fill(proxy.isRunning ? Color.green : Color.secondary.opacity(0.5)).frame(width: 7, height: 7)
+                    if proxy.isRunning, let endpoint = proxy.endpoint {
+                        Text("Running at \(endpoint.host):\(endpoint.port) \u{00B7} \(proxy.modelCount) models").foregroundStyle(.secondary)
+                    } else if proxy.endpoint == nil {
+                        Text("Not installed (no CLIProxyAPI config found)").foregroundStyle(.secondary)
+                    } else {
+                        Text("Not running. Open EasyCLIProxyAPI.").foregroundStyle(.secondary)
+                    }
+                    Button("Check") { Task { await proxy.refresh() } }.controlSize(.small)
+                }
+            }
+            Toggle("Send Claude chats through it", isOn: $claude)
+            Toggle("Send Codex chats through it", isOn: $codex)
+        } header: {
+            Text("EasyCLIProxyAPI")
+        } footer: {
+            Text("Spreads chats across the accounts you've signed in to EasyCLIProxyAPI. Through it, Claude can't use your claude.ai connectors and Codex can't use ChatGPT apps like Gmail, so \(model.dotName) and the email watch always connect directly. Takes effect with each chat's next message; if the proxy stops answering, chats connect directly.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .task { await proxy.refresh() }
+        .onChange(of: claude) { restartClaudeChats() }
+        .onChange(of: codex) { Task { await proxy.refresh() } }
+    }
+
+    /// Claude Code reads its address at launch: idle chats restart into the new route.
+    private func restartClaudeChats() {
+        Task {
+            await proxy.refresh()
+            for session in model.sessions where !session.isDot && session.record.backend == .claude {
+                session.restartClaudeForNewTools()
+            }
+        }
     }
 }

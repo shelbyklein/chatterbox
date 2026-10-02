@@ -137,7 +137,7 @@ extension ChatSession {
                     record.codex?.threadId = id
                     codexRegisterHandler(id)
                     server.markLoaded(id)
-                    if isDot { codexDotConfiguration = dotCodexConfigurationKey }
+                    codexDotConfiguration = codexConfigurationKey
                     onChange?(self)
                     return id
                 }
@@ -152,19 +152,17 @@ extension ChatSession {
 
         if let existing = settings.threadId {
             codexRegisterHandler(existing)
-            if server.loadedThreads.contains(existing), !isDot || codexDotConfiguration == dotCodexConfigurationKey { return existing }
+            if server.loadedThreads.contains(existing), codexDotConfiguration == codexConfigurationKey { return existing }
             do {
                 var params: [String: JSON] = [
                     "threadId": .string(existing), "cwd": .string(settings.folder), "excludeTurns": true,
                 ]
-                if isDot {
-                    let threadParams = codexThreadParams(settings)
-                    params["config"] = threadParams["config"]
-                    params["developerInstructions"] = threadParams["developerInstructions"]
-                }
+                let threadParams = codexThreadParams(settings)
+                params["config"] = threadParams["config"]
+                if isDot { params["developerInstructions"] = threadParams["developerInstructions"] }
                 _ = try await server.request("thread/resume", .object(params))
                 server.markLoaded(existing)
-                if isDot { codexDotConfiguration = dotCodexConfigurationKey }
+                codexDotConfiguration = codexConfigurationKey
                 return existing
             } catch {
                 notice("Couldn't reopen the earlier Codex session, so this continues in a new one.")
@@ -181,7 +179,7 @@ extension ChatSession {
         record.instructionsVersion = Prompts.instructionsVersion
         codexRegisterHandler(id)
         server.markLoaded(id)
-        if isDot { codexDotConfiguration = dotCodexConfigurationKey }
+        codexDotConfiguration = codexConfigurationKey
         onChange?(self)
         return id
     }
@@ -200,8 +198,19 @@ extension ChatSession {
             guard let instructions = params["developerInstructions"]?.string else { return params }
             params["developerInstructions"] = .string(instructions + "\n\n" + dotCodexInstructions)
             params["config"] = dotCodexConfig
+        } else if let proxy = EasyCLIProxy.shared.active(for: .codex) {
+            params["config"] = .object(EasyCLIProxy.shared.codexConfig(proxy))
+        } else {
+            // Explicit, so a thread that used the proxy goes back to the direct connection.
+            params["config"] = .object(["model_provider": .string(EasyCLIProxy.directCodexProvider)])
         }
         return params
+    }
+
+    /// What the thread was loaded with; a change (the proxy switched on or off) reloads it.
+    var codexConfigurationKey: String {
+        if isDot { return dotCodexConfigurationKey }
+        return EasyCLIProxy.shared.active(for: .codex).map { "proxy:" + $0.base } ?? "direct"
     }
 
     /// Routes the thread's events to this chat. After a relaunch, lines the saved transcript

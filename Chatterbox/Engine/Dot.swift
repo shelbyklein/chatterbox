@@ -42,6 +42,8 @@ extension ChatSession {
             if let value = ProcessInfo.processInfo.environment[key] { env[key] = .string(value) }
         }
         let config: [String: JSON] = [
+            // Always the direct ChatGPT connection: through a proxy, Codex loses its apps (Gmail).
+            "model_provider": "openai",
             "mcp_servers.chatterbox": ["command": .string(server), "args": [], "env": .object(env),
                                       "enabled": true, "default_tools_approval_mode": "approve"],
             // Explicitly disable a previously configured computer after it stops.

@@ -64,6 +64,8 @@ final class ClaudeCodeProcess {
         var mcpConfig: String?
         /// Tools that run without asking.
         var allowedTools: [String] = []
+        /// Added to the environment (EasyCLIProxyAPI's address and key).
+        var environment: [String: String] = [:]
     }
 
     /// Every message the CLI writes, except replies to our own control requests.
@@ -108,7 +110,7 @@ final class ClaudeCodeProcess {
             throw ClaudeCodeError(message: "Couldn't find the `claude` command. Install Claude Code, or set its path in Settings.")
         }
         try HostClient.shared.spawn(id: id, executable: binary, arguments: Self.arguments(config), cwd: config.cwd,
-                                    environment: BinaryLocator.environment, kind: "claude")
+                                    environment: BinaryLocator.environment.merging(config.environment) { $1 }, kind: "claude")
         try attach(id: id, from: 0)
     }
 
