@@ -109,6 +109,15 @@ final class EasyCLIProxy {
          "model_provider": "easycliproxy"]
     }
 
+    /// Whether Codex is signed in to ChatGPT (not just a key), which the direct connection
+    /// needs. Only then are the assistant and the email watch pinned to it.
+    static var codexHasChatGPTSignIn: Bool {
+        let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/auth.json")
+        guard let data = try? Data(contentsOf: file),
+              let auth = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
+        return (auth["auth_mode"] as? String)?.lowercased() == "chatgpt" || auth["tokens"] != nil
+    }
+
     /// The provider Codex uses without the proxy: the user's own choice, or OpenAI.
     static var directCodexProvider: String {
         let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/config.toml")

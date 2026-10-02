@@ -41,9 +41,7 @@ extension ChatSession {
         for key in ["CHATTERBOX_DATA_DIR", "CHATTERBOX_AGENT_PORT"] {
             if let value = ProcessInfo.processInfo.environment[key] { env[key] = .string(value) }
         }
-        let config: [String: JSON] = [
-            // Always the direct ChatGPT connection: through a proxy, Codex loses its apps (Gmail).
-            "model_provider": "openai",
+        var config: [String: JSON] = [
             "mcp_servers.chatterbox": ["command": .string(server), "args": [], "env": .object(env),
                                       "enabled": true, "default_tools_approval_mode": "approve"],
             // Explicitly disable a previously configured computer after it stops.
@@ -51,6 +49,9 @@ extension ChatSession {
                                     "enabled": .bool(DotComputer.shared.isRunning),
                                     "default_tools_approval_mode": "approve"],
         ]
+        // The direct ChatGPT connection when Codex has one: through a proxy, Codex loses its
+        // apps (Gmail). Without a ChatGPT sign-in, Codex's own default is left alone.
+        if EasyCLIProxy.codexHasChatGPTSignIn { config["model_provider"] = "openai" }
         return .object(config)
     }
 

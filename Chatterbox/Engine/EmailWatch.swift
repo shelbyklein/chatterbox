@@ -136,6 +136,8 @@ final class EmailWatch {
     /// One `codex exec`: read-only, kept out of Codex's history, stopped after ten minutes.
     private static func run(codex: String, model: String, prompt: String) async -> Outcome {
         let folder = AppModel.dotFolder
+        // Direct, not through a proxy, when Codex has a ChatGPT sign-in: Gmail comes with it.
+        let direct = EasyCLIProxy.codexHasChatGPTSignIn
         return await Task.detached {
             let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("chatterbox-email-\(UUID().uuidString)", isDirectory: true)
             try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
@@ -146,9 +148,8 @@ final class EmailWatch {
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: codex)
-            process.arguments = ["exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only", "-m", model,
-                                 // Direct, never through a proxy: Gmail comes with the ChatGPT sign-in.
-                                 "-c", "model_provider=openai",
+            process.arguments = (direct ? ["-c", "model_provider=openai"] : []) + ["exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only", "-m", model,
+
                                  "-C", folder, "--output-schema", schemaFile.path,
                                  "-o", answerFile.path, prompt]
             process.environment = BinaryLocator.environment
