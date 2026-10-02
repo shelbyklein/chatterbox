@@ -16,6 +16,7 @@ struct ChatDetailView: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var detail: Companion.ChatDetail?
+    @State private var refreshing = false
     /// The message box's text and images. Typing stays in this view; changes are copied to
     /// the store per chat, so they survive switching chats (and, for text, quitting the app).
     @State private var draft = ""
@@ -80,6 +81,7 @@ struct ChatDetailView: View {
             }
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
+            .refreshable { await refresh(force: true) }
             .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
         }
         .safeAreaInset(edge: .bottom) { composer }
@@ -153,18 +155,27 @@ struct ChatDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        // Checks for changes often while the agent works, less when it's idle.
+        // Loading a chat must not depend on its scene already being active. During
+        // navigation/foreground transitions that value can still be inactive; previously
+        // we skipped the first request and left only a spinner until a send supplied data.
+        .task(id: chat.id) { await refresh(force: true) }
+        // Scene activity controls subsequent polling, not the initial load.
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
             while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(summary.isRunning ? 1.2 : 4)) }
+                catch { return }
                 await refresh()
-                try? await Task.sleep(for: .seconds(summary.isRunning ? 1.2 : 4))
             }
         }
     }
 
     private var chatMenu: some View {
         Menu {
+            Button { Task { await refresh(force: true) } } label: {
+                Label("Refresh Chat", systemImage: "arrow.clockwise")
+            }
+            .disabled(refreshing)
             Button { showingSettings = true } label: { Label("Chat Settings", systemImage: "slider.horizontal.3") }
                 .disabled(detail?.options == nil)
             Button { newTitle = summary.title; renaming = true } label: { Label("Rename", systemImage: "pencil") }
@@ -219,9 +230,14 @@ struct ChatDetailView: View {
         }
     }
 
-    private func refresh() async {
+    private func refresh(force: Bool = false) async {
+        guard !refreshing, !Task.isCancelled else { return }
+        refreshing = true
+        defer { refreshing = false }
         do {
-            switch try await store.detail(chat.id, since: detail?.revision) {
+            let response = try await store.detail(chat.id, since: force ? nil : detail?.revision)
+            guard !Task.isCancelled else { return }
+            switch response {
             case .unchanged: break
             case .detail(let fresh):
                 detail = fresh
@@ -234,6 +250,7 @@ struct ChatDetailView: View {
             }
             error = nil
         } catch {
+            guard !Task.isCancelled else { return }
             self.error = error.localizedDescription
         }
     }

@@ -198,6 +198,7 @@ final class MobileStore {
         guard let connection, let token else { throw MobileError(message: "This iPhone isn't paired.") }
         var lastError: Error = MobileError(message: "Couldn't reach \(connection.macName).")
         for host in connection.hosts {
+            try Task.checkCancellation()
             do {
                 let (data, response) = try await URLSession.shared.data(for: request(host: host, path: path, method: method, body: body, token: token))
                 if let http = response as? HTTPURLResponse, http.statusCode == 401 {
@@ -211,6 +212,9 @@ final class MobileStore {
             } catch let error as MobileError {
                 throw error
             } catch {
+                // Leaving a chat cancels its poll. Don't turn that into more address
+                // attempts or a misleading network/Tailscale error.
+                try Task.checkCancellation()
                 lastError = error
             }
         }
