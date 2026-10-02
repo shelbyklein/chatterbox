@@ -55,6 +55,9 @@ private struct GolemHome: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var history: MobileChatHistory?
+    /// Off: Golem stands centered, tabs showing. On: he's tucked in and the message box is up.
+    @State private var composing = false
+    @State private var hidesTabs = false
 
     private var assistant: Companion.ChatSummary? {
         store.chatList?.groups.first { $0.kind == .dot }?.chats.first
@@ -64,8 +67,16 @@ private struct GolemHome: View {
         NavigationStack {
             Group {
                 if let chat = assistant, let history, history.id == chat.id {
-                    ChatDetailView(chat: chat, history: history)
+                    ChatDetailView(chat: chat, history: history, golemComposing: $composing)
                         .id(chat.id)
+                        .toolbar(hidesTabs ? .hidden : .visible, for: .tabBar)
+                        // The tab bar switches at once (its slide makes the transcript jump),
+                        // while Golem himself glides.
+                        .onChange(of: composing) { _, on in
+                            var instant = Transaction()
+                            instant.disablesAnimations = true
+                            withTransaction(instant) { hidesTabs = on }
+                        }
                         .onAppear { MobilePushNotifications.shared.readingChat = chat.id }
                         .onDisappear {
                             if MobilePushNotifications.shared.readingChat == chat.id { MobilePushNotifications.shared.readingChat = nil }

@@ -14,7 +14,12 @@ struct ChatDetailView: View {
     /// Opens another chat (a fork) in this one's place.
     var open: (Companion.ChatSummary) -> Void = { _ in }
     let history: MobileChatHistory
+    /// On the iPhone's Golem tab: false shows him large and centered with no message box,
+    /// true tucks him into his spot under the last message and brings the box back.
+    var golemComposing: Binding<Bool>? = nil
     @Environment(MobileStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var golemSpace
     private var detail: Companion.ChatDetail? { history.detail }
     /// The message box's text and images. Typing stays in this view; changes are copied to
     /// the store per chat, so they survive switching chats (and, for text, quitting the app).
@@ -45,11 +50,20 @@ struct ChatDetailView: View {
 
     private var summary: Companion.ChatSummary { detail?.summary ?? chat }
     private var isConversation: Bool { summary.isDot == true }
+    #if DEBUG
+    private static let settingsDetents: Set<PresentationDetent> =
+        ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SETTINGS"] == "large" ? [.large] : [.medium, .large]
+    #else
+    private static let settingsDetents: Set<PresentationDetent> = [.medium, .large]
+    #endif
+    private var golemIdle: Bool { golemComposing?.wrappedValue == false }
     private var agentAccent: Color { MobileConversationStyle.accent(for: summary.backend) }
 
     var body: some View {
         transcript
-        .safeAreaInset(edge: .bottom) { composer }
+        .safeAreaInset(edge: .bottom) {
+            if golemIdle { idleGolem.transition(.opacity) } else { composer.transition(.opacity) }
+        }
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "chatterbox-document" else { return .systemAction(url) }
             if let id = url.host.flatMap(UUID.init(uuidString:)),
@@ -101,7 +115,7 @@ struct ChatDetailView: View {
             if let options = detail?.options {
                 ChatSettingsSheet(options: options) { change in perform { try await store.change(change, in: chat.id) } }
                     .tint(agentAccent)
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents(Self.settingsDetents)
             }
         }
         .alert("Rename Chat", isPresented: $renaming) {
@@ -113,6 +127,14 @@ struct ChatDetailView: View {
             Button("Cancel", role: .cancel) {}
         }
         #if DEBUG
+        // Simulator tests: tap Golem in, then send him back.
+        .task(id: detail != nil) {
+            guard detail != nil, golemComposing != nil, ProcessInfo.processInfo.environment["CHATTERBOX_TEST_GOLEM_TAP"] != nil else { return }
+            try? await Task.sleep(for: .seconds(8))
+            setGolemComposing(true)
+            try? await Task.sleep(for: .seconds(8))
+            setGolemComposing(false)
+        }
         .onChange(of: detail?.revision) {
             if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SETTINGS"] != nil,
                !showingSettings, detail?.options != nil { showingSettings = true }
@@ -132,11 +154,17 @@ struct ChatDetailView: View {
                         }
                         MobileTranscriptRows(items: detail.items, chat: chat.id, backend: summary.backend,
                                              conversation: isConversation, actions: actions)
-                        if isConversation {
+                        if isConversation && !golemIdle {
                             // The assistant, below his latest message: thinking while he works.
                             HStack(alignment: .bottom, spacing: 8) {
                                 if MobileGolem.shared.hasAnimations {
-                                    MobileGolemAnimated(mood: MobileGolem.mood(summary)).frame(width: 80, height: 80)
+                                    MobileGolemAnimated(mood: MobileGolem.mood(summary))
+                                        .frame(width: 80, height: 80)
+                                        .modifier(GolemMatch(enabled: golemComposing != nil && !reduceMotion, namespace: golemSpace))
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { if golemComposing != nil { setGolemComposing(false) } }
+                                        .accessibilityAddTraits(golemComposing != nil ? .isButton : [])
+                                        .accessibilityHint(golemComposing != nil ? "Puts the message box away" : "")
                                 }
                                 if summary.isRunning {
                                     Text("Replying\u{2026}")
@@ -147,7 +175,7 @@ struct ChatDetailView: View {
                                 }
                             }
                             .id("working")
-                        } else if summary.isRunning {
+                        } else if !isConversation && summary.isRunning {
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
                                 Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary)
@@ -229,6 +257,47 @@ struct ChatDetailView: View {
         }
     }
 
+    /// Golem large and centered under the latest messages; tapping him starts a message.
+    private var idleGolem: some View {
+        VStack(spacing: 6) {
+            if summary.isRunning {
+                Text("Replying\u{2026}")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Color(uiColor: .secondarySystemBackground), in: Capsule())
+            }
+            Button { setGolemComposing(true) } label: {
+                Group {
+                    if MobileGolem.shared.hasAnimations {
+                        MobileGolemAnimated(mood: MobileGolem.mood(summary))
+                    } else {
+                        Image(systemName: "bubble.left.fill").font(.system(size: 64)).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 190, height: 190)
+                .modifier(GolemMatch(enabled: !reduceMotion, namespace: golemSpace))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Message \(summary.title)")
+            .accessibilityHint("Shows the message box")
+            Text("Tap to chat").font(.caption).foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 8)
+    }
+
+    private func setGolemComposing(_ on: Bool) {
+        guard let golemComposing, golemComposing.wrappedValue != on else { return }
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.5, dampingFraction: 0.82)) {
+            golemComposing.wrappedValue = on
+        }
+        // The tab bar coming or going resizes the list, which loses its place: back to the end.
+        pinRequests += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { pinRequests += 1 }
+    }
+
     /// Scrolls to the newest message, again a few times while rows load and get measured
     /// (a lazy list only estimates the height of rows it hasn't drawn).
     private func pin(_ proxy: ScrollViewProxy, for seconds: Double) {
@@ -245,6 +314,12 @@ struct ChatDetailView: View {
     @ToolbarContentBuilder
     private var chatToolbar: some ToolbarContent {
             if isConversation {
+                if golemComposing != nil && !golemIdle {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Done") { setGolemComposing(false) }
+                            .accessibilityHint("Puts the message box away and brings back the tabs")
+                    }
+                }
                 ToolbarItem(placement: .principal) {
                     Text(summary.title).font(.headline).lineLimit(1)
                 }
@@ -750,3 +825,15 @@ private struct RemoteImage: View {
         }
     }
 }
+
+/// Golem's centered and tucked-in spots, linked so he glides between them (skipped with
+/// Reduce Motion, where he simply fades).
+private struct GolemMatch: ViewModifier {
+    let enabled: Bool
+    let namespace: Namespace.ID
+
+    func body(content: Content) -> some View {
+        if enabled { content.matchedGeometryEffect(id: "golem", in: namespace, properties: .frame) } else { content }
+    }
+}
+
