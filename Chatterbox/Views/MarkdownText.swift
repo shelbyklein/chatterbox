@@ -354,11 +354,29 @@ private struct WrappingWidth: Layout {
     }
 }
 
+#if canImport(AppKit)
+private struct RunInTerminalKey: EnvironmentKey { static let defaultValue: ((String) -> Void)? = nil }
+extension EnvironmentValues {
+    /// Set by a chat: types a shell command into its terminal panel.
+    var runInTerminal: ((String) -> Void)? {
+        get { self[RunInTerminalKey.self] }
+        set { self[RunInTerminalKey.self] = newValue }
+    }
+}
+#endif
+
 private struct CodeBlock: View {
     let code: String
     let language: String
     var closed = true
     @Environment(\.readerStyle) private var style
+    #if canImport(AppKit)
+    @Environment(\.runInTerminal) private var runInTerminal
+    #endif
+
+    private var isShell: Bool {
+        ["bash", "sh", "zsh", "shell", "console", "terminal", "fish"].contains(language.lowercased())
+    }
     @State private var copied = false
     @State private var showCode = false
 
@@ -416,6 +434,14 @@ private struct CodeBlock: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
+                #if canImport(AppKit)
+                if isShell, closed, let runInTerminal {
+                    Button("Run in Terminal") { runInTerminal(code) }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .help("Type this into the terminal at the bottom of the chat. You press Return.")
+                }
+                #endif
                 copyButton
             }
             .padding(.horizontal, 12)

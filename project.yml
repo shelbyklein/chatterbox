@@ -3,6 +3,12 @@ options:
   bundleIdPrefix: com.shelbyklein
   deploymentTarget:
     macOS: "14.0"
+packages:
+  # The terminal that slides up from the bottom of a chat.
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    # Newer releases need a build plugin Xcode won't run unattended (1.19+) and the Metal toolchain (1.12+).
+    exactVersion: 1.11.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -32,6 +38,7 @@ targets:
           destination: executables
       # Video playback in replies.
       - sdk: AVKit.framework
+      - package: SwiftTerm
       # Chatterbox's chats as tools for agents (Dot), in Contents/MacOS.
       - target: ChatterboxMCP
         embed: true

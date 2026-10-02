@@ -27,6 +27,8 @@ struct ChatView: View {
     @State private var projectConflict: ChatSession?
     @State private var reviewing: Attachment?
     @State private var showingImages = false
+    @State private var showingTerminal = false
+    @State private var terminalCommand: String?
     @State private var viewingDocument: LocalDocument?
     @State private var commandIndex = 0
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
@@ -51,6 +53,11 @@ struct ChatView: View {
             if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
             if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { codexBanner(status) }
             transcript
+            if showingTerminal {
+                TerminalPanel(session: session, onClose: { withAnimation(.smooth(duration: 0.25)) { showingTerminal = false } },
+                              pending: $terminalCommand)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
             composer
         }
         .navigationTitle(session.title)
@@ -58,6 +65,10 @@ struct ChatView: View {
         .background(ChatWindowReader { windowNumber = $0.windowNumber })
         // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
         .environment(\.chatFolder, session.workingFolder)
+        .environment(\.runInTerminal) { command in
+            terminalCommand = command
+            withAnimation(.smooth(duration: 0.25)) { showingTerminal = true }
+        }
         .environment(\.openURL, OpenURLAction { url in
             let file: URL
             if url.scheme == PathLinks.scheme {
@@ -740,6 +751,11 @@ struct ChatView: View {
 
             Button { showingImages = true } label: { ToolbarLabel("Images", systemImage: "photo.on.rectangle.angled") }
                 .help("Every image made in this chat")
+            Button { withAnimation(.smooth(duration: 0.25)) { showingTerminal.toggle() } } label: {
+                ToolbarLabel("Terminal", systemImage: "terminal")
+            }
+            .keyboardShortcut("`", modifiers: .control)
+            .help("A terminal in this chat's folder, at the bottom of the window (\u{2303}`)")
         }
     }
 
