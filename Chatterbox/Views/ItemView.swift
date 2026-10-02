@@ -402,6 +402,7 @@ private extension View {
 
 private struct SentAttachments: View {
     let attachments: [Attachment]
+    @Environment(\.openURL) private var openURL
     @Environment(\.reviewImage) private var review
 
     var body: some View {
@@ -432,7 +433,7 @@ private struct SentAttachments: View {
                 }
             }
             ForEach(files) { file in
-                Button { NSWorkspace.shared.open(file.url) } label: {
+                Button { openURL(file.url) } label: {
                     HStack(spacing: 6) {
                         AttachmentThumbnail(attachment: file, size: 22)
                         Text(file.name).lineLimit(1).truncationMode(.middle)

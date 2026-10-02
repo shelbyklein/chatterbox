@@ -26,6 +26,7 @@ struct ChatView: View {
     @State private var windowNumber: Int?
     @State private var projectConflict: ChatSession?
     @State private var reviewing: Attachment?
+    @State private var viewingDocument: LocalDocument?
     @State private var commandIndex = 0
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
     @State private var dismissedCommandDraft: String?
@@ -59,9 +60,9 @@ struct ChatView: View {
         .environment(\.openURL, OpenURLAction { url in
             let file: URL
             if url.scheme == PathLinks.scheme {
-                // A path in a code span: pages preview, anything else shows in Finder.
                 let path = URL(fileURLWithPath: url.path)
-                guard ["html", "htm", "svg", "pdf"].contains(path.pathExtension.lowercased()) else {
+                if !LocalDocument.supports(path), !["html", "htm", "svg"].contains(path.pathExtension.lowercased()),
+                   !NSEvent.modifierFlags.contains(.command) {
                     PathLinks.reveal(url)
                     return .handled
                 }
@@ -70,8 +71,13 @@ struct ChatView: View {
                 guard let resolved = FileLink.resolve(url, in: session.workingFolder) else { return .systemAction }
                 file = resolved
             }
-            // Pages, SVGs, and PDFs slide out in the browser panel; ⌘-click opens them in their own app.
-            if ["html", "htm", "svg", "pdf"].contains(file.pathExtension.lowercased()), !NSEvent.modifierFlags.contains(.command) {
+            // Documents use a large sheet; Command-click retains external opening.
+            if LocalDocument.supports(file), !NSEvent.modifierFlags.contains(.command) {
+                viewingDocument = LocalDocument(url: file)
+                return .handled
+            }
+            // Web pages and SVGs keep their live browser preview.
+            if ["html", "htm", "svg"].contains(file.pathExtension.lowercased()), !NSEvent.modifierFlags.contains(.command) {
                 if let preview, preview.url == file { preview.reload() } else {
                     withAnimation(.easeOut(duration: 0.2)) { preview = WebPage(url: file) }
                 }
@@ -112,6 +118,11 @@ struct ChatView: View {
             pasteMonitor = nil
         }
         .onDrop(of: [.fileURL, .image, .data], isTargeted: $isDropTargeted, perform: handleDrop)
+        .sheet(item: $viewingDocument) { document in
+            let window = (NSApp.mainWindow ?? NSApp.keyWindow)?.contentLayoutRect.size ?? NSSize(width: 1200, height: 800)
+            DocumentViewer(document: document)
+                .frame(width: max(600, window.width - 40), height: max(400, window.height - 40))
+        }
         .sheet(item: $reviewing) { image in
             // As big as the window allows, so the image or document gets the most room.
             let window = (NSApp.mainWindow ?? NSApp.keyWindow)?.contentLayoutRect.size ?? NSSize(width: 1200, height: 800)

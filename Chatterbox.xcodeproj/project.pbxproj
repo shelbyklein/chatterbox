@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
+		08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590872692259FADBC73667E /* DocumentViewer.swift */; };
 		0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
 		0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 199795CA97CD07D743A50C57 /* ChatterboxMCP */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81413A73CF1A4475E1CF397 /* Pins.swift */; };
@@ -261,6 +262,7 @@
 		EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPFileTransfer.swift; sourceTree = "<group>"; };
 		F2C1C43F95036114D2130B81 /* Chatterbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Chatterbox.entitlements; sourceTree = "<group>"; };
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F590872692259FADBC73667E /* DocumentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewer.swift; sourceTree = "<group>"; };
 		F5955B401AB9BC438178B6BD /* Dictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dictation.swift; sourceTree = "<group>"; };
 		F8396140D14FE6E04F22C13F /* prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = prompts; sourceTree = SOURCE_ROOT; };
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -425,6 +427,7 @@
 				5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */,
 				7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */,
 				DD71DB30FA4E56547B5EDD95 /* ContentView.swift */,
+				F590872692259FADBC73667E /* DocumentViewer.swift */,
 				3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */,
 				6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */,
 				3D1767B59C4C4C368214261D /* GolemAvatar.swift */,
@@ -665,6 +668,7 @@
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
+				08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */,
 				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,
 				ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */,
 				A41270E739E88B0AB0705525 /* DotComputer.swift in Sources */,
