@@ -23,6 +23,14 @@ Or open `Chatterbox.xcodeproj` in Xcode and press Run.
 - **Claude** runs on your installed **Claude Code** (`claude` CLI) and your Claude subscription. No API key. Chatterbox launches `claude` in stream-json mode, one process per chat, and uses your own `~/.claude` settings, CLAUDE.md files, skills, MCP servers, and hooks. It finds `claude` automatically, or you can set the path in Settings. If it isn't signed in, run `claude` in Terminal once and log in.
 - **Codex** needs the Codex CLI installed and signed in. Chatterbox launches `codex app-server` in the background and uses your own `~/.codex` config, MCP servers, hooks, and ChatGPT sign-in. It finds `codex` automatically, or you can set the path in Settings.
 
+## Ship the Mac app
+
+```bash
+./scripts/ship.sh
+```
+
+Builds, pushes committed main, installs into Applications, and restarts Chatterbox. For new work, review and stage only the files to ship, then run `./scripts/ship.sh "Commit message"`. It refuses unstaged/untracked work or a feature branch. Mobile installation remains separate.
+
 ## What makes it feel conversational
 
 **Prompt layer** (`prompts/`, bundled into the app): `personalities/friendly.md` and `pragmatic.md` are swappable tone layers. Both agents bring their own system prompt; Chatterbox adds the tone and a note about the chat window.
