@@ -227,6 +227,9 @@ final class MobileStore {
     private func request(host: String, path: String, method: String, body: Data?, token: String?) -> URLRequest {
         let address = host.contains(":") && !host.hasPrefix("[") ? "[\(host)]" : host
         var request = URLRequest(url: URL(string: "http://\(address):\(Self.port)\(path)")!)
+        // The chat revision protocol controls freshness; URLSession's HTTP cache must
+        // never substitute an earlier transcript for an explicit refresh.
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.httpMethod = method
         request.httpBody = body
         // Images take longer to send than a message.
@@ -375,5 +378,59 @@ enum Keychain {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                     kSecAttrAccount as String: key]
         SecItemDelete(query as CFDictionary)
+    }
+}
+
+/// One open transcript, owned by navigation rather than the detail view's transient
+/// SwiftUI tasks. Selecting a row always starts a request, even if the view is retained.
+@MainActor
+@Observable
+final class MobileChatHistory {
+    let id: UUID
+    private(set) var detail: Companion.ChatDetail?
+    private(set) var problem: String?
+    private(set) var refreshing = false
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var generation = UUID()
+
+    init(id: UUID) { self.id = id }
+
+    func cancel() {
+        generation = UUID()
+        task?.cancel()
+        task = nil
+        refreshing = false
+    }
+
+    /// A mutation's returned transcript supersedes any older GET still in flight.
+    func apply(_ fresh: Companion.ChatDetail) {
+        cancel()
+        detail = fresh
+        problem = nil
+    }
+
+    @discardableResult
+    func refresh(in store: MobileStore, force: Bool = false) -> Task<Void, Never> {
+        if let task, !force { return task }
+        cancel()
+        let token = UUID()
+        generation = token
+        refreshing = true
+        let request = Task { @MainActor in
+            defer {
+                if generation == token { task = nil; refreshing = false }
+            }
+            do {
+                let response = try await store.detail(id, since: force ? nil : detail?.revision)
+                guard !Task.isCancelled, generation == token else { return }
+                if case .detail(let fresh) = response { detail = fresh }
+                problem = nil
+            } catch {
+                guard !Task.isCancelled, generation == token else { return }
+                problem = error.localizedDescription
+            }
+        }
+        task = request
+        return request
     }
 }

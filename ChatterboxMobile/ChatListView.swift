@@ -9,14 +9,17 @@ struct ChatListView: View {
     @State private var selection: UUID?
     /// The chat that's open, kept if it drops out of the list (archived on the Mac).
     @State private var opened: Companion.ChatSummary?
+    /// Requests outlive transient detail views during split-view navigation.
+    @State private var history: MobileChatHistory?
     /// On iPad, the chat list stays beside the chat, in portrait too.
     @State private var columns = NavigationSplitViewVisibility.all
+    @State private var compactColumn = NavigationSplitViewColumn.sidebar
     @State private var search = ""
     /// The Studio whose instructions are open.
     @State private var editingStudio: Companion.ChatGroup?
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+        NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             sidebar
                 .navigationTitle(store.connection?.macName ?? "Chatterbox")
                 .navigationBarTitleDisplayMode(.inline)
@@ -35,8 +38,18 @@ struct ChatListView: View {
             detail
         }
         .navigationSplitViewStyle(.balanced)
-        .onChange(of: selection) { _, id in
-            if let found = id.flatMap({ id in allChats.first { $0.id == id } }) { opened = found }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { history?.refresh(in: store, force: true) }
+        }
+        // Keep request ownership in the stable navigation parent. A detail view can
+        // appear without its lifecycle tasks restarting after Back or a column change.
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                if selection != nil { await history?.refresh(in: store).value }
+                do { try await Task.sleep(for: .seconds(history?.detail?.summary.isRunning == true ? 1.2 : 4)) }
+                catch { return }
+            }
         }
         // Keeps the list current while it's on screen.
         .task(id: scenePhase) {
@@ -48,7 +61,7 @@ struct ChatListView: View {
                 #if DEBUG
                 // Simulator tests: open the first chat.
                 if selection == nil, ProcessInfo.processInfo.environment["CHATTERBOX_TEST_OPEN"] != nil,
-                   let first = allChats.first { selection = first.id }
+                   let first = allChats.first { open(first) }
                 #endif
                 try? await Task.sleep(for: .seconds(4))
             }
@@ -66,7 +79,7 @@ struct ChatListView: View {
     }
 
     private var chatList: some View {
-        List(selection: $selection) {
+        List {
             if let problem = store.problem {
                 Section {
                     Label(problem, systemImage: "wifi.exclamationmark")
@@ -84,7 +97,8 @@ struct ChatListView: View {
                             MobilePinPills(pins: pins)
                         }
                         ForEach(group.chats) { chat in
-                            ChatRow(chat: chat).tag(chat.id)
+                            ChatRow(chat: chat) { open(chat) }
+                                .listRowBackground(sizeClass == .regular && selection == chat.id ? Color.primary.opacity(0.08) : nil)
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) { archive(chat) } label: { Label("Archive", systemImage: "archivebox") }
                                 }
@@ -125,8 +139,10 @@ struct ChatListView: View {
 
     @ViewBuilder
     private var detail: some View {
-        if let chat = selectedChat {
-            NavigationStack { ChatDetailView(chat: chat, open: open) }
+        if let chat = selectedChat, let history, history.id == chat.id {
+            // NavigationSplitView supplies the detail navigation container. A nested
+            // stack can retain the old detail or reset compact-column navigation.
+            ChatDetailView(chat: chat, open: open, history: history)
                 .id(chat.id)
         } else {
             ContentUnavailableView("Choose a Chat", systemImage: "bubble.left.and.bubble.right",
@@ -174,6 +190,12 @@ struct ChatListView: View {
     private func open(_ chat: Companion.ChatSummary) {
         opened = chat
         selection = chat.id
+        if history?.id != chat.id {
+            history?.cancel()
+            history = MobileChatHistory(id: chat.id)
+        }
+        history?.refresh(in: store, force: true)
+        compactColumn = .detail
     }
 
     /// Chats whose title, project, Studio, or latest line has every word searched for.
@@ -200,29 +222,38 @@ struct ChatListView: View {
 
 private struct ChatRow: View {
     let chat: Companion.ChatSummary
+    var open: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: chat.backend == "codex" ? "terminal" : "sparkle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(chat.project ?? chat.title).lineLimit(1)
-                if let subtitle = chat.subtitle ?? (chat.project != nil ? chat.title : nil) {
-                    Text(subtitle)
+        VStack(alignment: .leading, spacing: 3) {
+            Button(action: open) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Image(systemName: chat.backend == "codex" ? "terminal" : "sparkle")
                         .font(.caption)
-                        .foregroundStyle(chat.isWaitingOnYou ? .yellow : .secondary)
-                        .lineLimit(2)
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(chat.project ?? chat.title).lineLimit(1)
+                        if let subtitle = chat.subtitle ?? (chat.project != nil ? chat.title : nil) {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(chat.isWaitingOnYou ? .yellow : .secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    if chat.isWaitingOnYou {
+                        Circle().fill(.yellow).frame(width: 8, height: 8)
+                    } else if chat.isRunning {
+                        ProgressView().controlSize(.small)
+                    }
                 }
-                if let pins = chat.pins, !pins.isEmpty {
-                    MobilePinPills(pins: pins)
-                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 0)
-            if chat.isWaitingOnYou {
-                Circle().fill(.yellow).frame(width: 8, height: 8)
-            } else if chat.isRunning {
-                ProgressView().controlSize(.small)
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("chat-\(chat.id.uuidString)")
+            // Pins keep their own actions instead of being nested inside the chat button.
+            if let pins = chat.pins, !pins.isEmpty {
+                MobilePinPills(pins: pins).padding(.leading, 24)
             }
         }
         .padding(.vertical, 2)

@@ -13,10 +13,9 @@ struct ChatDetailView: View {
     let chat: Companion.ChatSummary
     /// Opens another chat (a fork) in this one's place.
     var open: (Companion.ChatSummary) -> Void = { _ in }
+    let history: MobileChatHistory
     @Environment(MobileStore.self) private var store
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var detail: Companion.ChatDetail?
-    @State private var refreshing = false
+    private var detail: Companion.ChatDetail? { history.detail }
     /// The message box's text and images. Typing stays in this view; changes are copied to
     /// the store per chat, so they survive switching chats (and, for text, quitting the app).
     @State private var draft = ""
@@ -66,10 +65,10 @@ struct ChatDetailView: View {
                             }
                             .id("working")
                         }
-                    } else if error == nil {
+                    } else if error == nil && history.problem == nil {
                         ProgressView().frame(maxWidth: .infinity)
                     }
-                    if let error {
+                    if let error = error ?? history.problem {
                         Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                     }
                     Color.clear.frame(height: 1).id("bottom")
@@ -155,19 +154,12 @@ struct ChatDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        // Loading a chat must not depend on its scene already being active. During
-        // navigation/foreground transitions that value can still be inactive; previously
-        // we skipped the first request and left only a spinner until a send supplied data.
-        .task(id: chat.id) { await refresh(force: true) }
-        // Scene activity controls subsequent polling, not the initial load.
-        .task(id: scenePhase) {
-            guard scenePhase == .active else { return }
-            while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(summary.isRunning ? 1.2 : 4)) }
-                catch { return }
-                await refresh()
-            }
+        #if DEBUG
+        .onChange(of: detail?.revision) {
+            if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SETTINGS"] != nil,
+               !showingSettings, detail?.options != nil { showingSettings = true }
         }
+        #endif
     }
 
     private var chatMenu: some View {
@@ -175,7 +167,7 @@ struct ChatDetailView: View {
             Button { Task { await refresh(force: true) } } label: {
                 Label("Refresh Chat", systemImage: "arrow.clockwise")
             }
-            .disabled(refreshing)
+            .disabled(history.refreshing)
             Button { showingSettings = true } label: { Label("Chat Settings", systemImage: "slider.horizontal.3") }
                 .disabled(detail?.options == nil)
             Button { newTitle = summary.title; renaming = true } label: { Label("Rename", systemImage: "pencil") }
@@ -222,7 +214,7 @@ struct ChatDetailView: View {
     private func perform(_ call: @escaping () async throws -> Companion.ChatDetail) {
         Task {
             do {
-                detail = try await call()
+                history.apply(try await call())
                 error = nil
             } catch {
                 self.error = error.localizedDescription
@@ -231,28 +223,8 @@ struct ChatDetailView: View {
     }
 
     private func refresh(force: Bool = false) async {
-        guard !refreshing, !Task.isCancelled else { return }
-        refreshing = true
-        defer { refreshing = false }
-        do {
-            let response = try await store.detail(chat.id, since: force ? nil : detail?.revision)
-            guard !Task.isCancelled else { return }
-            switch response {
-            case .unchanged: break
-            case .detail(let fresh):
-                detail = fresh
-                #if DEBUG
-                // Simulator tests: open Chat Settings.
-                if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SETTINGS"] != nil, !showingSettings, fresh.options != nil {
-                    showingSettings = true
-                }
-                #endif
-            }
-            error = nil
-        } catch {
-            guard !Task.isCancelled else { return }
-            self.error = error.localizedDescription
-        }
+        guard !Task.isCancelled else { return }
+        await history.refresh(in: store, force: force).value
     }
 
     private var canSend: Bool {
@@ -267,7 +239,7 @@ struct ChatDetailView: View {
         sending = true
         defer { sending = false }
         do {
-            detail = try await store.send(text, images: pendingImages.map(\.upload), now: now, to: chat.id)
+            history.apply(try await store.send(text, images: pendingImages.map(\.upload), now: now, to: chat.id))
             draft = ""
             pendingImages = []
             error = nil
@@ -413,6 +385,8 @@ struct ChatDetailView: View {
             .accessibilityLabel("Add a photo, file, or sketch")
 
             TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
+                .accessibilityLabel("Message")
+                .accessibilityIdentifier("messageComposer")
                 .lineLimit(1...6)
                 .focused($composing)
                 .padding(.horizontal, 14)
