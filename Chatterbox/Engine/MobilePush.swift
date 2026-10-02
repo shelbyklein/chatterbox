@@ -7,7 +7,9 @@ struct PushCredentials: Codable, Sendable {
     var keyID: String
     var teamID: String
     var pem: String
-    static let service = "com.shelbyklein.Chatterbox.apns"
+    // The app creates this entry, so its stable signing identity owns the ACL.
+    // The original entry may have been created by a one-off setup helper.
+    static let service = "com.shelbyklein.Chatterbox.apns.app"
     private static let accessLock = NSLock()
     static func read(allowInteraction: Bool = false) throws -> PushCredentials {
         accessLock.lock()
@@ -23,13 +25,21 @@ struct PushCredentials: Codable, Sendable {
         }
         defer { if !allowInteraction { SecKeychainSetUserInteractionAllowed(previousInteraction.boolValue) } }
         var value: CFTypeRef?
-        let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+        var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
             kSecAttrAccount: "provider", kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
-            kSecUseAuthenticationUI: allowInteraction ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail] as CFDictionary, &value)
+            kSecUseAuthenticationUI: allowInteraction ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail]
+        var status = SecItemCopyMatching(query as CFDictionary, &value)
+        let migrating = status == errSecItemNotFound
+        if migrating {
+            query[kSecAttrService] = "com.shelbyklein.Chatterbox.apns"
+            status = SecItemCopyMatching(query as CFDictionary, &value)
+        }
         guard status == errSecSuccess, let data = value as? Data else {
             throw PushFailure.message(status == errSecItemNotFound ? "Import your APNs key first." : "Keychain access needs attention. In Settings → iPhone → Push notifications, click Authorize Keychain Access.")
         }
-        return try JSONDecoder().decode(Self.self, from: data)
+        let credentials = try JSONDecoder().decode(Self.self, from: data)
+        if migrating { try credentials.save() }
+        return credentials
     }
     func save() throws {
         _ = try P256.Signing.PrivateKey(pemRepresentation: pem)
@@ -109,7 +119,12 @@ actor APNsProvider {
 
 @MainActor @Observable final class MobilePush {
     static let shared = MobilePush()
-    private(set) var status = "No pushes sent yet."
+    private(set) var status = "No pushes sent yet." {
+        didSet {
+            UserDefaults.standard.set(status, forKey: "mobilePushLastStatus")
+            Diagnostics.note("Mobile push: \(status)")
+        }
+    }
     private(set) var sending = false
     @ObservationIgnored private var queue: [Event] = []
     struct Event {
@@ -143,8 +158,35 @@ actor APNsProvider {
     }
     func test(_ device: UUID) {
         guard enabled else { status = "Import a key and turn on mobile notifications first."; return }
-        enqueue(Event(title: "Chatterbox", body: "Push notifications are connected. Tap to open Chatterbox.", chat: nil, kind: "test", target: device))
+        enqueue(Event(title: "Chatterbox test notification", body: "This test was sent by Chatterbox on your Mac. Tap to open Chatterbox.", chat: nil, kind: "test", target: device))
     }
+    #if DEBUG
+    @ObservationIgnored private var ranSetup = false
+    /// Local, explicitly requested setup and end-to-end checks through the real app identity.
+    func runRequestedSetup() {
+        guard !ranSetup else { return }
+        ranSetup = true
+        let args = CommandLine.arguments
+        func argument(_ flag: String) -> String? {
+            guard let i = args.firstIndex(of: flag), args.indices.contains(i + 1) else { return nil }
+            return args[i + 1]
+        }
+        do {
+            if let path = argument("--import-push-key") {
+                let defaults = UserDefaults.standard
+                try configure(file: URL(fileURLWithPath: path), keyID: defaults.string(forKey: "mobilePushKeyID") ?? "",
+                              teamID: defaults.string(forKey: "mobilePushTeamID") ?? "")
+                _ = try PushCredentials.read()
+                status = "App-owned Keychain entry verified without prompting."
+            }
+            if args.contains("--check-push-keychain") {
+                _ = try PushCredentials.read()
+                status = "App-owned Keychain entry verified without prompting."
+            }
+            if let value = argument("--test-push-device"), let id = UUID(uuidString: value) { test(id) }
+        } catch { status = error.localizedDescription }
+    }
+    #endif
     /// Only a deliberate Settings action may bring up a system authorization dialog.
     func authorizeKeychain() {
         do {

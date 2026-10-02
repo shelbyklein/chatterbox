@@ -16,5 +16,9 @@ for i in {1..20}; do pgrep -xq Chatterbox || break; sleep 0.25; done
 rm -rf /Applications/Chatterbox.app
 ditto "$BUILD" /Applications/Chatterbox.app
 codesign --verify --deep --strict /Applications/Chatterbox.app
-open /Applications/Chatterbox.app
+if (( $# )); then
+  open /Applications/Chatterbox.app --args "$@"
+else
+  open /Applications/Chatterbox.app
+fi
 echo "Installed and opened Chatterbox."
