@@ -25,9 +25,6 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     func characterCenter(in size: NSSize) -> CGPoint { CGPoint(x: size.width / 2, y: 12 + Self.barHeight + gapBelow + characterSize / 2) }
     /// His frame has empty room around him, so the bubble and the bar sit into it a little.
     var gapBelow: CGFloat { -10 * scale }
-    /// Convert the bar's fixed center to a point just below the avatar's frame.
-    /// Scaling a negative offset alone pushes the shadow into his face at large sizes.
-    var shadowBarOffset: CGFloat { -Self.barHeight / 2 - gapBelow + 4 * scale }
     var bubbleOverlap: CGFloat { 26 * scale }
     /// Golem's middle in the minimized panel, from its bottom-left.
     var collapsedCenter: CGPoint { characterCenter(in: collapsedSize) }
@@ -399,12 +396,7 @@ private struct GolemMiniContent: View {
     }
 
     private var dot: some View {
-        let lit = unread > 0 || session.isWaitingOnYou
-        return barShape(lit ? AnyShapeStyle(Color.white.opacity(0.75)) : AnyShapeStyle(Color.primary.opacity(0.25)))
-            .frame(width: controller.characterSize * 0.43, height: 5 * controller.scale)
-            .blur(radius: 1.5 * controller.scale)
-            .shadow(color: lit ? .white.opacity(0.25) : .black.opacity(0.3), radius: 2 * controller.scale)
-            .offset(y: controller.shadowBarOffset)
+        Color.clear
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .onTapGesture { controller.setCollapsed(false) }
