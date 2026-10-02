@@ -14,7 +14,12 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     static let sizes: [(label: String, scale: CGFloat)] = [("Small", 0.75), ("Medium", 1), ("Large", 1.4), ("Extra Large", 1.85)]
     /// How big Golem is on screen, minimized and open.
     var scale: CGFloat = CGFloat(UserDefaults.standard.object(forKey: GolemMiniWindow.sizeKey) as? Double ?? 1)
-    var avatarSize: CGFloat { characterSize + 12 }   // Minimized, he stays the size he is open.
+    /// Minimized, he stays the size he is open, with room for his pill underneath.
+    var avatarSize: CGFloat { characterSize + 12 }
+    static let pillRoom: CGFloat = 46
+    var collapsedSize: NSSize { NSSize(width: max(avatarSize, 150), height: avatarSize + Self.pillRoom) }
+    /// Golem's middle in the minimized panel, from its bottom-left.
+    var collapsedCenter: CGPoint { CGPoint(x: collapsedSize.width / 2, y: Self.pillRoom + avatarSize / 2) }
     var characterSize: CGFloat { 124 * scale }
     /// Where Golem's middle sits in the open panel, from its bottom-left (measured as it draws).
     @ObservationIgnored var characterCenter: CGPoint?
@@ -79,7 +84,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
             self.panel = panel
             if let saved = savedFrame(Self.expandedFrameKey) { expandedSize = saved.size }
             let area = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
-            let size = collapsed ? NSSize(width: avatarSize, height: avatarSize) : expandedSize
+            let size = collapsed ? collapsedSize : expandedSize
             let fallback = NSRect(x: area.maxX - size.width - 24, y: area.minY + 24, width: size.width, height: size.height)
             configure(frame: savedFrame(collapsed ? Self.avatarFrameKey : Self.expandedFrameKey) ?? fallback)
         }
@@ -107,7 +112,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         // Golem stays put: the panel opens and closes around him, not around a corner.
         let center: NSPoint
         if collapsed {
-            center = NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+            center = NSPoint(x: panel.frame.minX + collapsedCenter.x, y: panel.frame.minY + collapsedCenter.y)
         } else {
             expandedSize = panel.frame.size
             center = NSPoint(x: panel.frame.minX + openCharacterCenter.x, y: panel.frame.minY + openCharacterCenter.y)
@@ -117,7 +122,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         defaults.set(value, forKey: Self.collapsedKey)
         let frame: NSRect
         if value {
-            frame = NSRect(x: center.x - avatarSize / 2, y: center.y - avatarSize / 2, width: avatarSize, height: avatarSize)
+            frame = NSRect(origin: NSPoint(x: center.x - collapsedCenter.x, y: center.y - collapsedCenter.y), size: collapsedSize)
         } else {
             let offset = openCharacterCenter
             frame = NSRect(x: center.x - offset.x, y: center.y - offset.y, width: expandedSize.width, height: expandedSize.height)
@@ -135,13 +140,13 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         guard value != scale else { return }
         defaults.set(Double(value), forKey: Self.sizeKey)
         guard let panel else { scale = value; return }
-        let center: NSPoint = collapsed ? NSPoint(x: panel.frame.midX, y: panel.frame.midY)
+        let center: NSPoint = collapsed ? NSPoint(x: panel.frame.minX + collapsedCenter.x, y: panel.frame.minY + collapsedCenter.y)
             : NSPoint(x: panel.frame.minX + openCharacterCenter.x, y: panel.frame.minY + openCharacterCenter.y)
         let grow = (124 * value) - characterSize
         scale = value
         characterCenter = nil
         if collapsed {
-            configure(frame: NSRect(x: center.x - avatarSize / 2, y: center.y - avatarSize / 2, width: avatarSize, height: avatarSize))
+            configure(frame: NSRect(origin: NSPoint(x: center.x - collapsedCenter.x, y: center.y - collapsedCenter.y), size: collapsedSize))
         } else {
             expandedSize.height = max(360, expandedSize.height + grow)
             let offset = openCharacterCenter
@@ -176,8 +181,8 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         panel.hasShadow = false
         if collapsed { panel.styleMask.remove(.resizable) } else { panel.styleMask.insert(.resizable) }
         let extra = characterSize - 124
-        panel.minSize = collapsed ? NSSize(width: avatarSize, height: avatarSize) : NSSize(width: 320, height: 360 + max(0, extra))
-        panel.maxSize = collapsed ? NSSize(width: avatarSize, height: avatarSize) : NSSize(width: 560, height: 480 + max(0, extra))
+        panel.minSize = collapsed ? collapsedSize : NSSize(width: 320, height: 360 + max(0, extra))
+        panel.maxSize = collapsed ? collapsedSize : NSSize(width: 560, height: 480 + max(0, extra))
         var fitted = frame
         fitted.size.width = min(max(fitted.width, panel.minSize.width), panel.maxSize.width)
         fitted.size.height = min(max(fitted.height, panel.minSize.height), panel.maxSize.height)
@@ -253,31 +258,58 @@ private struct GolemMiniContent: View {
         .onChange(of: session.title) { _, title in controller.panel?.title = title }
     }
 
+    @State private var hovering = false
+
     private var avatar: some View {
         let unread = Attention.shared.dotUnreadCount(session)
-        return GolemAnimated(mood: GolemAvatar.mood(of: session))
-            .frame(width: controller.avatarSize - 12, height: controller.avatarSize - 12)
-            .padding(6)
-            .background(Circle().fill(session.isWaitingOnYou ? Color.yellow.opacity(0.18) : .clear).padding(10))
-            .overlay(alignment: .topTrailing) {
-                if unread > 0 {
-                    Text("\(unread)").font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.onHighlight)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Capsule().fill(Color.highlight)).padding(8)
+        return VStack(spacing: 0) {
+            GolemAnimated(mood: GolemAvatar.mood(of: session))
+                .frame(width: controller.characterSize, height: controller.characterSize)
+                .padding(6)
+                .background(Circle().fill(session.isWaitingOnYou ? Color.yellow.opacity(0.18) : .clear).padding(10))
+                .overlay {
+                    MiniDragRegion(onClick: { controller.setCollapsed(false) }, onDragEnd: controller.keepOnScreen,
+                                   onOpenFull: controller.openFullChat, onHide: controller.closeMini,
+                                   sizes: GolemMiniWindow.sizes.map { ($0.label, $0.scale) }, currentScale: controller.scale,
+                                   onSize: controller.setScale)
+                }
+                .help("Open \(session.title). Drag to move; right-click for more.")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(session.title) mini\(unread > 0 ? ", \(unread) unread" : "")")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { controller.setCollapsed(false) }
+            // His pill: a dot (white with news) that opens into quick actions on hover.
+            ZStack {
+                if hovering {
+                    HStack(spacing: 0) {
+                        Button { controller.setCollapsed(false) } label: {
+                            Image(systemName: "square.and.pencil").font(.system(size: 15, weight: .medium)).frame(width: 46, height: 34)
+                        }.buttonStyle(.plain).help("Message \(session.title)")
+                        Divider().frame(height: 18)
+                        Button(action: controller.openFullChat) {
+                            Image(systemName: "arrow.up.right").font(.system(size: 14, weight: .medium)).frame(width: 46, height: 34)
+                                .overlay(alignment: .topTrailing) {
+                                    if unread > 0 { Circle().fill(.white).frame(width: 6, height: 6).padding(7) }
+                                }
+                        }.buttonStyle(.plain).help(unread > 0 ? "\(unread) new: open \(session.title)" : "Open \(session.title)")
+                    }
+                    .foregroundStyle(.primary)
+                    .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
+                    .overlay(Capsule().strokeBorder(.primary.opacity(0.15)))
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                } else {
+                    Capsule()
+                        .fill(unread > 0 || session.isWaitingOnYou ? Color.white : Color.primary.opacity(0.25))
+                        .frame(width: unread > 0 ? 14 : 10, height: 6)
+                        .shadow(color: unread > 0 ? .white.opacity(0.6) : .clear, radius: 4)
+                        .transition(.opacity)
                 }
             }
-            .overlay {
-                MiniDragRegion(onClick: { controller.setCollapsed(false) }, onDragEnd: controller.keepOnScreen,
-                               onOpenFull: controller.openFullChat, onHide: controller.closeMini,
-                               sizes: GolemMiniWindow.sizes.map { ($0.label, $0.scale) }, currentScale: controller.scale,
-                               onSize: controller.setScale)
-            }
-            .help("Open \(session.title). Drag to move; right-click for more.")
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(session.title) mini\(unread > 0 ? ", \(unread) unread" : "")")
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { controller.setCollapsed(false) }
+            .frame(height: GolemMiniWindow.pillRoom)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { hovering = inside } }
     }
 }
 
