@@ -605,7 +605,7 @@ private struct SidebarRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(session.record.backend.iconName)
-                .resizable().scaledToFit().frame(width: 14, height: 14)
+                .resizable().scaledToFit().frame(width: 11, height: 11)
                 .accessibilityLabel(session.record.backend.label)
                 .foregroundStyle(.secondary)
                 .help(session.record.backend.label)

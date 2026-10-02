@@ -678,6 +678,42 @@ private struct DotActivitySettings: View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         emailSection
+        miniSection
+    }
+
+    @AppStorage("golemBubbleTextSize") private var bubbleTextSize = 14.0
+    @AppStorage("golemBubbleStyle") private var bubbleStyle = "solid"
+    @AppStorage("golemBubbleShow") private var bubbleShow = true
+    @AppStorage(GolemMiniWindow.sizeKey) private var miniSize = 1.0
+
+    @ViewBuilder private var miniSection: some View {
+        Section {
+            Picker("Size on screen", selection: Binding(get: { miniSize }, set: { value in
+                miniSize = value
+                model.dotMiniWindow?.setScale(CGFloat(value))
+            })) {
+                ForEach(GolemMiniWindow.sizes, id: \.label) { Text($0.label).tag(Double($0.scale)) }
+            }
+            Toggle("Show his reply bubble", isOn: $bubbleShow)
+            if bubbleShow {
+                Picker("Bubble", selection: $bubbleStyle) {
+                    Text("Solid").tag("solid")
+                    Text("Glass").tag("glass")
+                    Text("Tinted").tag("tinted")
+                }
+                .pickerStyle(.segmented)
+                LabeledContent("Bubble text") {
+                    HStack {
+                        Slider(value: $bubbleTextSize, in: 11...20, step: 1).frame(width: 200)
+                        Text("\(Int(bubbleTextSize)) pt").monospacedDigit().foregroundStyle(.secondary).frame(width: 44, alignment: .trailing)
+                    }
+                }
+            }
+        } header: {
+            Text("\(model.dotName) Mini")
+        } footer: {
+            Text("The floating \(model.dotName) (⌘J). Right-click him for these too.").font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder private var emailSection: some View {
