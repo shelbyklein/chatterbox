@@ -445,6 +445,11 @@ private struct GolemMiniContent: View {
                 .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(1...4)
                 .frame(maxWidth: .infinity).padding(.vertical, 6)
                 .focused($focused).accessibilityLabel("Message")
+                // Inline predictions overlap wrapped text in a growing field (see ChatView).
+                .onChange(of: focused, initial: true) { _, on in
+                    guard on else { return }
+                    DispatchQueue.main.async { (NSApp.keyWindow?.firstResponder as? NSTextView)?.inlinePredictionType = .no }
+                }
                 .onSubmit { send() }
                 .onKeyPress(.return, phases: .down) { press in
                     if press.modifiers.contains(.shift) {

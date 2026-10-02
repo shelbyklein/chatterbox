@@ -627,6 +627,14 @@ struct ChatView: View {
                     return .handled
                 }
                 .onChange(of: draft) { commandIndex = 0 }
+                // macOS's gray inline predictions aren't redrawn when the text wraps in a
+                // growing field, so they pile on top of what you typed. Off for this box.
+                .onChange(of: composerFocused, initial: true) { _, focused in
+                    guard focused else { return }
+                    DispatchQueue.main.async {
+                        (NSApp.keyWindow?.firstResponder as? NSTextView)?.inlinePredictionType = .no
+                    }
+                }
                 .padding(.vertical, 9)
                 .padding(.horizontal, session.isDot ? 14 : 12)
                 .background(RoundedRectangle(cornerRadius: session.isDot ? 17 : 12, style: session.isDot ? .circular : .continuous).fill(.background))
