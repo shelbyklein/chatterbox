@@ -31,6 +31,9 @@ struct SettingsView: View {
         TabView {
             general
                 .tabItem { Label("General", systemImage: "gearshape") }
+            Form { DotActivitySettings() }
+                .formStyle(.grouped)
+                .tabItem { Label(model.dotName, systemImage: "circle.circle") }
             AppearanceSettingsView()
                 .tabItem { Label("Appearance", systemImage: "textformat.size") }
             InstructionsSettingsView()
@@ -95,7 +98,6 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            DotActivitySettings()
 
             Section("New chats") {
                 Picker("Chat with", selection: $defaultBackend) {

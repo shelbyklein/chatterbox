@@ -29,6 +29,7 @@ struct ChatView: View {
     @State private var showingImages = false
     @State private var showingTerminal = false
     @State private var terminalCommand: String?
+    @AppStorage("terminalPanelHeight") private var terminalHeight = 260.0
     @State private var viewingDocument: LocalDocument?
     @State private var commandIndex = 0
     /// The draft at which the user pressed Esc on the "/" menu, so it stays closed for that text.
@@ -345,6 +346,9 @@ struct ChatView: View {
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
+            // The terminal takes room from the bottom: keep the newest messages in view above it.
+            .onChange(of: showingTerminal) { keepBottom(proxy) }
+            .onChange(of: terminalHeight) { keepBottom(proxy) }
             .onChange(of: session.items.last?.text) { scrollToBottom(proxy) }
         }
     }
@@ -412,6 +416,13 @@ struct ChatView: View {
         case .thought: return true
         case .questions, .approval: return last.approvalState == .pending
         default: return false
+        }
+    }
+
+    /// Scrolls to the end while the layout settles (the terminal slides in over a moment).
+    private func keepBottom(_ proxy: ScrollViewProxy) {
+        for delay in [0, 0.12, 0.28] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { proxy.scrollTo("bottom", anchor: .bottom) }
         }
     }
 
