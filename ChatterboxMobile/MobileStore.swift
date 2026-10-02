@@ -26,11 +26,22 @@ final class MobileStore {
     /// Why the last call failed, shown until one works again.
     private(set) var problem: String?
     @ObservationIgnored private var token: String?
-    /// Unsent text per chat, kept across switching chats and app restarts. Not observed:
-    /// the chat view keeps its own copy while you type.
+    /// Persisted text per chat. The shared composer writes this synchronously while typing
+    /// and when a submitted draft is consumed, before any network suspension.
     @ObservationIgnored private(set) var drafts: [UUID: String] = [:]
     /// Images waiting to go with each chat's next message.
     @ObservationIgnored var pendingImages: [UUID: [PendingImage]] = [:]
+
+    @ObservationIgnored private var composers: [UUID: MobileComposerDraft<PendingImage>] = [:]
+
+    func composer(for chat: UUID) -> MobileComposerDraft<PendingImage> {
+        if let existing = composers[chat] { return existing }
+        let state = MobileComposerDraft(text: drafts[chat] ?? "", images: pendingImages[chat] ?? [],
+            persistText: { [weak self] in self?.saveDraft($0, for: chat) },
+            persistImages: { [weak self] in self?.pendingImages[chat] = $0.isEmpty ? nil : $0 })
+        composers[chat] = state
+        return state
+    }
 
     func saveDraft(_ text: String, for chat: UUID) {
         drafts[chat] = text.isEmpty ? nil : text

@@ -21,12 +21,16 @@ struct ChatDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var golemSpace
     private var detail: Companion.ChatDetail? { history.detail }
-    /// The message box's text and images. Typing stays in this view; changes are copied to
-    /// the store per chat, so they survive switching chats (and, for text, quitting the app).
-    @State private var draft = ""
-    @State private var pendingImages: [PendingImage] = []
-    @State private var loadedDraft = false
-    @State private var sending = false
+    private var composerState: MobileComposerDraft<PendingImage> { store.composer(for: chat.id) }
+    private var draft: String {
+        get { composerState.text }
+        nonmutating set { composerState.text = newValue }
+    }
+    private var pendingImages: [PendingImage] {
+        get { composerState.images }
+        nonmutating set { composerState.images = newValue }
+    }
+    private var sending: Bool { composerState.sending }
     /// Whether the end of the transcript is on screen, and until when to keep it there.
     @State private var atBottom = true
     @State private var pinUntil = Date.distantPast
@@ -73,14 +77,6 @@ struct ChatDetailView: View {
             return .handled
         })
         .fullScreenCover(item: $reviewingPDF) { file in MobilePDFViewer(file: file, chat: chat.id) }
-        .onAppear {
-            guard !loadedDraft else { return }
-            loadedDraft = true
-            draft = store.drafts[chat.id] ?? ""
-            pendingImages = store.pendingImages[chat.id] ?? []
-        }
-        .onChange(of: draft) { _, text in store.saveDraft(text, for: chat.id) }
-        .onChange(of: pendingImages.map(\.id)) { _, _ in store.pendingImages[chat.id] = pendingImages.isEmpty ? nil : pendingImages }
         .fullScreenCover(item: $sketch) { request in
             SketchView(request: request) { image in
                 if let data = image.pngData() {
@@ -421,16 +417,16 @@ struct ChatDetailView: View {
     private func send(now: Bool = false) async {
         if dictation.isListening { dictation.stop() }
         pinRequests += 1   // Your own message: always go to the end.
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty || !pendingImages.isEmpty else { return }
-        sending = true
-        defer { sending = false }
+        let state = composerState
+        guard let submission = state.beginSend() else { return }
         do {
-            history.apply(try await store.send(text, images: pendingImages.map(\.upload), now: now, to: chat.id))
-            draft = ""
-            pendingImages = []
+            let result = try await store.send(submission.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                                              images: submission.images.map(\.upload), now: now, to: chat.id)
+            state.finish(submission)
+            history.apply(result)
             error = nil
         } catch {
+            state.finish(submission, failed: true)
             self.error = error.localizedDescription
         }
     }
@@ -489,10 +485,12 @@ struct ChatDetailView: View {
             dictation.stop()
             return
         }
-        let before = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let state = composerState
+        let before = state.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let generation = state.inputGeneration
         Task {
             await dictation.start { spoken in
-                draft = before.isEmpty ? spoken : before + " " + spoken
+                state.applyTranscription(spoken, prefix: before, generation: generation)
             }
         }
     }
@@ -571,7 +569,7 @@ struct ChatDetailView: View {
             .tint(.secondary)
             .accessibilityLabel("Add a photo, file, or sketch")
 
-            TextField(isConversation ? "Message \(summary.title)" : (summary.isRunning ? "Add something while it works\u{2026}" : "Message"), text: $draft, axis: .vertical)
+            TextField(isConversation ? "Message \(summary.title)" : (summary.isRunning ? "Add something while it works\u{2026}" : "Message"), text: Binding(get: { draft }, set: { draft = $0 }), axis: .vertical)
                 .accessibilityLabel("Message")
                 .accessibilityIdentifier("messageComposer")
                 .lineLimit(1...6)

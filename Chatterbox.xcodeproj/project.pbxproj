@@ -67,6 +67,7 @@
 		6BB7A853F269907F28A02EDD /* Studios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F15AA06275FEBC5A7954E50 /* Studios.swift */; };
 		6DA818645AA618460684665B /* MobilePDFViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */; };
 		6DBCD914CBA6AE11534A1FBF /* SlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */; };
+		6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */; };
 		70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */; };
 		73645E513DB79C5847930EC2 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */; };
 		757230ABE064F535ABB98E03 /* PathLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACD3896247941A01A6F39FB /* PathLinks.swift */; };
@@ -280,6 +281,7 @@
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePDFViewer.swift; sourceTree = "<group>"; };
 		E34B3EA688DB4D5120202F4A /* Attention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attention.swift; sourceTree = "<group>"; };
+		E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileComposerDraft.swift; sourceTree = "<group>"; };
 		E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyCLIProxy.swift; sourceTree = "<group>"; };
 		E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Shell.swift"; sourceTree = "<group>"; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
@@ -505,6 +507,7 @@
 				FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */,
 				F5955B401AB9BC438178B6BD /* Dictation.swift */,
 				38A6B47F421A8E58569C626D /* Info.plist */,
+				E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */,
 				EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */,
 				1F39BB2D7B99DF4FC05C5C5E /* MobileGolem.swift */,
 				1CE3430D1F51F793F8FC03FD /* MobileHome.swift */,
@@ -806,6 +809,7 @@
 				144AD0C46988C65907ECBAEB /* GolemRigView.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
+				6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */,
 				8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */,
 				376721BCF4B3022E340A0F44 /* MobileGolem.swift in Sources */,
 				5A603897A9E87CC8D5BA7122 /* MobileHTMLPreview.swift in Sources */,
