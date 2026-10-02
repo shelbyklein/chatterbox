@@ -328,16 +328,16 @@ extension ContentView {
         let selected = dot != nil && model.selectedID == dot?.id
         let unread = dot.map(Attention.shared.dotUnreadCount) ?? 0
         let latest = unread > 0 ? dot.flatMap(Attention.shared.dotLatestUnread) : nil
-        return HStack(spacing: 8) {
-            GolemHead(size: 15)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(model.dotName).fontWeight(unread > 0 ? .bold : .medium)
+        return HStack(spacing: 12) {
+            GolemHead(size: 36)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(model.dotName).font(.system(size: 15, weight: unread > 0 ? .bold : .semibold))
                 if let latest {
                     // The newest unread message, in full color, so it reads as news.
                     Text(Self.plainPreview(latest)).font(.caption).foregroundStyle(.primary).lineLimit(2)
                 } else {
                     Text(dot?.lastActionSummary ?? "Runs your chats for you. \u{2318}J from anywhere.")
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             Spacer(minLength: 0)
@@ -355,6 +355,7 @@ extension ContentView {
                 ActivitySpinner(color: .secondary).frame(width: 10, height: 10)
             }
         }
+        .frame(minHeight: 72)
         .contentShape(Rectangle())
         .onTapGesture { model.openDot() }
         .listRowBackground(RoundedRectangle(cornerRadius: 8)
@@ -757,7 +758,7 @@ extension ContentView {
                 List { Section { dotRow } }
                     .scrollDisabled(true)
                     .scrollContentBackground(.hidden)
-                    .frame(height: 64)
+                    .frame(height: 100)
                 PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 }
                     .padding(.horizontal, 10)
                     .padding(.bottom, 4)
