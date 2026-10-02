@@ -16,10 +16,15 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     var scale: CGFloat = CGFloat(UserDefaults.standard.object(forKey: GolemMiniWindow.sizeKey) as? Double ?? 1)
     /// Minimized, he stays the size he is open, with room for his pill underneath.
     var avatarSize: CGFloat { characterSize + 12 }
-    static let pillRoom: CGFloat = 46
-    var collapsedSize: NSSize { NSSize(width: max(avatarSize, 150), height: avatarSize + Self.pillRoom) }
+    /// The bar under him: the dot or pill when minimized, the message box when open. Same
+    /// height either way, so he never moves between states.
+    static let barHeight: CGFloat = 50
+    static let transition = 0.34
+    var collapsedSize: NSSize { NSSize(width: max(characterSize + 24, 170), height: 12 + Self.barHeight + 10 + characterSize + 12) }
+    /// Golem's middle in a panel of this size, from its bottom-left: the layout is bottom-up.
+    func characterCenter(in size: NSSize) -> CGPoint { CGPoint(x: size.width / 2, y: 12 + Self.barHeight + 10 + characterSize / 2) }
     /// Golem's middle in the minimized panel, from its bottom-left.
-    var collapsedCenter: CGPoint { CGPoint(x: collapsedSize.width / 2, y: Self.pillRoom + avatarSize / 2) }
+    var collapsedCenter: CGPoint { characterCenter(in: collapsedSize) }
     var characterSize: CGFloat { 124 * scale }
     /// Where Golem's middle sits in the open panel, from its bottom-left (measured as it draws).
     @ObservationIgnored var characterCenter: CGPoint?
@@ -103,31 +108,24 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     }
 
     /// Golem's middle, in the open panel: measured, or where the layout puts him.
-    private var openCharacterCenter: CGPoint {
-        characterCenter ?? CGPoint(x: expandedSize.width / 2, y: 12 + 52 + 10 + characterSize / 2)
-    }
+    private var openCharacterCenter: CGPoint { characterCenter(in: expandedSize) }
 
+    func toggleCollapsed() { setCollapsed(!collapsed) }
+
+    /// Opens or minimizes in one motion: the window glides to its new size around Golem, who
+    /// stays exactly where he is, while the bar under him morphs and the bubble rises.
     func setCollapsed(_ value: Bool) {
         guard value != collapsed, let panel else { return }
-        // Golem stays put: the panel opens and closes around him, not around a corner.
-        let center: NSPoint
-        if collapsed {
-            center = NSPoint(x: panel.frame.minX + collapsedCenter.x, y: panel.frame.minY + collapsedCenter.y)
-        } else {
-            expandedSize = panel.frame.size
-            center = NSPoint(x: panel.frame.minX + openCharacterCenter.x, y: panel.frame.minY + openCharacterCenter.y)
-        }
+        if !collapsed { expandedSize = panel.frame.size }
         rememberFrame()
-        collapsed = value
+        let here = characterCenter(in: panel.frame.size)
+        let center = NSPoint(x: panel.frame.minX + here.x, y: panel.frame.minY + here.y)
+        let size = value ? collapsedSize : expandedSize
+        let there = characterCenter(in: size)
+        let frame = NSRect(origin: NSPoint(x: center.x - there.x, y: center.y - there.y), size: size)
+        withAnimation(.smooth(duration: Self.transition)) { collapsed = value }
         defaults.set(value, forKey: Self.collapsedKey)
-        let frame: NSRect
-        if value {
-            frame = NSRect(origin: NSPoint(x: center.x - collapsedCenter.x, y: center.y - collapsedCenter.y), size: collapsedSize)
-        } else {
-            let offset = openCharacterCenter
-            frame = NSRect(x: center.x - offset.x, y: center.y - offset.y, width: expandedSize.width, height: expandedSize.height)
-        }
-        configure(frame: frame)
+        configure(frame: frame, animated: true)
         if value { panel.resignKey(); panel.orderFrontRegardless() }
         else { panel.makeKeyAndOrderFront(nil) }
         if isReading, let dot = model?.dot { Attention.shared.markSeen(dot.id) }
@@ -140,18 +138,14 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         guard value != scale else { return }
         defaults.set(Double(value), forKey: Self.sizeKey)
         guard let panel else { scale = value; return }
-        let center: NSPoint = collapsed ? NSPoint(x: panel.frame.minX + collapsedCenter.x, y: panel.frame.minY + collapsedCenter.y)
-            : NSPoint(x: panel.frame.minX + openCharacterCenter.x, y: panel.frame.minY + openCharacterCenter.y)
+        let here = characterCenter(in: panel.frame.size)
+        let center = NSPoint(x: panel.frame.minX + here.x, y: panel.frame.minY + here.y)
         let grow = (124 * value) - characterSize
-        scale = value
-        characterCenter = nil
-        if collapsed {
-            configure(frame: NSRect(origin: NSPoint(x: center.x - collapsedCenter.x, y: center.y - collapsedCenter.y), size: collapsedSize))
-        } else {
-            expandedSize.height = max(360, expandedSize.height + grow)
-            let offset = openCharacterCenter
-            configure(frame: NSRect(x: center.x - offset.x, y: center.y - offset.y, width: expandedSize.width, height: expandedSize.height))
-        }
+        withAnimation(.smooth(duration: Self.transition)) { scale = value }
+        if !collapsed { expandedSize.height = max(360, expandedSize.height + grow) }
+        let size = collapsed ? collapsedSize : expandedSize
+        let there = characterCenter(in: size)
+        configure(frame: NSRect(origin: NSPoint(x: center.x - there.x, y: center.y - there.y), size: size), animated: true)
     }
 
     func openFullChat() {
@@ -174,21 +168,40 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func configure(frame: NSRect) {
+    private func configure(frame: NSRect, animated: Bool = false) {
         guard let panel else { return }
         positioning = true
         panel.acceptsTyping = !collapsed
         panel.hasShadow = false
         if collapsed { panel.styleMask.remove(.resizable) } else { panel.styleMask.insert(.resizable) }
         let extra = characterSize - 124
-        panel.minSize = collapsed ? collapsedSize : NSSize(width: 320, height: 360 + max(0, extra))
-        panel.maxSize = collapsed ? collapsedSize : NSSize(width: 560, height: 480 + max(0, extra))
+        let minSize = collapsed ? collapsedSize : NSSize(width: 320, height: 360 + max(0, extra))
+        let maxSize = collapsed ? collapsedSize : NSSize(width: 560, height: 480 + max(0, extra))
         var fitted = frame
-        fitted.size.width = min(max(fitted.width, panel.minSize.width), panel.maxSize.width)
-        fitted.size.height = min(max(fitted.height, panel.minSize.height), panel.maxSize.height)
-        panel.setFrame(Self.clamped(fitted, to: NSScreen.screens.map(\.visibleFrame)), display: true)
-        positioning = false
-        rememberFrame()
+        fitted.size.width = min(max(fitted.width, minSize.width), maxSize.width)
+        fitted.size.height = min(max(fitted.height, minSize.height), maxSize.height)
+        let target = Self.clamped(fitted, to: NSScreen.screens.map(\.visibleFrame))
+        let settle = { [weak self] in
+            panel.minSize = minSize
+            panel.maxSize = maxSize
+            self?.positioning = false
+            self?.rememberFrame()
+        }
+        guard animated else {
+            panel.minSize = minSize; panel.maxSize = maxSize
+            panel.setFrame(target, display: true)
+            settle()
+            return
+        }
+        // Let the frame pass through any size on the way.
+        panel.minSize = NSSize(width: 1, height: 1)
+        panel.maxSize = NSSize(width: 10_000, height: 10_000)
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = Self.transition
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.25, 1)
+            context.allowsImplicitAnimation = true
+            panel.animator().setFrame(target, display: true)
+        }, completionHandler: { MainActor.assumeIsolated { settle() } })
     }
 
     func keepOnScreen() {
@@ -237,91 +250,25 @@ final class GolemPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// The mini, open or minimized, as one view so every change is a single motion. It's laid
+/// out from the bottom: the bar (dot, pill, or message box), then Golem, then his bubble.
+/// The bar is the same height in every state, so Golem never moves.
 private struct GolemMiniContent: View {
     let session: ChatSession
     let controller: GolemMiniWindow
     @AppStorage(Theme.backgroundKey) private var background = "standard"
     @AppStorage(Theme.schemeKey) private var scheme = "system"
     @AppStorage(Theme.highlightKey) private var highlight = "default"
-
-    var body: some View {
-        Group {
-            if controller.collapsed {
-                avatar
-            } else {
-                GolemMiniConversation(session: session, controller: controller)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
-        .tint(highlight == "default" ? nil : Color.highlight)
-        .onChange(of: session.title) { _, title in controller.panel?.title = title }
-    }
-
+    @AppStorage("golemBubbleTextSize") private var bubbleTextSize = 14.0
+    @AppStorage("golemBubbleStyle") private var bubbleStyle = "solid"
+    @AppStorage("golemBubbleShow") private var bubbleShow = true
+    @Namespace private var bar
     @State private var hovering = false
-
-    private var avatar: some View {
-        let unread = Attention.shared.dotUnreadCount(session)
-        return VStack(spacing: 0) {
-            GolemAnimated(mood: GolemAvatar.mood(of: session))
-                .frame(width: controller.characterSize, height: controller.characterSize)
-                .padding(6)
-                .background(Circle().fill(session.isWaitingOnYou ? Color.yellow.opacity(0.18) : .clear).padding(10))
-                .overlay {
-                    MiniDragRegion(onClick: { controller.setCollapsed(false) }, onDragEnd: controller.keepOnScreen,
-                                   onOpenFull: controller.openFullChat, onHide: controller.closeMini,
-                                   sizes: GolemMiniWindow.sizes.map { ($0.label, $0.scale) }, currentScale: controller.scale,
-                                   onSize: controller.setScale)
-                }
-                .help("Open \(session.title). Drag to move; right-click for more.")
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(session.title) mini\(unread > 0 ? ", \(unread) unread" : "")")
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction { controller.setCollapsed(false) }
-            // His pill: a dot (white with news) that opens into quick actions on hover.
-            ZStack {
-                if hovering {
-                    HStack(spacing: 0) {
-                        Button { controller.setCollapsed(false) } label: {
-                            Image(systemName: "square.and.pencil").font(.system(size: 15, weight: .medium)).frame(width: 46, height: 34)
-                        }.buttonStyle(.plain).help("Message \(session.title)")
-                        Divider().frame(height: 18)
-                        Button(action: controller.openFullChat) {
-                            Image(systemName: "arrow.up.right").font(.system(size: 14, weight: .medium)).frame(width: 46, height: 34)
-                                .overlay(alignment: .topTrailing) {
-                                    if unread > 0 { Circle().fill(.white).frame(width: 6, height: 6).padding(7) }
-                                }
-                        }.buttonStyle(.plain).help(unread > 0 ? "\(unread) new: open \(session.title)" : "Open \(session.title)")
-                    }
-                    .foregroundStyle(.primary)
-                    .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
-                    .overlay(Capsule().strokeBorder(.primary.opacity(0.15)))
-                    .transition(.scale(scale: 0.4).combined(with: .opacity))
-                } else {
-                    Capsule()
-                        .fill(unread > 0 || session.isWaitingOnYou ? Color.white : Color.primary.opacity(0.25))
-                        .frame(width: unread > 0 ? 14 : 10, height: 6)
-                        .shadow(color: unread > 0 ? .white.opacity(0.6) : .clear, radius: 4)
-                        .transition(.opacity)
-                }
-            }
-            .frame(height: GolemMiniWindow.pillRoom)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .contentShape(Rectangle())
-        .onHover { inside in withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { hovering = inside } }
-    }
-}
-
-/// A purpose-built companion: one bounded update, the character, and one input bar.
-/// Full transcript rendering belongs to the main chat, never this narrow panel.
-private struct GolemMiniConversation: View {
-    let session: ChatSession
-    let controller: GolemMiniWindow
     @State private var draft: String
     @State private var attachments: [Attachment]
     @State private var attachmentError: String?
     @State private var showingModels = false
+    @State private var composerWidth: CGFloat = 300
     @FocusState private var focused: Bool
 
     init(session: ChatSession, controller: GolemMiniWindow) {
@@ -331,6 +278,8 @@ private struct GolemMiniConversation: View {
         _attachments = State(initialValue: session.draftAttachments)
     }
 
+    private var open: Bool { !controller.collapsed }
+    private var unread: Int { Attention.shared.dotUnreadCount(session) }
     private var latestReply: DisplayItem? {
         session.items.last { $0.kind == .assistant && $0.phase != .commentary && !$0.text.isEmpty }
     }
@@ -339,97 +288,36 @@ private struct GolemMiniConversation: View {
         if session.isRunning { return "Replying\u{2026}" }
         return latestReply?.text
     }
-    @State private var composerWidth: CGFloat = 300
-    /// -1 (looking left) … 1 (looking right): where the end of the draft sits in the box,
-    /// while you're typing; 0 otherwise.
-    private var gaze: CGFloat {
-        guard focused, !draft.isEmpty else { return 0 }
-        let lastLine = draft.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
-        let width = (lastLine as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 14)]).width
-        // The text starts after the + (about 46 points in) and wraps at the field's width.
-        let field = max(composerWidth - 130, 80)
-        let caret = 46 + width.truncatingRemainder(dividingBy: field)
-        return max(-1, min(1, (caret / max(composerWidth, 1)) * 2 - 1))
-    }
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty }
-
-    @AppStorage("golemBubbleTextSize") private var bubbleTextSize = 14.0
-    @AppStorage("golemBubbleStyle") private var bubbleStyle = "solid"
-    @AppStorage("golemBubbleShow") private var bubbleShow = true
-
-    private var bubbleFill: AnyShapeStyle {
-        switch bubbleStyle {
-        case "glass": AnyShapeStyle(.regularMaterial)
-        case "tinted": AnyShapeStyle(Color.highlight.opacity(0.18))
-        default: AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
-        }
-    }
+    private var spring: Animation { .smooth(duration: GolemMiniWindow.transition) }
 
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 10) {
                 Spacer(minLength: 0)
-                if bubbleShow, let text = updateText {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(session.isWaitingOnYou ? "Needs you" : session.isRunning ? "Working" : session.title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(session.isWaitingOnYou ? Color.yellow : .secondary)
-                            Spacer()
-                            Button(action: controller.openFullChat) {
-                                Label(session.isWaitingOnYou ? "Answer in chat" : "Open chat", systemImage: "arrow.up.right")
-                                    .font(.system(size: 11))
-                            }.buttonStyle(.plain).foregroundStyle(.secondary)
-                        }
-                        ScrollView {
-                            Text(MessageClipboard.plain(String(text.prefix(8_000))))
-                                .font(.system(size: bubbleTextSize))
-                                .lineSpacing(4)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxHeight: max(48, min(140, geometry.size.height - 248)))
-                    }
-                    .padding(16)
-                    .background(RoundedRectangle(cornerRadius: 20).fill(bubbleFill))
-                    .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.12)))
+                if open, bubbleShow, let text = updateText {
+                    bubble(text, maxHeight: max(48, min(140, geometry.size.height - 260)))
+                        .transition(.asymmetric(insertion: .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity),
+                                                removal: .scale(scale: 0.8, anchor: .bottom).combined(with: .opacity)))
                 }
-                GolemAnimated(mood: GolemAvatar.mood(of: session))
-                    .frame(width: controller.characterSize, height: controller.characterSize)
-                    // Watching you type: he leans and turns toward the end of your text.
-                    .rotationEffect(.degrees(gaze * 9), anchor: .bottom)
-                    .offset(x: gaze * 14 * controller.scale)
-                    .animation(.spring(response: 0.45, dampingFraction: 0.7), value: gaze)
-                    .overlay {
-                        MiniDragRegion(onDragEnd: controller.keepOnScreen,
-                                       onOpenFull: controller.openFullChat, onHide: controller.closeMini)
-                    }
-                    .help("Drag to move \(session.title)")
-                if !attachments.isEmpty {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 8) {
-                            ForEach(attachments) { file in
-                                Button { attachments.removeAll { $0.id == file.id } } label: {
-                                    Label(file.name, systemImage: "xmark.circle.fill").lineLimit(1)
-                                }.buttonStyle(.plain).help("Remove \(file.name)")
-                            }
-                        }.font(.caption).padding(8)
-                    }
-                    .frame(height: 30)
-                    .background(.regularMaterial, in: Capsule())
-                }
-                if let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
-                composer
+                if open, !attachments.isEmpty { attachmentStrip.transition(.opacity) }
+                if open, let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
+                character
+                bottomBar.frame(height: GolemMiniWindow.barHeight)
             }
-            .frame(width: max(0, geometry.size.width - 24), height: max(0, geometry.size.height - 24), alignment: .bottom)
             .padding(12)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
         }
+        .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
+        .tint(highlight == "default" ? nil : Color.highlight)
+        .onHover { inside in withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { hovering = inside } }
+        .onChange(of: session.title) { _, title in controller.panel?.title = title }
         .onChange(of: draft) { _, value in session.draft = value }
         .onChange(of: attachments) { _, value in session.draftAttachments = value }
-        .onChange(of: latestReply?.id) {
-            if controller.isReading { Attention.shared.markSeen(session.id) }
+        .onChange(of: controller.collapsed) { _, collapsed in
+            if !collapsed { DispatchQueue.main.asyncAfter(deadline: .now() + GolemMiniWindow.transition) { focused = true } }
         }
+        .onChange(of: latestReply?.id) { if controller.isReading { Attention.shared.markSeen(session.id) } }
         .onChange(of: ChatCommands.shared.modelPopoverRequests) {
             if showingModels || controller.panel?.isKeyWindow == true { showingModels.toggle() }
         }
@@ -441,23 +329,106 @@ private struct GolemMiniConversation: View {
                 }
         }
         .onKeyPress(.escape) {
-            guard session.isRunning else { return .ignored }
-            session.interrupt(); return .handled
+            if session.isRunning { session.interrupt(); return .handled }
+            if open { controller.setCollapsed(true); return .handled }
+            return .ignored
         }
+    }
+
+    // MARK: - Golem
+
+    private var character: some View {
+        GolemAnimated(mood: GolemAvatar.mood(of: session))
+            .frame(width: controller.characterSize, height: controller.characterSize)
+            .background(Circle().fill(session.isWaitingOnYou ? Color.yellow.opacity(0.18) : .clear).padding(4))
+            // Watching you type: he leans and turns toward the end of your text.
+            .rotationEffect(.degrees(gaze * 9), anchor: .bottom)
+            .offset(x: gaze * 14 * controller.scale)
+            .animation(.spring(response: 0.45, dampingFraction: 0.7), value: gaze)
+            .overlay {
+                // Click him to open or minimize; drag to move him; right-click for more.
+                MiniDragRegion(onClick: controller.toggleCollapsed, onDragEnd: controller.keepOnScreen,
+                               onOpenFull: controller.openFullChat, onHide: controller.closeMini,
+                               sizes: GolemMiniWindow.sizes.map { ($0.label, $0.scale) }, currentScale: controller.scale,
+                               onSize: controller.setScale)
+            }
+            .help(open ? "Click to minimize \(session.title). Drag to move." : "Click to talk to \(session.title). Drag to move; right-click for more.")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(session.title)\(unread > 0 ? ", \(unread) unread" : "")")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { controller.toggleCollapsed() }
+    }
+
+    /// -1 (looking left) … 1 (looking right): where the end of the draft sits in the box,
+    /// while you're typing; 0 otherwise.
+    private var gaze: CGFloat {
+        guard open, focused, !draft.isEmpty else { return 0 }
+        let lastLine = draft.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        let width = (lastLine as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 14)]).width
+        let field = max(composerWidth - 130, 80)
+        let caret = 46 + width.truncatingRemainder(dividingBy: field)
+        return max(-1, min(1, (caret / max(composerWidth, 1)) * 2 - 1))
+    }
+
+    // MARK: - The bar: dot → pill → message box, one shape morphing
+
+    @ViewBuilder
+    private var bottomBar: some View {
+        if open {
+            composer
+        } else if hovering {
+            quickActions
+        } else {
+            dot
+        }
+    }
+
+    private func barShape(_ fill: some ShapeStyle) -> some View {
+        Capsule().fill(fill).matchedGeometryEffect(id: "bar", in: bar)
+    }
+
+    private var dot: some View {
+        let lit = unread > 0 || session.isWaitingOnYou
+        return barShape(lit ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.primary.opacity(0.25)))
+            .frame(width: lit ? 14 : 10, height: 6)
+            .shadow(color: lit ? .white.opacity(0.6) : .clear, radius: 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { controller.setCollapsed(false) }
+    }
+
+    private var quickActions: some View {
+        HStack(spacing: 0) {
+            Button { controller.setCollapsed(false) } label: {
+                Image(systemName: "square.and.pencil").font(.system(size: 15, weight: .medium)).frame(width: 48, height: 36)
+                    .contentShape(Rectangle())
+            }.buttonStyle(.plain).help("Message \(session.title)")
+            Divider().frame(height: 18)
+            Button(action: controller.openFullChat) {
+                Image(systemName: "arrow.up.right").font(.system(size: 14, weight: .medium)).frame(width: 48, height: 36)
+                    .overlay(alignment: .topTrailing) {
+                        if unread > 0 { Circle().fill(.white).frame(width: 6, height: 6).padding(7) }
+                    }
+                    .contentShape(Rectangle())
+            }.buttonStyle(.plain).help(unread > 0 ? "\(unread) new: open \(session.title)" : "Open \(session.title)")
+        }
+        .foregroundStyle(.primary)
+        .background(barShape(Color(nsColor: .windowBackgroundColor)))
+        .overlay(Capsule().strokeBorder(.primary.opacity(0.15)))
+        .transition(.opacity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var composer: some View {
         HStack(alignment: .center, spacing: 8) {
             Menu {
-                Button("Attach Files…", action: chooseFiles)
-                Button("Paste Image") {
-                    if let files = Attachments.fromPasteboard() { attachments += files }
-                }
+                Button("Attach Files\u{2026}", action: chooseFiles)
+                Button("Paste Image") { if let files = Attachments.fromPasteboard() { attachments += files } }
                 Divider()
-                Button("Model and Effort…") { showingModels = true }
+                Button("Model and Effort\u{2026}") { showingModels = true }
+                Menu("\(session.title)'s Size") { sizeOptions }
                 Button("Open Full Chat", action: controller.openFullChat)
                 Button("Hide Mini", action: controller.closeMini)
-                Menu("Golem's Size") { sizeOptions }
             } label: {
                 Image(systemName: "plus").font(.system(size: 16, weight: .medium))
                     .frame(width: 30, height: 30).contentShape(Rectangle())
@@ -491,12 +462,14 @@ private struct GolemMiniConversation: View {
             }
             Button { controller.setCollapsed(true) } label: {
                 Image(systemName: "chevron.down").font(.system(size: 12, weight: .semibold)).frame(width: 24, height: 30)
-            }.buttonStyle(.plain).foregroundStyle(.secondary).help("Minimize to avatar").accessibilityLabel("Minimize to avatar")
+            }.buttonStyle(.plain).foregroundStyle(.secondary).help("Minimize (Esc)").accessibilityLabel("Minimize")
         }
-        .padding(10)
+        .padding(.horizontal, 10)
+        .frame(maxHeight: .infinity)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { composerWidth = $0 }
-        .background(RoundedRectangle(cornerRadius: 26).fill(Color(nsColor: .windowBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(.primary.opacity(0.12)))
+        .background(barShape(Color(nsColor: .windowBackgroundColor)))
+        .overlay(Capsule().strokeBorder(.primary.opacity(0.12)))
+        .transition(.opacity)
     }
 
     @ViewBuilder private var sizeOptions: some View {
@@ -505,6 +478,56 @@ private struct GolemMiniConversation: View {
                 if controller.scale == size.scale { Label(size.label, systemImage: "checkmark") } else { Text(size.label) }
             }
         }
+    }
+
+    // MARK: - His bubble
+
+    private var bubbleFill: AnyShapeStyle {
+        switch bubbleStyle {
+        case "glass": AnyShapeStyle(.regularMaterial)
+        case "tinted": AnyShapeStyle(Color.highlight.opacity(0.18))
+        default: AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+
+    private func bubble(_ text: String, maxHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(session.isWaitingOnYou ? "Needs you" : session.isRunning ? "Working" : session.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(session.isWaitingOnYou ? Color.yellow : .secondary)
+                Spacer()
+                Button(action: controller.openFullChat) {
+                    Label(session.isWaitingOnYou ? "Answer in chat" : "Open chat", systemImage: "arrow.up.right").font(.system(size: 11))
+                }.buttonStyle(.plain).foregroundStyle(.secondary)
+            }
+            ScrollView {
+                Text(MessageClipboard.plain(String(text.prefix(8_000))))
+                    .font(.system(size: bubbleTextSize))
+                    .lineSpacing(4)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxHeight: maxHeight)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 20).fill(bubbleFill))
+        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.12)))
+    }
+
+    private var attachmentStrip: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(attachments) { file in
+                    Button { attachments.removeAll { $0.id == file.id } } label: {
+                        Label(file.name, systemImage: "xmark.circle.fill").lineLimit(1)
+                    }.buttonStyle(.plain).help("Remove \(file.name)")
+                }
+            }.font(.caption).padding(8)
+        }
+        .frame(height: 30)
+        .background(.regularMaterial, in: Capsule())
     }
 
     private func send(now: Bool = false) {
