@@ -20,9 +20,12 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     /// height either way, so he never moves between states.
     static let barHeight: CGFloat = 50
     static let transition = 0.34
-    var collapsedSize: NSSize { NSSize(width: max(characterSize + 24, 170), height: 12 + Self.barHeight + 10 + characterSize + 12) }
+    var collapsedSize: NSSize { NSSize(width: max(characterSize + 24, 170), height: 12 + Self.barHeight - 10 * scale + characterSize + 12) }
     /// Golem's middle in a panel of this size, from its bottom-left: the layout is bottom-up.
-    func characterCenter(in size: NSSize) -> CGPoint { CGPoint(x: size.width / 2, y: 12 + Self.barHeight + 10 + characterSize / 2) }
+    func characterCenter(in size: NSSize) -> CGPoint { CGPoint(x: size.width / 2, y: 12 + Self.barHeight + gapBelow + characterSize / 2) }
+    /// His frame has empty room around him, so the bubble and the bar sit into it a little.
+    var gapBelow: CGFloat { -10 * scale }
+    var bubbleOverlap: CGFloat { 26 * scale }
     /// Golem's middle in the minimized panel, from its bottom-left.
     var collapsedCenter: CGPoint { characterCenter(in: collapsedSize) }
     var characterSize: CGFloat { 124 * scale }
@@ -293,17 +296,22 @@ private struct GolemMiniContent: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 10) {
+            VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 if open, bubbleShow, let text = updateText {
                     bubble(text, maxHeight: max(48, min(140, geometry.size.height - 260)))
+                        // Tucked down behind his top stone, like a speech bubble.
+                        .padding(.bottom, -controller.bubbleOverlap)
+                        .zIndex(0)
                         .transition(.asymmetric(insertion: .scale(scale: 0.6, anchor: .bottom).combined(with: .opacity),
                                                 removal: .scale(scale: 0.8, anchor: .bottom).combined(with: .opacity)))
                 }
-                if open, !attachments.isEmpty { attachmentStrip.transition(.opacity) }
-                if open, let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
+                if open, !attachments.isEmpty { attachmentStrip.padding(.bottom, 8).transition(.opacity) }
+                if open, let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2).padding(.bottom, 8) }
                 character
-                bottomBar.frame(height: GolemMiniWindow.barHeight)
+                    .padding(.bottom, controller.gapBelow)
+                    .zIndex(1)
+                bottomBar.frame(height: GolemMiniWindow.barHeight).zIndex(2)
             }
             .padding(12)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
