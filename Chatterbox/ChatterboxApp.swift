@@ -12,7 +12,7 @@ struct ChatterboxApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             ContentView()
                 .environment(model)
                 .frame(minWidth: 760, minHeight: 520)
@@ -51,10 +51,7 @@ struct ChatterboxApp: App {
             CommandMenu("Go") {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
                     .keyboardShortcut("k")
-                // Dot floats over the chat you're in; in Dot's own chat, it just stays.
-                Button(model.showingDot ? "Hide \(model.dotName)" : "Ask \(model.dotName)") {
-                    if model.selected?.isDot == true { model.showingDot = false } else { _ = model.ensureDot(); model.showingDot.toggle() }
-                }
+                Button(model.showingDot ? "Hide \(model.dotName) Mini" : "Show \(model.dotName) Mini") { model.showingDot.toggle() }
                 .keyboardShortcut("j")
                 Divider()
                 Button("Next Chat") { model.selectAdjacentChat(1) }

@@ -2,6 +2,19 @@ import Foundation
 
 /// Context usage and queued-message bookkeeping, shared by both agents.
 extension ChatSession {
+    /// Progress notes for the current reply stay readable while it runs. A message sent
+    /// mid-turn does not hide the notes before it; completed turns keep their folded steps.
+    var liveCommentaryIDs: Set<UUID> {
+        guard isRunning else { return [] }
+        var ids: Set<UUID> = []
+        for item in record.items.reversed() {
+            if (item.kind == .user && !item.steered)
+                || (item.kind == .assistant && item.phase == .final) { break }
+            if item.kind == .assistant && item.phase == .commentary { ids.insert(item.id) }
+        }
+        return ids
+    }
+
     // MARK: - Queued messages
 
     /// The agent has taken a message sent mid-turn: it now reads "Sent while working".

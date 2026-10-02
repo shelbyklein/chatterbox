@@ -137,21 +137,27 @@ struct ContentView: View {
                 // A website pin: the page takes the chat's place, and the chat floats over it.
                 ZStack(alignment: .bottomTrailing) {
                     WebPaneView(page: page) { model.webPage = nil }
-                    if let session = model.selected {
+                    if let session = model.selected, !(session.isDot && model.showingDot) {
                         FloatingChat(session: session) { model.webPage = nil }
                             .padding(16)
                     }
                 }
             } else if let session = model.selected {
-                ChatView(session: session)
-                    .id(session.id)
-                    // ⌘J: Dot floats over the chat you're in.
-                    .overlay(alignment: .bottomTrailing) {
-                        if model.showingDot, !session.isDot, let dot = model.dot {
-                            FloatingChat(session: dot, icon: "circle.circle.fill", storageKey: "dotCollapsed") { model.openDot() }
-                                .padding(16)
+                if session.isDot, model.showingDot {
+                    // Only one editable Golem composer at a time, so drafts never diverge.
+                    VStack(spacing: 12) {
+                        GolemHead(size: 28)
+                        Text("\(model.dotName) is in the mini window").font(.title3.weight(.medium))
+                        HStack {
+                            Button("Show Mini") { model.dotMiniWindow?.show() }
+                            Button("Bring Chat Here") { model.openDot() }
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ChatView(session: session)
+                        .id(session.id)
+                }
             } else {
                 Text("No chat selected").foregroundStyle(.secondary)
             }
@@ -159,6 +165,8 @@ struct ContentView: View {
             .modifier(ThemedDetail(background: themeBackground))
         }
         .modifier(ThemedWindow(scheme: themeScheme, background: themeBackground, highlight: themeHighlight))
+        .background(ChatWindowReader { model.mainChatWindow = $0 })
+        .onAppear { model.revealMainChatWindow = { openWindow(id: "main") } }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }
         .sheet(isPresented: $model.showingNewProject) { NewProjectSheet().environment(model) }
         .sheet(isPresented: $model.editingDotMemory) { DotMemorySheet() }
@@ -235,7 +243,7 @@ struct ContentView: View {
         .onChange(of: model.selectedID) { _, id in
             // Picking a chat leaves Settings.
             model.showingSettings = false
-            Attention.shared.markSeen(id)
+            if let session = model.selected, Attention.shared.isWatching(session) { Attention.shared.markSeen(id) }
             // A chat you open (like a new one) never hides behind the search or tag filter.
             if let session = model.sessions.first(where: { $0.id == id }), !isShown(session) {
                 searchText = ""
@@ -389,7 +397,7 @@ extension ContentView {
         .contextMenu {
             Button("Open \(model.dotName)") { model.openDot() }
             Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }
-            Button(model.showingDot ? "Hide Floating Dot" : "Float Over Chats  \u{2318}J") { _ = model.ensureDot(); model.showingDot.toggle() }
+            Button(model.showingDot ? "Hide Mini Window" : "Show Mini Window  \u{2318}J") { model.showingDot.toggle() }
         }
         .help("\(model.dotName) runs your other chats: ask it to check on a project, hand work to a chat, or start one.")
         .alert("Rename \(model.dotName)", isPresented: $renamingDot) {

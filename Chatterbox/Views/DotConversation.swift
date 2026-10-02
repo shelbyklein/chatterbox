@@ -34,6 +34,7 @@ struct DotConversation: View {
     private var rows: (rows: [Row], working: [DisplayItem]) {
         var rows: [Row] = []
         var steps: [DisplayItem] = []
+        let liveNotes = session.liveCommentaryIDs
         // The message that started this turn: Chatterbox's notes name the chats they're about.
         var prompt = ""
         func flushSteps() {
@@ -50,6 +51,9 @@ struct DotConversation: View {
                 guard !item.text.isEmpty else { continue }
                 rows.append(.reply(item, steps: steps, chats: chatIDs(in: prompt + "\n" + item.text)))
                 steps = []
+            case .assistant where liveNotes.contains(item.id):
+                flushSteps()
+                rows.append(.other(item))
             case .assistant, .tool, .thought, .plan:
                 steps.append(item)
             case .notice:
@@ -170,6 +174,7 @@ struct DotConversation: View {
                 Button {
                     if chat.record.archivedAt != nil { model.unarchive(chat) }
                     model.selectedID = id
+                    if model.showingDot { model.dotMiniWindow?.revealMainWindow() }
                 } label: {
                     Label(name, systemImage: "arrow.up.right")
                         .font(.caption)

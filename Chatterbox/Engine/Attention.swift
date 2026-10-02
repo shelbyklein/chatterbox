@@ -39,7 +39,9 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         }
         // Coming back to the window clears the current chat's unread mark.
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { self.markSeen(self.model?.selectedID) }
+            MainActor.assumeIsolated {
+                if let session = self.model?.selected, self.isWatching(session) { self.markSeen(session.id) }
+            }
         })
         for session in model.sessions { wasRunning[session.id] = session.isRunning; notified.formUnion(pendingItems(session).map(\.id)) }
         // The first time, everything so far counts as read.
@@ -60,7 +62,12 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
 
     /// You're watching a chat when Chatterbox is frontmost and that chat is open.
     func isWatching(_ session: ChatSession) -> Bool {
-        NSApp.isActive && model?.selectedID == session.id
+        if model?.showingDot == true {
+            let readingMini = model?.dotMiniWindow?.isReading == true
+            if session.isDot { return readingMini }
+            if readingMini { return false }
+        }
+        return NSApp.isActive && model?.selectedID == session.id
     }
 
     func markSeen(_ id: UUID?) {

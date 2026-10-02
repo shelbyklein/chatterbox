@@ -23,6 +23,7 @@ struct ChatView: View {
     @State private var attachError: String?
     @State private var isDropTargeted = false
     @State private var pasteMonitor: Any?
+    @State private var windowNumber: Int?
     @State private var projectConflict: ChatSession?
     @State private var reviewing: Attachment?
     @State private var commandIndex = 0
@@ -52,6 +53,7 @@ struct ChatView: View {
         }
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
+        .background(ChatWindowReader { windowNumber = $0.windowNumber })
         // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
         .environment(\.chatFolder, session.workingFolder)
         .environment(\.openURL, OpenURLAction { url in
@@ -139,7 +141,7 @@ struct ChatView: View {
         pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                   event.charactersIgnoringModifiers == "v",
-                  event.window?.isKeyWindow == true, composerFocused,
+                  event.window?.isKeyWindow == true, event.window?.windowNumber == windowNumber, composerFocused,
                   let pasted = Attachments.fromPasteboard() else { return event }
             add(pasted)
             return nil
@@ -334,10 +336,11 @@ struct ChatView: View {
     private var transcriptRows: [TranscriptRow] {
         let items = visibleItems
         guard groupSteps else { return items.map(TranscriptRow.item) }
+        let liveNotes = session.liveCommentaryIDs
         func isStep(_ item: DisplayItem) -> Bool {
             switch item.kind {
             case .tool, .thought, .notice: true
-            case .assistant: item.phase == .commentary
+            case .assistant: item.phase == .commentary && !liveNotes.contains(item.id)
             default: false
             }
         }
@@ -670,6 +673,8 @@ struct ChatView: View {
             }
 
             if session.isDot {
+                Button { model.showingDot = true } label: { ToolbarLabel("Mini", systemImage: "pip") }
+                    .help("Keep \(session.title) above other apps (⌘J)")
                 Button { model.editingDotMemory = true } label: { ToolbarLabel("Memory", systemImage: "brain") }
                     .help("What Dot remembers about you and your work (MEMORY.md)")
                 Button { openWindow(id: DotComputerPanel.windowID) } label: {
@@ -777,7 +782,8 @@ struct ChatView: View {
         HStack(spacing: 8) {
             ModelPicker(session: session, summary: modelSummary.short,
                         color: appearance.style.color(for: session.record.backend),
-                        openRequest: commands.modelPopoverRequests)
+                        openRequest: commands.modelPopoverRequests,
+                        handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
             UsageMeter(compact: true, session: session, color: appearance.style.color(for: session.record.backend))
                 .fixedSize()
             Spacer(minLength: 0)
@@ -815,7 +821,8 @@ struct ChatView: View {
             // Gives up width first: the name truncates, while the preset pills keep theirs.
             ModelPicker(session: session, summary: modelSummary.full,
                         color: appearance.style.color(for: session.record.backend),
-                        openRequest: commands.modelPopoverRequests)
+                        openRequest: commands.modelPopoverRequests,
+                        handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
             UsageMeter(session: session, color: appearance.style.color(for: session.record.backend))
             Spacer(minLength: 0)
             PresetPills(session: session, style: appearance.style)
@@ -835,6 +842,7 @@ struct ChatView: View {
             header: session.record.backend == .claude ? "Mode" : "How should Codex actions be approved?",
             showsIcons: session.record.backend == .codex,
             openRequest: commands.modePopoverRequests,
+            handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber },
             onSelect: session.setMode
         )
     }
@@ -1076,6 +1084,7 @@ private struct ModePicker: View {
     let showsIcons: Bool
     /// Bumped by Chat → Choose Mode (⌘⇧P) to toggle the popover.
     var openRequest = 0
+    var handlesKeyboardRequest: () -> Bool = { true }
     let onSelect: (String) -> Void
     @State private var isOpen = false
 
@@ -1090,7 +1099,9 @@ private struct ModePicker: View {
         }
         .buttonStyle(.plain)
         .help("\(current.title): \(current.detail). Click to change (\u{2318}\u{21E7}P).")
-        .onChange(of: openRequest) { isOpen.toggle() }
+        .onChange(of: openRequest) {
+            if isOpen || handlesKeyboardRequest() { isOpen.toggle() }
+        }
         .popover(isPresented: $isOpen, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(header)

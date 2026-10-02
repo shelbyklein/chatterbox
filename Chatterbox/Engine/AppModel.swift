@@ -21,8 +21,22 @@ final class AppModel {
     var showingNewProject = false
     /// Settings, shown in the main window in place of the chat.
     var showingSettings = false
-    /// Dot floating over the chat that's open (⌘J).
-    var showingDot = false
+    /// The independent, always-on-top Golem mini window (⌘J).
+    var showingDot = false {
+        didSet {
+            guard showingDot != oldValue else { return }
+            UserDefaults.standard.set(showingDot, forKey: GolemMiniWindow.visibleKey)
+            if showingDot {
+                if dotMiniWindow == nil { dotMiniWindow = GolemMiniWindow(model: self) }
+                dotMiniWindow?.show()
+            } else {
+                dotMiniWindow?.hide()
+            }
+        }
+    }
+    @ObservationIgnored private(set) var dotMiniWindow: GolemMiniWindow?
+    @ObservationIgnored weak var mainChatWindow: NSWindow?
+    @ObservationIgnored var revealMainChatWindow: (() -> Void)?
     /// Dot's memory, open for editing.
     var editingDotMemory = false
     /// The Add Pin sheet, when open.
@@ -163,6 +177,9 @@ final class AppModel {
         }
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }
+        if UserDefaults.standard.bool(forKey: GolemMiniWindow.visibleKey) {
+            Task { @MainActor [weak self] in self?.showingDot = true }
+        }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.applicationWillTerminate() }
         }
