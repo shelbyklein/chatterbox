@@ -264,6 +264,9 @@ enum Companion {
         var name: String
         var mediaType: String
         var isImage: Bool
+        /// PDFs: modification time and size, to refresh a changed saved copy.
+        var revision: String? = nil
+        var byteCount: Int64? = nil
     }
 
     struct SendRequest: Codable {

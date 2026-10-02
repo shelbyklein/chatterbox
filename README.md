@@ -93,3 +93,11 @@ Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Con
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE). Chatterbox builds on ideas from [OpenAI Codex](https://github.com/openai/codex), also Apache-2.0; see [NOTICE](NOTICE).
+
+## PDF review on iPhone and iPad
+
+PDFs attached to a chat or named by a reply have a **Review PDF** tile. Markdown PDF links open the same full-screen viewer. Downloads stream to disk with progress and cancellation; after downloading, PDFKit provides page scrolling, pinch zoom and text selection. Use **Save to Files** to export a copy or **Share** to send it to another app.
+
+Opened PDFs stay in **Saved PDFs**, under the chat list's connection menu, for offline review. **Refresh PDF** fetches a newer copy; a failed or invalid download preserves the previous copy. The Mac must be reachable for the first download or a refresh. Transfers use the existing paired connection and chat-scoped file IDs; they do not expose an arbitrary filesystem endpoint.
+
+Verification: `scripts/test-companion-pdf.sh` tests the Mac route and bounded transport; `scripts/test-pdf-cache.sh` tests replacement integrity; `scripts/test-mobile-pdf.sh iphone` (or `ipad`) tests the viewer, Files export, cancellation/retry and offline library on an isolated simulator/server.

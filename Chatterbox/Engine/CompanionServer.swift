@@ -189,7 +189,11 @@ final class CompanionServer {
                 switch HTTPRequest.parse(buffer) {
                 case .request(let request):
                     let response = self.respond(to: request, local: local)
-                    connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
+                    if let file = response.fileURL {
+                        HTTPFileTransfer(connection: connection, url: file, contentType: response.contentType).start()
+                    } else {
+                        connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
+                    }
                 case .invalid:
                     let response = HTTPResponse.error(400, "Bad request.")
                     connection.send(content: response.data, completion: .contentProcessed { _ in connection.cancel() })
@@ -339,14 +343,14 @@ final class CompanionServer {
             return HTTPResponse(status: 200, contentType: file.name.hasSuffix(".png") ? "image/png" : "video/quicktime", body: data)
         case ("GET", 5) where parts[1] == "chats" && parts[3] == "files":
             guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]) else { return .error(404, "That file is gone.") }
-            if let file = session.allAttachments.first(where: { $0.id == fileID }), let data = try? Data(contentsOf: file.url) {
-                return HTTPResponse(status: 200, contentType: file.mediaType, body: data)
+            if let file = session.allAttachments.first(where: { $0.id == fileID }) {
+                return HTTPResponse(status: 200, contentType: file.mediaType, body: Data(), fileURL: file.url)
             }
             // An animation a reply points to.
             for item in session.items where item.kind == .assistant {
-                for url in ChatSession.referencedMedia(in: item.text, folder: session.workingFolder) + ChatSession.referencedImages(in: item.text, folder: session.workingFolder)
+                for url in ChatSession.referencedMedia(in: item.text, folder: session.workingFolder) + ChatSession.referencedImages(in: item.text, folder: session.workingFolder) + CompanionDocuments.referenced(in: item.text, folder: session.workingFolder)
                 where ChatSession.mediaID(url.path) == fileID {
-                    if let data = try? Data(contentsOf: url) { return HTTPResponse(status: 200, contentType: "application/octet-stream", body: data) }
+                    return HTTPResponse(status: 200, contentType: url.pathExtension.lowercased() == "pdf" ? "application/pdf" : "application/octet-stream", body: Data(), fileURL: url)
                 }
             }
             return .error(404, "That file is gone.")
@@ -575,6 +579,23 @@ enum CompanionMapper {
                 .init(id: ChatSession.mediaID($0.path), name: $0.lastPathComponent, mediaType: "image/" + $0.pathExtension.lowercased(), isImage: true)
             }
         }
+        var documents: [(URL, UUID)] = []
+        for attachment in item.attachments ?? [] where attachment.url.pathExtension.lowercased() == "pdf" {
+            documents.append((attachment.url, attachment.id))
+            if let index = mapped.attachments.firstIndex(where: { $0.id == attachment.id }) {
+                mapped.attachments[index] = CompanionDocuments.metadata(id: attachment.id, url: attachment.url, name: attachment.name)
+            }
+        }
+        if item.kind == .assistant {
+            for url in CompanionDocuments.referenced(in: item.text, folder: folder) {
+                let id = documents.first(where: { $0.0.resolvingSymlinksInPath() == url })?.1 ?? ChatSession.mediaID(url.path)
+                if !mapped.attachments.contains(where: { $0.id == id }) {
+                    mapped.attachments.append(CompanionDocuments.metadata(id: id, url: url))
+                }
+                documents.append((url, id))
+            }
+        }
+        mapped.text = CompanionDocuments.rewrite(mapped.text, folder: folder, documents: documents)
         return mapped
     }
 
@@ -694,6 +715,7 @@ struct HTTPResponse {
     var status: Int
     var contentType: String
     var body: Data
+    var fileURL: URL? = nil
 
     static func json<T: Encodable>(_ value: T) -> HTTPResponse {
         HTTPResponse(status: 200, contentType: "application/json", body: (try? Companion.encoder.encode(value)) ?? Data())

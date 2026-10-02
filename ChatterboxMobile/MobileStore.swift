@@ -187,6 +187,38 @@ final class MobileStore {
         try await raw("/v1/chats/\(chat.uuidString)/files/\(file.id.uuidString)")
     }
 
+    /// Writes the network response to disk, then atomically installs a validated local PDF.
+    func downloadPDF(_ file: Companion.File, in chat: UUID,
+                     progress: @escaping @MainActor @Sendable (Int64, Int64) -> Void) async throws -> MobilePDFCache.Entry {
+        guard let connection, let token else { throw MobileError(message: "Pair this device with your Mac to download the PDF.") }
+        var lastError: Error = MobileError(message: "Couldn't reach \(connection.macName).")
+        for host in connection.hosts {
+            try Task.checkCancellation()
+            do {
+                var req = request(host: host, path: "/v1/chats/\(chat.uuidString)/files/\(file.id.uuidString)", method: "GET", body: nil, token: token)
+                req.timeoutInterval = 120
+                let (temporary, response) = try await URLSession.shared.download(for: req, delegate: PDFDownloadProgress(update: progress))
+                defer { try? FileManager.default.removeItem(at: temporary) }
+                if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                    if http.statusCode == 401 { forget() }
+                    let handle = try? FileHandle(forReadingFrom: temporary)
+                    let data = (try? handle?.read(upToCount: 65_536)) ?? Data()
+                    try? handle?.close()
+                    try checkStatus(data, response)
+                }
+                try Task.checkCancellation()
+                let entry = try await Task.detached { try MobilePDFCache.save(temporary, file: file, chat: chat) }.value
+                if host != connection.hosts.first { moveToFront(host) }
+                return entry
+            } catch let error as MobileError { throw error }
+            catch {
+                try Task.checkCancellation()
+                lastError = error
+            }
+        }
+        throw MobileError(message: "Couldn't download from \(connection.macName). Check that Chatterbox is open and Wi-Fi or Tailscale is connected. \(lastError.localizedDescription)")
+    }
+
     // MARK: - Plumbing
 
     private func call<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil) async throws -> T {

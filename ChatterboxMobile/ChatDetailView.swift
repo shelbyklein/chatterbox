@@ -30,6 +30,7 @@ struct ChatDetailView: View {
     @State private var choosingPhotos = false
     @State private var choosingFiles = false
     @State private var dictation = Dictation()
+    @State private var reviewingPDF: Companion.File?
     @State private var showingSettings = false
     @State private var renaming = false
     @State private var newTitle = ""
@@ -41,6 +42,15 @@ struct ChatDetailView: View {
     var body: some View {
         transcript
         .safeAreaInset(edge: .bottom) { composer }
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == "chatterbox-document" else { return .systemAction(url) }
+            if let id = url.host.flatMap(UUID.init(uuidString:)),
+               let file = detail?.items.flatMap(\.attachments).first(where: { $0.id == id }) {
+                reviewingPDF = file
+            } else { error = "That PDF is no longer listed in this chat. Refresh the chat and try again." }
+            return .handled
+        })
+        .fullScreenCover(item: $reviewingPDF) { file in MobilePDFViewer(file: file, chat: chat.id) }
         .onAppear {
             guard !loadedDraft else { return }
             loadedDraft = true
@@ -606,6 +616,9 @@ private struct ItemRow: View {
 
     @ViewBuilder
     private var images: some View {
+        ForEach(item.attachments.filter { $0.mediaType == "application/pdf" || ($0.name as NSString).pathExtension.lowercased() == "pdf" }) { file in
+            MobilePDFButton(file: file, chat: chat)
+        }
         // A GIF plays; other images are pictures to view and mark up.
         ForEach(item.attachments.filter(\.isImage)) { file in
             if (file.name as NSString).pathExtension.lowercased() == "gif" {
