@@ -54,6 +54,14 @@ struct ChatSettingsSheet: View {
                     }
                 }
 
+                if isCodex, let fast = options.fastMode {
+                    Section {
+                        Toggle("Fast mode", isOn: Binding(get: { fast }, set: { apply(.init(fastMode: $0)) }))
+                    } footer: {
+                        Text("Faster replies with higher usage. Applies to the next reply; availability depends on your model and plan.")
+                    }
+                }
+
                 Section("Mode") {
                     ForEach(options.modes) { mode in
                         Button { apply(.init(mode: mode.id)) } label: {

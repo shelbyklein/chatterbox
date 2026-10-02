@@ -30,6 +30,13 @@ extension ChatSession {
 
     // MARK: - Turns
 
+    func setCodexFastMode(_ enabled: Bool) {
+        guard record.codex != nil, record.codex?.fastMode != enabled else { return }
+        record.codex?.fastMode = enabled
+        noteSettingsChange()
+        onChange?(self)
+    }
+
     func codexSend(_ message: UserMessage) {
         if isRunning {
             // Codex supports steering natively: the text joins the running turn.
@@ -101,6 +108,8 @@ extension ChatSession {
             ]
             if let model = settings.model { params["model"] = .string(model) }
             if let effort = settings.effort { params["effort"] = .string(effort) }
+            // Explicit standard resets any tier inherited by a resumed/forked thread.
+            params["serviceTier"] = .string(settings.fastMode == true ? "fast" : "default")
 
             let result = try await server.request("turn/start", .object(params))
             items.forEach(markPickedUp)

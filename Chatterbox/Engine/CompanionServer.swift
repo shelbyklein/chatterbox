@@ -570,7 +570,8 @@ enum CompanionMapper {
         return .init(backend: session.record.backend.rawValue,
                      model: isCodex ? (session.record.codex?.model ?? "") : session.record.model,
                      effort: isCodex ? (session.record.codex?.effort ?? "") : session.record.effort,
-                     claudeModels: claude, codexModels: codex, modes: modes, mode: session.mode.id, presets: presets)
+                     claudeModels: claude, codexModels: codex, modes: modes, mode: session.mode.id, presets: presets,
+                     fastMode: isCodex ? (session.record.codex?.fastMode ?? false) : nil)
     }
 
     /// Changes a chat's settings the way the Mac's controls do.
@@ -586,6 +587,7 @@ enum CompanionMapper {
             if isCodex { session.setCodexEffort(effort.isEmpty ? nil : effort) } else { session.setEffort(effort) }
         }
         if let mode = change.mode { session.setMode(mode) }
+        if isCodex, let fast = change.fastMode { session.setCodexFastMode(fast) }
         if let id = change.preset, let preset = ModelPresets.shared.presets.first(where: { $0.id == id }) {
             ModelPresets.shared.apply(preset, to: session)
         }

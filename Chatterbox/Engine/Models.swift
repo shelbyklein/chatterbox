@@ -18,6 +18,8 @@ struct CodexSettings: Codable, Equatable {
     /// nil means Codex's own default model.
     var model: String?
     var effort: String?
+    /// Optional so chats saved before the Fast mode control still decode.
+    var fastMode: Bool? = nil
     var folder: String
     /// Older setting, used when `mode` is unset: true meant workspace-write.
     var canEdit: Bool

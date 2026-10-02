@@ -331,7 +331,7 @@ final class ChatSession: Identifiable {
             let name = models.first { $0.model == record.codex?.model }?.displayName
                 ?? models.first(where: \.isDefault).map { "\($0.displayName) (default)" } ?? "default model"
             let effort = record.codex?.effort.map { "\(ChatView.effortLabel($0)) effort" } ?? "default effort"
-            return "Codex \u{00B7} \(name) \u{00B7} \(effort)"
+            return "Codex \u{00B7} \(name) \u{00B7} \(effort) \u{00B7} \(record.codex?.fastMode == true ? "Fast mode" : "Standard speed")"
         }
     }
 

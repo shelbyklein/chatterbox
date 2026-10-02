@@ -147,6 +147,7 @@ enum Companion {
         var modes: [ModeOption]
         var mode: String
         var presets: [PresetOption]
+        var fastMode: Bool? = nil
     }
 
     struct ModelOption: Codable, Hashable, Identifiable {
@@ -181,6 +182,7 @@ enum Companion {
         var effort: String? = nil
         var mode: String? = nil
         var preset: UUID? = nil
+        var fastMode: Bool? = nil
     }
 
     /// A new chat, in a Studio or on its own.

@@ -81,6 +81,14 @@ struct ModelPopover: View {
 
             Divider()
             effortSection
+            if tab == .codex {
+                Toggle("Fast mode", isOn: Binding(get: { session.record.codex?.fastMode == true },
+                                                 set: { session.setCodexFastMode($0) }))
+                    .toggleStyle(.switch)
+                    .disabled(active != .codex)
+                Text("Faster replies with higher usage. Applies to the next reply; availability depends on your model and plan.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Divider()
 
             HStack {
