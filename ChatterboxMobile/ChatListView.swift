@@ -128,16 +128,14 @@ struct ChatListView: View {
                                 }
                         }
                     } header: {
-                        HStack {
-                            if group.kind == .dot {
-                                Label { Text(group.title) } icon: { MobileGolemHead(size: 13) }
-                            } else {
+                        if group.kind != .dot {
+                            HStack {
                                 Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
-                            }
-                            Spacer()
-                            if group.kind == .studio {
-                                Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }
-                                    .accessibilityLabel("\(group.title) instructions")
+                                Spacer()
+                                if group.kind == .studio {
+                                    Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }
+                                        .accessibilityLabel("\(group.title) instructions")
+                                }
                             }
                         }
                     }
