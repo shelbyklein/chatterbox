@@ -33,15 +33,26 @@ struct ChatSettingsCog: View {
         .onChange(of: modelRequest) { if handlesKeyboardRequest() { page = .model; isOpen = true } }
         .onChange(of: modeRequest) { if handlesKeyboardRequest() { page = .main; isOpen = true } }
         .popover(isPresented: $isOpen, arrowEdge: .top) {
-            switch page {
-            case .model:
+            // Keep the hosting root, both pages and its size stable. Replacing the root
+            // with a wider model page can leave SwiftUI's popover content at the old origin.
+            ZStack(alignment: .top) {
+                ScrollView { main }
+                    .opacity(page == .main ? 1 : 0)
+                    .allowsHitTesting(page == .main)
+                    .disabled(page != .main)
+                    .accessibilityHidden(page != .main)
                 ModelPopover(session: session) { page = .main }
-                    .task {
-                        await ClaudeModels.shared.refresh()
-                        if CodexAppServer.shared.models.isEmpty { try? await CodexAppServer.shared.refreshModels() }
-                    }
-            case .main:
-                main
+                    .opacity(page == .model ? 1 : 0)
+                    .allowsHitTesting(page == .model)
+                    .disabled(page != .model)
+                    .accessibilityHidden(page != .model)
+            }
+            .frame(width: ModelPopover.size.width, height: ModelPopover.size.height)
+            .fixedSize()
+            .task(id: page) {
+                guard page == .model else { return }
+                await ClaudeModels.shared.refresh()
+                if CodexAppServer.shared.models.isEmpty { try? await CodexAppServer.shared.refreshModels() }
             }
         }
     }
@@ -88,7 +99,7 @@ struct ChatSettingsCog: View {
             }
         }
         .padding(14)
-        .frame(width: 300)
+        .frame(width: ModelPopover.size.width)
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
