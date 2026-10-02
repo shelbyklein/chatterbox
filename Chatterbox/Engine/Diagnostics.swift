@@ -116,7 +116,8 @@ final class Diagnostics {
             let faults = Self.faults(pid: pid, since: launched)
             // Renderer failures can leave a responsive main thread but a broken window.
             // Preserve them even if the user was still able to quit normally.
-            if !unclean, faults.isEmpty { return }
+            // A clean quit with only routine macOS noise: nothing to report.
+            if !unclean, faults.allSatisfy(Self.isRoutine) { return }
             let log = Self.systemLog(pid: pid, since: launched)
             let crash = Self.crashReports(since: launched)
             let text = """
@@ -143,6 +144,14 @@ final class Diagnostics {
                             body: "A report is saved in Settings → Diagnostics.")
             }
         }
+    }
+
+    /// Faults macOS logs on its own that don't mean anything is wrong: Auto Layout conflicts
+    /// AppKit recovers from and SwiftUI configuration notes. Listed in a report, but they
+    /// never start one. (RenderBox faults still do: they can come with a stuck window.)
+    nonisolated static func isRoutine(_ line: String) -> Bool {
+        line.contains("com.apple.runtime-issues") || line.contains("com.apple.SwiftUI:Invalid Configuration")
+            || line.hasPrefix("Will attempt to recover")
     }
 
     /// Fault-level lines (precondition failures and the like) the process logged.
