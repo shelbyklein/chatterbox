@@ -49,7 +49,7 @@ struct ImageReviewView: View {
                 .frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black.opacity(0.85))
             Divider()
-            sidebar.frame(width: 300)
+            sidebar.frame(width: 280)
         }
         .frame(minWidth: 900, minHeight: 600)
         .task { image = NSImage(contentsOf: attachment.url) }
