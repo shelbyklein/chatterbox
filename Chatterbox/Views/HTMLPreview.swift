@@ -39,8 +39,6 @@ struct HTMLPreview: View {
             .frame(maxWidth: .infinity)
             .frame(height: frameHeight)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
             .overlay(alignment: .topTrailing) {
                 HStack(spacing: 4) {
@@ -90,7 +88,7 @@ private struct WebPreview: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
 
-    func makeNSView(context: Context) -> WKWebView {
+    func makeNSView(context: Context) -> PreviewContainer {
         let config = WKWebViewConfiguration()
         // Nothing persists between previews, and nothing is shared with the user's browser.
         config.websiteDataStore = .nonPersistent()
@@ -101,16 +99,40 @@ private struct WebPreview: NSViewRepresentable {
         webView.setValue(false, forKey: "drawsBackground")
         snapshotter.webView = webView
         load(into: webView, coordinator: context.coordinator)
-        return webView
+        return PreviewContainer(webView: webView)
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
+    func updateNSView(_ container: PreviewContainer, context: Context) {
         guard context.coordinator.loaded != source else { return }
-        load(into: webView, coordinator: context.coordinator)
+        load(into: container.webView, coordinator: context.coordinator)
     }
 
-    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+    static func dismantleNSView(_ container: PreviewContainer, coordinator: Coordinator) {
+        let webView = container.webView
+        webView.stopLoading()
+        webView.navigationDelegate = nil
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "size")
+    }
+
+    /// Keep WebKit's remote layers and clipping inside an AppKit-owned layer tree.
+    /// SwiftUI clipping a bare WKWebView in a scrolling transcript can invalidate the
+    /// surrounding renderer on macOS 26, blanking the transcript and even sidebar rows.
+    final class PreviewContainer: NSView {
+        let webView: WKWebView
+
+        init(webView: WKWebView) {
+            self.webView = webView
+            super.init(frame: .zero)
+            wantsLayer = true
+            layer?.backgroundColor = NSColor.white.cgColor
+            layer?.cornerRadius = 8
+            layer?.masksToBounds = true
+            webView.frame = bounds
+            webView.autoresizingMask = [.width, .height]
+            addSubview(webView)
+        }
+
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     }
 
     private func load(into webView: WKWebView, coordinator: Coordinator) {

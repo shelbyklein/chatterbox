@@ -1,4 +1,5 @@
 import AppKit
+import ScreenCaptureKit
 import Darwin
 import Foundation
 import Observation
@@ -113,8 +114,9 @@ final class Diagnostics {
         // The system log can take a while to search; the report is written when it's done.
         Task.detached(priority: .utility) {
             let faults = Self.faults(pid: pid, since: launched)
-            // A clean quit with nothing wrong (the first-web-view fault doesn't count): nothing to say.
-            if !unclean, faults.allSatisfy({ $0.contains("renderbox") }) { return }
+            // Renderer failures can leave a responsive main thread but a broken window.
+            // Preserve them even if the user was still able to quit normally.
+            if !unclean, faults.isEmpty { return }
             let log = Self.systemLog(pid: pid, since: launched)
             let crash = Self.crashReports(since: launched)
             let text = """
@@ -124,7 +126,7 @@ final class Diagnostics {
 
             ## Faults
             \(faults.isEmpty ? "None." : faults.joined(separator: "\n"))
-            \(faults.contains(where: { $0.contains("renderbox") }) ? "\nNote: a com.apple.renderbox precondition failure is logged by macOS when any app shows its first web view; the window keeps drawing after it. On its own it's not the cause of a freeze." : "")
+            \(faults.contains(where: { $0.contains("renderbox") }) ? "\nA RenderBox fault can accompany a window that stops drawing even while its main thread responds. Compare the window capture and breadcrumbs; this log alone does not identify the cause." : "")
 
             ## Crash reports macOS wrote
             \(crash.isEmpty ? "None." : crash.map(\.path).joined(separator: "\n"))
@@ -199,36 +201,74 @@ final class Diagnostics {
     /// For when the window looks stuck but the app is alive (the watchdog only sees a stuck
     /// main thread): a picture of the window, what's on screen, the main thread, and a sample.
     func reportFreeze() {
-        let model = (NSApp.delegate as? NSObject).flatMap { _ in Optional(self.breadcrumbsSnapshot()) }
-        let crumbs = model ?? breadcrumbsSnapshot()
+        guard !reportingFreeze else { return }
+        reportingFreeze = true
+        let crumbs = breadcrumbsSnapshot()
         var screen: [String] = []
+        var windowID: CGWindowID?
         if let window = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+            windowID = CGWindowID(window.windowNumber)
             screen.append("Window: \(window.title) \(Int(window.frame.width))×\(Int(window.frame.height)), key: \(window.isKeyWindow), visible: \(window.isVisible), occluded: \(!window.occlusionState.contains(.visible))")
-            if let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
-                view.cacheDisplay(in: view.bounds, to: rep)
-                let picture = Self.folder.appendingPathComponent("\(Self.stamp()) window.png")
-                try? rep.representation(using: .png, properties: [:])?.write(to: picture)
-                screen.append("Picture of the window: \(picture.path)")
-            }
             screen.append("Sheet: \(window.attachedSheet.map { "\($0)" } ?? "none"); modal: \(NSApp.modalWindow.map { "\($0.title)" } ?? "none")")
         } else {
             screen.append("No visible window.")
         }
-        let sample = Self.sampleSelf()
-        let text = """
-        You reported a freeze (⌃⌥⌘D). The main thread was \(sample.contains("Main Thread") ? "running (see the sample)" : "not sampled").
+        // Waiting for sample on the main actor would sample the reporter's own wait,
+        // hiding the state we need to investigate and freezing the app for three seconds.
+        let sampling = Task.detached(priority: .utility) { Self.sampleSelf() }
+        Task {
+            defer { reportingFreeze = false }
+            if let windowID, #available(macOS 14.4, *) {
+                do {
+                    let picture = try await Self.captureWindow(windowID)
+                    screen.append("Picture of the window: \(picture.path)")
+                } catch {
+                    screen.append("Window capture failed: \(error.localizedDescription)")
+                }
+            } else {
+                screen.append("Window capture unavailable (requires macOS 14.4 or later and a visible window).")
+            }
+            let sample = await sampling.value
+            let text = """
+            You reported a freeze (⌃⌥⌘D). The app handled the command; the sample below records what its threads did afterward.
 
-        ## On screen
-        \(screen.joined(separator: "\n"))
+            ## On screen
+            \(screen.joined(separator: "\n"))
 
-        ## What it was doing (breadcrumbs, newest last)
-        \(crumbs.isEmpty ? "None recorded." : crumbs)
+            ## What it was doing (breadcrumbs, newest last)
+            \(crumbs.isEmpty ? "None recorded." : crumbs)
 
-        ## macOS sample (3 seconds)
-        \(sample.isEmpty ? "Couldn't sample." : sample)
-        """
-        save("freeze", title: "Freeze reported by you", text: text)
-        notify("Freeze report saved", body: "In Settings → Diagnostics, with a picture of the window.")
+            ## macOS sample (3 seconds)
+            \(sample.isEmpty ? "Couldn't sample." : sample)
+            """
+            save("freeze", title: "Freeze reported by you", text: text)
+            notify("Freeze report saved", body: "In Settings → Diagnostics.")
+        }
+    }
+
+    @ObservationIgnored private var reportingFreeze = false
+
+    /// Captures our own composited window without requesting access to other apps.
+    /// cacheDisplay(in:to:) misses SwiftUI/WebKit layers and can produce a blank image
+    /// even when the window is healthy.
+    @available(macOS 14.4, *)
+    private static func captureWindow(_ id: CGWindowID) async throws -> URL {
+        let content = try await SCShareableContent.currentProcess
+        guard let window = content.windows.first(where: { $0.windowID == id }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let configuration = SCStreamConfiguration()
+        configuration.width = max(1, Int(window.frame.width))
+        configuration.height = max(1, Int(window.frame.height))
+        configuration.ignoreShadowsSingleWindow = true
+        let image = try await SCScreenshotManager.captureImage(
+            contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: configuration)
+        let picture = folder.appendingPathComponent("\(stamp()) window.png")
+        guard let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try png.write(to: picture)
+        return picture
     }
 
     private func breadcrumbsSnapshot() -> String { Breadcrumbs.shared.text }

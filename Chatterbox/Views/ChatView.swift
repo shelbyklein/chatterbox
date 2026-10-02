@@ -35,7 +35,7 @@ struct ChatView: View {
     @State private var preview: WebPage?
     /// How many of the newest rows to draw; "Show earlier" adds a page at a time.
     @State private var shownRowCount = ChatView.rowPage
-    static let rowPage = 120
+    static let rowPage = 40
     /// Step groups you've opened.
     @State private var openStepGroups: Set<UUID> = []
     @AppStorage("readerGroupSteps") private var groupSteps = true
@@ -243,7 +243,10 @@ struct ChatView: View {
                             Color.clear.frame(height: 1).id("bottom")
                         }
                     } else {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                    // A bounded eager stack keeps WebKit views and hit regions in the same
+                    // layout pass. LazyVStack + bottom anchoring can blank the transcript
+                    // on macOS 26 when offscreen web previews change size.
+                    VStack(alignment: .leading, spacing: 0) {
                         let rows = transcriptRows
                         // Long chats draw only their newest rows; the rest wait behind a button.
                         if rows.count > shownRowCount {
@@ -302,6 +305,13 @@ struct ChatView: View {
                 }
             }
             .defaultScrollAnchor(.bottom)
+            .task(id: session.id) {
+                // The eager stack needs its first layout before ScrollViewReader can
+                // find the bottom. Do this only on entry, not when loading older rows.
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                proxy.scrollTo("bottom", anchor: .bottom)
+            }
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
             .onChange(of: session.items.last?.text) { scrollToBottom(proxy) }
         }
