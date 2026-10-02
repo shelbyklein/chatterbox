@@ -22,19 +22,28 @@ struct PinsSection: View {
     @State private var dropTargeted = false
     private var store: PinStore { .shared }
 
+    /// Six square cards to a row: icons, with the name on hover.
+    static let columns = 6
+
     var body: some View {
         let global = store.globalPins
-        Section {
-            ForEach(Array(global.enumerated()), id: \.element.id) { index, pin in
-                row(pin, number: index < 9 ? index + 1 : nil)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            header("Pins", help: "Add a pin that shows everywhere") { onAdd(PinSheetRequest(place: nil, current: place)) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
             if global.isEmpty {
                 Text("Pin websites, apps, folders, or Shortcuts you open often. Drop them here, or click +.")
                     .font(.caption).foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 26), spacing: 5), count: Self.columns), spacing: 5) {
+                    ForEach(Array(global.enumerated()), id: \.element.id) { index, pin in
+                        card(pin, number: index < 9 ? index + 1 : nil)
+                    }
+                }
             }
-        } header: {
-            header("Pins", help: "Add a pin that shows everywhere") { onAdd(PinSheetRequest(place: nil, current: place)) }
         }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.highlight.opacity(dropTargeted ? 0.6 : 0), lineWidth: 1.5))
         .onDrop(of: [.fileURL, .url], isTargeted: $dropTargeted) { dropped($0, place: nil) }
         .alert("Rename Pin", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $newTitle)
@@ -52,6 +61,24 @@ struct PinsSection: View {
                 .buttonStyle(.borderless)
                 .help(help)
         }
+    }
+
+    /// A pin as a square card: its icon, the name on hover and for VoiceOver.
+    private func card(_ pin: Pin, number: Int?) -> some View {
+        Button { store.open(pin) } label: {
+            PinIcon(pin: pin)
+                .padding(7)
+                .frame(maxWidth: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.08)))
+                .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .help(pin.title)
+        .accessibilityLabel(pin.title)
+        .accessibilityHint("Opens the pin")
+        .modifier(PinMenu(pin: pin, place: place, store: store, rename: { newTitle = pin.title; renaming = pin }))
     }
 
     private func row(_ pin: Pin, number: Int?) -> some View {
@@ -372,5 +399,46 @@ struct AddPinSheet: View {
                 }
             }
         }
+    }
+}
+
+/// A pin's right-click menu and drag-to-reorder, for cards.
+private struct PinMenu: ViewModifier {
+    let pin: Pin
+    let place: PinPlace?
+    let store: PinStore
+    let rename: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .contextMenu {
+                Button("Open") { store.open(pin) }
+                Button("Rename\u{2026}", action: rename)
+                if pin.kind == .app || pin.kind == .file {
+                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: pin.target)]) }
+                }
+                if pin.kind == .website {
+                    Button("Open in Browser") { if let url = PinStore.normalizedURL(pin.target) { NSWorkspace.shared.open(url) } }
+                    Button("Copy Link") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(pin.target, forType: .string)
+                    }
+                }
+                Divider()
+                if pin.place != nil {
+                    Button("Show Everywhere") { store.setPlace(pin, to: nil) }
+                } else if let place {
+                    Button("Move to \(place.name)") { store.setPlace(pin, to: place) }
+                }
+                Divider()
+                Button("Remove Pin", role: .destructive) { store.remove(pin) }
+            }
+            .draggable(pin.id.uuidString)
+            .dropDestination(for: String.self) { ids, _ in
+                guard let id = ids.first.flatMap(UUID.init(uuidString:)),
+                      let dragged = store.pins.first(where: { $0.id == id }), dragged.place == pin.place else { return false }
+                store.move(id, to: pin.id)
+                return true
+            }
     }
 }

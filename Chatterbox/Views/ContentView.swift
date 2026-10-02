@@ -5,6 +5,12 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @AppStorage("showArchived") private var showArchived = false
+    @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
+    @AppStorage("sidebarProjectsCollapsed") private var projectsCollapsed = false
+    @AppStorage("sidebarStudiosCollapsed") private var studiosCollapsed = false
+    @AppStorage("sidebarChatsCollapsed") private var chatsCollapsed = false
+    /// While a divider is dragged: the weights it started from.
+    @State private var dragStartWeights: [Double]?
     @State private var pendingDelete: ChatSession?
     @State private var renamingProject: ChatSession?
     @State private var projectNickname = ""
@@ -34,65 +40,26 @@ struct ContentView: View {
     @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
 
     var body: some View {
+        #if DEBUG
+        // Render tests: just the sidebar, since the system's glass sidebar can't be captured offscreen.
+        if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SIDEBAR_ONLY"] != nil {
+            sidebarColumn
+                .frame(width: Double(ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SIDEBAR_ONLY"] ?? "") ?? 280)
+                .background(Theme.sidebar(themeBackground) ?? Color(nsColor: .windowBackgroundColor))
+        } else {
+            splitView
+        }
+        #else
+        splitView
+        #endif
+    }
+
+    private var splitView: some View {
         @Bindable var model = model
-        NavigationSplitView {
-            // No list selection: macOS would paint the selected row in the system accent (blue).
-            // Rows select on click and draw their own subtle highlight instead.
-            List {
-                // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
-                let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
-                let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
-                let chats = model.sidebarChats.filter(isShown)
-                let archived = model.archivedSessions.filter(isShown)
-                if !isFiltering {
-                    Section { dotRow }
-                    PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 }
-                }
-                if isFiltering, projects.isEmpty, chats.isEmpty, archived.isEmpty {
-                    Text("No matching chats").foregroundStyle(.secondary)
-                }
-                // The heading stays while a tag filter is on, so the filter can always be cleared.
-                if !projects.isEmpty || activeTag != nil || projectActivity != .all {
-                    Section {
-                        ForEach(projects) { session in row(session, number: numbers[session.id]) }
-                    } header: {
-                        HStack {
-                            Text("Projects")
-                            Spacer()
-                            tagFilterMenu
-                        }
-                    }
-                }
-                let studios = model.activeStudios.filter(isShown)
-                if !studios.isEmpty || !isFiltering {
-                    Section {
-                        ForEach(studios) { studio in studioGroup(studio, numbers: numbers) }
-                        if studios.isEmpty {
-                            Text("A Studio groups chats that share one folder, for messy work that isn't a project.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        HStack {
-                            Text("Studios")
-                            Spacer()
-                            Button { beginNewStudio() } label: { Image(systemName: "plus") }
-                                .buttonStyle(.borderless)
-                                .help("New Studio")
-                        }
-                    }
-                }
-                if !chats.isEmpty || !isFiltering {
-                    Section(projects.isEmpty && studios.isEmpty ? "" : "Chats") {
-                        ForEach(chats) { session in row(session, number: numbers[session.id]) }
-                    }
-                }
-                if !archived.isEmpty {
-                    Section("Archived (\(archived.count))", isExpanded: $showArchived) {
-                        ForEach(archived) { session in row(session, number: nil) }
-                    }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+        return NavigationSplitView {
+            sidebarColumn
+            // Wide enough for six pin cards to stay tappable (26-point cards).
+            .navigationSplitViewColumnWidth(min: 230, ideal: 260)
             .modifier(ThemedSidebar(background: themeBackground))
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
@@ -377,7 +344,7 @@ extension ContentView {
             if unread > 0 {
                 Text(unread == 1 ? "1 new" : "\(unread) new")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.onHighlight)
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Capsule().fill(Color.highlight))
                     .help("\(unread) unread \(unread == 1 ? "message" : "messages") from \(model.dotName)")
@@ -765,5 +732,340 @@ private struct ThemedWindow: ViewModifier {
             .id(background + "|" + highlight)
             .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
             .tint(highlight == "default" ? nil : Color.highlight)
+    }
+}
+
+
+// MARK: - The sidebar's layout
+
+/// The three resizable parts of the sidebar under Golem and the pins.
+enum SidebarSection: Int, CaseIterable {
+    case projects, studios, chats
+
+    var title: String { ["Projects", "Studios", "Chats"][rawValue] }
+    var icon: String { ["folder", "paintpalette", "bubble.left.and.bubble.right"][rawValue] }
+}
+
+extension ContentView {
+    /// Golem fixed at the top, the pins, then Projects, Studios, and Chats sharing the rest:
+    /// a third each to start, each scrolling on its own, resized by dragging the dividers
+    /// between them. A collapsed Studios or Chats moves to the dock at the bottom, beside
+    /// Archived; a collapsed Projects keeps its heading in place.
+    var sidebarColumn: some View {
+        VStack(spacing: 0) {
+            if !isFiltering {
+                List { Section { dotRow } }
+                    .scrollDisabled(true)
+                    .scrollContentBackground(.hidden)
+                    .frame(height: 64)
+                PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 4)
+            }
+            GeometryReader { geometry in
+                sectionStack(height: geometry.size.height)
+            }
+            sidebarDock
+        }
+    }
+
+    private var weights: [Double] {
+        let parsed = sectionWeights.split(separator: ",").compactMap { Double($0) }
+        return parsed.count == 3 && parsed.allSatisfy({ $0 > 0 }) ? parsed : [1, 1, 1]
+    }
+
+    private func isCollapsed(_ section: SidebarSection) -> Bool {
+        switch section {
+        case .projects: projectsCollapsed
+        case .studios: studiosCollapsed
+        case .chats: chatsCollapsed
+        }
+    }
+
+    private func setCollapsed(_ section: SidebarSection, _ value: Bool) {
+        withAnimation(.smooth(duration: 0.25)) {
+            switch section {
+            case .projects: projectsCollapsed = value
+            case .studios: studiosCollapsed = value
+            case .chats: chatsCollapsed = value
+            }
+        }
+    }
+
+    /// Searching shows every section, so nothing that matches is hidden in the dock.
+    private var shownSections: [SidebarSection] {
+        SidebarSection.allCases.filter { isFiltering || $0 == .projects || !isCollapsed($0) }
+    }
+
+    private static let headerHeight: CGFloat = 26
+    private static let dividerHeight: CGFloat = 7
+    private static let minimumList: CGFloat = 44
+
+    @ViewBuilder
+    private func sectionStack(height: CGFloat) -> some View {
+        let shown = shownSections
+        let open = shown.filter { isFiltering || !isCollapsed($0) }
+        let chrome = CGFloat(shown.count) * Self.headerHeight + CGFloat(max(0, shown.count - 1)) * Self.dividerHeight
+        let space = max(0, height - chrome)
+        let total = open.map { weights[$0.rawValue] }.reduce(0, +)
+        VStack(spacing: 0) {
+            ForEach(Array(shown.enumerated()), id: \.element) { index, section in
+                if index > 0 {
+                    divider(above: shown[index - 1], below: section, space: space, open: open)
+                }
+                sectionHeader(section)
+                if open.contains(section) {
+                    sectionList(section)
+                        .frame(height: total > 0 ? space * weights[section.rawValue] / total : 0)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: Headers
+
+    private func sectionHeader(_ section: SidebarSection) -> some View {
+        let collapsed = !isFiltering && isCollapsed(section)
+        return HStack(spacing: 6) {
+            Button { setCollapsed(section, !collapsed) } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .rotationEffect(.degrees(collapsed ? 0 : 90))
+                    Text(section.title).font(.subheadline.weight(.semibold))
+                    if collapsed { Text("\(count(of: section))").font(.caption).foregroundStyle(.tertiary) }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help(collapsed ? "Show \(section.title)" : "Collapse \(section.title)\(section == .projects ? "" : " to the bottom")")
+            .accessibilityLabel(section.title)
+            .accessibilityValue(collapsed ? "Collapsed" : "Expanded")
+            .accessibilityHint(collapsed ? "Shows the section" : "Collapses the section")
+            Spacer()
+            switch section {
+            case .projects: tagFilterMenu
+            case .studios:
+                Button { beginNewStudio() } label: { Image(systemName: "plus") }
+                    .buttonStyle(.borderless).help("New Studio").accessibilityLabel("New Studio")
+            case .chats:
+                Button { model.newChat() } label: { Image(systemName: "square.and.pencil") }
+                    .buttonStyle(.borderless).help("New Chat").accessibilityLabel("New Chat")
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: Self.headerHeight)
+    }
+
+    private func count(of section: SidebarSection) -> Int {
+        switch section {
+        case .projects: model.sidebarProjects.count
+        case .studios: model.activeStudios.count
+        case .chats: model.sidebarChats.count
+        }
+    }
+
+    // MARK: Lists
+
+    private func sectionList(_ section: SidebarSection) -> some View {
+        // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
+        let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
+        return List {
+            switch section {
+            case .projects:
+                let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
+                ForEach(projects) { session in row(session, number: numbers[session.id]) }
+                if projects.isEmpty {
+                    Text(isFiltering || activeTag != nil || projectActivity != .all ? "No matching projects" : "Open or create a project from the + menu.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            case .studios:
+                let studios = model.activeStudios.filter(isShown)
+                ForEach(studios) { studio in studioGroup(studio, numbers: numbers) }
+                if studios.isEmpty {
+                    Text(isFiltering ? "No matching Studios" : "A Studio groups chats that share one folder, for messy work that isn't a project.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            case .chats:
+                let chats = model.sidebarChats.filter(isShown)
+                ForEach(chats) { session in row(session, number: numbers[session.id]) }
+                if chats.isEmpty {
+                    Text(isFiltering ? "No matching chats" : "Chats that aren't in a project or a Studio.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .accessibilityLabel(section.title)
+    }
+
+    // MARK: Dividers
+
+    /// Dragging the line between two sections moves space from one to the other. Only open
+    /// sections take part; a collapsed Projects heading just sits between them.
+    private func divider(above: SidebarSection, below: SidebarSection, space: CGFloat, open: [SidebarSection]) -> some View {
+        let upper = open.last { $0.rawValue <= above.rawValue }
+        let lower = open.first { $0.rawValue >= below.rawValue }
+        let active = upper != nil && lower != nil && upper != lower
+        return ZStack {
+            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1)
+            if active {
+                Capsule().fill(Color.primary.opacity(0.18)).frame(width: 28, height: 3).opacity(0.0001)
+            }
+        }
+        .frame(height: Self.dividerHeight)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        #if DEBUG
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { SidebarDebug.dividers[above.title] = $0 }
+        #endif
+        // AppKit owns the drag, so the lists around it can't take it, and the cursor is right.
+        .overlay {
+            if active, let upper, let lower {
+                DividerHandle(
+                    onDrag: { dy in
+                        let start = dragStartWeights ?? weights
+                        if dragStartWeights == nil { dragStartWeights = start }
+                        let total = open.map { start[$0.rawValue] }.reduce(0, +)
+                        guard total > 0, space > 0 else { return }
+                        // Points to weight, keeping each side at least a few rows tall.
+                        let perPoint = total / Double(space)
+                        let pair = start[upper.rawValue] + start[lower.rawValue]
+                        let minimum = Double(Self.minimumList) * perPoint
+                        let top = min(max(start[upper.rawValue] + Double(dy) * perPoint, minimum), pair - minimum)
+                        var next = start
+                        next[upper.rawValue] = top
+                        next[lower.rawValue] = pair - top
+                        sectionWeights = next.map { String(format: "%.4f", $0) }.joined(separator: ",")
+                    },
+                    onEnd: { dragStartWeights = nil },
+                    onDoubleClick: {
+                        // Double-click a divider to even the sections out again.
+                        withAnimation(.smooth(duration: 0.25)) { sectionWeights = "1,1,1" }
+                    })
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Resize \(above.title) and \(below.title)")
+        .accessibilityHint("Drag up or down. Double-click to make the sections equal.")
+        .accessibilityAdjustableAction { direction in
+            guard let upper, let lower else { return }
+            var next = weights
+            let step = 0.1 * (next[upper.rawValue] + next[lower.rawValue])
+            let delta = direction == .increment ? step : -step
+            guard next[upper.rawValue] + delta > 0.05, next[lower.rawValue] - delta > 0.05 else { return }
+            next[upper.rawValue] += delta
+            next[lower.rawValue] -= delta
+            sectionWeights = next.map { String(format: "%.4f", $0) }.joined(separator: ",")
+        }
+    }
+
+    // MARK: The dock
+
+    /// Archived, and any collapsed Studios or Chats, as buttons along the bottom. Full labels
+    /// when they fit; icons and counts when the sidebar is narrow.
+    private var sidebarDock: some View {
+        let archived = model.archivedSessions.filter(isShown)
+        let docked = isFiltering ? [] : [SidebarSection.studios, .chats].filter(isCollapsed)
+        return ViewThatFits(in: .horizontal) {
+            dockRow(docked: docked, archived: archived, labels: true)
+            dockRow(docked: docked, archived: archived, labels: false)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1) }
+    }
+
+    private func dockChip(_ title: String, count: Int, icon: String, label: Bool, selected: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+            Text(label ? "\(title) \(count)" : "\(count)")
+        }
+        .font(.caption.weight(.medium))
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Capsule().fill(Color.primary.opacity(selected ? 0.14 : 0.08)))
+        .contentShape(Capsule())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title), \(count)")
+    }
+
+    private func dockRow(docked: [SidebarSection], archived: [ChatSession], labels: Bool) -> some View {
+        HStack(spacing: 6) {
+            ForEach(docked, id: \.self) { section in
+                Button { setCollapsed(section, false) } label: {
+                    dockChip(section.title, count: count(of: section), icon: section.icon, label: labels)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Show \(section.title)")
+                .accessibilityHint("Shows the section")
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+            Spacer(minLength: 0)
+            if !archived.isEmpty {
+                Button { showArchived.toggle() } label: {
+                    dockChip("Archived", count: archived.count, icon: "archivebox", label: labels, selected: showArchived)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Archived chats")
+                .popover(isPresented: $showArchived, arrowEdge: .top) {
+                    List {
+                        ForEach(archived) { session in row(session, number: nil) }
+                    }
+                    .frame(width: 300, height: min(420, CGFloat(archived.count) * 52 + 20))
+                }
+            }
+        }
+    }
+}
+
+#if DEBUG
+/// Where each divider is drawn, for interaction tests.
+@MainActor enum SidebarDebug { static var dividers: [String: CGRect] = [:] }
+#endif
+
+/// The grab area of a divider between sidebar sections: drag to resize (reports how far the
+/// pointer has moved down since the press), double-click to reset.
+private struct DividerHandle: NSViewRepresentable {
+    let onDrag: (CGFloat) -> Void
+    let onEnd: () -> Void
+    let onDoubleClick: () -> Void
+
+    func makeNSView(context: Context) -> HandleView { HandleView() }
+    func updateNSView(_ view: HandleView, context: Context) {
+        view.onDrag = onDrag; view.onEnd = onEnd; view.onDoubleClick = onDoubleClick
+    }
+
+    final class HandleView: NSView {
+        var onDrag: ((CGFloat) -> Void)?
+        var onEnd: (() -> Void)?
+        var onDoubleClick: (() -> Void)?
+        private var startY: CGFloat?
+        override var mouseDownCanMoveWindow: Bool { false }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeUpDown) }
+        override func mouseDown(with event: NSEvent) {
+            if event.clickCount == 2 { startY = nil; onDoubleClick?(); return }
+            startY = screenY(event)
+        }
+
+        private func screenY(_ event: NSEvent) -> CGFloat {
+            window.map { $0.convertPoint(toScreen: event.locationInWindow).y } ?? event.locationInWindow.y
+        }
+        override func mouseDragged(with event: NSEvent) {
+            guard let startY else { return }
+            // Screen coordinates rise upward; a drag down makes the upper section taller.
+            onDrag?(startY - screenY(event))
+        }
+        override func mouseUp(with event: NSEvent) {
+            guard startY != nil else { return }
+            startY = nil
+            onEnd?()
+        }
     }
 }
