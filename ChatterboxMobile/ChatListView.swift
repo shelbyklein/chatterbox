@@ -233,6 +233,7 @@ private struct ChatRow: View {
                         else {
                             Image((Backend(rawValue: chat.backend) ?? .claude).iconName)
                                 .resizable().scaledToFit().frame(width: 16, height: 16)
+                                .foregroundStyle(MobileConversationStyle.accent(for: chat.backend))
                         }
                     }
                     .foregroundStyle(.secondary)

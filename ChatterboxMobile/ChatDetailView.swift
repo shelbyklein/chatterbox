@@ -35,54 +35,11 @@ struct ChatDetailView: View {
     @State private var newTitle = ""
 
     private var summary: Companion.ChatSummary { detail?.summary ?? chat }
+    private var isConversation: Bool { summary.isDot == true }
+    private var agentAccent: Color { MobileConversationStyle.accent(for: summary.backend) }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
-                    if let detail {
-                        if detail.earlierCount > 0 {
-                            Text("\(detail.earlierCount) earlier messages are on the Mac.")
-                                .font(.caption).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity)
-                        }
-                        ForEach(detail.items) { item in
-                            ItemRow(item: item, chat: chat.id, actions: actions).id(item.id)
-                        }
-                        if summary.isDot == true, MobileGolem.shared.hasAnimations {
-                            // The assistant, below his latest message: thinking while he works.
-                            HStack(alignment: .bottom, spacing: 8) {
-                                MobileGolemAnimated(mood: MobileGolem.mood(summary)).frame(width: 80, height: 80)
-                                if summary.isRunning {
-                                    Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary).padding(.bottom, 12)
-                                }
-                            }
-                            .id("working")
-                        } else if summary.isRunning {
-                            HStack(spacing: 8) {
-                                ProgressView().controlSize(.small)
-                                Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary)
-                            }
-                            .id("working")
-                        }
-                    } else if error == nil && history.problem == nil {
-                        ProgressView().frame(maxWidth: .infinity)
-                    }
-                    if let error = error ?? history.problem {
-                        Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
-                    }
-                    Color.clear.frame(height: 1).id("bottom")
-                }
-                .padding(16)
-                // A readable width on iPad, centered.
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
-            }
-            .defaultScrollAnchor(.bottom)
-            .scrollDismissesKeyboard(.interactively)
-            .refreshable { await refresh(force: true) }
-            .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
-        }
+        transcript
         .safeAreaInset(edge: .bottom) { composer }
         .onAppear {
             guard !loadedDraft else { return }
@@ -120,29 +77,12 @@ struct ChatDetailView: View {
         }
         .navigationTitle(summary.project ?? summary.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if let settings = detail?.settings {
-                ToolbarItem(placement: .principal) {
-                    // Tap the title for the model, effort, and mode.
-                    Button { showingSettings = true } label: {
-                        VStack(spacing: 0) {
-                            Text(summary.project ?? summary.title).font(.headline).lineLimit(1).foregroundStyle(.primary)
-                            HStack(spacing: 3) {
-                                Text(settings).lineLimit(1)
-                                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
-                            }
-                            .font(.caption2).foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(detail?.options == nil)
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) { chatMenu }
-        }
+        .toolbar { chatToolbar }
+        .tint(isConversation ? Color.primary : agentAccent)
         .sheet(isPresented: $showingSettings) {
             if let options = detail?.options {
                 ChatSettingsSheet(options: options) { change in perform { try await store.change(change, in: chat.id) } }
+                    .tint(agentAccent)
                     .presentationDetents([.medium, .large])
             }
         }
@@ -160,6 +100,91 @@ struct ChatDetailView: View {
                !showingSettings, detail?.options != nil { showingSettings = true }
         }
         #endif
+    }
+
+    private var transcript: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    if let detail {
+                        if detail.earlierCount > 0 {
+                            Text("\(detail.earlierCount) earlier messages are on the Mac.")
+                                .font(.caption).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity)
+                        }
+                        MobileTranscriptRows(items: detail.items, chat: chat.id, backend: summary.backend,
+                                             conversation: isConversation, actions: actions)
+                        if isConversation {
+                            // The assistant, below his latest message: thinking while he works.
+                            HStack(alignment: .bottom, spacing: 8) {
+                                if MobileGolem.shared.hasAnimations {
+                                    MobileGolemAnimated(mood: MobileGolem.mood(summary)).frame(width: 80, height: 80)
+                                }
+                                if summary.isRunning {
+                                    Text("Replying\u{2026}")
+                                        .font(.callout).foregroundStyle(.secondary)
+                                        .padding(.horizontal, 14).padding(.vertical, 10)
+                                        .background(Color(uiColor: .secondarySystemBackground), in: Capsule())
+                                        .padding(.bottom, 12)
+                                }
+                            }
+                            .id("working")
+                        } else if summary.isRunning {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary)
+                            }
+                            .id("working")
+                        }
+                    } else if error == nil && history.problem == nil {
+                        ProgressView().frame(maxWidth: .infinity)
+                    }
+                    if let error = error ?? history.problem {
+                        Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
+                    }
+                    Color.clear.frame(height: 1).id("bottom")
+                }
+                .padding(16)
+                // A readable width on iPad, centered.
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
+            }
+            .defaultScrollAnchor(.bottom)
+            .scrollDismissesKeyboard(.interactively)
+            .refreshable { await refresh(force: true) }
+            .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var chatToolbar: some ToolbarContent {
+            if isConversation {
+                ToolbarItem(placement: .principal) {
+                    Text(summary.title).font(.headline).lineLimit(1)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Chat Settings")
+                        .disabled(detail?.options == nil)
+                }
+            } else if let settings = detail?.settings {
+                ToolbarItem(placement: .principal) {
+                    // Tap the title for the model, effort, and mode.
+                    Button { showingSettings = true } label: {
+                        VStack(spacing: 0) {
+                            Text(summary.project ?? summary.title).font(.headline).lineLimit(1).foregroundStyle(.primary)
+                            HStack(spacing: 3) {
+                                Text(settings).lineLimit(1)
+                                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
+                            }
+                            .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(detail?.options == nil)
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) { chatMenu }
     }
 
     private var chatMenu: some View {
@@ -384,7 +409,7 @@ struct ChatDetailView: View {
             .tint(.secondary)
             .accessibilityLabel("Add a photo, file, or sketch")
 
-            TextField(summary.isRunning ? "Add something while it works\u{2026}" : "Message", text: $draft, axis: .vertical)
+            TextField(isConversation ? "Message \(summary.title)" : (summary.isRunning ? "Add something while it works\u{2026}" : "Message"), text: $draft, axis: .vertical)
                 .accessibilityLabel("Message")
                 .accessibilityIdentifier("messageComposer")
                 .lineLimit(1...6)
@@ -392,6 +417,8 @@ struct ChatDetailView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
                 .background(RoundedRectangle(cornerRadius: 20).fill(Color(uiColor: .secondarySystemBackground)))
+                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(
+                    isConversation ? Color.primary.opacity(0.12) : agentAccent.opacity(0.35), lineWidth: 1))
 
             Button { toggleDictation() } label: {
                 Image(systemName: dictation.isListening ? "mic.circle.fill" : "mic.circle")
@@ -412,6 +439,7 @@ struct ChatDetailView: View {
                 Image(systemName: sending ? "ellipsis.circle.fill" : "arrow.up.circle.fill")
                     .font(.system(size: 34))
             }
+            .tint(agentAccent)
             .disabled(!canSend)
             .contextMenu {
                 if summary.isRunning {
@@ -438,10 +466,43 @@ private extension UIImage {
     }
 }
 
+/// Isolates transcript layout from the screen's navigation and attachment presentation.
+private struct MobileTranscriptRows: View {
+    let items: [Companion.Item]
+    let chat: UUID
+    let backend: String
+    let conversation: Bool
+    let actions: ItemActions
+
+    var body: some View {
+        ForEach(MobileConversationStyle.groups(items, conversation: conversation)) { group in
+            if group.isSteps {
+                DisclosureGroup {
+                    ForEach(group.items) { item in
+                        ItemRow(item: item, chat: chat, backend: backend,
+                                conversation: false, actions: actions).id(item.id)
+                    }
+                } label: {
+                    Text("\(group.items.count) \(group.items.count == 1 ? "step" : "steps")")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .tint(.secondary)
+            } else {
+                ForEach(group.items) { item in
+                    ItemRow(item: item, chat: chat, backend: backend,
+                            conversation: conversation, actions: actions).id(item.id)
+                }
+            }
+        }
+    }
+}
+
 /// One row of the transcript, styled like the Mac's.
 private struct ItemRow: View {
     let item: Companion.Item
     let chat: UUID
+    let backend: String
+    let conversation: Bool
     let actions: ItemActions
 
     var body: some View {
@@ -453,7 +514,8 @@ private struct ItemRow: View {
                         .textSelection(.enabled)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
-                        .background(RoundedRectangle(cornerRadius: 18).fill(Color.accentColor.opacity(0.22)))
+                        .foregroundStyle(.white)
+                        .background(RoundedRectangle(cornerRadius: 20).fill(MobileConversationStyle.bubble(for: backend)))
                 }
                 images
                 if item.isQueued {
@@ -469,10 +531,18 @@ private struct ItemRow: View {
 
         case .assistant:
             if item.isCommentary {
-                MarkdownText(text: item.text).font(.callout).foregroundStyle(.secondary)
+                if conversation {
+                    MobileReplyBubbles(text: item.text, messageID: item.id).font(.callout)
+                } else {
+                    MarkdownText(text: item.text).font(.callout).foregroundStyle(.secondary)
+                }
             } else {
                 VStack(alignment: .leading, spacing: 6) {
-                    MarkdownText(text: item.text)
+                    if conversation {
+                        MobileReplyBubbles(text: item.text, messageID: item.id)
+                    } else {
+                        MarkdownText(text: item.text)
+                    }
                     // Animations the reply points to, playing.
                     ForEach(item.attachments.filter { !$0.isImage && RemoteMedia.isMedia($0) }) { file in
                         RemoteMedia(file: file, chat: chat)
@@ -480,14 +550,14 @@ private struct ItemRow: View {
                     // Screenshots and renders it points to, to view and save.
                     images
                     HStack(spacing: 14) {
-                        if let seconds = item.workedSeconds {
+                        if !conversation, let seconds = item.workedSeconds {
                             Label("Worked for \(durationText(seconds))", systemImage: "clock")
                         }
                         // Selecting stops at each paragraph; this copies the whole reply.
                         Button { UIPasteboard.general.string = item.text } label: { Label("Copy", systemImage: "doc.on.doc") }
                             .buttonStyle(.borderless)
                     }
-                    .font(.caption).foregroundStyle(.tertiary)
+                    .font(.caption).foregroundStyle(.secondary)
                 }
             }
 

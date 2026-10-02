@@ -68,6 +68,7 @@
 		83DFF330821ADECCFAC9F161 /* ActivitySpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */; };
 		86B7AB9492D473645BCC6FA9 /* DotConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */; };
 		88E2F788E3E0BEA4CC762830 /* ModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23F411A39522520E8F10339 /* ModelPicker.swift */; };
+		8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */; };
 		8F2C622501AF80BFE5C23E4C /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		8FD50A86B332AEA5CCEBC1C5 /* ChatSession+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7786246032F89E4E0C70184 /* ChatSession+Status.swift */; };
 		91D67C3BBBB54F4E0B9A17FB /* ChatListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975B4C8301A9C31E898E446F /* ChatListView.swift */; };
@@ -247,6 +248,7 @@
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
+		EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileConversationStyle.swift; sourceTree = "<group>"; };
 		ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommands.swift; sourceTree = "<group>"; };
 		F2C1C43F95036114D2130B81 /* Chatterbox.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Chatterbox.entitlements; sourceTree = "<group>"; };
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -447,6 +449,7 @@
 				810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */,
 				F5955B401AB9BC438178B6BD /* Dictation.swift */,
 				38A6B47F421A8E58569C626D /* Info.plist */,
+				EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */,
 				1F39BB2D7B99DF4FC05C5C5E /* MobileGolem.swift */,
 				5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */,
 				B7E0882B1086EDE675468281 /* MobileMedia.swift */,
@@ -720,6 +723,7 @@
 				286A355D770106A89DA0551C /* Dictation.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
+				8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */,
 				376721BCF4B3022E340A0F44 /* MobileGolem.swift in Sources */,
 				5A603897A9E87CC8D5BA7122 /* MobileHTMLPreview.swift in Sources */,
 				3F9ACF6416461B4A49E77584 /* MobileMedia.swift in Sources */,

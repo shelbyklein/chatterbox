@@ -206,6 +206,18 @@ struct MarkdownText: View {
     }
 }
 
+/// Render one parsed block with the same typography and link context as a whole reply.
+/// Mobile conversation bubbles use this to preserve lists, tables and fenced previews.
+struct MarkdownBlockText: View {
+    let block: MarkdownText.Block
+    let source: String
+    @Environment(\.chatFolder) private var folder
+
+    var body: some View {
+        BlockView(block: block, paths: PathLinks.context(for: source, folder: folder))
+    }
+}
+
 // MARK: - Views
 
 private struct BlockView: View {
