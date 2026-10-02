@@ -26,6 +26,9 @@ struct ChatDetailView: View {
     @State private var atBottom = true
     @State private var pinUntil = Date.distantPast
     @State private var pinRequests = 0
+    /// Whether the transcript has been scrolled to the end since it opened with messages in it.
+    /// On a slow connection the messages come long after the view does.
+    @State private var pinnedLoaded = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var error: String?
     @FocusState private var composing: Bool
@@ -173,11 +176,56 @@ struct ChatDetailView: View {
             // New messages follow only if you're at the end (or it's just opened), so scrolling
             // up to read isn't undone by the next update.
             .onChange(of: detail?.revision) {
-                if atBottom || Date() < pinUntil { pin(proxy, for: 1.0) }
+                if !pinnedLoaded, detail != nil {
+                    pinnedLoaded = true
+                    pin(proxy, for: 1.5)
+                } else if atBottom || Date() < pinUntil {
+                    pin(proxy, for: 1.0)
+                }
             }
-            .onAppear { pin(proxy, for: 1.5) }
+            .onAppear {
+                pinnedLoaded = detail == nil ? false : pinnedLoaded
+                pin(proxy, for: 1.5)
+            }
+            // Above the newest messages: a button back down, above the message box.
+            .overlay(alignment: .bottomTrailing) {
+                if !atBottom, detail != nil {
+                    Button {
+                        pin(proxy, for: 0.8)
+                    } label: {
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(width: 44, height: 44)
+                            .background(.regularMaterial, in: Circle())
+                            .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                            .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 12)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                    .accessibilityLabel("Scroll to newest message")
+                    .accessibilityHint("Jumps to the end of the chat")
+                }
+            }
+            .animation(.easeOut(duration: 0.18), value: atBottom)
             .onChange(of: pinRequests) { pin(proxy, for: 1.5) }
-            .onChange(of: scenePhase) { _, phase in if phase == .active { pin(proxy, for: 1.5) } }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                // Already loaded: this pin covers it. Otherwise the first load will.
+                pinnedLoaded = detail != nil
+                pin(proxy, for: 1.5)
+            }
+            #if DEBUG
+            // Simulator tests: scroll to the top, then tap the button.
+            .task(id: detail != nil) {
+                guard detail != nil, ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SCROLL_BUTTON"] != nil else { return }
+                try? await Task.sleep(for: .seconds(4))
+                proxy.scrollTo(detail?.items.first?.id, anchor: .top)
+                try? await Task.sleep(for: .seconds(6))
+                pin(proxy, for: 0.8)
+            }
+            #endif
         }
     }
 
