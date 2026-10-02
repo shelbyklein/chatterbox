@@ -51,8 +51,20 @@ private struct AnyButtonStyle: PrimitiveButtonStyle {
 struct ModelPopover: View {
     let session: ChatSession
     let close: () -> Void
-    @State private var tab: Backend = .claude
+    @State private var tab: Backend
     @State private var showHidden = false
+
+    /// Opens on the chat's own agent, so the first layout (which sizes the popover) is the
+    /// one you see.
+    init(session: ChatSession, close: @escaping () -> Void) {
+        self.session = session
+        self.close = close
+        _tab = State(initialValue: session.record.backend)
+    }
+
+    /// One size whatever the tab, notices, or model lists: NSPopover resizing after it's on
+    /// screen can leave the content shifted past its edge. The model list takes up the slack.
+    static let size = CGSize(width: 380, height: 600)
 
     private var catalog: ClaudeModels { .shared }
     private var codexModels: [CodexModelInfo] { CodexAppServer.shared.models }
@@ -70,6 +82,7 @@ struct ModelPopover: View {
             if locked {
                 Label("Switching agents waits until the current reply finishes.", systemImage: "hourglass")
                     .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             ScrollView {
@@ -77,7 +90,7 @@ struct ModelPopover: View {
                     if tab == .claude { claudeRows } else { codexRows }
                 }
             }
-            .frame(height: 300)
+            .frame(minHeight: 160, maxHeight: .infinity)
 
             Divider()
             effortSection
@@ -88,6 +101,7 @@ struct ModelPopover: View {
                     .disabled(active != .codex)
                 Text("Faster replies with higher usage. Applies to the next reply; availability depends on your model and plan.")
                     .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Divider()
 
@@ -105,8 +119,7 @@ struct ModelPopover: View {
             .font(.callout)
         }
         .padding(14)
-        .frame(width: 380)
-        .onAppear { tab = active }
+        .frame(width: Self.size.width, height: Self.size.height, alignment: .top)
     }
 
     // MARK: - Models
