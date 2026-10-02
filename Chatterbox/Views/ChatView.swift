@@ -913,7 +913,7 @@ private struct EmptyChatView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            Image(systemName: session.record.backend == .codex ? "terminal" : "bubble.left.and.text.bubble.right")
+            Image(session.record.backend.iconName).resizable().scaledToFit().frame(width: 14, height: 14)
                 .font(.system(size: 40))
                 .foregroundStyle(.primary)
             Text("What's on your mind?")

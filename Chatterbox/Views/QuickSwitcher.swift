@@ -133,9 +133,13 @@ struct QuickSwitcher: View {
         HStack(spacing: 10) {
             switch entry {
             case .chat(let session):
-                Image(systemName: session.record.backend == .codex ? "terminal" : "sparkle")
-                    .foregroundStyle(appearance.style.color(for: session.record.backend))
-                    .frame(width: 18)
+                Group {
+                    if session.isDot { GolemHead(size: 16) }
+                    else { Image(session.record.backend.iconName).resizable().scaledToFit().frame(width: 16, height: 16) }
+                }
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+                .accessibilityLabel(session.record.backend.label)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(session.record.projectFolder != nil ? session.projectName : session.title).lineLimit(1)

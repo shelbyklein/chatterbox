@@ -228,9 +228,15 @@ private struct ChatRow: View {
         VStack(alignment: .leading, spacing: 3) {
             Button(action: open) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Image(systemName: chat.backend == "codex" ? "terminal" : "sparkle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Group {
+                        if chat.isDot == true { MobileGolemHead(size: 16) }
+                        else {
+                            Image((Backend(rawValue: chat.backend) ?? .claude).iconName)
+                                .resizable().scaledToFit().frame(width: 16, height: 16)
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(chat.backend == "codex" ? "Codex" : "Claude")
                     VStack(alignment: .leading, spacing: 3) {
                         Text(chat.project ?? chat.title).lineLimit(1)
                         if let subtitle = chat.subtitle ?? (chat.project != nil ? chat.title : nil) {

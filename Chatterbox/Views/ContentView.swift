@@ -604,8 +604,9 @@ private struct SidebarRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: session.record.backend == .codex ? "terminal" : "sparkle")
-                .font(.caption)
+            Image(session.record.backend.iconName)
+                .resizable().scaledToFit().frame(width: 14, height: 14)
+                .accessibilityLabel(session.record.backend.label)
                 .foregroundStyle(.secondary)
                 .help(session.record.backend.label)
             if session.record.projectFolder != nil {
