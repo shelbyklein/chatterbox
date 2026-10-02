@@ -52,7 +52,7 @@ func run() async throws {
     model.showingDot = true
     let mini = model.dotMiniWindow!
     let panel = mini.panel!
-    panel.setFrame(NSRect(x: 480, y: 140, width: 400, height: 560), display: true)
+    panel.setFrame(NSRect(x: 480, y: 140, width: 400, height: 420), display: true)
     try await Task.sleep(for: .seconds(2))
     panel.makeKeyAndOrderFront(nil)
     precondition(model.selectedID == selection, "Mini changed the selected project")
@@ -97,15 +97,27 @@ func run() async throws {
         try await mouse(.leftMouseUp, at: point, panel: panel)
         precondition(abs(panel.frame.minX - before.x - 70) < 1 && abs(panel.frame.minY - before.y - 20) < 1, "Native drag did not move the window")
     }
+    let savedItems = dot.record.items
+    dot.record.items = []
+    try await typeDraft("", in: panel)
+    try await Task.sleep(for: .milliseconds(300))
+    try await capture("mini-idle", panel: panel)
+    dot.record.items = savedItems
+    dot.appendItem(DisplayItem(kind: .assistant, text: "Chatterbox: All six pending commits are pushed to main; local and GitHub now match. This includes mobile loading fixes, the floating Golem mini, progress notes and freeze diagnostics.\n\nThe loading fix is installed on your iPhone and iPad. Opening or returning to a chat now refreshes history without sending a message; interrupted-load tests passed and drafts stayed intact.\n\nUnlock the iPad and open Chatterbox to check it. The Mac and running chats were not restarted.", phase: .final))
+    panel.setFrame(NSRect(x: 480, y: 140, width: 320, height: 420), display: true)
+    try await Task.sleep(for: .milliseconds(400))
+    let longReply = try await capture("mini-long-reply-320", panel: panel)
+    precondition(longReply.contains("all six pending commits"), "Long reply is clipped at narrow width")
+    panel.setFrame(NSRect(x: 480, y: 140, width: 400, height: 420), display: true)
     try await typeDraft("A draft that survives minimizing", in: panel)
     let header = descendants(panel.contentView!).compactMap { $0 as? MiniDragRegion.DragView }.first!
     try await drag(header, panel: panel)
     try await capture("expanded", panel: panel)
     print("PASS header drag and typing")
 
-    // Click the actual minimize button in the header, rather than calling its closure.
-    try await mouse(.leftMouseDown, at: NSPoint(x: panel.frame.width - 83, y: panel.frame.height - 18), panel: panel)
-    try await mouse(.leftMouseUp, at: NSPoint(x: panel.frame.width - 83, y: panel.frame.height - 18), panel: panel)
+    // Click the actual minimize button in the composer, rather than calling its closure.
+    try await mouse(.leftMouseDown, at: NSPoint(x: panel.frame.width - 34, y: 37), panel: panel)
+    try await mouse(.leftMouseUp, at: NSPoint(x: panel.frame.width - 34, y: 37), panel: panel)
     precondition(mini.collapsed && panel.frame.size == NSSize(width: 96, height: 96), "Minimize button did not make the avatar")
     precondition(!mini.isReading && !Attention.shared.isWatching(dot))
     dot.appendItem(DisplayItem(kind: .user, text: "Check for updates"))

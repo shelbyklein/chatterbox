@@ -48,7 +48,7 @@ private struct AnyButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }
 
-private struct ModelPopover: View {
+struct ModelPopover: View {
     let session: ChatSession
     let close: () -> Void
     @State private var tab: Backend = .claude

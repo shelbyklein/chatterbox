@@ -14,7 +14,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     @ObservationIgnored private weak var model: AppModel?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private(set) var panel: GolemPanel?
-    @ObservationIgnored private var expandedSize = NSSize(width: 400, height: 560)
+    @ObservationIgnored private var expandedSize = NSSize(width: 400, height: 420)
     @ObservationIgnored private var positioning = false
     @ObservationIgnored private var screenObserver: NSObjectProtocol?
 
@@ -119,11 +119,14 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         guard let panel else { return }
         positioning = true
         panel.acceptsTyping = !collapsed
-        panel.hasShadow = !collapsed
+        panel.hasShadow = false
         if collapsed { panel.styleMask.remove(.resizable) } else { panel.styleMask.insert(.resizable) }
-        panel.minSize = collapsed ? NSSize(width: 96, height: 96) : NSSize(width: 360, height: 360)
-        panel.maxSize = collapsed ? NSSize(width: 96, height: 96) : NSSize(width: 640, height: 900)
-        panel.setFrame(Self.clamped(frame, to: NSScreen.screens.map(\.visibleFrame)), display: true)
+        panel.minSize = collapsed ? NSSize(width: 96, height: 96) : NSSize(width: 320, height: 360)
+        panel.maxSize = collapsed ? NSSize(width: 96, height: 96) : NSSize(width: 520, height: 440)
+        var fitted = frame
+        fitted.size.width = min(max(fitted.width, panel.minSize.width), panel.maxSize.width)
+        fitted.size.height = min(max(fitted.height, panel.minSize.height), panel.maxSize.height)
+        panel.setFrame(Self.clamped(fitted, to: NSScreen.screens.map(\.visibleFrame)), display: true)
         positioning = false
         rememberFrame()
     }
@@ -186,38 +189,13 @@ private struct GolemMiniContent: View {
             if controller.collapsed {
                 avatar
             } else {
-                VStack(spacing: 0) {
-                    HStack(spacing: 4) {
-                        MiniDragRegion(onDragEnd: controller.keepOnScreen)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .overlay(alignment: .leading) {
-                            HStack(spacing: 7) {
-                                GolemHead(size: 15)
-                                Text(session.title).font(.callout.weight(.semibold)).lineLimit(1)
-                            }.allowsHitTesting(false)
-                        }
-                        .help("Drag to move \(session.title)")
-                        miniButton("Minimize to avatar", icon: "minus") { controller.setCollapsed(true) }
-                        miniButton("Open in Chatterbox", icon: "arrow.up.left.and.arrow.down.right") { controller.openFullChat() }
-                        miniButton("Hide mini window", icon: "xmark") { controller.closeMini() }
-                    }
-                    .frame(height: 36).padding(.horizontal, 10)
-                    .background(Theme.sidebar(background) ?? Color(nsColor: .controlBackgroundColor))
-                    Divider()
-                    ChatView(session: session).environment(\.compactChat, true)
-                }
-                .background(Theme.background(background) ?? Color.windowBackground)
+                GolemMiniConversation(session: session, controller: controller)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
         .tint(highlight == "default" ? nil : Color.highlight)
         .onChange(of: session.title) { _, title in controller.panel?.title = title }
-    }
-
-    private func miniButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: icon).frame(width: 26, height: 26).contentShape(Rectangle()) }
-            .buttonStyle(.borderless).help(title).accessibilityLabel(title)
     }
 
     private var avatar: some View {
@@ -242,6 +220,180 @@ private struct GolemMiniContent: View {
             .accessibilityLabel("\(session.title) mini\(unread > 0 ? ", \(unread) unread" : "")")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { controller.setCollapsed(false) }
+    }
+}
+
+/// A purpose-built companion: one bounded update, the character, and one input bar.
+/// Full transcript rendering belongs to the main chat, never this narrow panel.
+private struct GolemMiniConversation: View {
+    let session: ChatSession
+    let controller: GolemMiniWindow
+    @State private var draft: String
+    @State private var attachments: [Attachment]
+    @State private var attachmentError: String?
+    @State private var showingModels = false
+    @FocusState private var focused: Bool
+
+    init(session: ChatSession, controller: GolemMiniWindow) {
+        self.session = session
+        self.controller = controller
+        _draft = State(initialValue: session.draft)
+        _attachments = State(initialValue: session.draftAttachments)
+    }
+
+    private var latestReply: DisplayItem? {
+        session.items.last { $0.kind == .assistant && $0.phase != .commentary && !$0.text.isEmpty }
+    }
+    private var updateText: String? {
+        if session.isWaitingOnYou { return session.lastActionSummary }
+        if session.isRunning {
+            let notes = session.items.filter { session.liveCommentaryIDs.contains($0.id) }.suffix(2)
+            return notes.isEmpty ? (session.lastActionSummary ?? "Thinking…") : notes.map(\.text).joined(separator: "\n\n")
+        }
+        return latestReply?.text
+    }
+    private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty }
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 10) {
+                Spacer(minLength: 0)
+                if let text = updateText {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(session.isWaitingOnYou ? "Needs you" : session.isRunning ? "Working" : session.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(session.isWaitingOnYou ? Color.yellow : .secondary)
+                            Spacer()
+                            Button(action: controller.openFullChat) {
+                                Label(session.isWaitingOnYou ? "Answer in chat" : "Open chat", systemImage: "arrow.up.right")
+                                    .font(.system(size: 11))
+                            }.buttonStyle(.plain).foregroundStyle(.secondary)
+                        }
+                        ScrollView {
+                            Text(MessageClipboard.plain(String(text.prefix(8_000))))
+                                .font(.system(size: 14))
+                                .lineSpacing(4)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxHeight: max(48, min(140, geometry.size.height - 248)))
+                    }
+                    .padding(16)
+                    .background(RoundedRectangle(cornerRadius: 20).fill(Color(nsColor: .windowBackgroundColor)))
+                    .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.12)))
+                }
+                GolemAnimated(mood: GolemAvatar.mood(of: session))
+                    .frame(width: 124, height: 124)
+                    .overlay {
+                        MiniDragRegion(onDragEnd: controller.keepOnScreen,
+                                       onOpenFull: controller.openFullChat, onHide: controller.closeMini)
+                    }
+                    .help("Drag to move \(session.title)")
+                if !attachments.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 8) {
+                            ForEach(attachments) { file in
+                                Button { attachments.removeAll { $0.id == file.id } } label: {
+                                    Label(file.name, systemImage: "xmark.circle.fill").lineLimit(1)
+                                }.buttonStyle(.plain).help("Remove \(file.name)")
+                            }
+                        }.font(.caption).padding(8)
+                    }
+                    .frame(height: 30)
+                    .background(.regularMaterial, in: Capsule())
+                }
+                if let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
+                composer
+            }
+            .frame(width: max(0, geometry.size.width - 24), height: max(0, geometry.size.height - 24), alignment: .bottom)
+            .padding(12)
+        }
+        .onChange(of: draft) { _, value in session.draft = value }
+        .onChange(of: attachments) { _, value in session.draftAttachments = value }
+        .onChange(of: latestReply?.id) {
+            if controller.isReading { Attention.shared.markSeen(session.id) }
+        }
+        .onChange(of: ChatCommands.shared.modelPopoverRequests) {
+            if showingModels || controller.panel?.isKeyWindow == true { showingModels.toggle() }
+        }
+        .popover(isPresented: $showingModels) {
+            ModelPopover(session: session) { showingModels = false }
+                .task {
+                    await ClaudeModels.shared.refresh()
+                    if CodexAppServer.shared.models.isEmpty { try? await CodexAppServer.shared.refreshModels() }
+                }
+        }
+        .onKeyPress(.escape) {
+            guard session.isRunning else { return .ignored }
+            session.interrupt(); return .handled
+        }
+    }
+
+    private var composer: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            Menu {
+                Button("Attach Files…", action: chooseFiles)
+                Button("Paste Image") {
+                    if let files = Attachments.fromPasteboard() { attachments += files }
+                }
+                Divider()
+                Button("Model and Effort…") { showingModels = true }
+                Button("Open Full Chat", action: controller.openFullChat)
+                Button("Hide Mini", action: controller.closeMini)
+            } label: {
+                Image(systemName: "plus").font(.system(size: 17)).frame(width: 28, height: 30)
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .accessibilityLabel("More options")
+            TextField("Message \(session.title)", text: $draft, axis: .vertical)
+                .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(1...4)
+                .frame(maxWidth: .infinity).padding(.vertical, 6)
+                .focused($focused).accessibilityLabel("Message")
+                .onSubmit { send() }
+                .onKeyPress(.return, phases: .down) { press in
+                    if press.modifiers.contains(.shift) {
+                        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
+                        return .handled
+                    }
+                    if press.modifiers.contains(.command) { send(now: true); return .handled }
+                    return .ignored
+                }
+            if session.isRunning && !canSend {
+                Button { session.interrupt() } label: { Image(systemName: "stop.fill").frame(width: 30, height: 30) }
+                    .buttonStyle(.plain).accessibilityLabel("Stop").help("Stop (Esc)")
+            } else {
+                Button { send() } label: {
+                    Image(systemName: "arrow.up").font(.system(size: 14, weight: .semibold))
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(canSend ? Color.onHighlight : Color.secondary)
+                        .background(Circle().fill(canSend ? Color.highlight : Color.primary.opacity(0.06)))
+                }.buttonStyle(.plain).disabled(!canSend).accessibilityLabel("Send")
+            }
+            Button { controller.setCollapsed(true) } label: {
+                Image(systemName: "chevron.down").font(.system(size: 12, weight: .semibold)).frame(width: 24, height: 30)
+            }.buttonStyle(.plain).foregroundStyle(.secondary).help("Minimize to avatar").accessibilityLabel("Minimize to avatar")
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 26).fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(.primary.opacity(0.12)))
+    }
+
+    private func send(now: Bool = false) {
+        guard canSend else { return }
+        let text = draft, files = attachments
+        draft = ""; attachments = []; session.draft = ""; session.draftAttachments = []
+        if now { session.sendNow(text, attachments: files) } else { session.send(text, attachments: files) }
+    }
+
+    private func chooseFiles() {
+        let picker = NSOpenPanel()
+        picker.allowsMultipleSelection = true
+        picker.canChooseDirectories = false
+        guard picker.runModal() == .OK else { return }
+        do { attachments += try picker.urls.map(Attachments.importFile); attachmentError = nil }
+        catch { attachmentError = error.localizedDescription }
     }
 }
 
