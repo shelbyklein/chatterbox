@@ -125,7 +125,8 @@ struct ChatView: View {
                 .frame(width: max(600, window.width - 40), height: max(400, window.height - 40))
         }
         .sheet(isPresented: $showingImages) {
-            ChatImageGallery(session: session) { reviewing = $0 }
+            ChatImageGallery(session: session, onOpen: { reviewing = $0 },
+                             onAdd: { urls in add(urls.compactMap(importOrReport)); composerFocused = true })
         }
         .sheet(item: $reviewing) { image in
             // As big as the window allows, so the image or document gets the most room.

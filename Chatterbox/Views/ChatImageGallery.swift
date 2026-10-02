@@ -8,9 +8,12 @@ import SwiftUI
 struct ChatImageGallery: View {
     let session: ChatSession
     let onOpen: (Attachment) -> Void
+    /// Puts the chosen images in the message box, ready to send back to the chat.
+    var onAdd: ([URL]) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @State private var images: [GalleryImage] = []
     @State private var loaded = false
+    @State private var selected: [String] = []   // Paths, in the order you picked them.
 
     struct GalleryImage: Identifiable, Hashable {
         var id: String { url.path }
@@ -70,6 +73,17 @@ struct ChatImageGallery: View {
                 Text("Images in \u{201C}\(session.title)\u{201D}").font(.headline).lineLimit(1)
                 if loaded { Text("\(images.count)").foregroundStyle(.secondary) }
                 Spacer()
+                if selected.isEmpty {
+                    Text("Click the circles to pick images to add to the chat").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Button("Clear") { selected = [] }
+                    Button("Add \(selected.count) to Chat") {
+                        onAdd(selected.map { URL(fileURLWithPath: $0) })
+                        dismiss()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                }
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(16)
@@ -109,7 +123,9 @@ struct ChatImageGallery: View {
                     .frame(maxWidth: .infinity)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1)))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(isSelected(image) ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: isSelected(image) ? 3 : 1))
+                    .overlay(alignment: .topTrailing) { checkmark(image) }
                 Text(image.url.lastPathComponent).font(.caption).lineLimit(1).truncationMode(.middle)
                 Text(image.date.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(.secondary)
             }
@@ -117,11 +133,43 @@ struct ChatImageGallery: View {
         }
         .buttonStyle(.plain)
         .help("View \(image.url.lastPathComponent)")
+        // ⌘-click picks it too, like Finder.
+        .simultaneousGesture(TapGesture().modifiers(.command).onEnded { toggle(image) })
         .contextMenu {
+            Button(isSelected(image) ? "Deselect" : "Select") { toggle(image) }
+            Button("Add to Chat") { onAdd([image.url]); dismiss() }
+            Divider()
             Button("Copy Image") { ImageClipboard.copy(image.url) }
             Button("Open in Preview") { NSWorkspace.shared.open(image.url) }
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([image.url]) }
         }
+    }
+}
+
+extension ChatImageGallery {
+    fileprivate func isSelected(_ image: GalleryImage) -> Bool { selected.contains(image.url.path) }
+
+    fileprivate func toggle(_ image: GalleryImage) {
+        if let index = selected.firstIndex(of: image.url.path) { selected.remove(at: index) } else { selected.append(image.url.path) }
+    }
+
+    /// A circle on each tile: click it to pick the image; it shows its place in the order.
+    fileprivate func checkmark(_ image: GalleryImage) -> some View {
+        Button { toggle(image) } label: {
+            ZStack {
+                Circle().fill(isSelected(image) ? Color.accentColor : Color.black.opacity(0.35))
+                Circle().strokeBorder(.white, lineWidth: 1.5)
+                if let index = selected.firstIndex(of: image.url.path) {
+                    Text("\(index + 1)").font(.caption.weight(.bold)).foregroundStyle(.white)
+                }
+            }
+            .frame(width: 24, height: 24)
+            .padding(8)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(isSelected(image) ? "Deselect" : "Select to add to the chat")
+        .accessibilityLabel(isSelected(image) ? "Deselect \(image.url.lastPathComponent)" : "Select \(image.url.lastPathComponent)")
     }
 }
 
