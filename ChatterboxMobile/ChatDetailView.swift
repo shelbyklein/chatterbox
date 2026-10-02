@@ -22,6 +22,11 @@ struct ChatDetailView: View {
     @State private var pendingImages: [PendingImage] = []
     @State private var loadedDraft = false
     @State private var sending = false
+    /// Whether the end of the transcript is on screen, and until when to keep it there.
+    @State private var atBottom = true
+    @State private var pinUntil = Date.distantPast
+    @State private var pinRequests = 0
+    @Environment(\.scenePhase) private var scenePhase
     @State private var error: String?
     @FocusState private var composing: Bool
     /// The sketch canvas, when open.
@@ -153,6 +158,9 @@ struct ChatDetailView: View {
                         Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                     }
                     Color.clear.frame(height: 1).id("bottom")
+                        // Lazy rows: this exists only while the end is on screen.
+                        .onAppear { atBottom = true }
+                        .onDisappear { atBottom = false }
                 }
                 .padding(16)
                 // A readable width on iPad, centered.
@@ -162,7 +170,27 @@ struct ChatDetailView: View {
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .refreshable { await refresh(force: true) }
-            .onChange(of: detail?.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
+            // New messages follow only if you're at the end (or it's just opened), so scrolling
+            // up to read isn't undone by the next update.
+            .onChange(of: detail?.revision) {
+                if atBottom || Date() < pinUntil { pin(proxy, for: 1.0) }
+            }
+            .onAppear { pin(proxy, for: 1.5) }
+            .onChange(of: pinRequests) { pin(proxy, for: 1.5) }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { pin(proxy, for: 1.5) } }
+        }
+    }
+
+    /// Scrolls to the newest message, again a few times while rows load and get measured
+    /// (a lazy list only estimates the height of rows it hasn't drawn).
+    private func pin(_ proxy: ScrollViewProxy, for seconds: Double) {
+        pinUntil = max(pinUntil, Date().addingTimeInterval(seconds))
+        for delay in [0, 0.05, 0.15, 0.35, 0.7, 1.1] where delay <= seconds + 0.05 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                var instant = Transaction()
+                instant.disablesAnimations = true
+                withTransaction(instant) { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
         }
     }
 
@@ -269,6 +297,7 @@ struct ChatDetailView: View {
     /// `now`: stop the agent and send this right away, instead of adding it to the reply.
     private func send(now: Bool = false) async {
         if dictation.isListening { dictation.stop() }
+        pinRequests += 1   // Your own message: always go to the end.
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || !pendingImages.isEmpty else { return }
         sending = true
