@@ -84,6 +84,20 @@ app.setActivationPolicy(.accessory)
     mini.panel!.backgroundColor = .windowBackgroundColor
     mini.panel!.isOpaque = true
     try await capture(mini.panel!,"shadow");mini.hide()
+    Attention.shared.start(model:model)
+    Attention.shared.markSeen(dot.id)
+    dot.appendItem(DisplayItem(kind:.assistant,text:"Your review is ready.",phase:.final))
+    precondition(Attention.shared.dotUnreadCount(dot)>0)
+    mini.show()
+    mini.setCollapsed(true)
+    for size in GolemMiniWindow.sizes {
+        mini.setScale(size.scale)
+        mini.panel!.backgroundColor = .windowBackgroundColor
+        mini.panel!.isOpaque = true
+        CGWarpMouseCursorPosition(CGPoint(x:0,y:0))
+        try await capture(mini.panel!,"shadow-unread-"+size.label.replacingOccurrences(of:" ",with:"-"))
+    }
+    mini.hide()
     print("PASS rendered Mac push setup, Gmail card and Golem shadow (review screenshots)")
 }
 Task {do {try await run();exit(0)}catch{print("FAIL \(error)");exit(1)}}
