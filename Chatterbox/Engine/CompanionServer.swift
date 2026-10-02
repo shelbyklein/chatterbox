@@ -357,7 +357,8 @@ final class CompanionServer {
                   let data = try? Data(contentsOf: GolemAvatar.folder.appendingPathComponent(file.name)) else {
                 return .error(404, "No such animation.")
             }
-            return HTTPResponse(status: 200, contentType: file.name.hasSuffix(".png") ? "image/png" : "video/quicktime", body: data)
+            let type = file.name.hasSuffix(".png") ? "image/png" : file.name.hasSuffix(".json") ? "application/json" : "video/quicktime"
+            return HTTPResponse(status: 200, contentType: type, body: data)
         case ("GET", 5) where parts[1] == "chats" && parts[3] == "files":
             guard let session = session(parts[2]), let fileID = UUID(uuidString: parts[4]) else { return .error(404, "That file is gone.") }
             if let file = session.allAttachments.first(where: { $0.id == fileID }) {
@@ -496,10 +497,11 @@ enum CompanionMapper {
               target: pin.kind == .website ? (PinStore.normalizedURL(pin.target)?.absoluteString ?? pin.target) : pin.target)
     }
 
-    /// The animations (.mov) and head image in the assistant's Avatar folder.
+    /// The animations (.mov), the live rig (golem.json and its .png stones) and head image in
+    /// the assistant's Avatar folder.
     static func avatarList() -> Companion.AvatarList {
         let entries = (try? FileManager.default.contentsOfDirectory(at: GolemAvatar.folder, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-        return .init(files: entries.filter { ["mov", "png"].contains($0.pathExtension.lowercased()) }.map { url in
+        return .init(files: entries.filter { ["mov", "png", "json"].contains($0.pathExtension.lowercased()) }.map { url in
             .init(name: url.lastPathComponent,
                   modified: (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast)
         }.sorted { $0.name < $1.name })

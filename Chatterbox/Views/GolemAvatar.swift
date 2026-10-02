@@ -3,10 +3,11 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// Golem's animations: `<mood>.mov` files (HEVC with alpha, on a shared stage; see
-/// scripts/make-golem-avatar.py) and `head.png`, in the assistant's Avatar folder. Dropping a
-/// new mood there is enough: it's picked up the next time the folder is looked at. Moods
-/// without a file fall back to idle.
+/// Golem's animations, from the assistant's Avatar folder. With a rig there (`golem.json` and
+/// its stone images, see Shared/GolemRig.swift) he's drawn live and moves between moods; without
+/// one, `<mood>.mov` files play (HEVC with alpha, on a shared stage; see
+/// scripts/make-golem-avatar.py). Either way `head.png` is his still head. Changes there are
+/// picked up the next time the folder is looked at.
 @MainActor
 @Observable
 final class GolemAvatar {
@@ -28,6 +29,8 @@ final class GolemAvatar {
 
     private(set) var files: [String: URL] = [:]
     private(set) var head: NSImage?
+    /// His live rig, when the folder has one; preferred over the videos.
+    private(set) var rig: GolemRig?
     /// Bumped when the files change, so players reload.
     private(set) var revision = 0
     @ObservationIgnored private var checked = Date.distantPast
@@ -35,7 +38,7 @@ final class GolemAvatar {
 
     static var folder: URL { URL(fileURLWithPath: AppModel.dotFolder).appendingPathComponent("Avatar", isDirectory: true) }
 
-    var hasAnimations: Bool { files["idle"] != nil }
+    var hasAnimations: Bool { rig != nil || files["idle"] != nil }
 
     func url(for mood: Mood) -> URL? {
         refreshIfStale()
@@ -68,6 +71,7 @@ final class GolemAvatar {
         DispatchQueue.main.async {
             self.files = found
             self.head = NSImage(contentsOf: Self.folder.appendingPathComponent("head.png"))
+            self.rig = GolemRig.load(from: Self.folder)
             self.revision += 1
         }
     }
@@ -101,15 +105,26 @@ struct GolemHead: View {
     }
 }
 
-/// Golem, animated: loops the current mood, crossfading when it changes, with a flourish
+/// Golem, animated. With his rig, drawn live: changing mood plays a transition between poses.
+/// Otherwise the current mood's video loops, crossfading when it changes, with a flourish
 /// (a sneeze, a playful moment) now and then while idle. Square; transparent around him.
 struct GolemAnimated: View {
     let mood: GolemAvatar.Mood
     private let avatar = GolemAvatar.shared
 
     var body: some View {
+        let _ = avatar.refreshIfStale()
+        if let rig = avatar.rig {
+            GolemRigView(rig: rig, mood: mood.rawValue)
+                .id(avatar.revision)
+        } else {
+            videos
+        }
+    }
+
+    private var videos: some View {
         let url = avatar.url(for: mood)
-        ZStack {
+        return ZStack {
             if let url {
                 LoopingVideo(url: url, flourishes: mood == .idle ? avatar.flourishes : [], revision: avatar.revision)
                     .id(url)

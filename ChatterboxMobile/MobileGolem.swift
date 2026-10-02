@@ -4,7 +4,8 @@ import SwiftUI
 import UIKit
 
 /// The assistant's animations on the phone: fetched from the Mac once and kept in Caches,
-/// fetched again only when a file there changes. Moods match the Mac's.
+/// fetched again only when a file there changes. Moods match the Mac's. With a rig among them
+/// (golem.json and its stones) he's drawn live, like on the Mac; otherwise the videos play.
 @MainActor
 @Observable
 final class MobileGolem {
@@ -16,6 +17,9 @@ final class MobileGolem {
 
     private(set) var files: [String: URL] = [:]
     private(set) var head: UIImage?
+    private(set) var rig: GolemRig?
+    /// Bumped when the cache is re-read, so a live Golem picks up a new rig.
+    private(set) var revision = 0
     @ObservationIgnored private var loading = false
 
     private static var cache: URL {
@@ -24,7 +28,7 @@ final class MobileGolem {
         return folder
     }
 
-    var hasAnimations: Bool { files["idle"] != nil }
+    var hasAnimations: Bool { rig != nil || files["idle"] != nil }
 
     func url(for mood: Mood) -> URL? { files[mood.rawValue] ?? files["idle"] }
 
@@ -68,6 +72,8 @@ final class MobileGolem {
         }
         files = found
         head = UIImage(contentsOfFile: Self.cache.appendingPathComponent("head.png").path)
+        rig = GolemRig.load(from: Self.cache)
+        revision += 1
     }
 }
 
@@ -85,14 +91,22 @@ struct MobileGolemHead: View {
     }
 }
 
-/// The assistant, animated, looping its current mood.
+/// The assistant, animated: live from his rig when there is one, else looping its current mood.
 struct MobileGolemAnimated: View {
     let mood: MobileGolem.Mood
     private let golem = MobileGolem.shared
 
     var body: some View {
+        if let rig = golem.rig {
+            GolemRigView(rig: rig, mood: mood.rawValue).id(golem.revision)
+        } else {
+            videos
+        }
+    }
+
+    private var videos: some View {
         let url = golem.url(for: mood)
-        ZStack {
+        return ZStack {
             if let url {
                 MobileLoopingVideo(url: url).id(url).transition(.opacity)
             }
