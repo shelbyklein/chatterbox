@@ -733,35 +733,42 @@ struct ChatView: View {
         return true
     }
 
+    /// One suggestion per line, in full (long ones wrap), so each can be read before picking.
     private var nextStepsRow: some View {
-        HStack(spacing: 6) {
-            Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Button { NextSteps.shared.dismiss(session) } label: {
+                    Image(systemName: "xmark").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss (0 from an empty box)")
+                .accessibilityLabel("Dismiss suggestions")
+            }
             ForEach(Array(nextSteps.enumerated()), id: \.offset) { index, step in
                 Button {
                     draft = step
                     composerFocused = true
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text("\(index + 1)").font(.caption2.monospacedDigit().weight(.bold))
                             .foregroundStyle(.secondary)
-                            .frame(width: 15, height: 15)
+                            .frame(width: 16, height: 16)
                             .background(Circle().fill(Color.primary.opacity(0.08)))
-                        Text(step).font(.callout).lineLimit(1).truncationMode(.tail)
+                            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                        Text(step).font(.callout)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
                     }
-                    .padding(.leading, 4).padding(.trailing, 9).padding(.vertical, 4)
-                    .background(Capsule().fill(Color.primary.opacity(0.06)))
-                    .contentShape(Capsule())
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
-                .help("\(step)\n\nPuts it in the box to edit (\(index + 1) from an empty box\(index == 0 ? ", or Tab" : "")). Nothing is sent until you send it.")
+                .help("Puts it in the box to edit (\(index + 1) from an empty box\(index == 0 ? ", or Tab" : "")). Nothing is sent until you send it.")
             }
-            Spacer(minLength: 0)
-            Button { NextSteps.shared.dismiss(session) } label: {
-                Image(systemName: "xmark").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Dismiss (0 from an empty box)")
-            .accessibilityLabel("Dismiss suggestions")
         }
         .padding(.leading, 34)
         .transition(.opacity)

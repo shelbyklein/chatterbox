@@ -494,27 +494,32 @@ struct ChatDetailView: View {
     /// Next Steps (a Chatterbox plugin, Settings → Plugins on the Mac): tap one to put it in
     /// the box as a draft you can edit. Nothing is sent on its own.
     private func nextStepsChips(_ steps: [String]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(steps, id: \.self) { step in
-                    Button { draft = step } label: {
-                        Text(step).font(.footnote).lineLimit(1)
-                            .padding(.horizontal, 11).padding(.vertical, 7)
-                            .background(Capsule().fill(Color(uiColor: .secondarySystemBackground)))
-                            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Puts it in the message box to edit")
-                }
+        // One per line, in full, so each can be read before tapping.
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
                 Button { dismissedSteps = steps } label: {
                     Image(systemName: "xmark").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 28, height: 22)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss suggestions")
             }
-            .padding(.horizontal, 4)
+            ForEach(steps, id: \.self) { step in
+                Button { draft = step } label: {
+                    Text(step).font(.footnote)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 11).padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(uiColor: .secondarySystemBackground)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Puts it in the message box to edit")
+            }
         }
+        .padding(.horizontal, 4)
     }
 
     private var composer: some View {
