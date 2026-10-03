@@ -216,6 +216,9 @@ enum Companion {
         /// Question rows: what the agent asked, and the answers once sent.
         var questions: [Question]? = nil
         var answers: [String: [String]]? = nil
+        /// Pending question rows: answers Golem suggests, and why. Sent only by the user.
+        var suggested: [String: [String]]? = nil
+        var suggestedReason: String? = nil
         /// Approval detail (the command, or the plan) and `!` command output.
         var detail: String? = nil
         /// A plan's steps.
@@ -269,6 +272,19 @@ enum Companion {
     /// Answers by question id; nil skips the questions.
     struct AnswersRequest: Codable {
         var answers: [String: [String]]?
+    }
+
+    /// From Golem's tools on the Mac: answers he suggests for a question card.
+    struct SuggestionRequest: Codable {
+        var answers: [String: [String]]
+        var reason: String
+    }
+
+    /// From Golem's tools on the Mac: a decision for his journal.
+    struct DecisionNote: Codable {
+        var summary: String
+        var why: String?
+        var chat: String?
     }
 
     struct File: Codable, Identifiable, Hashable {

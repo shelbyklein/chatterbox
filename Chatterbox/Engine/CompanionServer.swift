@@ -340,6 +340,24 @@ final class CompanionServer {
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
             if session.isRunning { session.interrupt() }
             return .json(CompanionMapper.detail(session, model: model))
+        // Approvals and answers are the user's alone: agents on this Mac (Golem) may only suggest.
+        case ("POST", 5) where local && parts[1] == "chats" && (parts[3] == "approvals" || parts[3] == "answers"):
+            return .error(403, "Only the user can answer approvals and questions. Use suggest_answer to propose an answer for them to send.")
+        case ("POST", 5) where local && parts[1] == "chats" && parts[3] == "suggestions":
+            guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            guard let body = try? Companion.decoder.decode(Companion.SuggestionRequest.self, from: request.body) else { return .error(400, "Bad suggestion.") }
+            do {
+                try session.suggestAnswers(itemID, answers: body.answers, reason: body.reason, by: model.dotName)
+            } catch let error as ChatSession.SuggestionError {
+                return .error(409, error.message)
+            } catch { return .error(400, "Bad suggestion.") }
+            return .json(CompanionMapper.detail(session, model: model))
+        case ("POST", 2) where local && parts[1] == "decisions":
+            guard let body = try? Companion.decoder.decode(Companion.DecisionNote.self, from: request.body),
+                  !body.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return .error(400, "Nothing to record.") }
+            let chat = body.chat.flatMap { session($0) }
+            GolemJournal.shared.add(.decision, title: body.summary, detail: body.why, chat: chat)
+            return .json(["ok": true])
         case ("POST", 5) where parts[1] == "chats" && parts[3] == "approvals":
             guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
             guard let body = try? Companion.decoder.decode(Companion.DecisionRequest.self, from: request.body),
@@ -673,6 +691,8 @@ enum CompanionMapper {
                                multiSelect: q.multiSelect, isSecret: q.isSecret)
                      },
                      answers: item.answers,
+                     suggested: item.approvalState == .pending ? item.suggested : nil,
+                     suggestedReason: item.approvalState == .pending ? item.suggestedReason : nil,
                      detail: item.kind == .approval || item.kind == .shell ? item.detail.map { String($0.suffix(20_000)) } : nil,
                      planSteps: item.kind == .plan ? item.planSteps.map { .init(step: $0.step, status: $0.status) } : nil,
                      workedSeconds: item.workedSeconds)

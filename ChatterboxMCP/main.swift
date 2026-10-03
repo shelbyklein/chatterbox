@@ -109,7 +109,27 @@ func transcript(_ detail: [String: Any], last: Int) -> String {
             let pending = item["isPending"] as? Bool == true
             out.append("[\(pending ? "WAITING FOR THE USER'S APPROVAL" : "approval") — \(text)\((item["detail"] as? String).map { ": " + $0.prefix(300) } ?? "")]")
         case "questions":
-            out.append("[\(item["isPending"] as? Bool == true ? "WAITING FOR THE USER TO ANSWER" : "answered") questions: \(text)]")
+            guard item["isPending"] as? Bool == true else {
+                out.append("[answered questions: \(text)]")
+                break
+            }
+            // Everything suggest_answer needs: the card's id, and each question's id and options.
+            var lines = ["[WAITING FOR THE USER TO ANSWER] question card \(item["id"] as? String ?? "")"]
+            for question in (item["questions"] as? [[String: Any]]) ?? [] {
+                let options = ((question["options"] as? [[String: Any]]) ?? []).compactMap { option -> String? in
+                    guard let label = option["label"] as? String else { return nil }
+                    let detail = option["detail"] as? String ?? ""
+                    return "  - \(label)" + (detail.isEmpty || detail == label ? "" : ": \(detail)")
+                }
+                var head = "- question id \u{201C}\(question["id"] as? String ?? "")\u{201D}: \(question["question"] as? String ?? "")"
+                if question["multiSelect"] as? Bool == true { head += " (choose any)" }
+                if question["isSecret"] as? Bool == true { head += " (secret: only the user can answer)" }
+                lines.append(([head] + options).joined(separator: "\n"))
+            }
+            if let suggested = item["suggested"] as? [String: [String]] {
+                lines.append("Already suggested: " + suggested.map { "\($0.key) \u{2192} \($0.value.joined(separator: ", "))" }.joined(separator: "; "))
+            }
+            out.append(lines.joined(separator: "\n"))
         case "image": out.append("[image\(text.isEmpty ? "" : ": " + text)]")
         default: break
         }
@@ -228,6 +248,37 @@ let tools: [Tool] = [
             }
             Thread.sleep(forTimeInterval: 2)
         }
+    },
+    Tool(name: "suggest_answer",
+         description: "Suggest answers for a question card waiting on the user in another chat. The card shows your pick and reason; the user sends it with one tap or chooses something else. This never sends an answer. Use read_chat first for the card id, question ids and option labels.",
+         properties: ["chat": ["type": "string", "description": "The chat's title (or part of it) or id."],
+                      "card": ["type": "string", "description": "The question card's id, from read_chat."],
+                      "answers": ["type": "object", "description": "Question id → list of option labels (one for single-choice questions). A label that isn't an option is shown as typed text.",
+                                  "additionalProperties": ["type": "array", "items": ["type": "string"]]],
+                      "reason": ["type": "string", "description": "One short line on why, shown to the user."]],
+         required: ["chat", "card", "answers", "reason"]) { arguments in
+        let id = try chatID(arguments)
+        guard let card = arguments["card"] as? String, UUID(uuidString: card) != nil else { throw ToolError(message: "Give the card's id from read_chat.") }
+        guard let raw = arguments["answers"] as? [String: Any], !raw.isEmpty else { throw ToolError(message: "No answers to suggest.") }
+        var answers: [String: [String]] = [:]
+        for (question, value) in raw {
+            if let list = value as? [String] { answers[question] = list } else if let one = value as? String { answers[question] = [one] }
+        }
+        _ = try call("/v1/chats/\(id)/suggestions/\(card)", method: "POST", body: ["answers": answers, "reason": arguments["reason"] as? String ?? ""])
+        return "Suggested. It's on the card for the user to send or change; nothing was sent. Tell them it's there."
+    },
+    Tool(name: "record_decision",
+         description: "Log a decision in your Decisions list (shown beside your chat): something the user decided, or that you decided on their behalf within what they've allowed.",
+         properties: ["summary": ["type": "string", "description": "What was decided, in one line."],
+                      "why": ["type": "string", "description": "Why (optional)."],
+                      "chat": ["type": "string", "description": "The chat it's about, by title or id (optional)."]],
+         required: ["summary"]) { arguments in
+        guard let summary = arguments["summary"] as? String, !summary.isEmpty else { throw ToolError(message: "Nothing to record.") }
+        var body: [String: Any] = ["summary": summary]
+        if let why = arguments["why"] as? String { body["why"] = why }
+        if arguments["chat"] as? String != nil { body["chat"] = try chatID(arguments) }
+        _ = try call("/v1/decisions", method: "POST", body: body)
+        return "Recorded."
     },
     Tool(name: "stop_chat",
          description: "Stop a chat's agent in the middle of its reply.",

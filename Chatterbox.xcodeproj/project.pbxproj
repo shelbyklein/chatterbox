@@ -23,6 +23,7 @@
 		185FE4741650353C7DB76AFB /* Attention.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B3EA688DB4D5120202F4A /* Attention.swift */; };
 		1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */; };
 		18BD8FFA77ACC927ACAEC416 /* AVKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B9675867775B38402C20AED2 /* AVKit.framework */; };
+		1D505664006ADC6AA306A507 /* GolemSidePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB5CC18160C7B1D685C573BC /* GolemSidePanel.swift */; };
 		1DA936A0639706822FBEB1E2 /* TerminalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5208DFA263BFAB665CD5F16F /* TerminalPanel.swift */; };
 		1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */; };
 		1E15FA4721C71E829A413B97 /* KeepAwake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF65761A4AB95BD3FA5E22 /* KeepAwake.swift */; };
@@ -106,6 +107,7 @@
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
 		B548D09F2AF1C222286B54D4 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D880F9204CBD1DAFCB11DD /* Secrets.swift */; };
 		BC976CA7BD9AE7FB18B189EA /* UsageMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */; };
+		BE1B0E60BB8A0342D42CFA38 /* GolemJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0BAF2C76EC2D70BB91B0A0 /* GolemJournal.swift */; };
 		BEAE48E0B2CBC15ABD093D65 /* ChatSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8CC235964DF222CEF117DF4 /* ChatSettingsSheet.swift */; };
 		C13032352B9C1BC38FEE5334 /* HTTPFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */; };
 		C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */; };
@@ -269,6 +271,7 @@
 		B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubIssues.swift; sourceTree = "<group>"; };
 		B7E0882B1086EDE675468281 /* MobileMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileMedia.swift; sourceTree = "<group>"; };
 		B9675867775B38402C20AED2 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
+		BA0BAF2C76EC2D70BB91B0A0 /* GolemJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemJournal.swift; sourceTree = "<group>"; };
 		BACD3896247941A01A6F39FB /* PathLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathLinks.swift; sourceTree = "<group>"; };
 		C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Codex.swift"; sourceTree = "<group>"; };
 		C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Host.swift"; sourceTree = "<group>"; };
@@ -276,6 +279,7 @@
 		C60A797A1C8AE593D0C0188A /* MobilePDFCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePDFCache.swift; sourceTree = "<group>"; };
 		C8EB85AF0736434980646DAF /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
 		C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
+		CB5CC18160C7B1D685C573BC /* GolemSidePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemSidePanel.swift; sourceTree = "<group>"; };
 		CD00AEF264659F41BD565201 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChatterboxMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D07846B056A3EC031B8C536B /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
@@ -406,6 +410,7 @@
 				71143A69C2726A534266C3D2 /* EmailWatch.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
+				BA0BAF2C76EC2D70BB91B0A0 /* GolemJournal.swift */,
 				53DE3A68946E9818C4FA0A43 /* HostClient.swift */,
 				0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */,
 				7BDF65761A4AB95BD3FA5E22 /* KeepAwake.swift */,
@@ -480,6 +485,7 @@
 				6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */,
 				3D1767B59C4C4C368214261D /* GolemAvatar.swift */,
 				FB81F880A459C5B4411E0929 /* GolemMiniWindow.swift */,
+				CB5CC18160C7B1D685C573BC /* GolemSidePanel.swift */,
 				B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */,
 				104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */,
 				8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */,
@@ -745,9 +751,11 @@
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				2DDAEA2004F04D51E4EF2430 /* GolemAvatar.swift in Sources */,
+				BE1B0E60BB8A0342D42CFA38 /* GolemJournal.swift in Sources */,
 				3790CB0F26FEF9A44AA9AF3A /* GolemMiniWindow.swift in Sources */,
 				DB8211863B9A77DFA2C82FEA /* GolemRig.swift in Sources */,
 				7A79E11BC8C91B9A317D491B /* GolemRigView.swift in Sources */,
+				1D505664006ADC6AA306A507 /* GolemSidePanel.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,
 				C13032352B9C1BC38FEE5334 /* HTTPFileTransfer.swift in Sources */,
 				DA4C85566C711698B6BF66ED /* HostClient.swift in Sources */,

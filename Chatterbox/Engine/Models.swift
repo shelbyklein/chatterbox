@@ -87,6 +87,11 @@ struct DisplayItem: Identifiable, Codable, Equatable {
     var approvalStyle: ApprovalStyle?
     /// A user row Chatterbox sent for Dot (a check-in), shown by its label in `detail`.
     var automatic: Bool?
+    /// Question rows: answers Golem suggests (by question id), why, and under which name.
+    /// Only a suggestion: the card shows it picked, and nothing is sent until you send it.
+    var suggested: [String: [String]]?
+    var suggestedReason: String?
+    var suggestedBy: String?
 
     enum ApprovalStyle: String, Codable { case plan }
 }

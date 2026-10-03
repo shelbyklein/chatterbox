@@ -41,6 +41,11 @@ final class EmailWatch {
     private(set) var lastSweep: Date? = UserDefaults.standard.object(forKey: lastSweepKey) as? Date
 
     var isOn: Bool { UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true }
+    /// Roughly when the next sweep is due (they run on a one-minute tick).
+    var nextSweep: Date {
+        let last = UserDefaults.standard.object(forKey: Self.lastAttemptKey) as? Date ?? Date()
+        return max(Date(), last.addingTimeInterval(Self.interval(at: last)))
+    }
     var sweepModel: String { UserDefaults.standard.string(forKey: Self.modelKey) ?? Self.defaultModel }
 
     /// 15 minutes during the working day, 30 the rest of the time.
@@ -103,6 +108,7 @@ final class EmailWatch {
             let dot = model.ensureDot()
             for email in fresh {
                 dot.notice("Email for you \u{00B7} \(email.from), \u{201C}\(email.subject)\u{201D} (\(email.account)): \(email.why) Suggested: \(email.action)")
+                GolemJournal.shared.add(.activity, title: "Email from \(email.from)", detail: "\u{201C}\(email.subject)\u{201D} (\(email.account)) \u{00B7} \(email.action)")
                 notify(email, dot: dot)
             }
             dot.onChange?(dot)

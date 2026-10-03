@@ -101,7 +101,7 @@ final class DotActivity {
         let name = session.record.projectFolder != nil ? session.projectName : session.title
         model.ensureDot().sendAutomatic(label: "\u{201C}\(name)\u{201D} is waiting on you", text: """
         <app_note>
-        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)] is now waiting on the user for \(what). Read it (read_chat) and brief the user: what it has done so far, what exactly it needs from them, and your suggestion if you have one. Keep it to a few short lines. It reaches them as a notification, so lead with what's needed. Never answer it yourself.
+        The chat \u{201C}\(name)\u{201D} [\(session.id.uuidString)] is now waiting on the user for \(what). Read it (read_chat) and brief the user: what it has done so far, what exactly it needs from them, and your suggestion if you have one. For a question card, when you can tell what the user would pick, put your pick on the card with suggest_answer (with a one-line reason) so they can send it in one tap; skip it when the choice is theirs to make (money, access, deleting, deploying, publishing, anything personal) or you aren't confident. Keep it to a few short lines. It reaches them as a notification, so lead with what's needed. You can't send answers or approvals; only the user can.
         </app_note>
         """)
     }
@@ -206,6 +206,7 @@ extension ChatSession {
     /// A message from Chatterbox to Dot (a check-in, a chat waiting on you), shown as a
     /// small labeled row rather than as something you typed.
     func sendAutomatic(label: String, text: String) {
+        GolemJournal.shared.add(.activity, title: label)
         send(text)
         if let index = record.items.lastIndex(where: { $0.kind == .user }) {
             record.items[index].automatic = true

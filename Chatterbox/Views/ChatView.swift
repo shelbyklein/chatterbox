@@ -37,6 +37,8 @@ struct ChatView: View {
     private let commands = ChatCommands.shared
     /// The Issues panel on the right (see IssuesPanel.swift).
     @State private var issuesPanel = IssuesPanelState()
+    /// Golem's chat: the column with his activity, decisions and schedule.
+    @AppStorage("golemPanelOpen") private var golemPanelOpen = true
     /// A page or file from the chat, open in the browser panel on the right.
     @State private var preview: WebPage?
     @State private var previewLink: PreviewLink?
@@ -113,13 +115,15 @@ struct ChatView: View {
         .alert("Couldn't open preview", isPresented: Binding(get: { previewOpenError != nil }, set: { if !$0 { previewOpenError = nil } })) {
             Button("OK") { previewOpenError = nil }
         } message: { Text(previewOpenError ?? "") }
-        .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil },
-                                        set: { if !$0 { issuesPanel.isOpen = false; preview = nil } })) {
+        .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil || (session.isDot && golemPanelOpen) },
+                                        set: { if !$0 { issuesPanel.isOpen = false; preview = nil; if session.isDot { golemPanelOpen = false } } })) {
             if let preview {
                 WebPaneView(page: preview) { withAnimation(.easeOut(duration: 0.2)) { self.preview = nil } }
                     .inspectorColumnWidth(min: 360, ideal: 620, max: 1400)
-            } else {
+            } else if issuesPanel.isOpen || !session.isDot {
                 IssuesPanel(session: session, panel: issuesPanel)
+            } else {
+                GolemSidePanel(session: session)
             }
         }
         .onChange(of: issuesPanel.isOpen) { _, open in if open { preview = nil } }
@@ -768,6 +772,11 @@ struct ChatView: View {
             }
 
             if session.isDot {
+                Button { withAnimation(.smooth(duration: 0.25)) { golemPanelOpen.toggle() } } label: {
+                    Image(systemName: "sidebar.right")
+                }
+                .help(golemPanelOpen ? "Hide \(session.title)\u{2019}s activity, decisions and schedule" : "Show \(session.title)\u{2019}s activity, decisions and schedule")
+                .accessibilityLabel("\(session.title) Panel")
                 Button { model.showingDot = true } label: { ToolbarLabel("Mini", systemImage: "pip") }
                     .help("Keep \(session.title) above other apps (⌘J)")
                 Button { model.editingDotMemory = true } label: { ToolbarLabel("Memory", systemImage: "brain") }

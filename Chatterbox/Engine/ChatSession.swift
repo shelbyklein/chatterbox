@@ -236,11 +236,42 @@ final class ChatSession: Identifiable {
 
     /// Answers a question card; nil means you skipped it.
     func answerQuestions(_ itemID: UUID, answers: [String: [String]]?) {
+        if let item = record.items.first(where: { $0.id == itemID }), let suggested = item.suggested {
+            GolemJournal.shared.answered(item, suggested: suggested, with: answers, in: self)
+        }
         switch record.backend {
         case .codex: codexAnswer(itemID, answers: answers)
         case .claude: claudeAnswer(itemID, answers: answers)
         }
     }
+
+    /// Golem's suggested answers for a pending question card: checked against its questions,
+    /// shown on the card, and sent only when you send them. Throws a reason it can't.
+    func suggestAnswers(_ itemID: UUID, answers: [String: [String]], reason: String, by name: String) throws {
+        guard let index = record.items.firstIndex(where: { $0.id == itemID }),
+              record.items[index].kind == .questions, record.items[index].approvalState == .pending else {
+            throw SuggestionError(message: "That chat has no pending question card with that id.")
+        }
+        let questions = record.items[index].questions ?? []
+        var cleaned: [String: [String]] = [:]
+        for (id, picks) in answers {
+            guard let question = questions.first(where: { $0.id == id }) else {
+                throw SuggestionError(message: "No question with id \u{201C}\(id)\u{201D} on that card.")
+            }
+            if question.isSecret { throw SuggestionError(message: "That question asks for a secret; only the user can answer it.") }
+            let values = picks.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            if !question.multiSelect, values.count > 1 { throw SuggestionError(message: "\u{201C}\(question.question)\u{201D} takes one answer.") }
+            if !values.isEmpty { cleaned[id] = values }
+        }
+        guard !cleaned.isEmpty else { throw SuggestionError(message: "No answers to suggest.") }
+        record.items[index].suggested = cleaned
+        record.items[index].suggestedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        record.items[index].suggestedBy = name
+        GolemJournal.shared.suggested(record.items[index], in: self)
+        onChange?(self)
+    }
+
+    struct SuggestionError: Error { let message: String }
 
     /// Stops any agent process this chat owns, e.g. when the chat is deleted.
     func shutdown() {
