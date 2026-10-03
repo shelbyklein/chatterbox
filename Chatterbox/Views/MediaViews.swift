@@ -51,8 +51,11 @@ private struct AnimatedImage: View {
     @State private var size: CGSize?
 
     var body: some View {
+        // Up to its own size but free to shrink: a fixed width here set the whole window's
+        // minimum width, because the split view's minimum is the sum of its columns' contents.
         AnimatedImageView(url: url)
-            .frame(width: size.map { min($0.width, 480) }, height: size.map { min($0.width, 480) * $0.height / max($0.width, 1) })
+            .aspectRatio(size.map { $0.width / max($0.height, 1) }, contentMode: .fit)
+            .frame(maxWidth: size.map { min($0.width, 480) }, alignment: .leading)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .task(id: url) { size = NSImage(contentsOf: url)?.size }
     }
