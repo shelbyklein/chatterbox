@@ -201,7 +201,7 @@ final class AppModel {
     func newChat(backend: Backend? = nil) -> ChatSession {
         let defaults = UserDefaults.standard
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
-        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil && !$0.isDot }) {
+        if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil && !$0.isDot && !carriesUserIntent($0.record) }) {
             empty.setBackend(backend)
             selectedID = empty.id
             return empty
@@ -514,10 +514,32 @@ final class AppModel {
         directory.appendingPathComponent("\(id.uuidString).json")
     }
 
+    /// Whether an empty chat holds something the user chose, so it's kept across a relaunch:
+    /// a project or Studio, a name, tags, an archive, or an agent, model, effort or mode that
+    /// differs from what a new chat starts with. An untouched "New chat" isn't kept.
+    private func carriesUserIntent(_ record: ConversationRecord) -> Bool {
+        if record.projectFolder != nil || record.studioID != nil || record.worktreeOf != nil || record.archivedAt != nil { return true }
+        if record.title != "New chat" || !(record.tags ?? []).isEmpty { return true }
+        let defaults = UserDefaults.standard
+        let backend = Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
+        if record.backend != backend { return true }
+        if record.model != (defaults.string(forKey: "defaultModel") ?? "default") { return true }
+        if record.effort != (defaults.string(forKey: "defaultEffort") ?? "") { return true }
+        if record.personality != (Personality(rawValue: defaults.string(forKey: "defaultPersonality") ?? "") ?? .friendly) { return true }
+        if record.claudeModeID != PermissionModes.defaultClaude || record.claudeFastMode == true { return true }
+        if record.remoteControl != nil || record.useComputer == true || record.currentIssue != nil { return true }
+        if let codex = record.codex {
+            let model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
+            let effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
+            if codex.modeID != PermissionModes.defaultCodex || codex.model != model || codex.effort != effort
+                || codex.fastMode == true || codex.route != nil { return true }
+        }
+        return false
+    }
+
     private func save(_ session: ChatSession) {
         Attention.shared.update(session, model: self)
-        // A project chat (and Dot) is kept even before its first message.
-        guard !session.items.isEmpty || session.record.projectFolder != nil || session.isDot else { return }
+        guard !session.items.isEmpty || session.isDot || carriesUserIntent(session.record) else { return }
         session.prepareForSave()
         do {
             let encoder = JSONEncoder()
