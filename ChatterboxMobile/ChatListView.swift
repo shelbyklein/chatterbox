@@ -258,7 +258,9 @@ private struct ChatRow: View {
             Button(action: open) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Group {
-                        if chat.isDot == true { MobileGolemHead(size: 16) }
+                        if chat.worktreeBranch != nil {
+                            Image(systemName: "arrow.triangle.branch").frame(width: 16, height: 16)
+                        } else if chat.isDot == true { MobileGolemHead(size: 16) }
                         else {
                             Image((Backend(rawValue: chat.backend) ?? .claude).iconName)
                                 .resizable().scaledToFit().frame(width: 16, height: 16)
@@ -268,7 +270,7 @@ private struct ChatRow: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(chat.backend == "codex" ? "Codex" : "Claude")
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(chat.project ?? chat.title).lineLimit(1)
+                        Text(chat.worktreeBranch ?? chat.project ?? chat.title).lineLimit(1)
                         if let subtitle = chat.subtitle ?? (chat.project != nil ? chat.title : nil) {
                             Text(subtitle)
                                 .font(.caption)
@@ -287,11 +289,14 @@ private struct ChatRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chat-\(chat.id.uuidString)")
+            .accessibilityHint(chat.worktreeBranch != nil ? "Worktree of the project above" : "")
             // Pins keep their own actions instead of being nested inside the chat button.
             if let pins = chat.pins, !pins.isEmpty {
                 MobilePinPills(pins: pins).padding(.leading, 24)
             }
         }
         .padding(.vertical, 2)
+        // A worktree sits indented under its project.
+        .padding(.leading, chat.worktreeBranch != nil ? 22 : 0)
     }
 }

@@ -511,7 +511,9 @@ enum CompanionMapper {
         groups.append(.init(id: "dot", kind: .dot, title: model.dotName, chats: [summary(model.ensureDot())]))
         let projects = model.sidebarProjects
         if !projects.isEmpty {
-            groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: projects.map(summary)))
+            // Each project followed by its worktrees, as nested under it in the sidebar.
+            let chats = projects.flatMap { [$0] + model.worktrees(of: $0) }
+            groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: chats.map(summary)))
         }
         for studio in model.activeStudios {
             let chats = model.chats(in: studio)
@@ -551,7 +553,8 @@ enum CompanionMapper {
                      updatedAt: session.record.updatedAt,
                      pins: isProject ? PinStore.shared.pins(in: PinPlace(key: "project:" + (session.record.projectFolder ?? ""), name: session.projectName)).map(pin) : nil,
                      isDot: session.isDot ? true : nil,
-                     unread: session.isDot ? Attention.shared.dotUnreadCount(session) : nil)
+                     unread: session.isDot ? Attention.shared.dotUnreadCount(session) : nil,
+                     worktreeBranch: session.record.worktreeOf != nil ? (session.record.worktreeBranch ?? session.projectName) : nil)
     }
 
     static func detail(_ session: ChatSession, model: AppModel) -> Companion.ChatDetail {

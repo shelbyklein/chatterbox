@@ -97,6 +97,8 @@ enum Companion {
         /// The assistant's own chat, and how many of its replies you haven't read.
         var isDot: Bool? = nil
         var unread: Int? = nil
+        /// A worktree of the project listed just before it: its branch, shown nested under it.
+        var worktreeBranch: String? = nil
     }
 
     /// The assistant's animations and head image, to play on the phone too.
