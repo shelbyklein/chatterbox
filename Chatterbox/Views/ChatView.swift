@@ -358,6 +358,7 @@ struct ChatView: View {
                 await Task.yield()
                 guard !Task.isCancelled else { return }
                 proxy.scrollTo("bottom", anchor: .bottom)
+                Diagnostics.signposts.emitEvent("Chat shown")
             }
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
             // The terminal takes room from the bottom: keep the newest messages in view above it.

@@ -213,6 +213,7 @@ struct ContentView: View {
         .task { await model.refreshProjectRepos() }
         .task { Attention.shared.start(model: model) }
         .onChange(of: model.selectedID) { _, id in
+            Diagnostics.signposts.emitEvent("Chat picked")
             // Picking a chat leaves Settings.
             model.showingSettings = false
             if let session = model.selected, Attention.shared.isWatching(session) { Attention.shared.markSeen(id) }
