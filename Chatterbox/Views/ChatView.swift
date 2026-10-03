@@ -524,6 +524,7 @@ struct ChatView: View {
                     .padding(.leading, 34)
             }
             if !attachments.isEmpty { attachmentTray }
+            if !nextSteps.isEmpty && !session.isRunning { nextStepsRow }
             if let attachError {
                 Label(attachError, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
             }
@@ -540,12 +541,7 @@ struct ChatView: View {
     // MARK: - Slash commands
 
     /// Claude Code's commands and skills (including the project's), or Codex's skills.
-    private var availableCommands: [SlashCommand] {
-        if session.record.backend == .codex {
-            return session.record.codex.map { CodexAppServer.shared.skills[$0.folder] ?? [] } ?? []
-        }
-        return session.claudeCommands ?? ClaudeModels.shared.commands
-    }
+    private var availableCommands: [SlashCommand] { session.availableSlashCommands }
 
     /// Shown while the draft is "/" plus a partial command name.
     private var commandMatches: [SlashCommand] {
@@ -636,7 +632,8 @@ struct ChatView: View {
             // Grows with the message to just under half the chat, then scrolls. Return sends;
             // Shift-Return starts a new line. ⌘↩ while the agent works stops it and sends now.
             ComposerBox(text: $draft,
-                        placeholder: session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.isDot ? session.title : session.record.backend.label)",
+                        placeholder: session.isRunning ? "Add something while it works\u{2026}"
+                            : nextSteps.first.map { "\($0)  \u{21E5}" } ?? "Message \(session.isDot ? session.title : session.record.backend.label)",
                         isFocused: $composerFocused,
                         maxHeight: max(8 * 20, chatHeight * 0.45),
                         onKey: { key, modifiers in
@@ -646,7 +643,12 @@ struct ChatView: View {
                                 return completeCommand() == .handled
                             case .up: return moveCommandSelection(-1) == .handled
                             case .down: return moveCommandSelection(1) == .handled
-                            case .tab: return completeCommand() == .handled
+                            case .tab:
+                                if completeCommand() == .handled { return true }
+                                return pickNextStep(1)
+                            case .digit(let number):
+                                if number == 0, !nextSteps.isEmpty { NextSteps.shared.dismiss(session); return true }
+                                return pickNextStep(number)
                             case .escape:
                                 guard !commandMatches.isEmpty else { return false }
                                 dismissedCommandDraft = draft
@@ -716,6 +718,53 @@ struct ChatView: View {
             .accessibilityLabel("Send")
             .help(session.isRunning ? "Add to the current reply (\u{21A9}), or \u{2318}\u{21A9} to stop and send now" : "Send")
         }
+    }
+
+    // MARK: - Next Steps (Settings → Plugins)
+
+    private var nextSteps: [String] { session.isRunning ? [] : NextSteps.shared.suggestions(for: session) }
+
+    /// Puts suggestion `number` (1-based) in the box as a draft to edit; never sends it.
+    private func pickNextStep(_ number: Int) -> Bool {
+        let steps = nextSteps
+        guard draft.isEmpty, steps.indices.contains(number - 1) else { return false }
+        draft = steps[number - 1]
+        composerFocused = true
+        return true
+    }
+
+    private var nextStepsRow: some View {
+        HStack(spacing: 6) {
+            Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            ForEach(Array(nextSteps.enumerated()), id: \.offset) { index, step in
+                Button {
+                    draft = step
+                    composerFocused = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("\(index + 1)").font(.caption2.monospacedDigit().weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 15, height: 15)
+                            .background(Circle().fill(Color.primary.opacity(0.08)))
+                        Text(step).font(.callout).lineLimit(1).truncationMode(.tail)
+                    }
+                    .padding(.leading, 4).padding(.trailing, 9).padding(.vertical, 4)
+                    .background(Capsule().fill(Color.primary.opacity(0.06)))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("\(step)\n\nPuts it in the box to edit (\(index + 1) from an empty box\(index == 0 ? ", or Tab" : "")). Nothing is sent until you send it.")
+            }
+            Spacer(minLength: 0)
+            Button { NextSteps.shared.dismiss(session) } label: {
+                Image(systemName: "xmark").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss (0 from an empty box)")
+            .accessibilityLabel("Dismiss suggestions")
+        }
+        .padding(.leading, 34)
+        .transition(.opacity)
     }
 
     private func submit() { submit(now: false) }

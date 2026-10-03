@@ -39,6 +39,8 @@ struct ChatDetailView: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var golemSpace
+    /// Next Steps suggestions you closed on this device, until new ones arrive.
+    @State private var dismissedSteps: [String]?
     private var detail: Companion.ChatDetail? { history.detail }
     private var composerState: MobileComposerDraft<PendingImage> { store.composer(for: chat.id) }
     private var draft: String {
@@ -489,12 +491,39 @@ struct ChatDetailView: View {
 
     // MARK: - Message box
 
+    /// Next Steps (a Chatterbox plugin, Settings → Plugins on the Mac): tap one to put it in
+    /// the box as a draft you can edit. Nothing is sent on its own.
+    private func nextStepsChips(_ steps: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(steps, id: \.self) { step in
+                    Button { draft = step } label: {
+                        Text(step).font(.footnote).lineLimit(1)
+                            .padding(.horizontal, 11).padding(.vertical, 7)
+                            .background(Capsule().fill(Color(uiColor: .secondarySystemBackground)))
+                            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Puts it in the message box to edit")
+                }
+                Button { dismissedSteps = steps } label: {
+                    Image(systemName: "xmark").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss suggestions")
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let detail, detail.turnStartedAt != nil || !(detail.backgroundTasks ?? []).isEmpty || detail.contextFraction != nil {
                 ChatStatusBar(detail: detail).padding(.horizontal, 4)
             }
             if !pendingImages.isEmpty { pendingTray }
+            if let steps = detail?.nextSteps, !steps.isEmpty, !summary.isRunning, dismissedSteps != steps { nextStepsChips(steps) }
             if dictation.isListening {
                 Label("Listening\u{2026} tap the mic to stop.", systemImage: "waveform")
                     .font(.caption).foregroundStyle(.red)

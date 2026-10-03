@@ -573,7 +573,8 @@ enum CompanionMapper {
                      contextFraction: session.contextUsage[session.record.backend]?.fraction,
                      contextTokens: session.contextUsage[session.record.backend]?.used,
                      folder: session.workingFolder,
-                     commands: commands(session).map { .init(name: $0.name, detail: $0.description, argumentHint: $0.argumentHint) })
+                     commands: commands(session).map { .init(name: $0.name, detail: $0.description, argumentHint: $0.argumentHint) },
+                     nextSteps: NextSteps.shared.suggestions(for: session).nilIfEmpty)
     }
 
     /// The chat's slash commands, or its Codex skills, as the Mac's "/" menu lists them.

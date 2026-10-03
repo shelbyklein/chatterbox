@@ -6,7 +6,8 @@ import SwiftUI
 /// field editor, which on macOS can leave the previous layout on screen under the new one
 /// when the box wraps or scrolls, so the text shows twice. A text view of its own doesn't.
 struct ComposerBox: View {
-    enum Key { case `return`, up, down, tab, escape }
+    /// `digit`: 0–9 typed into an empty box (Next Steps picks a suggestion with these).
+    enum Key: Equatable { case `return`, up, down, tab, escape, digit(Int) }
 
     @Binding var text: String
     var placeholder: String
@@ -150,7 +151,7 @@ private struct ComposerTextView: NSViewRepresentable {
             case .tab, .escape:
                 // Not a tab character; and Esc shouldn't open the text view's completions.
                 return true
-            case .up, .down:
+            case .up, .down, .digit:
                 return false
             }
         }
@@ -169,7 +170,9 @@ private struct ComposerTextView: NSViewRepresentable {
             case 125: key = .down
             case 48: key = .tab
             case 53: key = .escape
-            default: key = nil
+            default:
+                if string.isEmpty, modifiers.isEmpty, let character = event.characters, character.count == 1,
+                   let digit = Int(character) { key = .digit(digit) } else { key = nil }
             }
             if let key, coordinator?.handle(key, modifiers) == true { return }
             super.keyDown(with: event)

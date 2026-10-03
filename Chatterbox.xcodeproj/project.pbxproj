@@ -95,7 +95,6 @@
 		940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */; };
 		96757C4FC62A060878D6DFCD /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
-		97D72425BE955DCF77AA4DA7 /* ClaudePlugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB356F3D313265C11669F5CA /* ClaudePlugins.swift */; };
 		9921B3994F4867053CC25CBF /* EmailWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71143A69C2726A534266C3D2 /* EmailWatch.swift */; };
 		9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */; };
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
@@ -136,6 +135,7 @@
 		E15919CC8FFE9211219CE4D3 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00AEF264659F41BD565201 /* AppModel.swift */; };
 		E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
 		E22DB2624AFD4563C0F980FF /* DotComputer in Resources */ = {isa = PBXBuildFile; fileRef = 93A0E090291B9EB427F7BF84 /* DotComputer */; };
+		E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		EF5DAB17947D2B1CE75CF17A /* ChatterboxHost in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 480A4365D3D11CC93334737A /* ChatterboxHost */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EFB541351775E9D69EF1DB32 /* ChatCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F02305CEDD843C4F7102555 /* ChatCommands.swift */; };
@@ -262,6 +262,7 @@
 		93A0E090291B9EB427F7BF84 /* DotComputer */ = {isa = PBXFileReference; lastKnownFileType = folder; path = DotComputer; sourceTree = SOURCE_ROOT; };
 		94DF99C8BDC4707D8CC25853 /* MobilePushSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePushSettings.swift; sourceTree = "<group>"; };
 		975B4C8301A9C31E898E446F /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
+		9FD98C94B6B0110116CCF659 /* NextSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextSteps.swift; sourceTree = "<group>"; };
 		A125487FAFCF644CD583045D /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
 		A241350B2223FA06355C13DB /* IssueToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueToolbar.swift; sourceTree = "<group>"; };
 		A25AF49642A0603DB9DB1791 /* PinsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsSection.swift; sourceTree = "<group>"; };
@@ -279,7 +280,6 @@
 		B9675867775B38402C20AED2 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
 		BA0BAF2C76EC2D70BB91B0A0 /* GolemJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemJournal.swift; sourceTree = "<group>"; };
 		BACD3896247941A01A6F39FB /* PathLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathLinks.swift; sourceTree = "<group>"; };
-		BB356F3D313265C11669F5CA /* ClaudePlugins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePlugins.swift; sourceTree = "<group>"; };
 		C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Codex.swift"; sourceTree = "<group>"; };
 		C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Host.swift"; sourceTree = "<group>"; };
 		C39831B5DD1FA91C7E353C65 /* MobilePush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePush.swift; sourceTree = "<group>"; };
@@ -406,7 +406,6 @@
 				440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */,
 				3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */,
 				C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */,
-				BB356F3D313265C11669F5CA /* ClaudePlugins.swift */,
 				064C3FB24651A1A367B53C36 /* CodexAppServer.swift */,
 				69BFFE37B80756592FFA1C4E /* CodexRoute.swift */,
 				609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */,
@@ -427,6 +426,7 @@
 				C39831B5DD1FA91C7E353C65 /* MobilePush.swift */,
 				14558A0837B25DEDA47B363D /* ModelPresets.swift */,
 				080FC1114275CCF21740784E /* Models.swift */,
+				9FD98C94B6B0110116CCF659 /* NextSteps.swift */,
 				E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */,
 				A81413A73CF1A4475E1CF397 /* Pins.swift */,
 				D931BC8CC17EBB7A1AC35738 /* PreviewRelays.swift */,
@@ -742,7 +742,6 @@
 				DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */,
 				0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */,
 				EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */,
-				97D72425BE955DCF77AA4DA7 /* ClaudePlugins.swift in Sources */,
 				5CBC37DD0167C0D78291D969 /* CloneFromGitHubView.swift in Sources */,
 				38C35AD484F69B297C79B9B8 /* CodexAppServer.swift in Sources */,
 				5F0BC7AEA79F4CF348EA5935 /* CodexRoute.swift in Sources */,
@@ -791,6 +790,7 @@
 				0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */,
 				014303E35CBFA0DAA254EC00 /* Models.swift in Sources */,
 				CF8128373420B57317F96D90 /* NewProjectSheet.swift in Sources */,
+				E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */,
 				757230ABE064F535ABB98E03 /* PathLinks.swift in Sources */,
 				F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */,
 				0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */,

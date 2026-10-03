@@ -133,6 +133,8 @@ enum Companion {
         /// Where `!` commands run.
         var folder: String? = nil
         var commands: [Command]? = nil
+        /// Next Steps (a Chatterbox plugin): up to three prompts you might send next.
+        var nextSteps: [String]? = nil
     }
 
     /// A chat's settings and the choices for each, as on the Mac.

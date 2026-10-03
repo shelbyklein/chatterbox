@@ -82,6 +82,14 @@ final class ChatSession: Identifiable {
     /// Restart Claude Code once this reply ends, so the next message gets new tools.
     @ObservationIgnored var restartForToolsAfterTurn = false
 
+    /// Claude Code's commands and skills (including the project's), or Codex's skills.
+    var availableSlashCommands: [SlashCommand] {
+        if record.backend == .codex {
+            return record.codex.map { CodexAppServer.shared.skills[$0.folder] ?? [] } ?? []
+        }
+        return claudeCommands ?? ClaudeModels.shared.commands
+    }
+
     /// Called as a turn ends, before the change is saved: Dot's check-ins tidy up here.
     func turnEnded() {
         Diagnostics.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
@@ -93,6 +101,7 @@ final class ChatSession: Identifiable {
         }
         if !isDot, DotActivity.shared.chatFinished(self, watching: Attention.shared.isWatching(self)) { skipFinishedAlert = true }
         if isDot { DotActivity.shared.dotTurnEnded(self) }
+        NextSteps.shared.turnEnded(self, commands: availableSlashCommands)
         guard automaticTurn else { return }
         automaticTurn = false
         if isDot, DotActivity.shared.finishedAutomaticTurn(self) { skipFinishedAlert = true }
@@ -158,6 +167,7 @@ final class ChatSession: Identifiable {
     func send(_ raw: String, attachments: [Attachment] = []) {
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
+        NextSteps.shared.clear(self)
         Diagnostics.note("Sent a message in \u{201C}\(title)\u{201D}\(isRunning ? " while it worked" : "")")
         // Sending counts as activity (a reply in progress doesn't, so rows don't jump around).
         record.updatedAt = Date()
