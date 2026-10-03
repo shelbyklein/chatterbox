@@ -22,12 +22,13 @@ struct BackgroundTask: Codable, Equatable, Hashable, Identifiable {
 }
 
 extension ChatSession {
-    var backgroundTasks: [BackgroundTask] { record.backgroundTasks ?? [] }
+    /// What the agent started (saved with the chat), then the "!" commands running now.
+    var backgroundTasks: [BackgroundTask] { (record.backgroundTasks ?? []) + shellTasks }
     var hasBackgroundWork: Bool { !backgroundTasks.isEmpty }
 
     /// Adds a task, or refreshes one already shown (keeping when it started).
     func addBackgroundTask(_ task: BackgroundTask) {
-        var tasks = backgroundTasks
+        var tasks = record.backgroundTasks ?? []
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index].title = task.title
             tasks[index].kind = task.kind
@@ -60,7 +61,7 @@ extension ChatSession {
 
     /// Everything stops with the agent's process.
     func clearBackgroundTasks(where shouldRemove: (BackgroundTask) -> Bool = { _ in true }) {
-        for task in backgroundTasks where shouldRemove(task) { finishBackgroundTask(task.id, failed: true) }
+        for task in record.backgroundTasks ?? [] where shouldRemove(task) { finishBackgroundTask(task.id, failed: true) }
     }
 
     /// Checks now and then that a background command's process is still alive, in case its
@@ -69,7 +70,7 @@ extension ChatSession {
         Task { [weak self] in
             while true {
                 try? await Task.sleep(for: .seconds(3))
-                guard let self, self.backgroundTasks.contains(where: { $0.id == id }) else { return }
+                guard let self, (self.record.backgroundTasks ?? []).contains(where: { $0.id == id }) else { return }
                 if kill(pid, 0) != 0, errno == ESRCH {
                     self.finishBackgroundTask(id)
                     return
@@ -80,7 +81,7 @@ extension ChatSession {
 
     /// Picks the watch back up for commands still listed after a relaunch.
     func resumeBackgroundWatches() {
-        for task in backgroundTasks {
+        for task in record.backgroundTasks ?? [] {
             if let pid = task.processID { watchBackgroundProcess(pid, task: task.id) }
         }
     }

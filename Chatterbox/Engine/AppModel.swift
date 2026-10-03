@@ -191,6 +191,7 @@ final class AppModel {
     /// Replies keep running in the background host after the app quits, unless turned off.
     private func applicationWillTerminate() {
         Diagnostics.shared.stop()
+        for session in sessions { session.killShellJobs() }
         saveUnsaved()
         guard !Self.keepRepliesRunning else { return }
         for session in sessions { session.claudeProcess?.terminate() }

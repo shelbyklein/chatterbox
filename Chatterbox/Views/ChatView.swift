@@ -487,7 +487,7 @@ struct ChatView: View {
             // Tall cards (a long plan) scroll inside the tray instead of pushing the chat away.
             .frame(maxHeight: 360)
             .fixedSize(horizontal: false, vertical: true)
-            if session.isRunning {
+            if session.canStop {
                 Image(systemName: "stop.circle.fill").font(.system(size: 26)).hidden()
             }
             Image(systemName: "arrow.up.circle.fill").font(.system(size: 26)).hidden()
@@ -682,7 +682,7 @@ struct ChatView: View {
                 .frame(height: 36)
                 .help("Working since \(started.formatted(date: .omitted, time: .shortened))")
             }
-            if session.isRunning {
+            if session.canStop {
                 Button(action: session.interrupt) {
                     Image(systemName: "stop.circle.fill").font(.system(size: 26))
                 }
