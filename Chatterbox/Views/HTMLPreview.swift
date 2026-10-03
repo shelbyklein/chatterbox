@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 
 /// What a preview shows: markup from a code block, or a file an agent wrote.
-enum PreviewSource: Equatable {
+enum PreviewSource: Hashable {
     case html(String)
     case svg(String)
     case file(URL)
@@ -16,9 +16,23 @@ struct HTMLPreview: View {
     let source: PreviewSource
     var maxHeight: CGFloat = 640
     @Environment(\.reviewImage) private var review
-    @State private var height: CGFloat = 160
+    @State private var height: CGFloat
     @State private var width: CGFloat = 640
     @State private var snapshotter = Snapshotter()
+    /// The web view is made once the chat has settled (see `body`), not while it's opening.
+    @State private var live = false
+
+    /// Heights previews last reported, so switching back to a chat reserves the same room.
+    @MainActor private static var knownHeights: [PreviewSource: CGFloat] = [:]
+    /// How long after appearing a preview starts loading, staggered so several don't all
+    /// start in the same frame.
+    @MainActor private static var stagger = 0
+
+    init(source: PreviewSource, maxHeight: CGFloat = 640) {
+        self.source = source
+        self.maxHeight = maxHeight
+        _height = State(initialValue: Self.knownHeights[source] ?? 160)
+    }
 
     /// Pages get at least a 16:9 frame so full-window layouts have room; SVGs size to their drawing.
     private var isPage: Bool {
@@ -35,9 +49,28 @@ struct HTMLPreview: View {
     }
 
     var body: some View {
-        WebPreview(source: source, height: $height, snapshotter: snapshotter)
+        Group {
+            if live {
+                WebPreview(source: source, height: $height, snapshotter: snapshotter)
+            } else {
+                // Same frame as the preview will have, so nothing moves when it arrives.
+                RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04))
+            }
+        }
             .frame(maxWidth: .infinity)
             .frame(height: frameHeight)
+            .task(id: source) {
+                // A chat switch lays out every row at once; making a WKWebView for each preview
+                // then is most of what a preview-heavy chat costs to open. Wait for it to settle.
+                Self.stagger = (Self.stagger + 1) % 4
+                try? await Task.sleep(for: .milliseconds(250 + Self.stagger * 60))
+                guard !Task.isCancelled else { return }
+                live = true
+            }
+            .onChange(of: height) { _, new in
+                if Self.knownHeights.count > 500 { Self.knownHeights.removeAll() }
+                Self.knownHeights[source] = new
+            }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
             .overlay(alignment: .topTrailing) {

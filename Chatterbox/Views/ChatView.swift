@@ -51,6 +51,8 @@ struct ChatView: View {
     static let firstRows = 12
     /// Step groups you've opened.
     @State private var openStepGroups: Set<UUID> = []
+    /// The "Show earlier" count, kept until the history grows (see earlierRowCount).
+    @State private var earlierCountCache = EarlierCount()
     @AppStorage("readerGroupSteps") private var groupSteps = true
     @State private var composerFocused = false
     /// The chat's height, so the message box can grow to a good share of it before scrolling.
@@ -291,7 +293,9 @@ struct ChatView: View {
                     EmptyChatView(session: session) { draft = $0; submit() }
                         .padding(.top, 60)
                 } else {
-                    let agents = session.agentsByItem
+                    // Only the drawn tail is grouped and badged; long histories aren't walked per render.
+                    let page = transcriptPage(rows: shownRowCount)
+                    let agents = page.agents
                     Group {
                     if session.isDot {
                         VStack(spacing: 0) {
@@ -303,22 +307,22 @@ struct ChatView: View {
                     // layout pass. LazyVStack + bottom anchoring can blank the transcript
                     // on macOS 26 when offscreen web previews change size.
                     VStack(alignment: .leading, spacing: 0) {
-                        let rows = transcriptRows
                         // Long chats draw only their newest rows; the rest wait behind a button.
-                        if rows.count > shownRowCount {
+                        if page.hasEarlier {
+                            let earlier = earlierRowCount(before: page.start)
                             Button {
                                 shownRowCount += Self.rowPage
                             } label: {
-                                Label("Show \(min(Self.rowPage, rows.count - shownRowCount)) earlier", systemImage: "arrow.up.circle")
+                                Label("Show \(min(Self.rowPage, earlier)) earlier", systemImage: "arrow.up.circle")
                                     .font(.callout)
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
                             .padding(.bottom, 10)
-                            .help("\(rows.count - shownRowCount) earlier rows in this chat")
+                            .help("\(earlier) earlier rows in this chat")
                         }
-                        ForEach(rows.suffix(shownRowCount)) { row in
+                        ForEach(page.rows) { row in
                             switch row {
                             case .item(let item):
                                 Group {
@@ -386,50 +390,26 @@ struct ChatView: View {
         }
     }
 
-    /// The transcript's rows: with grouping on (Settings → Appearance), each run of steps
-    /// between your message and the reply (tools, notes, thinking) is one collapsed row.
-    private enum TranscriptRow: Identifiable {
-        case item(DisplayItem)
-        case steps([DisplayItem], seconds: Int?, active: Bool)
-
-        var id: UUID {
-            switch self {
-            case .item(let item): item.id
-            case .steps(let steps, _, _): steps[0].id
-            }
-        }
+    private var paging: TranscriptPaging {
+        TranscriptPaging(showThinking: appearance.showThinking, groupSteps: groupSteps, isRunning: session.isRunning,
+                         liveNotes: groupSteps ? session.liveCommentaryIDs : [])
     }
 
-    private var transcriptRows: [TranscriptRow] {
-        let items = visibleItems
-        guard groupSteps else { return items.map(TranscriptRow.item) }
-        let liveNotes = session.liveCommentaryIDs
-        func isStep(_ item: DisplayItem) -> Bool {
-            switch item.kind {
-            case .tool, .thought, .notice: true
-            case .assistant: item.phase == .commentary && !liveNotes.contains(item.id)
-            default: false
-            }
-        }
-        var rows: [TranscriptRow] = []
-        var run: [DisplayItem] = []
-        func flush(before next: DisplayItem?) {
-            defer { run = [] }
-            guard !run.isEmpty else { return }
-            // A lone step stays as it is; the reply after a run knows how long it took.
-            if run.count == 1 { rows.append(.item(run[0])); return }
-            rows.append(.steps(run, seconds: next?.workedSeconds, active: next == nil && session.isRunning))
-        }
-        for item in items {
-            if isStep(item) { run.append(item) } else { flush(before: item); rows.append(.item(item)) }
-        }
-        flush(before: nil)
-        return rows
+    /// The newest `rows` rows to draw, and the agent each user message in them went to (worked
+    /// out walking back from the agent answering now, so the drawn tail alone is enough).
+    private func transcriptPage(rows limit: Int) -> (rows: [TranscriptRow], agents: [UUID: Backend], start: Int, hasEarlier: Bool) {
+        let page = paging.page(session.items, limit: limit)
+        return (page.rows, session.agents(forItemsFrom: page.start), page.start, page.hasEarlier)
     }
 
-    /// Rows to show: thinking can be hidden in Settings → Appearance.
-    private var visibleItems: [DisplayItem] {
-        appearance.showThinking ? session.items : session.items.filter { $0.kind != .thought }
+    /// Rows before `start`, for the "Show earlier" button; counted once per history length.
+    private func earlierRowCount(before start: Int) -> Int {
+        let key = "\(session.items.count)|\(start)|\(appearance.showThinking)|\(groupSteps)"
+        if let cached = earlierCountCache.value, earlierCountCache.key == key { return cached }
+        let count = paging.rows(Array(session.items[..<start])).count
+        earlierCountCache.key = key
+        earlierCountCache.value = count
+        return count
     }
 
     /// Half the paragraph spacing above and below each row; step rows get less in compact mode.
@@ -442,7 +422,7 @@ struct ChatView: View {
 
     /// True when the last row already shows activity, so the typing dots would be redundant.
     private var isVisiblyWorking: Bool {
-        guard let last = visibleItems.last else { return false }
+        guard let last = session.items.last(where: { appearance.showThinking || $0.kind != .thought }) else { return false }
         switch last.kind {
         case .assistant: return last.phase == .streaming
         case .tool: return last.toolState == .running
@@ -1546,4 +1526,10 @@ private struct StepGroup<Row: View>: View {
         if isActive { return "Working \u{00B7} " + count }
         return seconds.map { count + " \u{00B7} " + ChatSession.durationText($0) } ?? count
     }
+}
+
+/// A remembered row count; a class so filling it in during a render doesn't re-render.
+private final class EarlierCount {
+    var key = ""
+    var value: Int?
 }

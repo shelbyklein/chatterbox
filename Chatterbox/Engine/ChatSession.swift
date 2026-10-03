@@ -308,10 +308,14 @@ final class ChatSession: Identifiable {
 
     /// Which agent each user message went to. Older rows didn't record it, so it's worked out
     /// from the agent-switch notes, walking back from the agent answering now.
-    var agentsByItem: [UUID: Backend] {
+    var agentsByItem: [UUID: Backend] { agents(forItemsFrom: 0) }
+
+    /// The same, for the user messages from `start` on: walking back from the end, the tail
+    /// alone gives the same answer.
+    func agents(forItemsFrom start: Int) -> [UUID: Backend] {
         var result: [UUID: Backend] = [:]
         var current = record.backend
-        for item in record.items.reversed() {
+        for item in record.items[max(0, min(start, record.items.count))...].reversed() {
             let isOldSwitch = item.kind == .notice && item.text.hasPrefix("Switched to ")
             let isSwitch = item.isSettingsChange == true && Self.isAgentSwitchNote(item.text)
             if isOldSwitch || isSwitch {

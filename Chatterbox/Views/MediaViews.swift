@@ -49,33 +49,60 @@ struct MediaPreview: View {
 private struct AnimatedImage: View {
     let url: URL
     @State private var size: CGSize?
+    @State private var image: NSImage?
+
+    init(url: URL) {
+        self.url = url
+        // Seen before: show it at once, at its size.
+        _image = State(initialValue: TranscriptImages.cachedAnimated(url))
+        _size = State(initialValue: TranscriptImages.cachedAnimated(url) == nil ? nil : TranscriptImages.size(of: url))
+    }
 
     var body: some View {
         // Up to its own size but free to shrink: a fixed width here set the whole window's
         // minimum width, because the split view's minimum is the sum of its columns' contents.
-        AnimatedImageView(url: url)
-            .aspectRatio(size.map { $0.width / max($0.height, 1) }, contentMode: .fit)
-            .frame(maxWidth: size.map { min($0.width, 480) }, alignment: .leading)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .task(id: url) { size = NSImage(contentsOf: url)?.size }
+        Group {
+            if let image {
+                AnimatedImageView(image: image)
+            } else {
+                // Holds the GIF's shape while it's read, so the transcript doesn't jump.
+                RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.5))
+            }
+        }
+        .aspectRatio(size.map { $0.width / max($0.height, 1) } ?? 4 / 3, contentMode: .fit)
+        .frame(maxWidth: min(size?.width ?? 480, 480), alignment: .leading)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .task(id: url) {
+            if size == nil { size = await TranscriptImages.loadSize(of: url) }
+            if image == nil { image = await TranscriptImages.animatedImage(url) }
+        }
     }
 }
 
 private struct AnimatedImageView: NSViewRepresentable {
-    let url: URL
+    let image: NSImage
 
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
         view.animates = true
         view.imageScaling = .scaleProportionallyUpOrDown
         view.canDrawSubviewsIntoLayer = true
-        view.image = NSImage(contentsOf: url)
+        view.image = image
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         return view
     }
 
-    func updateNSView(_ view: NSImageView, context: Context) {}
+    func updateNSView(_ view: NSImageView, context: Context) {
+        if view.image !== image { view.image = image }
+    }
+
+    /// Any size it's offered, at the image's shape, so it never sets a minimum width.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSImageView, context: Context) -> CGSize? {
+        let natural = image.size
+        let width = min(proposal.width ?? natural.width, natural.width)
+        return CGSize(width: width, height: width * natural.height / max(natural.width, 1))
+    }
 }
 
 /// A video that plays muted and loops, with the usual controls, at the video's own shape.
@@ -143,28 +170,32 @@ struct ReplyImages: View {
     }
 }
 
-/// A picture from disk, loaded off the main thread and downsized for the chat.
+/// A picture from disk, read once off the main thread and downsized for the chat. Its shape
+/// is held from the file's metadata while it loads.
 private struct AsyncLocalImage: View {
     let url: URL
     @State private var image: NSImage?
+    @State private var aspect: CGFloat?
+
+    init(url: URL) {
+        self.url = url
+        _image = State(initialValue: TranscriptImages.cachedThumbnail(url, maxPixels: 1400))
+    }
 
     var body: some View {
         Group {
             if let image {
                 Image(nsImage: image).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+            } else if let aspect {
+                RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)).aspectRatio(aspect, contentMode: .fit)
             } else {
                 RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)).frame(height: 120)
             }
         }
         .task(id: url) {
-            image = await Task.detached(priority: .utility) { () -> NSImage? in
-                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-                      let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true,
-                                                                              kCGImageSourceThumbnailMaxPixelSize: 1400,
-                                                                              kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary)
-                else { return nil }
-                return NSImage(cgImage: cg, size: NSSize(width: cg.width / 2, height: cg.height / 2))
-            }.value
+            guard image == nil else { return }
+            if let size = await TranscriptImages.loadSize(of: url), size.height > 0 { aspect = size.width / size.height }
+            image = await TranscriptImages.thumbnail(url, maxPixels: 1400, pointsPerPixel: 0.5)
         }
     }
 }

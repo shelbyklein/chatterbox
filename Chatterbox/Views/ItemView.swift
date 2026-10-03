@@ -455,10 +455,26 @@ struct AttachmentThumbnail: View {
     let attachment: Attachment
     let size: CGFloat
     @State private var image: NSImage?
+    /// The picture's shape, from its metadata, held by the placeholder while it loads.
+    @State private var aspect: CGFloat?
+
+    init(attachment: Attachment, size: CGFloat) {
+        self.attachment = attachment
+        self.size = size
+        _image = State(initialValue: attachment.kind == .image ? TranscriptImages.cachedThumbnail(attachment.url, maxPixels: Self.pixels(size)) : nil)
+    }
+
+    /// Thumbnails are made at twice the drawn size, for retina screens.
+    private static func pixels(_ size: CGFloat) -> Int { max(64, Int(size * 2)) }
 
     var body: some View {
         Group {
-            if attachment.kind == .image, let image {
+            if attachment.kind == .image, image == nil {
+                RoundedRectangle(cornerRadius: size > 60 ? 10 : 5).fill(.quaternary.opacity(0.5))
+                    .aspectRatio(size > 60 ? (aspect ?? 4 / 3) : 1, contentMode: .fit)
+                    .frame(maxWidth: size, maxHeight: size)
+                    .frame(width: size > 60 ? nil : size, height: size > 60 ? nil : size)
+            } else if attachment.kind == .image, let image {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: size > 60 ? .fit : .fill)
@@ -472,9 +488,10 @@ struct AttachmentThumbnail: View {
             }
         }
         .task(id: attachment.path) {
-            guard attachment.kind == .image else { return }
-            let path = attachment.path
-            image = await Task.detached { NSImage(contentsOfFile: path) }.value
+            guard attachment.kind == .image, image == nil else { return }
+            let url = attachment.url
+            if let size = await TranscriptImages.loadSize(of: url), size.height > 0 { aspect = size.width / size.height }
+            image = await TranscriptImages.thumbnail(url, maxPixels: Self.pixels(size))
         }
     }
 }
