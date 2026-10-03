@@ -828,11 +828,26 @@ private struct ItemRow: View {
             }
 
         case .notice:
-            Text(item.text)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
+            if item.text.hasPrefix("Email for you") {
+                // Golem's email reports, as on the Mac: the Gmail mark beside the email, in a card.
+                HStack(alignment: .top, spacing: 9) {
+                    Image("Gmail").resizable().scaledToFit().frame(width: 20, height: 20).accessibilityLabel("Gmail")
+                    Text(item.text.replacingOccurrences(of: "Email for you \u{00B7} ", with: ""))
+                        .font(.callout)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor.opacity(0.4)))
+                .padding(.trailing, 40)
+            } else {
+                Text(item.text)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 

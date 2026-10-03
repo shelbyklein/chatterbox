@@ -7,17 +7,23 @@ struct MobileHome: View {
     enum Tab: Hashable { case golem, chats }
     @Environment(MobileStore.self) private var store
     @AppStorage("mobileHomeTab") private var tab = "golem"
+    /// A chat is open in the Chats tab, so a left-edge swipe means Back, not "to Golem".
+    @State private var chatOpen = false
 
     var body: some View {
         TabView(selection: Binding(get: { tab == "chats" ? Tab.chats : .golem }, set: { tab = $0 == .chats ? "chats" : "golem" })) {
             GolemHome()
                 .tabItem { Label { Text(golemName) } icon: { golemIcon } }
                 .tag(Tab.golem)
-            ChatListView(hidesAssistant: true)
+            ChatListView(hidesAssistant: true, onShowingChat: { chatOpen = $0 })
                 .tabItem { Label("Chats", systemImage: "bubble.left.and.bubble.right") }
                 .badge(waitingCount)
                 .tag(Tab.chats)
         }
+        // Swipe from the screen's edge, mid-height, to move between the tabs: from the right
+        // edge toward Chats on Golem, from the left edge back to Golem on the chat list.
+        .overlay(alignment: .trailing) { if tab == "golem" && Self.edgeSwipes { edgeSwipe(toward: "chats", from: .trailing) } }
+        .overlay(alignment: .leading) { if tab == "chats" && !chatOpen && Self.edgeSwipes { edgeSwipe(toward: "golem", from: .leading) } }
         // A tapped notification opens the tab its chat lives in.
         .onChange(of: MobilePushNotifications.shared.pendingChat) { _, id in
             guard let id else { return }
@@ -28,6 +34,30 @@ struct MobileHome: View {
                 tab = "chats"
             }
         }
+    }
+
+    #if DEBUG
+    private static let edgeSwipes = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_NO_EDGE_SWIPE"] == nil
+    #else
+    private static let edgeSwipes = true
+    #endif
+
+    /// A narrow strip along one edge, the middle half of the screen's height, that turns a
+    /// horizontal swipe inward into a switch to `toward`.
+    private func edgeSwipe(toward target: String, from edge: HorizontalEdge) -> some View {
+        GeometryReader { geometry in
+            Color.clear
+                .frame(width: 22, height: geometry.size.height * 0.5)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 12).onEnded { drag in
+                    let inward = edge == .leading ? drag.translation.width : -drag.translation.width
+                    guard inward > 50, abs(drag.translation.height) < inward else { return }
+                    tab = target
+                })
+                .frame(maxHeight: .infinity)
+        }
+        .frame(width: 22)
+        .accessibilityHidden(true)
     }
 
     private var assistant: Companion.ChatSummary? {

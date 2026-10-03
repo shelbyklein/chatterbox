@@ -5,7 +5,11 @@ import SwiftUI
 struct ChatListView: View {
     /// On iPhone Golem has his own tab, so the list leaves him out.
     var hidesAssistant = false
+    /// Tells the iPhone's home whether a chat is open (its edge swipe yields to Back then).
+    var onShowingChat: (Bool) -> Void = { _ in }
     @Environment(MobileStore.self) private var store
+    /// List rows, or cards two to a row.
+    @AppStorage("mobileChatListCards") private var showsCards = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var savedPDFs = false
@@ -39,12 +43,19 @@ struct ChatListView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { notificationSettings = true } label: { Image(systemName: "bell") }.accessibilityLabel("Notifications")
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { withAnimation(.easeOut(duration: 0.2)) { showsCards.toggle() } } label: {
+                            Image(systemName: showsCards ? "list.bullet" : "square.grid.2x2")
+                        }
+                        .accessibilityLabel(showsCards ? "Show as List" : "Show as Cards")
+                    }
                     ToolbarItem(placement: .topBarTrailing) { newChatMenu }
                 }
         } detail: {
             detail
         }
         .navigationSplitViewStyle(.balanced)
+        .onChange(of: compactColumn, initial: true) { _, column in onShowingChat(sizeClass != .regular && column == .detail) }
         .sheet(isPresented: $notificationSettings) {
             NavigationStack {
                 MobileNotificationSettings().environment(store)
@@ -97,10 +108,58 @@ struct ChatListView: View {
     /// iPad's sidebar style beside the chat; the iPhone's grouped list on its own.
     @ViewBuilder
     private var sidebar: some View {
-        if sizeClass == .regular {
+        if showsCards {
+            chatCards
+        } else if sizeClass == .regular {
             chatList.listStyle(.sidebar)
         } else {
             chatList.listStyle(.insetGrouped)
+        }
+    }
+
+    private var groups: [Companion.ChatGroup] {
+        filtered((store.chatList?.groups ?? []).filter { !hidesAssistant || $0.kind != .dot })
+    }
+
+    /// The same chats as the list, as cards two to a row under the same headings.
+    private var chatCards: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                if let problem = store.problem {
+                    Label(problem, systemImage: "wifi.exclamationmark").font(.callout).foregroundStyle(.orange)
+                }
+                if let list = store.chatList {
+                    if search.isEmpty, let pins = list.pins, !pins.isEmpty { MobilePinPills(pins: pins) }
+                    ForEach(groups) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            if group.kind != .dot { header(group).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase) }
+                            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                                ForEach(group.chats) { chat in
+                                    ChatCard(chat: chat, selected: sizeClass == .regular && selection == chat.id) { open(chat) }
+                                        .contextMenu {
+                                            Button(role: .destructive) { archive(chat) } label: { Label("Archive", systemImage: "archivebox") }
+                                        }
+                                }
+                            }
+                        }
+                    }
+                } else if store.problem == nil {
+                    ProgressView().frame(maxWidth: .infinity)
+                }
+            }
+            .padding(16)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+
+    private func header(_ group: Companion.ChatGroup) -> some View {
+        HStack {
+            Label(group.title, systemImage: group.kind == .studio ? "paintpalette" : group.kind == .projects ? "folder" : "bubble.left.and.bubble.right")
+            Spacer()
+            if group.kind == .studio {
+                Button { editingStudio = group } label: { Image(systemName: "text.book.closed") }
+                    .accessibilityLabel("\(group.title) instructions")
+            }
         }
     }
 
@@ -298,5 +357,55 @@ private struct ChatRow: View {
         .padding(.vertical, 2)
         // A worktree sits indented under its project.
         .padding(.leading, chat.worktreeBranch != nil ? 22 : 0)
+    }
+}
+
+/// A chat as a card: its agent, name, latest line and state, sized to sit two to a row.
+private struct ChatCard: View {
+    let chat: Companion.ChatSummary
+    var selected = false
+    var open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    if chat.worktreeBranch != nil {
+                        Image(systemName: "arrow.triangle.branch").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Image((Backend(rawValue: chat.backend) ?? .claude).iconName)
+                            .resizable().scaledToFit().frame(width: 13, height: 13)
+                            .foregroundStyle(MobileConversationStyle.accent(for: chat.backend))
+                    }
+                    Spacer(minLength: 0)
+                    if chat.isWaitingOnYou {
+                        Circle().fill(.yellow).frame(width: 8, height: 8).accessibilityLabel("Waiting on you")
+                    } else if chat.isRunning {
+                        ProgressView().controlSize(.mini)
+                    }
+                }
+                Text(chat.worktreeBranch ?? chat.project ?? chat.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                if let line = chat.subtitle ?? (chat.project != nil ? chat.title : nil) {
+                    Text(line)
+                        .font(.caption)
+                        .foregroundStyle(chat.isWaitingOnYou ? .yellow : .secondary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(uiColor: .secondarySystemGroupedBackground)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(chat.isWaitingOnYou ? Color.yellow.opacity(0.6) : selected ? Color.accentColor : Color.primary.opacity(0.06),
+                              lineWidth: chat.isWaitingOnYou || selected ? 1.5 : 1))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("chat-\(chat.id.uuidString)")
     }
 }
