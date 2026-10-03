@@ -123,6 +123,7 @@
 		CF8128373420B57317F96D90 /* NewProjectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */; };
 		D05B92875B687F85956F41CE /* Attachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCA3F2B7277E38C199221AE /* Attachments.swift */; };
 		D47A8E4BD002D63560FFCEA4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
+		D684E7EA272ACE003FF7EFB0 /* ComposerBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09F680C1BF84B3CF1C576C3 /* ComposerBox.swift */; };
 		D8BEA37E7DD21B08FBCAACAB /* ChatComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39303FD805DEF3103AAB3 /* ChatComputer.swift */; };
 		D97B67C5784EABAA2444D438 /* IssueToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A241350B2223FA06355C13DB /* IssueToolbar.swift */; };
 		D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178D4801E24EF3B55783AF8A /* PreviewDestination.swift */; };
@@ -296,6 +297,7 @@
 		DBCA3F2B7277E38C199221AE /* Attachments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attachments.swift; sourceTree = "<group>"; };
 		DD71DB30FA4E56547B5EDD95 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePDFViewer.swift; sourceTree = "<group>"; };
+		E09F680C1BF84B3CF1C576C3 /* ComposerBox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerBox.swift; sourceTree = "<group>"; };
 		E34B3EA688DB4D5120202F4A /* Attention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Attention.swift; sourceTree = "<group>"; };
 		E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileComposerDraft.swift; sourceTree = "<group>"; };
 		E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyCLIProxy.swift; sourceTree = "<group>"; };
@@ -487,6 +489,7 @@
 				4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */,
 				5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */,
 				7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */,
+				E09F680C1BF84B3CF1C576C3 /* ComposerBox.swift */,
 				DD71DB30FA4E56547B5EDD95 /* ContentView.swift */,
 				F590872692259FADBC73667E /* DocumentViewer.swift */,
 				3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */,
@@ -749,6 +752,7 @@
 				5832EF2321E145BFF16680CF /* CompanionRetry.swift in Sources */,
 				F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */,
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
+				D684E7EA272ACE003FF7EFB0 /* ComposerBox.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
 				08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */,

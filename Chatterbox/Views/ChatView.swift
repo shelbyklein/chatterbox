@@ -52,7 +52,9 @@ struct ChatView: View {
     /// Step groups you've opened.
     @State private var openStepGroups: Set<UUID> = []
     @AppStorage("readerGroupSteps") private var groupSteps = true
-    @FocusState private var composerFocused: Bool
+    @State private var composerFocused = false
+    /// The chat's height, so the message box can grow to a good share of it before scrolling.
+    @State private var chatHeight: CGFloat = 600
     private let appearance = ReaderStyleSettings()
 
     var body: some View {
@@ -151,6 +153,7 @@ struct ChatView: View {
             pasteMonitor = nil
         }
         .onDrop(of: [.fileURL, .image, .data], isTargeted: $isDropTargeted, perform: handleDrop)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { chatHeight = $0 }
         .sheet(item: $viewingDocument) { document in
             let window = (NSApp.mainWindow ?? NSApp.keyWindow)?.contentLayoutRect.size ?? NSSize(width: 1200, height: 800)
             DocumentViewer(document: document)
@@ -630,41 +633,28 @@ struct ChatView: View {
                 .accessibilityLabel("Attach Files")
             }
 
-            TextField(session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.isDot ? session.title : session.record.backend.label)", text: $draft, axis: .vertical)
-                .textFieldStyle(.plain)
-                .accessibilityLabel("Message")
-                .lineLimit(1...8)
-                .focused($composerFocused)
-                .onSubmit(submit)
-                .onKeyPress(.upArrow) { moveCommandSelection(-1) }
-                .onKeyPress(.downArrow) { moveCommandSelection(1) }
-                .onKeyPress(.tab) { completeCommand() }
-                .onKeyPress(.return, phases: .down) { press in
-                    if press.modifiers.contains(.command), session.isRunning {
-                        submit(now: true)
-                        return .handled
-                    }
-                    // Shift-Return starts a new line at the cursor, like Option-Return.
-                    if press.modifiers.contains(.shift) {
-                        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
-                        return .handled
-                    }
-                    return completeCommand()
-                }
-                .onKeyPress(.escape) {
-                    guard !commandMatches.isEmpty else { return .ignored }
-                    dismissedCommandDraft = draft
-                    return .handled
-                }
+            // Grows with the message to just under half the chat, then scrolls. Return sends;
+            // Shift-Return starts a new line. ⌘↩ while the agent works stops it and sends now.
+            ComposerBox(text: $draft,
+                        placeholder: session.isRunning ? "Add something while it works\u{2026}" : "Message \(session.isDot ? session.title : session.record.backend.label)",
+                        isFocused: $composerFocused,
+                        maxHeight: max(8 * 20, chatHeight * 0.45),
+                        onKey: { key, modifiers in
+                            switch key {
+                            case .return:
+                                if modifiers.contains(.command), session.isRunning { submit(now: true); return true }
+                                return completeCommand() == .handled
+                            case .up: return moveCommandSelection(-1) == .handled
+                            case .down: return moveCommandSelection(1) == .handled
+                            case .tab: return completeCommand() == .handled
+                            case .escape:
+                                guard !commandMatches.isEmpty else { return false }
+                                dismissedCommandDraft = draft
+                                return true
+                            }
+                        },
+                        onSubmit: submit)
                 .onChange(of: draft) { commandIndex = 0 }
-                // macOS's gray inline predictions aren't redrawn when the text wraps in a
-                // growing field, so they pile on top of what you typed. Off for this box.
-                .onChange(of: composerFocused, initial: true) { _, focused in
-                    guard focused else { return }
-                    DispatchQueue.main.async {
-                        (NSApp.keyWindow?.firstResponder as? NSTextView)?.inlinePredictionType = .no
-                    }
-                }
                 .padding(.vertical, 9)
                 .padding(.horizontal, session.isDot ? 14 : 12)
                 .background(RoundedRectangle(cornerRadius: session.isDot ? 17 : 12, style: session.isDot ? .circular : .continuous).fill(.background))

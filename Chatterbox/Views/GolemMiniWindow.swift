@@ -272,7 +272,7 @@ private struct GolemMiniContent: View {
     @State private var attachmentError: String?
     @State private var showingModels = false
     @State private var composerWidth: CGFloat = 300
-    @FocusState private var focused: Bool
+    @State private var focused = false
 
     init(session: ChatSession, controller: GolemMiniWindow) {
         self.session = session
@@ -441,24 +441,16 @@ private struct GolemMiniContent: View {
             .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
             .foregroundStyle(.secondary)
             .accessibilityLabel("More options")
-            TextField("Message \(session.title)", text: $draft, axis: .vertical)
-                .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(1...4)
+            // Up to four lines, then scrolls. Return sends, Shift-Return starts a new line, ⌘↩ sends now.
+            ComposerBox(text: $draft, placeholder: "Message \(session.title)", isFocused: $focused,
+                        font: .systemFont(ofSize: 14), maxHeight: 4 * 18,
+                        onKey: { key, modifiers in
+                            guard key == .return, modifiers.contains(.command) else { return false }
+                            send(now: true)
+                            return true
+                        },
+                        onSubmit: { send() })
                 .frame(maxWidth: .infinity).padding(.vertical, 6)
-                .focused($focused).accessibilityLabel("Message")
-                // Inline predictions overlap wrapped text in a growing field (see ChatView).
-                .onChange(of: focused, initial: true) { _, on in
-                    guard on else { return }
-                    DispatchQueue.main.async { (NSApp.keyWindow?.firstResponder as? NSTextView)?.inlinePredictionType = .no }
-                }
-                .onSubmit { send() }
-                .onKeyPress(.return, phases: .down) { press in
-                    if press.modifiers.contains(.shift) {
-                        NSApp.sendAction(#selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)), to: nil, from: nil)
-                        return .handled
-                    }
-                    if press.modifiers.contains(.command) { send(now: true); return .handled }
-                    return .ignored
-                }
             if session.canStop && !canSend {
                 Button { session.interrupt() } label: { Image(systemName: "stop.fill").frame(width: 30, height: 30) }
                     .buttonStyle(.plain).accessibilityLabel("Stop").help("Stop (Esc)")
