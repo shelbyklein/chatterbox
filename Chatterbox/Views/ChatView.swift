@@ -368,8 +368,8 @@ struct ChatView: View {
                 try? await Task.sleep(for: .milliseconds(30))
                 guard !Task.isCancelled else { return }
                 shownRowCount = Self.rowPage
-                await Task.yield()
-                proxy.scrollTo("bottom", anchor: .bottom)
+                // The new rows can take more than one pass to lay out; keep the newest in view until they settle.
+                keepBottom(proxy)
             }
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
             // The terminal takes room from the bottom: keep the newest messages in view above it.
