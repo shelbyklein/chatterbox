@@ -27,6 +27,11 @@ struct CodexSettings: Codable, Equatable {
     var mode: String?
     /// A forked chat's source thread: Codex branches it on the next message.
     var forkFrom: String?
+    /// How this chat reaches OpenAI (see CodexRoute): "direct" or "proxy"; nil follows the
+    /// usual default. Optional so older chats still decode.
+    var route: String? = nil
+    /// The connection this chat's agent was last told about, so a switch is announced once.
+    var sentRoute: String? = nil
 
     var modeID: String { mode ?? (canEdit ? "ask" : "readOnly") }
 }

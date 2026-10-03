@@ -103,6 +103,7 @@ struct ModelPopover: View {
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if tab == .codex { connectionSection }
             Divider()
 
             HStack {
@@ -188,6 +189,35 @@ struct ModelPopover: View {
         }
         .buttonStyle(.plain)
         .disabled(locked)
+    }
+
+    // MARK: - Connection
+
+    /// Direct through ChatGPT (hosted tools like image generation) or through EasyCLIProxy,
+    /// for this chat only. Golem always connects directly when he can.
+    @ViewBuilder
+    private var connectionSection: some View {
+        if !session.isDot {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Connection").font(.callout.weight(.medium))
+                    Spacer()
+                    Picker("Connection", selection: Binding(get: { session.codexRoute?.rawValue ?? "" },
+                                                            set: { session.setCodexRoute(CodexRoute(rawValue: $0)) })) {
+                        Text("Default").tag("")
+                        Text(CodexRoute.direct.title).tag(CodexRoute.direct.rawValue)
+                            .disabled(!EasyCLIProxy.codexHasChatGPTSignIn)
+                        Text(CodexRoute.proxy.title).tag(CodexRoute.proxy.rawValue)
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .disabled(active != .codex || locked)
+                }
+                Text(session.codexConnection.summary + (session.codexRoute != nil ? " Switching keeps this conversation." : ""))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: - Effort

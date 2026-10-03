@@ -98,6 +98,7 @@ extension ChatSession {
             if let studioUpdate = takeStudioInstructionsUpdate() { input.append(Self.textInput(studioUpdate)) }
             if let secrets = takeSecretsUpdate() { input.append(Self.textInput(secrets)) }
             if let computer = takeComputerUpdate() { input.append(Self.textInput(computer)) }
+            if let route = takeCodexRouteUpdate() { input.append(Self.textInput(route)) }
             input += inputs(for: message)
 
             var params: [String: JSON] = [
@@ -200,11 +201,9 @@ extension ChatSession {
             guard let instructions = params["developerInstructions"]?.string else { return params }
             params["developerInstructions"] = .string(instructions + "\n\n" + dotCodexInstructions)
             params["config"] = dotCodexConfig
-        } else if let proxy = EasyCLIProxy.shared.active(for: .codex) {
-            params["config"] = .object(EasyCLIProxy.shared.codexConfig(proxy))
         } else {
-            // Explicit, so a thread that used the proxy goes back to the direct connection.
-            params["config"] = .object(["model_provider": .string(EasyCLIProxy.directCodexProvider)])
+            // Always explicit, so a thread that used another connection switches cleanly.
+            params["config"] = .object(codexConnection.config)
         }
         // The agent computer's tools, when this chat uses it.
         let computer = codexComputerConfig
@@ -228,7 +227,7 @@ extension ChatSession {
         let secrets = "|secrets:" + SecretVault.shared.fingerprint(for: self)
         if isDot { return dotCodexConfigurationKey + secrets }
         let computer = computerConfigurationKey.isEmpty ? "" : "|" + computerConfigurationKey
-        return (EasyCLIProxy.shared.active(for: .codex).map { "proxy:" + $0.base } ?? "direct") + secrets + computer
+        return codexConnection.key + secrets + computer
     }
 
     /// Routes the thread's events to this chat. After a relaunch, lines the saved transcript
