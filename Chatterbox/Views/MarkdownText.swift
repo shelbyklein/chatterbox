@@ -40,7 +40,29 @@ struct MarkdownText: View {
         var text: String
     }
 
+    /// Parsed blocks of finished messages are kept, so a chat switch or re-render doesn't
+    /// parse them again. A streaming message is a new text each time it grows; the cache
+    /// is bounded, so those just age out.
+    private final class Cached<Value>: NSObject {
+        let value: Value
+        init(_ value: Value) { self.value = value }
+    }
+    private static let blockCache: NSCache<NSString, Cached<[Block]>> = {
+        let cache = NSCache<NSString, Cached<[Block]>>()
+        cache.countLimit = 300
+        return cache
+    }()
+
     static func blocks(_ text: String) -> [Block] {
+        let key = text as NSString
+        if let hit = blockCache.object(forKey: key) { return hit.value }
+        let parsed = parseBlocks(text)
+        blockCache.setObject(Cached(parsed), forKey: key)
+        return parsed
+    }
+
+    /// The uncached parse behind `blocks`.
+    static func parseBlocks(_ text: String) -> [Block] {
         var blocks: [Block] = []
         var paragraph: [String] = []
         var list: [ListItem] = []
@@ -186,8 +208,28 @@ struct MarkdownText: View {
     /// Bold, italics, links, and code spans. Code gets a subtle chip; code naming a file or
     /// folder that exists links to it in Finder (see PathLinks).
     static func inline(_ text: String, style: ReaderStyle = .defaults, paths: PathLinks? = nil) -> AttributedString {
+        inline(text, style: style, paths: paths, cached: true)
+    }
+
+    private static let inlineCache: NSCache<NSString, Cached<AttributedString>> = {
+        let cache = NSCache<NSString, Cached<AttributedString>>()
+        cache.countLimit = 2000
+        return cache
+    }()
+
+    /// The markdown parse of an inline run, before styling and path links (both of which
+    /// depend on the reader style and the disk, so they're applied fresh each time).
+    private static func parsedInline(_ text: String, cached: Bool) -> AttributedString {
+        let key = text as NSString
+        if cached, let hit = inlineCache.object(forKey: key) { return hit.value }
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+        let parsed = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+        if cached { inlineCache.setObject(Cached(parsed), forKey: key) }
+        return parsed
+    }
+
+    static func inline(_ text: String, style: ReaderStyle, paths: PathLinks?, cached: Bool) -> AttributedString {
+        var result = parsedInline(text, cached: cached)
         for run in result.runs {
             if let intent = run.inlinePresentationIntent, intent.contains(.code) {
                 result[run.range].font = style.code
