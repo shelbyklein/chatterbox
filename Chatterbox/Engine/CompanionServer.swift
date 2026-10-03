@@ -338,7 +338,7 @@ final class CompanionServer {
             return .json(CompanionMapper.chatList(model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "stop":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
-            if session.isRunning { session.interrupt() }
+            if session.canStop { session.interrupt() }
             return .json(CompanionMapper.detail(session, model: model))
         // Approvals and answers are the user's alone: agents on this Mac (Golem) may only suggest.
         case ("POST", 5) where local && parts[1] == "chats" && (parts[3] == "approvals" || parts[3] == "answers"):

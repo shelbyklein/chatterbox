@@ -24,6 +24,8 @@ final class ChatSession: Identifiable {
             }
         }
     }
+    /// The "!" commands this chat is running (see ChatSession+Shell), by their transcript row. Not saved.
+    var shellJobs: [UUID: ShellJob] = [:]
     /// How full each agent's context is, from its latest token counts. Not saved.
     var contextUsage: [Backend: ContextUsage] = [:] {
         didSet {
@@ -148,6 +150,7 @@ final class ChatSession: Identifiable {
         for (key, usage) in record.savedContext ?? [:] {
             if let backend = Backend(rawValue: key) { contextUsage[backend] = usage }
         }
+        settleOrphanedShellRows()
     }
 
     // MARK: - Public API
@@ -202,7 +205,11 @@ final class ChatSession: Identifiable {
         }
     }
 
+    /// Whether Stop has something to stop: a reply, or a "!" command.
+    var canStop: Bool { isRunning || hasShellJobs }
+
     func interrupt() {
+        stopShellJobs()
         switch record.backend {
         case .codex: codexInterrupt()
         case .claude: claudeInterrupt()
@@ -276,6 +283,7 @@ final class ChatSession: Identifiable {
     /// Stops any agent process this chat owns, e.g. when the chat is deleted.
     func shutdown() {
         interrupt()
+        killShellJobs()
         claudeProcess?.terminate()
         claudeProcess = nil
     }

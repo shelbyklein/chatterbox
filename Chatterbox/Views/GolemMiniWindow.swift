@@ -337,7 +337,7 @@ private struct GolemMiniContent: View {
                 }
         }
         .onKeyPress(.escape) {
-            if session.isRunning { session.interrupt(); return .handled }
+            if session.canStop { session.interrupt(); return .handled }
             if open { controller.setCollapsed(true); return .handled }
             return .ignored
         }
@@ -459,7 +459,7 @@ private struct GolemMiniContent: View {
                     if press.modifiers.contains(.command) { send(now: true); return .handled }
                     return .ignored
                 }
-            if session.isRunning && !canSend {
+            if session.canStop && !canSend {
                 Button { session.interrupt() } label: { Image(systemName: "stop.fill").frame(width: 30, height: 30) }
                     .buttonStyle(.plain).accessibilityLabel("Stop").help("Stop (Esc)")
             } else {
