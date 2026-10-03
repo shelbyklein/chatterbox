@@ -98,6 +98,20 @@ Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Con
 - `reference/typescript/conversation.ts` is a provider-agnostic TypeScript version of the conversation loop, for porting into other software.
 - `project.yml` is the xcodegen spec. The `.xcodeproj` is generated.
 
+## Graft development tools
+
+[Graft](https://github.com/NanoNets/context-graph-engine) indexes Chatterbox's source for coding agents. It's a project-local development dependency (Node.js 20 or later), separate from the app, the iOS companion and the MCP server.
+
+```sh
+npm ci
+npm run graft:setup   # adds graft_development to this checkout's .codex/config.toml and .mcp.json
+npm run graft:build   # structural index; no model or API key
+npm run graft:check
+npm run graft:map
+```
+
+Start a new agent session after setup to load it. The wrapper disables telemetry and anchors commands to this checkout. The generated index, dependencies and machine-specific MCP configuration are ignored by Git. `graft build --deep` (model-written summaries) is a separate, explicit step.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE). Chatterbox builds on ideas from [OpenAI Codex](https://github.com/openai/codex), also Apache-2.0; see [NOTICE](NOTICE).

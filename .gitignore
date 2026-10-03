@@ -6,3 +6,10 @@ build/
 # Golem rig preview renders
 Golem/reference/preview/
 __pycache__/
+
+# Graft development tooling (project-local; see README)
+/node_modules/
+/graft/
+/.graft/
+/.codex/config.toml
+/.mcp.json

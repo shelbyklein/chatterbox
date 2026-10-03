@@ -1,0 +1,13 @@
+{
+  "name": "chatterbox-dev-tools",
+  "private": true,
+  "scripts": {
+    "graft": "node scripts/graft.mjs",
+    "graft:setup": "node scripts/graft.mjs setup",
+    "graft:build": "node scripts/graft.mjs build",
+    "graft:check": "node scripts/graft.mjs check",
+    "graft:map": "node scripts/graft.mjs map"
+  },
+  "engines": { "node": ">=20" },
+  "devDependencies": { "@nanonets/graft": "0.18.0" }
+}
