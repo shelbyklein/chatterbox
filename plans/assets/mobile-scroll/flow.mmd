@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> Following: Open / first load
+    Following --> Reading: User drags transcript
+    Reading --> Reading: Reply / question / settings revision
+    Reading --> Following: Reach bottom / explicit jump / send / reopen
+    Following --> Following: Revision / layout settling
+    note right of Reading
+        Cancel all queued scroll callbacks;
+        geometry determines actual proximity.
+    end note
