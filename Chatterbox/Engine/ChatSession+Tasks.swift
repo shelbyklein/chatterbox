@@ -20,13 +20,16 @@ extension ChatSession {
         case "TaskUpdate":
             guard let id = Self.taskID(input["taskId"]) else { return }
             var tasks = record.claudeTasks ?? []
-            if let index = tasks.firstIndex(where: { $0.id == id }) {
-                if let status = input["status"]?.string {
-                    if status == "deleted" { tasks.remove(at: index) } else { tasks[index].status = Self.planStatus(status) }
-                }
-                if index < tasks.count, let subject = input["subject"]?.string, !subject.isEmpty { tasks[index].subject = subject }
+            let status = input["status"]?.string
+            let subject = input["subject"]?.string.flatMap { $0.isEmpty ? nil : $0 }
+            if status == "deleted" {
+                // Deleting wins over every other field, and goes by id so no neighbour is touched.
+                tasks.removeAll { $0.id == id }
+            } else if let index = tasks.firstIndex(where: { $0.id == id }) {
+                if let status { tasks[index].status = Self.planStatus(status) }
+                if let subject { tasks[index].subject = subject }
             } else if let subject = input["subject"]?.string {
-                tasks.append(ClaudeTask(id: id, subject: subject, status: Self.planStatus(input["status"]?.string ?? "pending")))
+                tasks.append(ClaudeTask(id: id, subject: subject, status: Self.planStatus(status ?? "pending")))
             }
             record.claudeTasks = tasks
             showClaudeTasks()
@@ -63,7 +66,14 @@ extension ChatSession {
 
     private func showClaudeTasks() {
         let tasks = (record.claudeTasks ?? []).sorted { (Int($0.id) ?? 0) < (Int($1.id) ?? 0) }
-        guard !tasks.isEmpty else { return }
+        guard !tasks.isEmpty else {
+            // The last task is gone: take the active plan card down. Earlier turns' plans stay.
+            if let item = claudePlanItem {
+                record.items.removeAll { $0.id == item }
+                claudePlanItem = nil
+            }
+            return
+        }
         showPlan(tasks.map { PlanStep(step: $0.subject, status: $0.status) })
     }
 
