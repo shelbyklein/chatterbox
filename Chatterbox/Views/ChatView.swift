@@ -43,8 +43,10 @@ struct ChatView: View {
     @State private var selectedPreview: (URL, PreviewDestination)?
     @State private var previewOpenError: String?
     /// How many of the newest rows to draw; "Show earlier" adds a page at a time.
-    @State private var shownRowCount = ChatView.rowPage
+    /// A chat opens with `firstRows` so it appears at once, then fills in to `rowPage`.
+    @State private var shownRowCount = ChatView.firstRows
     static let rowPage = 40
+    static let firstRows = 12
     /// Step groups you've opened.
     @State private var openStepGroups: Set<UUID> = []
     @AppStorage("readerGroupSteps") private var groupSteps = true
@@ -359,6 +361,15 @@ struct ChatView: View {
                 guard !Task.isCancelled else { return }
                 proxy.scrollTo("bottom", anchor: .bottom)
                 Diagnostics.signposts.emitEvent("Chat shown")
+                // Each row costs layout up front (the stack is eager), so the rest of the first
+                // page arrives just after the chat is on screen. One step: growing in several
+                // re-lays out the rows already there each time.
+                guard shownRowCount < Self.rowPage else { return }
+                try? await Task.sleep(for: .milliseconds(30))
+                guard !Task.isCancelled else { return }
+                shownRowCount = Self.rowPage
+                await Task.yield()
+                proxy.scrollTo("bottom", anchor: .bottom)
             }
             .onChange(of: session.items.count) { scrollToBottom(proxy) }
             // The terminal takes room from the bottom: keep the newest messages in view above it.
