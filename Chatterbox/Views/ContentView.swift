@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showArchived") private var showArchived = false
     @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
     @AppStorage("sidebarProjectsCollapsed") private var projectsCollapsed = false
@@ -153,8 +154,18 @@ struct ContentView: View {
         .modifier(WorktreeAlerts(parent: $worktreeParent, name: $worktreeName, removing: $removingWorktree, error: $worktreeError))
         .alert("Rename Chat", isPresented: Binding(get: { renamingChat != nil }, set: { if !$0 { renamingChat = nil } })) {
             TextField("Title", text: $chatTitle)
-            Button("Rename") { renamingChat?.setTitle(chatTitle) }
+            Button("Rename") {
+                guard let chat = renamingChat else { return }
+                chat.setTitle(chatTitle)
+                // A project's row shows the project's name, not the chat title, so renaming
+                // only the title looked like it did nothing. One chat per folder: rename both.
+                if chat.record.projectFolder != nil { chat.setProjectNickname(chatTitle) }
+            }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            if renamingChat?.record.projectFolder != nil {
+                Text("Also renames the project in the sidebar and toolbar. The folder itself isn't renamed.")
+            }
         }
         .alert(studioFromChat == nil ? "New Studio" : "New Studio from Chat", isPresented: $namingStudio) {
             TextField("Name", text: $studioName)
@@ -362,9 +373,10 @@ extension ContentView {
         }
         .frame(minHeight: 72)
         .contentShape(Rectangle())
+        .environment(\.colorScheme, selected ? .light : colorScheme)
         .onTapGesture { model.openDot() }
         .listRowBackground(RoundedRectangle(cornerRadius: 8)
-            .fill(Color.highlight.opacity(selected ? 0.10 : unread > 0 ? 0.14 : 0))
+            .fill(selected ? Color.white : Color.highlight.opacity(unread > 0 ? 0.14 : 0))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.highlight.opacity(unread > 0 && !selected ? 0.5 : 0), lineWidth: 1))
             .padding(.horizontal, 10))
         .contextMenu {
@@ -438,6 +450,9 @@ extension ContentView {
                 return PinPills.drop(providers, into: place)
             }
             .contentShape(Rectangle())
+            // The open chat is white with dark text, so it's obvious at a glance; drawn in the
+            // light appearance so its secondary text and pills stay readable on white.
+            .environment(\.colorScheme, model.selectedID == session.id && !session.isWaitingOnYou ? .light : colorScheme)
             .onTapGesture { model.selectedID = session.id }
             // Drag onto a Studio to move the chat in. Project chats stay put.
             .modifier(ChatDrag(id: session.record.projectFolder == nil ? session.id : nil))
@@ -445,14 +460,15 @@ extension ContentView {
                 // Waiting on you wins over selection: the whole row turns yellow.
                 RoundedRectangle(cornerRadius: 8)
                     .fill(session.isWaitingOnYou ? Color.yellow.opacity(0.22)
-                          : Color.highlight.opacity(model.selectedID == session.id ? 0.10 : 0))
+                          : model.selectedID == session.id ? Color.white : Color.clear)
                     .overlay(RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(Color.yellow.opacity(session.isWaitingOnYou ? 0.7 : 0), lineWidth: 1))
                     .padding(.horizontal, 10)
             )
             .contextMenu {
                 Button("Rename Chat\u{2026}") {
-                    chatTitle = session.title
+                    // Start from the name the row shows.
+                    chatTitle = session.record.projectFolder != nil ? session.projectName : session.title
                     renamingChat = session
                 }
                 if session.record.projectFolder == nil, !session.items.isEmpty {
