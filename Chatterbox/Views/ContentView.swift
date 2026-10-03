@@ -316,6 +316,7 @@ extension ContentView {
                     Button("New Codex Chat") { model.newChat(in: studio, backend: .codex) }
                     Divider()
                     Button("Studio Instructions\u{2026}") { model.editingStudioInstructions = studio.id }
+                    Button("Edit design.md") { studio.ensureDesignFile(); openForEditing(studio.designFile) }
                     Button("Add Pin\u{2026}") { model.pinSheet = PinSheetRequest(place: place, current: place) }
                     Button("Rename Studio\u{2026}") {
                         studioName = studio.name

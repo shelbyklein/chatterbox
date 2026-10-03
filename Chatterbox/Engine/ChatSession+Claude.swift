@@ -110,7 +110,7 @@ extension ChatSession {
         if !resuming {
             record.sentPersonality = record.personality
             record.sentUserInstructions = Prompts.userInstructions
-            record.sentStudioInstructions = studio?.trimmedInstructions ?? ""
+            record.sentStudioInstructions = studio?.noteKey ?? ""
             record.instructionsVersion = Prompts.instructionsVersion
         }
         // The branch gets its own session id in its first `init` message.

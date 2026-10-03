@@ -17,6 +17,36 @@ struct Studio: Codable, Identifiable, Equatable, Hashable {
     var instructions: String?
 
     var trimmedInstructions: String { instructions?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
+
+    /// The Studio's design guide: a file in its folder that its chats read before visual work
+    /// and edit only when the user asks.
+    var designFile: String { (folder as NSString).appendingPathComponent("design.md") }
+
+    /// What a chat was last told about this Studio: its instructions, plus which version of the
+    /// Studio note (so chats from before design.md hear about it once).
+    var noteKey: String { trimmedInstructions + "\u{0}design.md" }
+
+    /// Makes design.md with a short starting outline if it isn't there. Never touches one
+    /// that exists.
+    func ensureDesignFile() {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: folder), !fm.fileExists(atPath: designFile) else { return }
+        let template = """
+        # \(name) design
+
+        The design guide for this Studio. Every chat in it reads this before visual work.
+        Ask a chat to fill it in or change it; chats edit it only when you ask.
+
+        ## Brand
+        ## Color
+        ## Typography
+        ## Logos and imagery
+        ## Layout
+        ## Do and don't
+
+        """
+        fm.createFile(atPath: designFile, contents: Data(template.utf8))
+    }
 }
 
 extension AppModel {
@@ -54,6 +84,7 @@ extension AppModel {
         let name = trimmed.isEmpty ? "Studio" : trimmed
         guard let path = folder ?? Self.makeStudioFolder(named: name) else { return nil }
         let studio = Studio(name: name, folder: Self.normalize(path))
+        studio.ensureDesignFile()
         studios.append(studio)
         saveStudios()
         if let session { move(session, to: studio) } else { newChat(in: studio) }

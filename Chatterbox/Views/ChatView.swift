@@ -873,6 +873,7 @@ struct ChatView: View {
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: studio.folder)]) }
             Button("Open Terminal Here  \u{2325}\u{2318}T") { model.openTerminal() }
             Divider()
+            Button("Edit design.md") { studio.ensureDesignFile(); openForEditing(studio.designFile) }
             Button("Edit AGENTS.md") { openForEditing(studio.folder + "/AGENTS.md") }
             Button("Edit CLAUDE.md") { openForEditing(studio.folder + "/CLAUDE.md") }
             Divider()

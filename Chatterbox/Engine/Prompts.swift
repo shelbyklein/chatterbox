@@ -58,6 +58,12 @@ enum Prompts {
         # Studio: \(studio.name)
         This chat is in a Chatterbox Studio: a folder, \(studio.folder), shared by several of the user's chats working on loosely related asks, often creative ones spanning different apps. It isn't a code project and may not be a git repository. Save what you make in this folder. Expect files there from other chats, and don't reorganize or delete work you didn't make unless the user asks.
         """
+        note += """
+
+
+        ## Design guide
+        The Studio's design guide is \(studio.designFile): its brand, colors, typography, logos, imagery, layout rules, and dos and don'ts. Read it before any visual or design work, and follow it; it may change between requests, so read the current version each time. Edit it only when the user asks you to add to or change it, keeping it organized Markdown under clear headings.
+        """
         let instructions = studio.trimmedInstructions
         if !instructions.isEmpty {
             note += "\n\n## The user's instructions for this Studio\nEvery chat in the Studio follows these. Use the sites, files, and tools they point to when a request calls for them.\n\n" + instructions
@@ -73,8 +79,8 @@ enum Prompts {
         }
         let instructions = studio.trimmedInstructions
         let body = instructions.isEmpty
-            ? "The user cleared this Studio's instructions. Ignore the earlier ones.\n\n" + studioNote(studio)
-            : "The Studio's instructions are new or updated. These replace any earlier version:\n\n" + studioNote(studio)
+            ? "This Studio's note is new or updated, and it has no instructions from the user now; ignore any earlier ones. This replaces any earlier version:\n\n" + studioNote(studio)
+            : "This Studio's note and instructions are new or updated. These replace any earlier version:\n\n" + studioNote(studio)
         return "<app_note>\n\(body)\n</app_note>"
     }
 

@@ -112,7 +112,7 @@ final class ChatSession: Identifiable {
     /// The Studio's instructions if they changed since the agent last saw them, and marks
     /// them seen. Moving into or out of a Studio counts as a change.
     func takeStudioInstructionsUpdate() -> String? {
-        let current = studio?.trimmedInstructions ?? ""
+        let current = studio?.noteKey ?? ""
         guard current != (record.sentStudioInstructions ?? "") else { return nil }
         record.sentStudioInstructions = current
         return Prompts.studioInstructionsUpdate(studio: studio)

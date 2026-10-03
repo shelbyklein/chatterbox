@@ -153,6 +153,8 @@ final class AppModel {
         }
         #endif
         loadStudios()
+        // Studios made before design.md existed get one (never overwriting).
+        for studio in studios where studio.archivedAt == nil { studio.ensureDesignFile() }
         defer {
             // The order chats load in stands until you next write to one.
             for session in sessions { orderedAtMessage[session.id] = session.items.last { $0.kind == .user }?.id }

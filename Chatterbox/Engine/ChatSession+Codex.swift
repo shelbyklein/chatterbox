@@ -177,7 +177,7 @@ extension ChatSession {
         record.codex?.threadId = id
         record.sentPersonality = record.personality
         record.sentUserInstructions = Prompts.userInstructions
-        record.sentStudioInstructions = studio?.trimmedInstructions ?? ""
+        record.sentStudioInstructions = studio?.noteKey ?? ""
         record.instructionsVersion = Prompts.instructionsVersion
         codexRegisterHandler(id)
         server.markLoaded(id)
