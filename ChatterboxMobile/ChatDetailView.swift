@@ -8,6 +8,25 @@ struct PendingImage: Identifiable {
     var upload: Companion.Upload
 }
 
+/// Counts the reader's drags; scroll work queued before one is dropped. Reference-typed so a drag
+/// doesn't redraw the chat.
+final class ScrollWork { var generation = 0 }
+
+/// Reports whether the visible part of a scroll view is within a couple of lines of its end,
+/// measured from the scroll geometry (iOS 18 and later).
+private struct NearBottom: ViewModifier {
+    var report: (Bool) -> Void
+    func body(content: Content) -> some View {
+        if #available(iOS 18, *) {
+            content.onScrollGeometryChange(for: Bool.self) { $0.contentSize.height - $0.visibleRect.maxY < 40 } action: { _, near in
+                report(near)
+            }
+        } else {
+            content
+        }
+    }
+}
+
 /// One chat: its transcript, kept current while it's open, and a message box.
 struct ChatDetailView: View {
     let chat: Companion.ChatSummary
@@ -31,10 +50,14 @@ struct ChatDetailView: View {
         nonmutating set { composerState.images = newValue }
     }
     private var sending: Bool { composerState.sending }
-    /// Whether the end of the transcript is on screen, and until when to keep it there.
+    /// Whether the reader is at the end of the transcript (measured against the scroll view's
+    /// visible area, not row appearance), and until when to keep them there.
     @State private var atBottom = true
     @State private var pinUntil = Date.distantPast
+    /// Counts the reader's drags: scroll work queued before one is dropped.
+    @State private var scrollWork = ScrollWork()
     @State private var pinRequests = 0
+    @State private var layoutRequests = 0
     /// Whether the transcript has been scrolled to the end since it opened with messages in it.
     /// On a slow connection the messages come long after the view does.
     @State private var pinnedLoaded = false
@@ -185,15 +208,22 @@ struct ChatDetailView: View {
                         Label(error, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.orange)
                     }
                     Color.clear.frame(height: 1).id("bottom")
-                        // Lazy rows: this exists only while the end is on screen.
-                        .onAppear { atBottom = true }
-                        .onDisappear { atBottom = false }
+                        // Before iOS 18 there's no scroll geometry: row appearance stands in for it
+                        // (lazy rows, so it can mean prefetched rather than visible).
+                        .onAppear { if !Self.measuresScroll { atBottom = true } }
+                        .onDisappear { if !Self.measuresScroll { atBottom = false } }
                 }
                 .padding(16)
                 // A readable width on iPad, centered.
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
+            .modifier(NearBottom { atBottom = $0 })
+            // Reading: a drag takes over from any scroll still queued, and ends the follow window.
+            .simultaneousGesture(DragGesture(minimumDistance: 10).onChanged { _ in
+                scrollWork.generation += 1
+                if pinUntil > .distantPast { pinUntil = .distantPast }
+            })
             .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .refreshable { await refresh(force: true) }
@@ -234,6 +264,8 @@ struct ChatDetailView: View {
             }
             .animation(.easeOut(duration: 0.18), value: atBottom)
             .onChange(of: pinRequests) { pin(proxy, for: 1.5) }
+            // The tab bar coming or going resizes the list: keep a reader at the end there, not one above it.
+            .onChange(of: layoutRequests) { if atBottom || Date() < pinUntil { pin(proxy, for: 1.5) } }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 // Already loaded: this pin covers it. Otherwise the first load will.
@@ -289,17 +321,23 @@ struct ChatDetailView: View {
         withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.5, dampingFraction: 0.82)) {
             golemComposing.wrappedValue = on
         }
-        // The tab bar coming or going resizes the list, which loses its place: back to the end.
-        pinRequests += 1
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { pinRequests += 1 }
+        // The tab bar coming or going resizes the list, which loses its place: back to the end,
+        // if that's where the reader was.
+        layoutRequests += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { layoutRequests += 1 }
     }
 
+    private static let measuresScroll: Bool = { if #available(iOS 18, *) { true } else { false } }()
+
     /// Scrolls to the newest message, again a few times while rows load and get measured
-    /// (a lazy list only estimates the height of rows it hasn't drawn).
+    /// (a lazy list only estimates the height of rows it hasn't drawn). If the reader drags the
+    /// transcript before the repeats run, they're dropped.
     private func pin(_ proxy: ScrollViewProxy, for seconds: Double) {
         pinUntil = max(pinUntil, Date().addingTimeInterval(seconds))
+        let work = scrollWork, generation = work.generation
         for delay in [0, 0.05, 0.15, 0.35, 0.7, 1.1] where delay <= seconds + 0.05 {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard work.generation == generation else { return }
                 var instant = Transaction()
                 instant.disablesAnimations = true
                 withTransaction(instant) { proxy.scrollTo("bottom", anchor: .bottom) }
