@@ -3,6 +3,7 @@ import ScreenCaptureKit
 import Darwin
 import Foundation
 import Observation
+import os
 import UserNotifications
 
 /// Reports on why Chatterbox hung or went away, kept in Application Support/Chatterbox/
@@ -18,6 +19,8 @@ import UserNotifications
 @Observable
 final class Diagnostics {
     static let shared = Diagnostics()
+    /// Marks in Instruments (Points of Interest) for timing chat switches; see scripts/test-chat-switch-perf.sh.
+    nonisolated static let signposts = OSSignposter(subsystem: "com.shelbyklein.Chatterbox", category: .pointsOfInterest)
 
     struct Report: Identifiable, Hashable {
         var id: URL { url }
