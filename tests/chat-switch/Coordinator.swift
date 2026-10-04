@@ -10,14 +10,15 @@ import SwiftUI
         try await Task.sleep(for:.milliseconds(40))
         precondition(s.displayedID==a && s.opacity==0 && s.offset<0 && s.switching)
         first.cancel()
-        let second=Task {await s.show(c,reduceMotion:false)}
+        let second=Task {await s.show(c,reduceMotion:false,waitForMount:true)}
         try await Task.sleep(for:.milliseconds(180))
         precondition(s.displayedID==c && s.opacity==0 && s.offset>0 && s.switching)
+        s.didMount(c)
         await second.value
         await first.value
         precondition(s.displayedID==c && s.opacity==1 && s.offset==0 && !s.switching)
         // Cancel during hidden new-view staging by returning to that same selection.
-        let third=Task {await s.show(b,reduceMotion:false)}
+        let third=Task {await s.show(b,reduceMotion:false,waitForMount:true)}
         try await Task.sleep(for:.milliseconds(180))
         third.cancel()
         await s.show(b,reduceMotion:false)
@@ -41,8 +42,12 @@ import SwiftUI
         let mounted=Task {await s.show(b,reduceMotion:false,waitForMount:true)}
         try await Task.sleep(for:.milliseconds(650))
         precondition(s.displayedID==b && s.opacity==0 && s.switching,"Revealed before view mounted")
+        let revealStart=Date()
         s.didMount(b)
         await mounted.value
+        let revealDelay=Date().timeIntervalSince(revealStart)
+        precondition(revealDelay<0.25,"Added pause or input lock after mounting: \(revealDelay)")
+        print("Post-mount reveal and interaction: \(Int(revealDelay*1000))ms")
         precondition(s.opacity==1 && !s.switching)
         print("PASS delayed mounting; initial entry, hidden swap, rapid latest-wins cancellation, same-ID recovery, alternate detail, Reduce Motion")
     }

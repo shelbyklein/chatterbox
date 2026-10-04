@@ -130,8 +130,7 @@ struct ContentView: View {
                 ChatColumns(sidebar: sidebarPane, chat: AnyView(alternateDetail))
             }
         }
-        .environment(\.chatSwitchPresentation, ChatSwitchPresentation(opacity: chatSwitch.opacity,
-            offset: chatSwitch.offset, switching: chatSwitch.switching || (mainChatID != nil && chatSwitch.initialized && chatSwitch.displayedID != mainChatID)))
+        .environment(\.chatSwitchCoordinator, chatSwitch)
         .task(id: mainChatID) { await chatSwitch.show(mainChatID, reduceMotion: reduceMotion, waitForMount: true) }
         .toolbar {
                 ToolbarItem {

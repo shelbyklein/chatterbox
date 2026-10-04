@@ -43,6 +43,7 @@ app.setActivationPolicy(.accessory)
     }
     try await Task.sleep(for:.seconds(2))
     snap("01-golem")
+    let switchStarted=Date()
     model.selectedID = project.id
     try await wait {transition.switching}
     snap("02-outgoing-or-hidden")
@@ -53,6 +54,7 @@ app.setActivationPolicy(.accessory)
     try await Task.sleep(for:.milliseconds(70))
     snap("04-incoming")
     try await wait {!transition.switching}
+    print("NATIVE selection-to-interactive: \(Int(Date().timeIntervalSince(switchStarted)*1000))ms (includes capture overhead)")
     snap("05-project")
     // Repeated picks through the actual ContentView task cancellation path.
     model.selectedID = dot.id
@@ -62,8 +64,16 @@ app.setActivationPolicy(.accessory)
     model.selectedID = dot.id
     try await wait {transition.displayedID==dot.id && !transition.switching}
     snap("06-rapid-final-golem")
+    print("DRAFT CHECK golem=\(dot.draft.debugDescription) project=\(project.draft.debugDescription)")
     precondition(dot.draft=="Unsent Golem draft" && project.draft=="Unsent project draft")
     precondition(counts==[dot.items.count,project.items.count],"Switch submitted or mutated transcript")
+    // Capture-free measurements separate render/cancellation latency from screenshot cost.
+    for target in [project.id,dot.id,project.id,dot.id] {
+        let start=Date()
+        model.selectedID=target
+        try await wait {transition.displayedID==target && !transition.switching}
+        print("NATIVE capture-free selection-to-interactive: \(Int(Date().timeIntervalSince(start)*1000))ms")
+    }
     // Narrow layout remains bounded after animated switching.
     panel.setContentSize(NSSize(width:800,height:820))
     try await Task.sleep(for:.milliseconds(400))

@@ -15,3 +15,7 @@ Work preparation: R1–R13 pass; linear GPT-6.1-Sol Medium, no delegation. Run s
 ## Verification
 FADE-1/2 passed: coordinator includes delayed mounting; native production-library captures show outgoing content, blank hidden replacement and incoming content. Rapid selections finish on latest chat. Golem/project drafts and transcript counts remain unchanged;800pt pane bounds pass. Reduce Motion verified in coordinator, not via the OS toggle. Full evidence: tests/chat-switch/verification.md.
 ![Native transition](</Users/shelbyklein/Chatterbox/Screenshots/mac-chat-switch/sequence.png>)
+
+## Follow-up: remove added lag
+Shelby reports the shipped animation lags. The coordinator adds640ms of explicit waits (140+320+180) plus mounting, and disables interaction until the last wait finishes. Keep a70ms outgoing phase and a single16ms post-mount frame, reveal with a100ms fade, and enable interaction at reveal. Do not promise to eliminate the underlying main-thread rendering cost.
+Tracker: local:715E0D5E-4893-432C-9026-BA149E0F862A. LAG-1: coordinator tests verify no long pause/lock, mount gating, cancellation and Reduce Motion. LAG-2: native latency/capture/draft checks, signed build, scoped commit/push/install; installed binary match. Linear GPT-6.1-Sol Medium. Existing visual, scope boundaries, standing install authorization and rollback apply; readiness R1–R13 pass. Existing scripts/test-chat-switch.sh is the acceptance path.

@@ -100,14 +100,16 @@ private struct ComposerTextView: NSViewRepresentable {
         if isFocused, view.window != nil, view.window?.firstResponder !== view {
             // Asked for focus from SwiftUI (a chat opened, a file was added): take it once the
             // view is in its window. Doing it during an update can re-enter layout.
-            DispatchQueue.main.async { [weak view] in
-                guard let view, let window = view.window, window.firstResponder !== view else { return }
+            DispatchQueue.main.async { [weak view, weak coordinator] in
+                guard let coordinator, coordinator.active, coordinator.parent.isFocused,
+                      let view, let window = view.window, window.firstResponder !== view else { return }
                 window.makeFirstResponder(view)
             }
         }
     }
 
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        coordinator.active = false
         if let observer = coordinator.frameObserver { NotificationCenter.default.removeObserver(observer) }
         coordinator.frameObserver = nil
     }
@@ -117,11 +119,12 @@ private struct ComposerTextView: NSViewRepresentable {
         var parent: ComposerTextView
         weak var view: TextView?
         var frameObserver: NSObjectProtocol?
+        var active = true
 
         init(_ parent: ComposerTextView) { self.parent = parent }
 
         func textDidChange(_ notification: Notification) {
-            guard let view else { return }
+            guard active, let view else { return }
             if parent.text != view.string { parent.text = view.string }
             measure()
         }
@@ -133,11 +136,15 @@ private struct ComposerTextView: NSViewRepresentable {
             let height = ceil(layout.usedRect(for: container).height + view.textContainerInset.height * 2)
             if abs(parent.contentHeight - height) >= 0.5 {
                 // Outside the current layout pass, or SwiftUI complains.
-                DispatchQueue.main.async { [self] in parent.contentHeight = height }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.active else { return }
+                    self.parent.contentHeight = height
+                }
             }
         }
 
         func focusChanged(_ focused: Bool) {
+            guard active else { return }
             if parent.isFocused != focused { parent.isFocused = focused }
         }
 

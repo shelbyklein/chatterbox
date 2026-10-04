@@ -24,46 +24,51 @@ final class ChatSwitchTransition {
             return
         }
         switching = true
-        withAnimation(.easeIn(duration: 0.12)) {
+        withAnimation(.easeIn(duration: 0.06)) {
             opacity = 0
-            offset = reduceMotion ? 0 : -14
+            offset = reduceMotion ? 0 : -6
         }
         do {
-            try await Task.sleep(for: .milliseconds(140))
+            try await Task.sleep(for: .milliseconds(70))
             guard ticket == generation, !Task.isCancelled else { return }
             // No crossfade: old and new composers/transcripts are never mounted together.
             mountedID = nil
             displayedID = id
-            offset = reduceMotion ? 0 : 14
+            offset = reduceMotion ? 0 : 6
             while waitForMount && mountedID != id {
                 try await Task.sleep(for: .milliseconds(10))
                 guard ticket == generation, !Task.isCancelled else { return }
             }
-            // Give the transcript's initial page expansion and deferred bottom positioning
-            // a run-loop window while invisible. Slow construction extends this naturally.
-            try await Task.sleep(for: .milliseconds(320))
-            guard ticket == generation, !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.18)) { opacity = 1; offset = 0 }
-            try await Task.sleep(for: .milliseconds(180))
+            // One frame after mounting, rather than a fixed transcript-settling pause.
+            // Let the incoming composer accept input as soon as it is visible.
+            try await Task.sleep(for: .milliseconds(16))
             guard ticket == generation, !Task.isCancelled else { return }
             switching = false
+            withAnimation(.easeOut(duration: 0.10)) { opacity = 1; offset = 0 }
         } catch {
             // The next task owns presentation. A cancelled older switch must not reveal it.
         }
     }
 }
 
-struct ChatSwitchPresentation {
-    var opacity = 1.0
-    var offset = 0.0
-    var switching = false
-}
-private struct ChatSwitchPresentationKey: EnvironmentKey {
-    static let defaultValue = ChatSwitchPresentation()
+private struct ChatSwitchCoordinatorKey: EnvironmentKey {
+    static let defaultValue: ChatSwitchTransition? = nil
 }
 extension EnvironmentValues {
-    var chatSwitchPresentation: ChatSwitchPresentation {
-        get { self[ChatSwitchPresentationKey.self] }
-        set { self[ChatSwitchPresentationKey.self] = newValue }
+    var chatSwitchCoordinator: ChatSwitchTransition? {
+        get { self[ChatSwitchCoordinatorKey.self] }
+        set { self[ChatSwitchCoordinatorKey.self] = newValue }
+    }
+}
+
+/// Animation updates are observed here, outside the expensive transcript/column builders.
+struct ChatSwitchSurface: View {
+    let content: AnyView
+    @Environment(\.chatSwitchCoordinator) private var transition
+    var body: some View {
+        content.opacity(transition?.opacity ?? 1).offset(x: transition?.offset ?? 0)
+            .disabled(transition?.switching ?? false)
+            .allowsHitTesting(!(transition?.switching ?? false))
+            .accessibilityHidden(transition?.switching ?? false)
     }
 }

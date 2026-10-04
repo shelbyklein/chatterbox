@@ -11,7 +11,6 @@ struct ChatColumns: View {
     var inspectorMaximum: CGFloat = 460
     var closeInspector: () -> Void = {}
     @Environment(AppModel.self) private var model
-    @Environment(\.chatSwitchPresentation) private var presentation
     @AppStorage("mainSidebarVisible") private var sidebarOpen = true
     @AppStorage("mainSidebarWidth") private var sidebarWidth = 260.0
     @AppStorage("golemInspectorWidth") private var golemWidth = 0.0
@@ -36,10 +35,7 @@ struct ChatColumns: View {
                 sidebarDesired: sidebarWidth, inspectorOpen: inspector != nil,
                 inspectorDesired: min(rightWidth, inspectorMaximum), inspectorMinimum: inspectorMinimum)
             ZStack(alignment: .topLeading) {
-                pane(AnyView(chat
-                    .opacity(presentation.opacity).offset(x: presentation.offset)
-                    .disabled(presentation.switching).allowsHitTesting(!presentation.switching)
-                    .accessibilityHidden(presentation.switching)), role: "chat", width: sizes.chat, height: geometry.size.height)
+                pane(AnyView(ChatSwitchSurface(content: chat)), role: "chat", width: sizes.chat, height: geometry.size.height)
                     .offset(x: sizes.chatX)
                 if let sidebar, sizes.sidebar > 0 {
                     pane(sidebar, role: "sidebar", width: sizes.sidebar, height: geometry.size.height)
