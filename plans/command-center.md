@@ -18,7 +18,7 @@ Deliverables: code, regression harness, inspected native screenshots, plan commi
 
 - [x] CENTER1
 - [x] CENTER2
-- [ ] CENTER3
+- [x] CENTER3
 
 Tests: scripts/test-command-center.sh isolated AppModel/data/ports/defaults, no provider turns; existing scripts/test-mac-home.sh regression. Render real CommandCenterView/ChatView; exercise controls/native text views. xcodebuild Debug, scripts/install.sh.
 
@@ -33,3 +33,5 @@ Verification: Debug build and scripts/test-command-center.sh pass, fixture /tmp/
 Proof: [four-chat grid](/Users/shelbyklein/Chatterbox/Screenshots/command-center/four-chats.png), [narrow](/Users/shelbyklein/Chatterbox/Screenshots/command-center/narrow.png), [chooser](/Users/shelbyklein/Chatterbox/Screenshots/command-center/chooser.png).
 
 Limits: no messages submitted to real providers in fixture tests; streaming/send uses the existing ChatSession engine. Clipboard image paste, VoiceOver speech, live Golem mini interaction and embedded preview links not manually exercised. Scope of native focus and shortcuts is implemented with the tile context; regular single-chat context remains default-active. No shell-mode grid added.
+
+Delivery: 0ef53a4 committed and pushed to origin/main. scripts/install.sh built, installed signed Mac bundle and reopened app (PID 31731); installed Debug dylib matches build byte-for-byte, authenticated local /v1/chats HTTP 200. Installed Command Center UI not manually operated; native/visual proof is the isolated production-view harness. Other worktrees unchanged.
