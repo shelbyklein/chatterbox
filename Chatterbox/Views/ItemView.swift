@@ -657,7 +657,7 @@ private struct QuestionCard: View {
             suggested[question.id].map { (questions.count > 1 ? question.header + ": " : "") + $0.joined(separator: ", ") }
         }
         return HStack(alignment: .top, spacing: 10) {
-            GolemHead(size: 20)
+            Image(systemName:"sparkles").frame(width:20,height:20)
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(name) suggests \(picked.joined(separator: " \u{00B7} "))")
                     .font(.callout.weight(.semibold))

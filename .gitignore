@@ -16,3 +16,7 @@ __pycache__/
 
 # Agent worktrees (Claude Code)
 /.claude/worktrees/
+
+# Historical planning captures contain personal chat/email content; keep local.
+/plans/assets/golem-app/current-chatterbox.png
+/plans/assets/golem-app/current-mobile.png

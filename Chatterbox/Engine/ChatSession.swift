@@ -34,6 +34,8 @@ final class ChatSession: Identifiable {
         }
     }
 
+    @ObservationIgnored var remoteCommand: ((String, JSON) -> Void)?
+
     @ObservationIgnored var onChange: ((ChatSession) -> Void)?
     /// Called after agent output changed the transcript without `onChange` (streamed text),
     /// so it's saved soon, with how far the output was read (see ChatSession+Host).
@@ -74,7 +76,8 @@ final class ChatSession: Identifiable {
     /// What's typed in the message box but not sent yet, and files attached to it. Kept with
     /// the chat, so switching to another chat and back doesn't lose it.
     /// Not observed: only ChatView sets them, and it keeps its own copy while you type.
-    @ObservationIgnored var draft = ""
+    @ObservationIgnored var applyingRemoteState=false
+    @ObservationIgnored var draft = "" {didSet{syncRemoteDraft()}}
     /// The reply in progress answers a check-in Chatterbox sent (see DotActivity).
     @ObservationIgnored var automaticTurn = false
     /// Chatterbox's usual "finished" alert is skipped for this turn (Dot's quiet check-ins).
@@ -92,21 +95,20 @@ final class ChatSession: Identifiable {
 
     /// Called as a turn ends, before the change is saved: Dot's check-ins tidy up here.
     func turnEnded() {
-        Diagnostics.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
+        RuntimeHooks.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
         record.updatedAt = Date()
         if restartForToolsAfterTurn {
             // Tools changed during the reply (Dot turned its computer on or off).
             restartForToolsAfterTurn = false
             DispatchQueue.main.async { [weak self] in self?.restartClaudeForNewTools() }
         }
-        if !isDot, DotActivity.shared.chatFinished(self, watching: Attention.shared.isWatching(self)) { skipFinishedAlert = true }
-        if isDot { DotActivity.shared.dotTurnEnded(self) }
-        NextSteps.shared.turnEnded(self, commands: availableSlashCommands)
-        guard automaticTurn else { return }
-        automaticTurn = false
-        if isDot, DotActivity.shared.finishedAutomaticTurn(self) { skipFinishedAlert = true }
+        RuntimeHooks.turnEnded(self)
     }
-    @ObservationIgnored var draftAttachments: [Attachment] = []
+    @ObservationIgnored var draftAttachments: [Attachment] = [] {didSet{syncRemoteDraft()}}
+    private func syncRemoteDraft(){
+        guard !applyingRemoteState,let remoteCommand else{return}
+        remoteCommand("setDraft",["text":.string(draft),"attachments":(try? .value(draftAttachments)) ?? []])
+    }
     /// The chat's page on claude.ai while Remote Control is on (see ChatSession+Remote).
     var remoteURL: URL?
     /// Messages sent from here that Claude Code hasn't echoed yet, to tell them apart from
@@ -165,10 +167,11 @@ final class ChatSession: Identifiable {
     // MARK: - Public API
 
     func send(_ raw: String, attachments: [Attachment] = []) {
+        if let remoteCommand { remoteCommand("send", ["text":.string(raw),"attachments":(try? .value(attachments)) ?? []]);return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
-        NextSteps.shared.clear(self)
-        Diagnostics.note("Sent a message in \u{201C}\(title)\u{201D}\(isRunning ? " while it worked" : "")")
+        RuntimeHooks.clearSuggestions(self)
+        RuntimeHooks.note("Sent a message in \u{201C}\(title)\u{201D}\(isRunning ? " while it worked" : "")")
         // Sending counts as activity (a reply in progress doesn't, so rows don't jump around).
         record.updatedAt = Date()
         // Writing in an archived chat brings it back.
@@ -187,6 +190,7 @@ final class ChatSession: Identifiable {
     /// ⌘↩ while the agent works: stop what it's doing and take this message right away,
     /// instead of waiting for its next step.
     func sendNow(_ raw: String, attachments: [Attachment] = []) {
+        if let remoteCommand { remoteCommand("sendNow", ["text":.string(raw),"attachments":(try? .value(attachments)) ?? []]);return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
         guard isRunning, !message.text.hasPrefix("!") else { return send(raw, attachments: attachments) }
@@ -207,6 +211,7 @@ final class ChatSession: Identifiable {
 
     /// "Send Now" on a message that's still queued.
     func sendQueuedNow(_ itemID: UUID) {
+        if let remoteCommand {remoteCommand("sendQueuedNow",["itemID":.string(itemID.uuidString)]);return}
         guard isRunning, record.items.contains(where: { $0.id == itemID && $0.queued == true }) else { return }
         stoppingToSend = true
         switch record.backend {
@@ -219,6 +224,7 @@ final class ChatSession: Identifiable {
     var canStop: Bool { isRunning || hasShellJobs }
 
     func interrupt() {
+        if let remoteCommand {remoteCommand("stop",[:]);return}
         stopShellJobs()
         switch record.backend {
         case .codex: codexInterrupt()
@@ -227,6 +233,7 @@ final class ChatSession: Identifiable {
     }
 
     func resolveApproval(_ itemID: UUID, _ decision: DisplayItem.ApprovalState) {
+        if let remoteCommand {remoteCommand("approve",["itemID":.string(itemID.uuidString),"decision":.string(decision.rawValue)]);return}
         switch record.backend {
         case .codex: codexResolveApproval(itemID, decision)
         case .claude: claudeResolveApproval(itemID, decision)
@@ -253,8 +260,9 @@ final class ChatSession: Identifiable {
 
     /// Answers a question card; nil means you skipped it.
     func answerQuestions(_ itemID: UUID, answers: [String: [String]]?) {
+        if let remoteCommand {remoteCommand("answer",["itemID":.string(itemID.uuidString),"answers":(try? .value(answers)) ?? .null]);return}
         if let item = record.items.first(where: { $0.id == itemID }), let suggested = item.suggested {
-            GolemJournal.shared.answered(item, suggested: suggested, with: answers, in: self)
+            RuntimeHooks.answered(self, item, suggested, answers)
         }
         switch record.backend {
         case .codex: codexAnswer(itemID, answers: answers)
@@ -284,7 +292,7 @@ final class ChatSession: Identifiable {
         record.items[index].suggested = cleaned
         record.items[index].suggestedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         record.items[index].suggestedBy = name
-        GolemJournal.shared.suggested(record.items[index], in: self)
+        RuntimeHooks.suggested(self, record.items[index])
         onChange?(self)
     }
 
@@ -292,6 +300,7 @@ final class ChatSession: Identifiable {
 
     /// Stops any agent process this chat owns, e.g. when the chat is deleted.
     func shutdown() {
+        if let remoteCommand {remoteCommand("stop",[:]);return}
         interrupt()
         killShellJobs()
         claudeProcess?.terminate()
@@ -343,6 +352,7 @@ final class ChatSession: Identifiable {
     /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
     /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
+        if let remoteCommand {remoteCommand("settings",["backend":.string(backend.rawValue)]);return}
         guard !isRunning, backend != record.backend else { return }
         let leaving = record.backend
         if !record.items.isEmpty {
@@ -355,16 +365,16 @@ final class ChatSession: Identifiable {
                 : Prompts.handoff(from: leaving.label, transcript: transcript, isWholeConversation: seen == nil)
         }
         if backend == .codex, record.codex == nil {
-            let defaults = UserDefaults.standard
+            let defaults = AppPreferences.defaults
             record.codex = CodexSettings(
-                folder: isDot ? AppModel.dotFolder : (record.boundFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()),
+                folder: isDot ? RuntimePaths.assistantFolder : (record.boundFolder ?? defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()),
                 canEdit: false,
                 mode: PermissionModes.defaultCodex
             )
             record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
             record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
         }
-        if isDot, backend == .codex { record.codex?.folder = AppModel.dotFolder }
+        if isDot, backend == .codex { record.codex?.folder = RuntimePaths.assistantFolder }
         record.activeBackend = backend
         // The incoming agent may not have seen the current tone.
         record.sentPersonality = nil
@@ -377,13 +387,13 @@ final class ChatSession: Identifiable {
         switch record.backend {
         case .claude:
             let model = ClaudeModels.shared.info(record.model)
-            let effort = record.effort.isEmpty ? "default effort" : "\(ChatView.effortLabel(record.effort)) effort"
+            let effort = record.effort.isEmpty ? "default effort" : "\(RuntimePaths.effortLabel(record.effort)) effort"
             return "Claude \u{00B7} \(model.displayName)" + (model.efforts.isEmpty ? "" : " \u{00B7} \(effort)") + (fastMode ? " \u{00B7} Fast mode" : "")
         case .codex:
             let models = CodexAppServer.shared.models
             let name = models.first { $0.model == record.codex?.model }?.displayName
                 ?? models.first(where: \.isDefault).map { "\($0.displayName) (default)" } ?? "default model"
-            let effort = record.codex?.effort.map { "\(ChatView.effortLabel($0)) effort" } ?? "default effort"
+            let effort = record.codex?.effort.map { "\(RuntimePaths.effortLabel($0)) effort" } ?? "default effort"
             return "Codex \u{00B7} \(name) \u{00B7} \(effort) \u{00B7} \(record.codex?.fastMode == true ? "Fast mode" : "Standard speed")"
         }
     }
@@ -481,7 +491,7 @@ final class ChatSession: Identifiable {
             record.projectFolder = nil
             record.githubRepo = nil
         }
-        let folder = record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        let folder = record.boundFolder ?? AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()
         record.codex?.folder = folder
         claudeWorkingFolderChanged()
         onChange?(self)
@@ -504,6 +514,7 @@ final class ChatSession: Identifiable {
 
     /// Sets the permission mode for the active agent. Takes effect right away, even mid-turn.
     func setMode(_ id: String) {
+        if let remoteCommand {remoteCommand("settings",["mode":.string(id)]);return}
         switch record.backend {
         case .claude:
             record.claudeMode = id
@@ -528,16 +539,19 @@ final class ChatSession: Identifiable {
     }
 
     func setArchived(_ archived: Bool) {
+        if let remoteCommand {remoteCommand("archive",["archived":.bool(archived)]);return}
         record.archivedAt = archived ? Date() : nil
         onChange?(self)
     }
 
     func setPersonality(_ personality: Personality) {
+        if let remoteCommand {remoteCommand("settings",["personality":.string(personality.rawValue)]);return}
         record.personality = personality
         onChange?(self)
     }
 
     func setModel(_ model: String) {
+        if let remoteCommand {remoteCommand("settings",["model":.string(model)]);return}
         guard model != record.model else { return }
         record.model = model
         let efforts = ClaudeModels.shared.info(model).efforts
@@ -548,6 +562,7 @@ final class ChatSession: Identifiable {
     }
 
     func setEffort(_ effort: String) {
+        if let remoteCommand {remoteCommand("settings",["effort":.string(effort)]);return}
         guard effort != record.effort else { return }
         record.effort = effort
         claudeApplyEffort()

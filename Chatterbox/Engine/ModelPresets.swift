@@ -42,7 +42,7 @@ final class ModelPresets {
     private static let original: [(String, String, String)] = [("claude", "claude-opus-5-5", "medium"), ("codex", "gpt-6-astra", "low")]
 
     init() {
-        if let data = UserDefaults.standard.data(forKey: key),
+        if let data = AppPreferences.defaults.data(forKey: key),
            var saved = try? JSONDecoder().decode([ModelPreset].self, from: data) {
             // The two built-in presets, still as they first came, now follow the defaults.
             for index in saved.indices where saved[index].followsDefault == nil {
@@ -63,7 +63,7 @@ final class ModelPresets {
     /// A following preset with today's default model, effort, and a name to match.
     static func resolved(_ preset: ModelPreset) -> ModelPreset {
         guard preset.followsDefault == true else { return preset }
-        let defaults = UserDefaults.standard
+        let defaults = AppPreferences.defaults
         var resolved = preset
         switch preset.backend {
         case .claude:
@@ -92,7 +92,7 @@ final class ModelPresets {
             model = preset.model.flatMap { id in models.first { $0.model == id }?.displayName }
                 ?? models.first(where: \.isDefault)?.displayName ?? preset.model ?? "Codex"
         }
-        return model + (preset.effort.map { " \u{00B7} " + ChatView.effortLabel($0) } ?? "")
+        return model + (preset.effort.map { " \u{00B7} " + RuntimePaths.effortLabel($0) } ?? "")
     }
 
     func apply(_ preset: ModelPreset, to session: ChatSession) {
@@ -160,7 +160,7 @@ final class ModelPresets {
         case .claude: model = preset.model.map { ClaudeModels.shared.info($0).displayName } ?? "Claude"
         case .codex: model = preset.model.flatMap { id in CodexAppServer.shared.models.first { $0.model == id }?.displayName } ?? preset.model ?? "Codex"
         }
-        return model + " \u{00B7} " + (preset.effort.map { ChatView.effortLabel($0) } ?? "Default")
+        return model + " \u{00B7} " + (preset.effort.map { RuntimePaths.effortLabel($0) } ?? "Default")
     }
 
     func remove(_ preset: ModelPreset) {
@@ -194,6 +194,6 @@ final class ModelPresets {
 
 
     private func save() {
-        if let data = try? JSONEncoder().encode(saved) { UserDefaults.standard.set(data, forKey: key) }
+        if let data = try? JSONEncoder().encode(saved) { AppPreferences.defaults.set(data, forKey: key) }
     }
 }

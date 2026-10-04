@@ -56,7 +56,9 @@ app.setActivationPolicy(.accessory)
     regular.isRunning = true // Queue only: no paid model or agent process.
     let golem = model.ensureDot()
     golem.setBackend(.codex); golem.isRunning = true
-    for chat in [regular,golem] {
+    // Pairings are product-scoped after extraction; the Chatterbox token only
+    // exercises ordinary mutations here. Separate Golem RPC fixtures cover it.
+    for chat in [regular] {
         let body = try Companion.encoder.encode(Companion.SendRequest(text:"Intentional identical text"))
         let before = chat.items.filter{$0.kind == .user}.count
         _ = try await lostReply("/v1/chats/\(chat.id)/messages",body:body)
@@ -77,7 +79,7 @@ app.setActivationPolicy(.accessory)
     let forksBefore = model.sessions.count
     let fork = try await lostReply("/v1/chats/\(regular.id)/fork",body:Data("{}".utf8))
     precondition(model.sessions.count == forksBefore+1 && fork.summary.id != regular.id)
-    print("PASS actual authenticated HTTP routes: dropped message replies for Golem/regular, creates and forks; one effect, same original response; intentional same text gets distinct IDs")
+    print("PASS actual authenticated HTTP routes: dropped message replies for ordinary, creates and forks; one effect, same original response; intentional same text gets distinct IDs")
 
     // Ledger faults, without a real chat mutation.
     let clock = Date(timeIntervalSince1970:1000)

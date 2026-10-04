@@ -7,12 +7,12 @@ export CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=19650
 mkdir -p "$CHATTERBOX_DATA_DIR"
-rg --files Chatterbox Shared -g '*.swift' -g '!ChatterboxApp.swift' | sort > "$task_dir/files.txt"
+rg --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' | sort > "$task_dir/files.txt"
 engine_key=$({ swiftc --version; cat "$task_dir/files.txt"; while IFS= read -r source; do cat "$source"; done < "$task_dir/files.txt"; } | shasum -a 256 | cut -c 1-16)
 engine_dir="/tmp/chatterbox-mini-engine.$engine_key"
 if [[ ! -f "$engine_dir/libChatterboxTestEngine.dylib" || ! -f "$engine_dir/ChatterboxTestEngine.swiftmodule" ]]; then
   mkdir -p "$engine_dir"
-  swiftc -D DEBUG -whole-module-optimization -Onone -enable-testing \
+  swiftc -I build/GolemPlan/Build/Products/Debug build/GolemPlan/Build/Products/Debug/SwiftTerm.o -D DEBUG -whole-module-optimization -Onone -enable-testing \
     -emit-library -emit-module -module-name ChatterboxTestEngine \
     -emit-module-path "$engine_dir/ChatterboxTestEngine.swiftmodule" \
     -o "$engine_dir/libChatterboxTestEngine.dylib" @"$task_dir/files.txt"

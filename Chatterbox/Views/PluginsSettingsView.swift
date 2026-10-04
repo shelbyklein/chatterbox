@@ -4,6 +4,13 @@ import SwiftUI
 struct PluginsSettingsView: View {
     var body: some View {
         Form {
+            Section("Golem") {
+                Toggle("Connect Golem to Chatterbox",isOn:Binding(get:{GolemIntegration.shared.enabled},set:{GolemIntegration.shared.setEnabled($0)}))
+                LabeledContent("Status",value:GolemIntegration.shared.problem ?? (GolemIntegration.shared.enabled ? "Connected":"Disabled"))
+                Button("Open Golem"){GolemIntegration.shared.open()}
+                Text("Golem runs as a separate app and background service. Disabling this connection stops access to Chatterbox chats. Use Golem’s service controls to stop its independent jobs.").font(.caption).foregroundStyle(.secondary)
+            }
+            .task{while !Task.isCancelled{await GolemIntegration.shared.refresh();try? await Task.sleep(for:.seconds(3))}}
             ForEach(ChatterboxPlugin.allCases) { plugin in
                 Section {
                     PluginRow(plugin: plugin)

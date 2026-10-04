@@ -14,8 +14,8 @@ enum ChatterboxPlugin: String, CaseIterable, Identifiable {
 
     private var key: String { "plugin.\(rawValue).enabled" }
     var isOn: Bool {
-        get { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
-        nonmutating set { UserDefaults.standard.set(newValue, forKey: key) }
+        get { AppPreferences.defaults.object(forKey: key) as? Bool ?? true }
+        nonmutating set { AppPreferences.defaults.set(newValue, forKey: key) }
     }
 }
 
@@ -31,8 +31,8 @@ final class NextSteps {
     static let minAnswerKey = "plugin.nextSteps.minAnswerChars"
     static let suggestCommandsKey = "plugin.nextSteps.suggestCommands"
     /// Replies shorter than this get no suggestions (a quick "done" rarely needs them).
-    var minAnswerChars: Int { UserDefaults.standard.object(forKey: Self.minAnswerKey) as? Int ?? 80 }
-    var suggestCommands: Bool { UserDefaults.standard.object(forKey: Self.suggestCommandsKey) as? Bool ?? true }
+    var minAnswerChars: Int { AppPreferences.defaults.object(forKey: Self.minAnswerKey) as? Int ?? 80 }
+    var suggestCommands: Bool { AppPreferences.defaults.object(forKey: Self.suggestCommandsKey) as? Bool ?? true }
 
     /// Suggestions by chat, newest reply only.
     private(set) var suggestions: [UUID: [String]] = [:]
@@ -62,7 +62,7 @@ final class NextSteps {
               session.items.last(where: { $0.kind == .assistant })?.id == reply.id,
               reply.text.count >= minAnswerChars,
               // Golem's quiet "nothing to report" check-ins aren't worth a suggestion.
-              reply.text.trimmingCharacters(in: .whitespacesAndNewlines) != DotActivity.quietReply,
+              reply.text.trimmingCharacters(in: .whitespacesAndNewlines) != "NO_REPORT",
               // Answers to what you wrote, not to Chatterbox's own check-ins and briefings.
               let asked = session.items.last(where: { $0.kind == .user }), asked.automatic != true
         else { return }

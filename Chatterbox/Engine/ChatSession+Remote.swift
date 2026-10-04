@@ -6,7 +6,7 @@ import Foundation
 extension ChatSession {
     /// Settings > General: new Claude chats turn Remote Control on when they start.
     static let remoteControlKey = "remoteControlClaudeChats"
-    static var remoteControlByDefault: Bool { UserDefaults.standard.bool(forKey: remoteControlKey) }
+    static var remoteControlByDefault: Bool { AppPreferences.defaults.bool(forKey: remoteControlKey) }
 
     var wantsRemoteControl: Bool {
         record.backend == .claude && (record.remoteControl ?? Self.remoteControlByDefault)
@@ -15,6 +15,7 @@ extension ChatSession {
     /// Turns Remote Control on or off for this chat. On starts its Claude Code session
     /// right away, so the chat is reachable before you send anything.
     func setRemoteControl(_ on: Bool) {
+        if let remoteCommand {remoteCommand("remoteControl",["enabled":.bool(on)]);return}
         record.remoteControl = on
         onChange?(self)
         if on {

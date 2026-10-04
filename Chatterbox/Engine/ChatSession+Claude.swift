@@ -60,6 +60,7 @@ extension ChatSession {
     /// Ends the Claude Code process (not the session) so the next message starts a fresh one
     /// with the current tools, resuming the same conversation. Waits for a reply in progress.
     func restartClaudeForNewTools() {
+        if let remoteCommand {remoteCommand("restartTools",[:]);return}
         if isRunning { restartForToolsAfterTurn = true; return }
         guard let process = claudeProcess else { return }
         process.terminate()
@@ -68,7 +69,8 @@ extension ChatSession {
 
     /// Starts the Claude Code session without a message, for Remote Control.
     func claudeStartForRemoteControl() throws -> ClaudeCodeProcess {
-        try claudeEnsureProcess(earlierItems: record.items.count)
+        guard remoteCommand == nil else {throw RuntimeFailure("Provider execution belongs to the background service")}
+        return try claudeEnsureProcess(earlierItems: record.items.count)
     }
 
     func claudeInterrupt() {
@@ -134,8 +136,8 @@ extension ChatSession {
     }
 
     private var claudeWorkingFolder: String {
-        if isDot { return AppModel.dotFolder }
-        return record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        if isDot { return RuntimePaths.assistantFolder }
+        return record.boundFolder ?? AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     private var claudePermissionMode: String { record.claudeModeID }
@@ -158,6 +160,7 @@ extension ChatSession {
     }
 
     func setFastMode(_ enabled: Bool) {
+        if let remoteCommand {remoteCommand("settings",["fastMode":.bool(enabled)]);return}
         if record.backend == .codex { setCodexFastMode(enabled); return }
         guard !enabled || supportsClaudeFastMode, record.claudeFastMode != enabled else { return }
         record.claudeFastMode = enabled

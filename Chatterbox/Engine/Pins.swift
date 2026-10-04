@@ -1,4 +1,7 @@
+import Foundation
+#if !CHATTERBOX_HEADLESS
 import AppKit
+#endif
 import Observation
 
 /// Where a pin shows: a project or a Studio, whose pins appear while you're in one of its
@@ -40,13 +43,15 @@ final class PinStore {
     static let shared = PinStore()
 
     private(set) var pins: [Pin]
+    #if !CHATTERBOX_HEADLESS
     /// Favicons for website pins, fetched from the site itself.
     private(set) var favicons: [String: NSImage] = [:]
     @ObservationIgnored private var loadingFavicons: Set<String> = []
+    #endif
     private let key = "pins"
 
     init() {
-        if let data = UserDefaults.standard.data(forKey: key), let saved = try? JSONDecoder().decode([Pin].self, from: data) {
+        if let data = AppPreferences.defaults.data(forKey: key), let saved = try? JSONDecoder().decode([Pin].self, from: data) {
             pins = saved
         } else {
             pins = []
@@ -99,10 +104,11 @@ final class PinStore {
     /// Settings > General: website pins open inside Chatterbox, with the chat floating over
     /// the page.
     static let openInAppKey = "openWebsitePinsInApp"
-    static var opensInApp: Bool { UserDefaults.standard.object(forKey: openInAppKey) as? Bool ?? true }
+    static var opensInApp: Bool { AppPreferences.defaults.object(forKey: openInAppKey) as? Bool ?? true }
     /// Shows a page inside Chatterbox (set by AppModel).
     @ObservationIgnored var showPage: ((URL) -> Void)?
 
+    #if !CHATTERBOX_HEADLESS
     func open(_ pin: Pin) {
         switch pin.kind {
         case .website:
@@ -119,6 +125,10 @@ final class PinStore {
             try? process.run()
         }
     }
+
+    #else
+    func open(_ pin:Pin) { NotificationCenter.default.post(name:Notification.Name("ChatterboxRuntimeOpenPin"),object:pin) }
+    #endif
 
     func open(number: Int, in place: PinPlace?) {
         let shown = visiblePins(in: place)
@@ -145,6 +155,7 @@ final class PinStore {
 
     // MARK: - Icons
 
+    #if !CHATTERBOX_HEADLESS
     func icon(for pin: Pin) -> NSImage? {
         switch pin.kind {
         case .app, .file:
@@ -172,6 +183,8 @@ final class PinStore {
         }
     }
 
+    #endif
+
     // MARK: - Suggestions
 
     /// Apps in /Applications and ~/Applications, for the add sheet.
@@ -193,6 +206,10 @@ final class PinStore {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(pins) { UserDefaults.standard.set(data, forKey: key) }
+        #if !CHATTERBOX_HEADLESS
+        if RuntimeClient.usesDaemon {RuntimeClient.shared.command("pins",body:["pins":(try? .value(pins)) ?? []]);return}
+        #endif
+        if let data = try? JSONEncoder().encode(pins) { AppPreferences.defaults.set(data, forKey: key) }
     }
+    func applyRuntimePins(_ values:[Pin]){pins=values}
 }

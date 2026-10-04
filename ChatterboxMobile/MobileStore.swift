@@ -45,24 +45,28 @@ final class MobileStore {
 
     func saveDraft(_ text: String, for chat: UUID) {
         drafts[chat] = text.isEmpty ? nil : text
-        UserDefaults.standard.set(Dictionary(uniqueKeysWithValues: drafts.map { ($0.key.uuidString, $0.value) }), forKey: "drafts")
+        AppPreferences.defaults.set(Dictionary(uniqueKeysWithValues: drafts.map { ($0.key.uuidString, $0.value) }), forKey: "drafts")
     }
 
     var isPaired: Bool { connection != nil && token != nil }
 
     init() {
-        if let data = UserDefaults.standard.data(forKey: "connection") {
+        if let data = AppPreferences.defaults.data(forKey: "connection") {
             connection = try? JSONDecoder().decode(Connection.self, from: data)
         }
         token = Keychain.read("token")
-        let saved = UserDefaults.standard.dictionary(forKey: "drafts") as? [String: String] ?? [:]
+        let saved = AppPreferences.defaults.dictionary(forKey: "drafts") as? [String: String] ?? [:]
         drafts = Dictionary(uniqueKeysWithValues: saved.compactMap { key, value in UUID(uuidString: key).map { ($0, value) } })
     }
 
     // MARK: - Pairing
 
     func pair(host: String, code: String) async throws {
+        #if GOLEM_APP
+        let body = try JSONEncoder().encode(Companion.PairRequest(code:code,deviceName:UIDevice.current.name,product:"golem"))
+        #else
         let body = try JSONEncoder().encode(Companion.PairRequest(code: code, deviceName: UIDevice.current.name))
+        #endif
         let (data, response) = try await URLSession.shared.data(for: request(host: host, path: "/v1/pair", method: "POST", body: body, token: nil))
         try checkStatus(data, response)
         let reply = try Companion.decoder.decode(Companion.PairResponse.self, from: data)
@@ -90,7 +94,7 @@ final class MobileStore {
         token = nil
         connection = nil
         chatList = nil
-        UserDefaults.standard.removeObject(forKey: "connection")
+        AppPreferences.defaults.removeObject(forKey: "connection")
     }
 
     // MARK: - Calls
@@ -218,6 +222,28 @@ final class MobileStore {
     func avatarList() async throws -> Companion.AvatarList {
         try Companion.decoder.decode(Companion.AvatarList.self, from: await raw("/v1/avatar"))
     }
+    #if GOLEM_APP
+    func golemJournal() async throws -> Data{try await raw("/v1/golem/journal")}
+    func markGolemRead(_ item:UUID) async throws {
+        _ = try await raw("/v1/golem/read",method:"POST",body:JSONSerialization.data(withJSONObject:["itemID":item.uuidString]))
+    }
+    func golemPaused() async throws -> Bool {
+        let data=try await raw("/v1/golem/health")
+        return (try JSONSerialization.jsonObject(with:data) as? [String:Any])?["paused"] as? Bool ?? false
+    }
+    func golemPreferences() async throws -> [String:Bool] {
+        let data=try await raw("/v1/golem/health")
+        return (try JSONSerialization.jsonObject(with:data) as? [String:Any])?["preferences"] as? [String:Bool] ?? [:]
+    }
+    func golemControl(_ operation:String,body:[String:Any]=[:]) async throws {
+        let data=try JSONSerialization.data(withJSONObject:["id":UUID().uuidString,"operation":operation,"body":body])
+        _ = try await raw("/v1/golem/control",method:"POST",body:data)
+    }
+    func golemAvailability() async throws -> Bool {
+        let data=try await raw("/v1/golem/status")
+        return (try JSONSerialization.jsonObject(with:data) as? [String:Bool])?["available"] ?? false
+    }
+    #endif
 
     func avatarFile(_ name: String) async throws -> Data {
         try await raw("/v1/avatar/" + (name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? name))
@@ -306,6 +332,9 @@ final class MobileStore {
         // Images take longer to send than a message.
         request.timeoutInterval = (body?.count ?? 0) > 200_000 ? 60 : 6
         if let token { request.setValue(token, forHTTPHeaderField: Companion.tokenHeader) }
+        #if GOLEM_APP
+        request.setValue("golem",forHTTPHeaderField:"X-Chatterbox-Product")
+        #endif
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         return request
     }
@@ -334,7 +363,7 @@ final class MobileStore {
     }
 
     private func saveConnection() {
-        if let data = try? JSONEncoder().encode(connection) { UserDefaults.standard.set(data, forKey: "connection") }
+        if let data = try? JSONEncoder().encode(connection) { AppPreferences.defaults.set(data, forKey: "connection") }
     }
 
     private func note(_ error: Error) {
@@ -427,7 +456,11 @@ private final class Once: @unchecked Sendable {
 
 /// The pairing token, kept in the Keychain.
 enum Keychain {
+    #if GOLEM_APP
+    private static let service="com.shelbyklein.Golem.mobile"
+    #else
     private static let service = "com.shelbyklein.Chatterbox.mobile"
+    #endif
 
     static func save(_ key: String, _ value: String) {
         delete(key)

@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import SwiftUI
 
 /// Dot's chat as a conversation: your messages on the right, its replies in bubbles on the
@@ -256,3 +257,5 @@ struct DotConversation: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(.quaternary.opacity(0.55)))
     }
 }
+
+#endif

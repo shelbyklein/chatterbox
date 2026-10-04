@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import Foundation
 import Observation
 
@@ -31,11 +32,16 @@ final class GolemJournal {
         decoder.dateDecodingStrategy = .iso8601
         entries = (try? Data(contentsOf: Self.file)).flatMap { try? decoder.decode([Entry].self, from: $0) } ?? []
     }
+    func refresh() {
+        let decoder=JSONDecoder();decoder.dateDecodingStrategy = .iso8601
+        if let data=try? Data(contentsOf:Self.file),let fresh=try? decoder.decode([Entry].self,from:data),fresh != entries{entries=fresh}
+    }
 
     var activity: [Entry] { entries.filter { $0.kind == .activity }.reversed() }
     var decisions: [Entry] { entries.filter { $0.kind == .decision }.reversed() }
 
     func add(_ kind: Entry.Kind, title: String, detail: String? = nil, chat: ChatSession? = nil) {
+        guard !RuntimeClient.usesDaemon else{return}
         let name = chat.map { $0.record.projectFolder != nil ? $0.projectName : $0.title }
         entries.append(Entry(kind: kind, title: title, detail: detail?.isEmpty == true ? nil : detail, chat: chat?.id, chatName: name))
         if entries.count > Self.limit { entries.removeFirst(entries.count - Self.limit) }
@@ -82,3 +88,5 @@ final class GolemJournal {
         try? data.write(to: Self.file, options: .atomic)
     }
 }
+
+#endif

@@ -54,19 +54,22 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         guard Bundle.main.bundleIdentifier != nil else { return }
         let allow = UNNotificationAction(identifier: "allow", title: "Allow")
         let deny = UNNotificationAction(identifier: "deny", title: "Deny", options: [.destructive])
-        UNUserNotificationCenter.current().setNotificationCategories([
-            UNNotificationCategory(identifier: Self.approvalCategory, actions: [allow, deny], intentIdentifiers: []),
-            EmailWatch.notificationCategory(name: model?.dotName ?? "Dot"),
-        ])
+        var categories:Set<UNNotificationCategory>=[UNNotificationCategory(identifier:Self.approvalCategory,actions:[allow,deny],intentIdentifiers:[])]
+        #if GOLEM_APP
+        categories.insert(EmailWatch.notificationCategory(name:model?.dotName ?? "Golem"))
+        #endif
+        UNUserNotificationCenter.current().setNotificationCategories(categories)
     }
 
     /// You're watching a chat when Chatterbox is frontmost and that chat is open.
     func isWatching(_ session: ChatSession) -> Bool {
+        #if GOLEM_APP
         if model?.showingDot == true {
             let readingMini = model?.dotMiniWindow?.isReading == true
             if session.isDot { return readingMini }
             if readingMini { return false }
         }
+        #endif
         return NSApp.isActive && model?.selectedID == session.id
     }
 
@@ -79,12 +82,12 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
     // MARK: - Dot's unread messages
 
     /// The last of Dot's rows you've seen, kept across launches.
-    private(set) var dotSeenItem: UUID? = UserDefaults.standard.string(forKey: "dotSeenItem").flatMap(UUID.init(uuidString:))
+    private(set) var dotSeenItem: UUID? = AppPreferences.defaults.string(forKey: "dotSeenItem").flatMap(UUID.init(uuidString:))
 
     private func markDotSeen(_ dot: ChatSession) {
         guard let last = dot.items.last?.id, last != dotSeenItem else { return }
         dotSeenItem = last
-        UserDefaults.standard.set(last.uuidString, forKey: "dotSeenItem")
+        AppPreferences.defaults.set(last.uuidString, forKey: "dotSeenItem")
     }
 
     /// Dot's replies since you last looked, one per reply (a check-in with nothing to say
@@ -123,14 +126,19 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
 
     /// Called on every change to a chat: notices new requests and finished turns.
     func update(_ session: ChatSession, model: AppModel) {
+        #if GOLEM_APP
+        if RuntimeClient.usesDaemon,!session.isDot{return}
+        #endif
         if self.model == nil { start(model: model) }
         let watching = isWatching(session)
-        DotActivity.shared.noticeWaiting(in: session)
+        #if GOLEM_APP
+        if !RuntimeClient.usesDaemon {DotActivity.shared.noticeWaiting(in: session)}
+        #endif
 
         for item in pendingItems(session) where !notified.contains(item.id) {
             notified.insert(item.id)
             let need = item.questions?.first?.question ?? item.text
-            MobilePush.shared.post(title: title(for: session), body: need, chat: session.id, kind: "needs")
+            if !RuntimeClient.usesDaemon {MobilePush.shared.post(title: title(for: session), body: need, chat: session.id, kind: "needs")}
             if !watching, notifyNeeds { notifyNeed(item, in: session) }
         }
 
@@ -144,7 +152,7 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
             if session.isDot, !watching, dotUnreadCount(session) > 0 { unread.insert(session.id) }
         } else if finished {
             let reply = session.items.last { $0.kind == .assistant && $0.phase == .final }?.text ?? "Reply finished."
-            MobilePush.shared.post(title: title(for: session), body: reply, chat: session.id, kind: "replies")
+            if !RuntimeClient.usesDaemon {MobilePush.shared.post(title: title(for: session), body: reply, chat: session.id, kind: "replies")}
             if watching {
                 unread.remove(session.id)
             } else {
@@ -224,10 +232,12 @@ final class Attention: NSObject, UNUserNotificationCenterDelegate {
         let typed = (response as? UNTextInputNotificationResponse)?.userText
         Task { @MainActor in
             defer { completionHandler() }
+            #if GOLEM_APP
             if let email {
                 EmailWatch.shared.handle(action: action, emailJSON: email, typed: typed)
                 return
             }
+            #endif
             guard let model = self.model, let sessionID, let session = model.sessions.first(where: { $0.id == sessionID }) else { return }
             switch action {
             case "allow", "deny":

@@ -4,7 +4,7 @@ import SwiftUI
 /// iPad the open chat sits beside them; on iPhone it opens over them.
 struct ChatListView: View {
     /// On iPhone Golem has his own tab, so the list leaves him out.
-    var hidesAssistant = false
+    var hidesAssistant = true
     /// Tells the iPhone's home whether a chat is open (its edge swipe yields to Back then).
     var onShowingChat: (Bool) -> Void = { _ in }
     @Environment(MobileStore.self) private var store
@@ -92,7 +92,9 @@ struct ChatListView: View {
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
             // The assistant's animations, kept in step with the Mac's.
+            #if GOLEM_APP
             Task { await MobileGolem.shared.load(from: store) }
+            #endif
             while !Task.isCancelled {
                 await store.loadChats()
                 #if DEBUG
@@ -319,7 +321,7 @@ private struct ChatRow: View {
                     Group {
                         if chat.worktreeBranch != nil {
                             Image(systemName: "arrow.triangle.branch").frame(width: 16, height: 16)
-                        } else if chat.isDot == true { MobileGolemHead(size: 16) }
+                        } else if chat.isDot == true { Image(systemName:"sparkles").frame(width:16,height:16) }
                         else {
                             Image((Backend(rawValue: chat.backend) ?? .claude).iconName)
                                 .resizable().scaledToFit().frame(width: 16, height: 16)

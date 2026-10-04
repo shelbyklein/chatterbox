@@ -2,7 +2,7 @@ import http.server,json,os,time,uuid
 from pathlib import Path
 ROOT=Path(os.environ['CHATTERBOX_TEST_OUTPUT']); logs=[]; revision=1; delay_next=False
 IDS=['11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333']
-def summary(i):return {'id':IDS[i],'title':['Regression Golem','Regression Project'][i],'backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':i==0}
+def summary(i):return {'id':IDS[i],'title':['Regression Chat','Regression Project'][i],'backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':False}
 def detail(i):
  items=[{'id':str(uuid.uuid5(uuid.NAMESPACE_URL,f'{i}:{n}')),'kind':'assistant','text':f'Previous message {n}. This transcript has enough rows to exercise the initial scroll layout.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False} for n in range(299)]
  items.append({'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':f'History ready {i} version {revision}. No message was sent.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
@@ -26,7 +26,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if delayed:delay_next=False
   logs.append({'method':'GET','path':self.path,'time':time.time(),'delayed':delayed}); (ROOT/'requests.json').write_text(json.dumps(logs))
   if delayed:time.sleep(8)
-  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'dot','kind':'dot','title':'Assistant','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
+  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path=='/v1/avatar':return self.reply({'files':[]})
   for i,ident in enumerate(IDS):

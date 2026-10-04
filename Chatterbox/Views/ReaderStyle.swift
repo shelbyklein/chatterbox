@@ -171,7 +171,7 @@ enum Theme {
         return Color(red: channel(16), green: channel(8), blue: channel(0))
     }
 
-    static var currentBackground: Color? { background(UserDefaults.standard.string(forKey: backgroundKey) ?? "standard") }
+    static var currentBackground: Color? { background(AppPreferences.defaults.string(forKey: backgroundKey) ?? "standard") }
 
     /// 0 (black) to 1 (white) for a "#RRGGBB" color.
     static func luminance(_ hex: String) -> Double {
@@ -185,14 +185,14 @@ extension Color {
     /// Chatterbox's own highlight: selection, progress, and emphasis. White in dark mode and
     /// black in light mode unless you pick a color in Settings → Appearance.
     static var highlight: Color {
-        let id = UserDefaults.standard.string(forKey: Theme.highlightKey) ?? "default"
+        let id = AppPreferences.defaults.string(forKey: Theme.highlightKey) ?? "default"
         return id == "default" ? .primary : ReaderStyle.bubbleColor(id)
     }
 
     /// Text on a highlight-filled shape: the window color on the plain highlight, else white
     /// or black, whichever reads.
     static var onHighlight: Color {
-        let id = UserDefaults.standard.string(forKey: Theme.highlightKey) ?? "default"
+        let id = AppPreferences.defaults.string(forKey: Theme.highlightKey) ?? "default"
         if id == "default" { return .windowBackground }
         let hex = id.hasPrefix("#") ? id : ReaderStyle.hex(ReaderStyle.bubbleColor(id))
         return Theme.luminance(hex) > 0.6 ? .black : .white

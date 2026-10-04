@@ -11,7 +11,7 @@ app.setActivationPolicy(.accessory)
     precondition(root.path.hasPrefix("/tmp/chatterbox-push."))
     UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,
         "dotEmailWatch":false,"companionEnabled":true,"keepMacAwake":false,"mobilePushConfigured":false,
-        "themeBackground":"black", GolemMiniWindow.visibleKey:false, GolemMiniWindow.collapsedKey:true], forName:UserDefaults.argumentDomain)
+        "themeBackground":"black", "companionDevices":Data(), GolemMiniWindow.visibleKey:false, GolemMiniWindow.collapsedKey:true], forName:UserDefaults.argumentDomain)
     let key = P256.Signing.PrivateKey()
     let credentials = PushCredentials(keyID:"ABCDEFGHIJ",teamID:"9F3MKVW9C5",pem:key.pemRepresentation)
     let jwt = try APNsJWT.make(credentials,now:Date(timeIntervalSince1970:1234))
@@ -31,6 +31,14 @@ app.setActivationPolicy(.accessory)
     let aps=redacted["aps"] as! [String:Any];precondition(aps["sound"]==nil)
     let request=APNsProvider.request(token:String(repeating:"a",count:64),environment:"sandbox",jwt:jwt,payload:Data(),collapse:"test")
     precondition(request.url!.host=="api.sandbox.push.apple.com" && request.value(forHTTPHeaderField:"apns-topic")==APNsProvider.topic)
+    for environment in ["sandbox","production"] {
+        let golem=APNsProvider.request(token:String(repeating:"a",count:64),environment:environment,jwt:jwt,payload:Data(),collapse:"fixture",product:"golem")
+        precondition(golem.value(forHTTPHeaderField:"apns-topic")=="com.shelbyklein.Golem.mobile")
+        precondition(golem.url!.host==(environment=="production" ? "api.push.apple.com":"api.sandbox.push.apple.com"))
+    }
+    let briefing=MobilePush.Event(title:"Private",body:"Secret",chat:chatID,kind:"golem")
+    let privacy=String(decoding:try MobilePush.payload(briefing,previews:false,sound:false),as:UTF8.self)
+    precondition(privacy.contains("Golem") && !privacy.contains("Secret"))
     print("PASS payload privacy, deep-link chat ID and APNs request headers")
     let folder=root.appendingPathComponent("Dot/Avatar");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
     for name in ["head.png","idle.mov","thinking.mov"] {

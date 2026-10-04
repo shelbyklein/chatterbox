@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import AVFoundation
 import AppKit
 import Observation
@@ -231,3 +232,5 @@ private struct LoopingVideo: NSViewRepresentable {
         override var isOpaque: Bool { false }
     }
 }
+
+#endif

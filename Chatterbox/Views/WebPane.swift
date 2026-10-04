@@ -246,15 +246,20 @@ struct FloatingChat: View {
     /// yellow when it's waiting on you.
     @ViewBuilder
     private var bubble: some View {
+        #if GOLEM_APP
         if session.isDot, GolemAvatar.shared.hasAnimations {
             golemBubble
         } else {
             roundBubble
         }
+        #else
+        roundBubble
+        #endif
     }
 
     /// Golem himself stands in for the bubble: thinking while he works, perking up with news,
     /// a count of unread replies, and a yellow ring when something waits on you.
+    #if GOLEM_APP
     private var golemBubble: some View {
         let unread = Attention.shared.dotUnreadCount(session)
         return Button { collapsed = false } label: {
@@ -279,6 +284,7 @@ struct FloatingChat: View {
               : unread > 0 ? "\(unread) new from \(session.title)" : "Show \(session.title)")
     }
 
+    #endif
     private var roundBubble: some View {
         let color = appearance.style.color(for: session.record.backend)
         return Button { collapsed = false } label: {

@@ -1,4 +1,6 @@
+#if !CHATTERBOX_HEADLESS
 import AppKit
+#endif
 import Foundation
 import Observation
 
@@ -186,6 +188,7 @@ final class DotComputer {
     /// Opens Docker Desktop if it isn't running, and waits up to a minute and a half for it.
     private func ensureDaemon(_ docker: String) async -> Bool {
         if await daemonUp(docker) { return true }
+        #if !CHATTERBOX_HEADLESS
         if let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.docker.docker") {
             _ = try? await NSWorkspace.shared.openApplication(at: app, configuration: {
                 let configuration = NSWorkspace.OpenConfiguration()
@@ -193,6 +196,7 @@ final class DotComputer {
                 return configuration
             }())
         }
+        #endif
         for _ in 0..<45 {
             try? await Task.sleep(for: .seconds(2))
             if await daemonUp(docker) { return true }

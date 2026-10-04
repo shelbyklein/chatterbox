@@ -7,7 +7,7 @@ products=build/DerivedData/Build/Products/Debug
 test_dir=$(mktemp -d /tmp/chatterbox-mdcache.XXXXXX)
 trap 'echo "Test artifacts: $test_dir"' EXIT
 export CHATTERBOX_MDCACHE_DIR="$test_dir"
-find Chatterbox Shared -name '*.swift' ! -name ChatterboxApp.swift > "$test_dir/files.txt"
+find Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$test_dir/files.txt"
 swiftc -D DEBUG -whole-module-optimization -Onone -o "$test_dir/test" \
   -I "$products" @"$test_dir/files.txt" "$products/SwiftTerm.o" \
   -framework AVKit -framework WebKit -framework PDFKit tests/markdown-cache/main.swift

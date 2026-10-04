@@ -1,4 +1,6 @@
+#if GOLEM_APP
 import SwiftUI
+import AppKit
 
 /// The column beside Golem's chat: Golem himself and how he's doing, then what he's been up
 /// to (Activity), the decisions made along the way (Decisions), and what runs on its own
@@ -37,6 +39,7 @@ struct GolemSidePanel: View {
                 Spacer(minLength: 0)
             }
         }
+        .task {while !Task.isCancelled{journal.refresh();if RuntimeClient.usesDaemon{await GolemServiceClient.shared.refresh()};try? await Task.sleep(for:.seconds(3))}}
     }
 
     private var content: some View {
@@ -127,7 +130,7 @@ struct GolemSidePanel: View {
         if !waiting.isEmpty {
             section("Needs you") {
                 ForEach(waiting, id: \.item.id) { entry in
-                    Button { model.selectedID = entry.chat.id } label: {
+                    Button { openChat(entry.chat.id) } label: {
                         row(icon: entry.item.kind == .approval ? "hand.raised" : "questionmark.bubble", tint: .yellow,
                             title: name(of: entry.chat),
                             detail: entry.item.kind == .approval ? "Waiting for your approval"
@@ -170,22 +173,21 @@ struct GolemSidePanel: View {
 
     @ViewBuilder
     private var scheduled: some View {
-        let email = EmailWatch.shared
-        let activity = DotActivity.shared
+        let service=GolemServiceClient.shared
         section("Runs on its own") {
-            schedule(icon: "envelope", title: "Email watch", on: email.isOn,
-                     detail: email.isSweeping ? "Reading your mail now\u{2026}"
-                        : "Every 15 minutes, 9 to 5; every 30 otherwise. Next around \(email.nextSweep.formatted(date: .omitted, time: .shortened))."
-                        + (email.lastSweep.map { " Read through \($0.formatted(.relative(presentation: .named)))." } ?? ""),
-                     problem: email.problem)
-            schedule(icon: "sun.max", title: "Check-ins", on: activity.checkInsOn,
-                     detail: "Weekdays at " + DotActivity.times.map(Self.clock).joined(separator: " and ")
+            schedule(icon: "envelope", title: "Email watch", on: AppPreferences.defaults.object(forKey:"dotEmailWatch") as? Bool ?? true,
+                     detail: service.sweeping ? "Reading your mail now\u{2026}"
+                        : "Every 15 minutes, 9 to 5; every 30 otherwise."
+                        + (service.emailThrough.map { " Read through \($0.formatted(.relative(presentation: .named)))." } ?? ""),
+                     problem: service.problem)
+            schedule(icon: "sun.max", title: "Check-ins", on: AppPreferences.defaults.object(forKey:"dotCheckIns") as? Bool ?? true,
+                     detail: "Weekdays at " + service.checkInTimes.map(Self.clock).joined(separator: " and ")
                         + (nextCheckIn.map { ". Next \($0.formatted(.relative(presentation: .named)))." } ?? "."), problem: nil)
         }
         section("When things happen") {
-            schedule(icon: "bell", title: "Chats waiting on you", on: activity.watchWaiting,
+            schedule(icon: "bell", title: "Chats waiting on you", on: AppPreferences.defaults.object(forKey:"dotWatchWaiting") as? Bool ?? true,
                      detail: "Briefs you when another chat asks a question or needs approval, and suggests an answer when he can.", problem: nil)
-            schedule(icon: "checkmark.circle", title: "Finished work", on: activity.summarizeFinished,
+            schedule(icon: "checkmark.circle", title: "Finished work", on: AppPreferences.defaults.object(forKey:"dotSummarizeFinished") as? Bool ?? true,
                      detail: "Summarizes real work when a chat finishes.", problem: nil)
         }
         Text("Change these in Settings \u{2192} \(session.title).").font(.caption).foregroundStyle(.secondary)
@@ -197,7 +199,7 @@ struct GolemSidePanel: View {
         for day in 0..<8 {
             guard let date = calendar.date(byAdding: .day, value: day, to: calendar.startOfDay(for: now)),
                   !calendar.isDateInWeekend(date) else { continue }
-            for minutes in DotActivity.times.sorted() {
+            for minutes in GolemServiceClient.shared.checkInTimes.sorted() {
                 if let time = calendar.date(byAdding: .minute, value: minutes, to: date), time > now { return time }
             }
         }
@@ -238,10 +240,20 @@ struct GolemSidePanel: View {
         }
     }
 
+    private func openChat(_ id:UUID) {
+        if !NSWorkspace.shared.open(URL(string:"chatterbox://chat/\(id)")!) {
+            let alert=NSAlert();alert.messageText="Chatterbox is unavailable"
+            alert.informativeText="Install Chatterbox to open this conversation.";alert.runModal()
+        }
+    }
+
     private func entry(_ entry: GolemJournal.Entry, icon: String) -> some View {
         Group {
             if let id = entry.chat, model.sessions.contains(where: { $0.id == id }) {
-                Button { model.selectedID = id } label: {
+                Button {
+                    if model.dot?.id==id{model.openDot()}
+                    else{openChat(id)}
+                } label: {
                     row(icon: icon, tint: Color.highlight, title: entry.title, detail: entry.detail, chat: entry.chatName, date: entry.date)
                 }
                 .buttonStyle(.plain)
@@ -289,3 +301,5 @@ struct GolemSidePanel: View {
         chat.record.projectFolder != nil ? chat.projectName : chat.title
     }
 }
+
+#endif

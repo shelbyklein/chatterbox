@@ -20,7 +20,7 @@ struct CompanionSettingsView: View {
                     }
                 }
             } footer: {
-                Text("Your iPhone can read your chats and send messages while Chatterbox is open on this Mac. It connects over your home Wi-Fi, or from anywhere through Tailscale. Nothing is open to the internet.")
+                Text("Your iPhone can read your chats and send messages while Chatterbox’s background service runs on this Mac, even with the app closed. It connects over your home Wi-Fi, or through Tailscale.")
                     .foregroundStyle(.secondary)
             }
 
@@ -71,6 +71,12 @@ struct CompanionSettingsView: View {
         }
         .formStyle(.grouped)
         .frame(maxWidth: 640)
+        .task {
+            while !Task.isCancelled {
+                await server.refreshProjection()
+                try? await Task.sleep(for:.seconds(3))
+            }
+        }
     }
 }
 

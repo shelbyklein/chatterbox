@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import Foundation
 import Observation
 import UserNotifications
@@ -23,15 +24,15 @@ final class DotActivity {
     /// Waiting items already handed to Dot.
     @ObservationIgnored private var toldAbout: Set<UUID> = []
 
-    var checkInsOn: Bool { UserDefaults.standard.object(forKey: Self.checkInsKey) as? Bool ?? true }
-    var watchWaiting: Bool { UserDefaults.standard.object(forKey: Self.watchWaitingKey) as? Bool ?? true }
+    var checkInsOn: Bool { AppPreferences.defaults.object(forKey: Self.checkInsKey) as? Bool ?? true }
+    var watchWaiting: Bool { AppPreferences.defaults.object(forKey: Self.watchWaitingKey) as? Bool ?? true }
     static let summarizeFinishedKey = "dotSummarizeFinished"
-    var summarizeFinished: Bool { UserDefaults.standard.object(forKey: Self.summarizeFinishedKey) as? Bool ?? true }
+    var summarizeFinished: Bool { AppPreferences.defaults.object(forKey: Self.summarizeFinishedKey) as? Bool ?? true }
 
     /// Check-in times as minutes after midnight (8:00 and 15:00 unless changed).
     static var times: [Int] {
-        get { (UserDefaults.standard.array(forKey: timesKey) as? [Int]) ?? [8 * 60, 15 * 60] }
-        set { UserDefaults.standard.set(newValue.sorted(), forKey: timesKey) }
+        get { (AppPreferences.defaults.array(forKey: timesKey) as? [Int]) ?? [8 * 60, 15 * 60] }
+        set { AppPreferences.defaults.set(newValue.sorted(), forKey: timesKey) }
     }
 
     func start(model: AppModel) {
@@ -58,13 +59,13 @@ final class DotActivity {
         let now = Date()
         let minutes = Calendar.current.component(.hour, from: now) * 60 + Calendar.current.component(.minute, from: now)
         let today = Self.dayKey(now)
-        var done = Set(UserDefaults.standard.stringArray(forKey: Self.doneKey) ?? []).filter { $0.hasPrefix(today) }
+        var done = Set(AppPreferences.defaults.stringArray(forKey: Self.doneKey) ?? []).filter { $0.hasPrefix(today) }
         guard let slot = Self.times.last(where: { $0 <= minutes && minutes - $0 <= 180 && !done.contains("\(today) \($0)") }) else { return }
         let dot = model.ensureDot()
         guard !dot.isRunning else { return }   // Try again next minute.
         // Earlier slots today count as covered by this one.
         for time in Self.times where time <= slot { done.insert("\(today) \(time)") }
-        UserDefaults.standard.set(Array(done), forKey: Self.doneKey)
+        AppPreferences.defaults.set(Array(done), forKey: Self.doneKey)
         checkIn(dot, label: slot < 12 * 60 ? "Morning check-in" : "Afternoon check-in", at: slot)
     }
 
@@ -216,3 +217,5 @@ extension ChatSession {
         onChange?(self)
     }
 }
+
+#endif

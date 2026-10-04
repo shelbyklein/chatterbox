@@ -12,7 +12,7 @@ final class KeepAwake {
     private var assertion: IOPMAssertionID = 0
     private var held = false
 
-    var isOn: Bool { UserDefaults.standard.object(forKey: Self.key) as? Bool ?? true }
+    var isOn: Bool { AppPreferences.defaults.object(forKey: Self.key) as? Bool ?? true }
 
     /// Holds or releases the assertion to match the setting.
     func apply() {

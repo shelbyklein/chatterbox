@@ -6,6 +6,7 @@ case "${1:-iphone}" in
   ipad) device_type=com.apple.CoreSimulator.SimDeviceType.iPad-mini-A17-Pro ;;
   *) echo 'Usage: scripts/test-mobile-composer.sh [iphone|ipad]' >&2; exit 2 ;;
 esac
+export GOLEM_TEST_PRODUCT="${GOLEM_TEST_PRODUCT:-chatterbox}"
 root=$(pwd)
 artifacts=${CHATTERBOX_TEST_ARTIFACTS:-$(mktemp -d /tmp/chatterbox-mobile-composer.XXXXXX)}
 results="$artifacts/results-$(date +%s).xcresult"
@@ -30,7 +31,7 @@ sleep 0.3
 kill -0 "$server_pid"
 python3 - "$root" "$artifacts" <<'PY'
 from pathlib import Path
-import plistlib,sys
+import plistlib,sys,os
 root=Path(sys.argv[1]); out=Path(sys.argv[2])
 y='''name: MobileComposerRegression
 options:
@@ -46,9 +47,10 @@ targets:
     platform: iOS
     sources:
 '''
-for source in ['ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
+for source in (['GolemMobile'] if os.environ.get('GOLEM_TEST_PRODUCT')=='golem' else [])+['ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
     y+='      - path: '+str(root/source)+'\n'
-    if source=='ChatterboxMobile': y+='        excludes: [Info.plist]\n'
+    if source=='GolemMobile': y+='        excludes: [Info.plist]\n'
+    if source=='ChatterboxMobile': y+='        excludes: [Info.plist, Assets.xcassets/AppIcon.appiconset]\n'
 y+='''    settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression
@@ -69,6 +71,7 @@ y+='''    settings:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests
         GENERATE_INFOPLIST_FILE: YES
 '''
+if os.environ.get('GOLEM_TEST_PRODUCT')=='golem': y=y.replace('GENERATE_INFOPLIST_FILE: YES','SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP\n        GENERATE_INFOPLIST_FILE: YES').replace('PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests','SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP\n        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests')
 (out/'project.yml').write_text(y)
 with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)

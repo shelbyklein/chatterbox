@@ -175,6 +175,7 @@ struct ChatDetailView: View {
                         }
                         MobileTranscriptRows(items: detail.items, chat: chat.id, backend: summary.backend,
                                              conversation: isConversation, actions: actions)
+                        #if GOLEM_APP
                         if isConversation && !golemIdle {
                             // The assistant, below his latest message: thinking while he works.
                             HStack(alignment: .bottom, spacing: 8) {
@@ -196,7 +197,9 @@ struct ChatDetailView: View {
                                 }
                             }
                             .id("working")
-                        } else if !isConversation && summary.isRunning {
+                        }
+                        #endif
+                        if !isConversation && summary.isRunning {
                             HStack(spacing: 8) {
                                 ProgressView().controlSize(.small)
                                 Text("Working\u{2026}").font(.callout).foregroundStyle(.secondary)
@@ -288,6 +291,7 @@ struct ChatDetailView: View {
     }
 
     /// Golem large and centered under the latest messages; tapping him starts a message.
+    #if GOLEM_APP
     private var idleGolem: some View {
         VStack(spacing: 6) {
             if summary.isRunning {
@@ -317,6 +321,10 @@ struct ChatDetailView: View {
         .frame(maxWidth: .infinity)
         .padding(.bottom, 8)
     }
+
+    #else
+    private var idleGolem:some View {EmptyView()}
+    #endif
 
     private func setGolemComposing(_ on: Bool) {
         guard let golemComposing, golemComposing.wrappedValue != on else { return }
@@ -409,6 +417,7 @@ struct ChatDetailView: View {
         } label: {
             Image(systemName: "ellipsis.circle")
         }
+        .accessibilityLabel("Chat Menu")
     }
 
     private func forkChat() {
@@ -921,4 +930,3 @@ private struct GolemMatch: ViewModifier {
         if enabled { content.matchedGeometryEffect(id: "golem", in: namespace, properties: .frame) } else { content }
     }
 }
-

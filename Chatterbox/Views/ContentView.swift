@@ -51,6 +51,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        Group {
         #if DEBUG
         // Render tests: just the sidebar, since the system's glass sidebar can't be captured offscreen.
         if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_SIDEBAR_ONLY"] != nil {
@@ -63,6 +64,10 @@ struct ContentView: View {
         #else
         splitView
         #endif
+        }
+        .alert("Background service",isPresented:Binding(get:{RuntimeClient.usesDaemon && RuntimeClient.shared.connected && RuntimeClient.shared.problem != nil},set:{if !$0{RuntimeClient.shared.clearProblem()}})){
+            Button("OK"){RuntimeClient.shared.clearProblem()}
+        } message:{Text(RuntimeClient.shared.problem ?? "")}
     }
 
     private var sidebarPane: AnyView {
@@ -78,7 +83,13 @@ struct ContentView: View {
 
     private var alternateDetail: some View {
             Group {
-            if model.showingSettings {
+            if RuntimeClient.usesDaemon, !RuntimeClient.shared.connected {
+                ContentUnavailableView {
+                    Label("Background service unavailable",systemImage:"network.slash")
+                } description: {
+                    Text(RuntimeClient.shared.problem ?? "Connecting to Chatterbox’s background service…")
+                }
+            } else if model.showingSettings {
                 SettingsPage()
             } else if let page = model.webPage {
                 // A website pin: the page takes the chat's place, and the chat floats over it.
@@ -93,10 +104,14 @@ struct ContentView: View {
                 if session.isDot, model.showingDot {
                     // Only one editable Golem composer at a time, so drafts never diverge.
                     VStack(spacing: 12) {
-                        GolemHead(size: 28)
+                        Image(systemName:"arrow.up.forward.app")
                         Text("\(model.dotName) is in the mini window").font(.title3.weight(.medium))
                         HStack {
+                            #if GOLEM_APP
                             Button("Show Mini") { model.dotMiniWindow?.show() }
+                            #else
+                            Button("Open Golem") {GolemIntegration.shared.open()}
+                            #endif
                             Button("Bring Chat Here") { model.openDot() }
                         }
                     }
@@ -384,6 +399,7 @@ extension ContentView {
             .split(separator: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.joined(separator: " ")
     }
 
+    #if GOLEM_APP
     private var dotRow: some View {
         let dot = model.dot
         let selected = dot != nil && model.selectedID == dot?.id
@@ -440,6 +456,8 @@ extension ContentView {
     }
 
     /// Moves dragged chats into a Studio. Project chats stay with their projects.
+    #endif
+
     private func drop(_ ids: [String], into studio: Studio) -> Bool {
         dropStudio = nil
         let moved = ids.compactMap(UUID.init(uuidString:))
@@ -826,10 +844,12 @@ extension ContentView {
     var sidebarColumn: some View {
         VStack(spacing: 0) {
             if !isFiltering {
+                #if GOLEM_APP
                 List { Section { dotRow } }
                     .scrollDisabled(true)
                     .scrollContentBackground(.hidden)
                     .frame(height: 100)
+                #endif
                 PinsSection(place: model.selectedPinPlace) { model.pinSheet = $0 }
                     .padding(.horizontal, 10)
                     .padding(.bottom, 4)

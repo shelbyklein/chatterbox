@@ -16,7 +16,7 @@ for file in "$source_dir"/*.json; do
   python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); r.pop("claudeHost",None); r.pop("codexHost",None); json.dump(r,open(sys.argv[2],"w"))' \
     "$file" "$CHATTERBOX_DATA_DIR/Conversations/$(basename "$file")"
 done
-find Chatterbox Shared -name '*.swift' ! -name ChatterboxApp.swift > "$test_dir/files.txt"
+find Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$test_dir/files.txt"
 products=build/DerivedData/Build/Products/Debug
 [ -f "$products/SwiftTerm.o" ] || xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \
   -derivedDataPath build/DerivedData build -quiet

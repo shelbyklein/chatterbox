@@ -1,0 +1,8 @@
+flowchart LR
+  C[Chatterbox UI] --> D[chatterboxd: sessions, providers, storage, events]
+  P[Chatterbox Golem plugin: settings, status, open Golem] --> D
+  S[Golem headless service: schedules, summaries, memory, journal] <-->|versioned local RPC + replayable events| D
+  U[Golem.app: optional avatar, conversation, settings] <-->|local state and commands| S
+  M[Existing mobile client] <-->|compatible companion API| D
+  D --> H[Existing process host: spawn, logs, replay]
+  H --> A[Claude / Codex]

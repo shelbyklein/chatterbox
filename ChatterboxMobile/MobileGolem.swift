@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import AVFoundation
 import Observation
 import SwiftUI
@@ -163,3 +164,5 @@ private struct MobileLoopingVideo: UIViewRepresentable {
         }
     }
 }
+
+#endif

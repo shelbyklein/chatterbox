@@ -15,6 +15,11 @@ struct ChatterboxApp: App {
         WindowGroup(id: "main") {
             ContentView()
                 .environment(model)
+                .defaultAppStorage(AppPreferences.defaults)
+                .onOpenURL { url in
+                    guard url.scheme=="chatterbox",url.host=="chat",let id=UUID(uuidString:url.path.trimmingCharacters(in:CharacterSet(charactersIn:"/"))) else{return}
+                    model.selectedID=id
+                }
                 .task {
                     #if DEBUG
                     MobilePush.shared.runRequestedSetup()
@@ -55,7 +60,7 @@ struct ChatterboxApp: App {
             CommandMenu("Go") {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
                     .keyboardShortcut("k")
-                Button(model.showingDot ? "Hide \(model.dotName) Mini" : "Show \(model.dotName) Mini") { model.showingDot.toggle() }
+                Button("Open Golem") { GolemIntegration.shared.open() }
                 .keyboardShortcut("j")
                 Divider()
                 Button("Next Chat") { model.selectAdjacentChat(1) }

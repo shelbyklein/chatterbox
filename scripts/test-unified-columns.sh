@@ -23,7 +23,7 @@ shutil.copytree(out,pathlib.Path('/tmp/chatterbox-columns-fixture-last'),dirs_ex
 PY
 export CHATTERBOX_DATA_DIR="$fixture" CHATTERBOX_HOST_DIR="$fixture/host"
 export CHATTERBOX_AGENT_PORT=47481 CHATTERBOX_COMPANION_PORT=47482
-find Chatterbox Shared -name '*.swift' ! -name ChatterboxApp.swift > "$fixture/files.txt"
+find Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$fixture/files.txt"
 products=build/DerivedData/Build/Products/Debug
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -framework AVKit -framework WebKit -framework PDFKit -o "$fixture/test" @"$fixture/files.txt" tests/unified-columns/main.swift
 cp "$fixture/test" "$out/test-bin"

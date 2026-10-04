@@ -88,12 +88,12 @@ actor APNsProvider {
     private var cachedAt = Date.distantPast
     private var cachedKey = ""
     static let topic = "com.shelbyklein.Chatterbox.mobile"
-    static func request(token: String, environment: String, jwt: String, payload: Data, collapse: String) -> URLRequest {
+    static func request(token: String, environment: String, jwt: String, payload: Data, collapse: String,product:String="chatterbox") -> URLRequest {
         let host = environment == "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com"
         var request = URLRequest(url: URL(string: "https://\(host)/3/device/\(token)")!, timeoutInterval: 20)
         request.httpMethod = "POST"; request.httpBody = payload
         request.setValue("bearer \(jwt)", forHTTPHeaderField: "authorization")
-        request.setValue(topic, forHTTPHeaderField: "apns-topic")
+        request.setValue(product=="golem" ? "com.shelbyklein.Golem.mobile":topic, forHTTPHeaderField: "apns-topic")
         request.setValue("alert", forHTTPHeaderField: "apns-push-type")
         request.setValue("10", forHTTPHeaderField: "apns-priority")
         request.setValue(String(Int(Date().addingTimeInterval(3600).timeIntervalSince1970)), forHTTPHeaderField: "apns-expiration")
@@ -101,14 +101,14 @@ actor APNsProvider {
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         return request
     }
-    func send(token: String, environment: String, payload: Data, collapse: String) async throws -> Int {
+    func send(token: String, environment: String, payload: Data, collapse: String,product:String="chatterbox") async throws -> Int {
         let credentials = try PushCredentials.read()
         // Include key contents only in a local hash, so replacing a key resets the cache.
         let fingerprint = APNsJWT.base64(Data(SHA256.hash(data: Data(credentials.pem.utf8)))) + credentials.keyID + credentials.teamID
         if cachedJWT == nil || cachedKey != fingerprint || Date().timeIntervalSince(cachedAt) > 3000 {
             cachedJWT = try APNsJWT.make(credentials); cachedAt = Date(); cachedKey = fingerprint
         }
-        let request = Self.request(token: token, environment: environment, jwt: cachedJWT!, payload: payload, collapse: collapse)
+        let request = Self.request(token: token, environment: environment, jwt: cachedJWT!, payload: payload, collapse: collapse,product:product)
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw PushFailure.message("Apple returned an invalid response.") }
         if response.statusCode == 200 || response.statusCode == 410 { return response.statusCode }
@@ -121,8 +121,8 @@ actor APNsProvider {
     static let shared = MobilePush()
     private(set) var status = "No pushes sent yet." {
         didSet {
-            UserDefaults.standard.set(status, forKey: "mobilePushLastStatus")
-            Diagnostics.note("Mobile push: \(status)")
+            AppPreferences.defaults.set(status, forKey: "mobilePushLastStatus")
+            RuntimeHooks.note("Mobile push: \(status)")
         }
     }
     private(set) var sending = false
@@ -132,29 +132,32 @@ actor APNsProvider {
         var id = UUID().uuidString
         var target: UUID? = nil
     }
-    var configured: Bool { UserDefaults.standard.bool(forKey: "mobilePushConfigured") }
-    var enabled: Bool { configured && (UserDefaults.standard.object(forKey: "mobilePushEnabled") as? Bool ?? true) && CompanionServer.shared.isEnabled }
+    var configured: Bool { AppPreferences.defaults.bool(forKey: "mobilePushConfigured") }
+    var enabled: Bool { configured && (AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true) && CompanionServer.shared.isEnabled }
     func configure(file: URL, keyID: String, teamID: String) throws {
         let pem = try String(contentsOf: file, encoding: .utf8)
         try PushCredentials(keyID: keyID.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             teamID: teamID.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(), pem: pem).save()
-        UserDefaults.standard.set(true, forKey: "mobilePushConfigured")
-        UserDefaults.standard.set(keyID.uppercased(), forKey: "mobilePushKeyID")
+        AppPreferences.defaults.set(true, forKey: "mobilePushConfigured")
+        AppPreferences.defaults.set(keyID.uppercased(), forKey: "mobilePushKeyID")
         status = "Key saved. Enable notifications on each phone or iPad."
     }
-    func removeKey() { PushCredentials.remove(); UserDefaults.standard.set(false, forKey: "mobilePushConfigured"); status = "Key removed." }
+    func removeKey() { PushCredentials.remove(); AppPreferences.defaults.set(false, forKey: "mobilePushConfigured"); status = "Key removed." }
     static func payload(_ event: Event, previews: Bool, sound: Bool) throws -> Data {
-        var aps: [String: Any] = ["alert": ["title": previews ? String(event.title.prefix(120)) : "Chatterbox",
-            "body": previews ? String(event.body.prefix(650)) : "Open Chatterbox to see your update."],
+        let product=event.kind=="golem" ? "Golem":"Chatterbox"
+        var aps: [String: Any] = ["alert": ["title": previews ? String(event.title.prefix(120)) : product,
+            "body": previews ? String(event.body.prefix(650)) : "Open \(product) to see your update."],
             "thread-id": event.chat?.uuidString ?? "chatterbox"]
         if sound { aps["sound"] = "default" }
         var body: [String: Any] = ["aps": aps, "kind": event.kind, "event": event.id]
         if let chat = event.chat { body["chat"] = chat.uuidString }
         return try JSONSerialization.data(withJSONObject: body)
     }
-    func post(title: String, body: String, chat: UUID?, kind: String) {
-        guard enabled, UserDefaults.standard.object(forKey: "mobilePush_\(kind)") as? Bool ?? true else { return }
-        enqueue(Event(title: title, body: body, chat: chat, kind: kind))
+    func post(title: String, body: String, chat: UUID?, kind: String,identity:String?=nil) {
+        guard enabled, AppPreferences.defaults.object(forKey: "mobilePush_\(kind)") as? Bool ?? true else { return }
+        var event=Event(title:title,body:body,chat:chat,kind:kind)
+        if let identity{event.id=identity}
+        enqueue(event)
     }
     func test(_ device: UUID) {
         guard enabled else { status = "Import a key and turn on mobile notifications first."; return }
@@ -173,7 +176,7 @@ actor APNsProvider {
         }
         do {
             if let path = argument("--import-push-key") {
-                let defaults = UserDefaults.standard
+                let defaults = AppPreferences.defaults
                 try configure(file: URL(fileURLWithPath: path), keyID: defaults.string(forKey: "mobilePushKeyID") ?? "",
                               teamID: defaults.string(forKey: "mobilePushTeamID") ?? "")
                 _ = try PushCredentials.read()
@@ -204,17 +207,18 @@ actor APNsProvider {
         while !queue.isEmpty {
             let event = queue.removeFirst()
             guard enabled else { queue.removeAll(); return }
-            let defaults = UserDefaults.standard
+            let defaults = AppPreferences.defaults
             let payload: Data
             do { payload = try Self.payload(event, previews: defaults.object(forKey: "mobilePushPreviews") as? Bool ?? true,
                 sound: defaults.object(forKey: "mobilePushSound") as? Bool ?? true) }
             catch { status = error.localizedDescription; continue }
-            let targets = CompanionServer.shared.devices.filter { $0.push?.enabled == true && (event.target == nil || $0.id == event.target) }
+            let product=["golem","email"].contains(event.kind) ? "golem":"chatterbox"
+            let targets = CompanionServer.shared.devices.filter { ($0.product ?? "chatterbox")==product && $0.push?.enabled == true && (event.target == nil || $0.id == event.target) }
             if targets.isEmpty { status = "No paired device has enabled notifications yet." }
             for device in targets {
                 guard let push = device.push else { continue }
                 do {
-                    let code = try await APNsProvider.shared.send(token: push.token, environment: push.environment, payload: payload, collapse: event.id)
+                    let code = try await APNsProvider.shared.send(token: push.token, environment: push.environment, payload: payload, collapse: event.id,product:product)
                     if code == 410 { CompanionServer.shared.clearPush(device.id, token: push.token); status = "\(device.name) needs to register notifications again." }
                     else { status = "Apple accepted the push to \(device.name) at \(Date().formatted(date: .omitted, time: .shortened))." }
                 } catch { status = error.localizedDescription }

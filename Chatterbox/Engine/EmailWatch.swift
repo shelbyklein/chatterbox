@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import AppKit
 import Foundation
 import Observation
@@ -38,15 +39,15 @@ final class EmailWatch {
     /// Why the last sweep didn't work, if it didn't.
     private(set) var problem: String?
     /// When mail was last read through (the start of the last sweep that worked).
-    private(set) var lastSweep: Date? = UserDefaults.standard.object(forKey: lastSweepKey) as? Date
+    private(set) var lastSweep: Date? = AppPreferences.defaults.object(forKey: lastSweepKey) as? Date
 
-    var isOn: Bool { UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true }
+    var isOn: Bool { AppPreferences.defaults.object(forKey: Self.enabledKey) as? Bool ?? true }
     /// Roughly when the next sweep is due (they run on a one-minute tick).
     var nextSweep: Date {
-        let last = UserDefaults.standard.object(forKey: Self.lastAttemptKey) as? Date ?? Date()
+        let last = AppPreferences.defaults.object(forKey: Self.lastAttemptKey) as? Date ?? Date()
         return max(Date(), last.addingTimeInterval(Self.interval(at: last)))
     }
-    var sweepModel: String { UserDefaults.standard.string(forKey: Self.modelKey) ?? Self.defaultModel }
+    var sweepModel: String { AppPreferences.defaults.string(forKey: Self.modelKey) ?? Self.defaultModel }
 
     /// 15 minutes during the working day, 30 the rest of the time.
     static func interval(at date: Date) -> TimeInterval {
@@ -65,7 +66,7 @@ final class EmailWatch {
     private func tick() {
         guard isOn, !isSweeping else { return }
         let now = Date()
-        if let last = UserDefaults.standard.object(forKey: Self.lastAttemptKey) as? Date,
+        if let last = AppPreferences.defaults.object(forKey: Self.lastAttemptKey) as? Date,
            now.timeIntervalSince(last) < Self.interval(at: now) - 30 { return }
         Task { await sweep() }
     }
@@ -86,7 +87,7 @@ final class EmailWatch {
         isSweeping = true
         defer { isSweeping = false }
         let started = Date()
-        UserDefaults.standard.set(started, forKey: Self.lastAttemptKey)
+        AppPreferences.defaults.set(started, forKey: Self.lastAttemptKey)
         // From the last sweep that worked; at most the past 16 hours (a night asleep), and
         // the past hour the first time.
         let since = max(lastSweep ?? started.addingTimeInterval(-3600), started.addingTimeInterval(-16 * 3600))
@@ -99,11 +100,11 @@ final class EmailWatch {
         case .success(let emails):
             problem = nil
             lastSweep = started
-            UserDefaults.standard.set(started, forKey: Self.lastSweepKey)
-            var reported = UserDefaults.standard.stringArray(forKey: Self.reportedKey) ?? []
+            AppPreferences.defaults.set(started, forKey: Self.lastSweepKey)
+            var reported = AppPreferences.defaults.stringArray(forKey: Self.reportedKey) ?? []
             let fresh = emails.filter { $0.id.isEmpty || !reported.contains($0.id) }
             reported = Array((reported + fresh.map(\.id).filter { !$0.isEmpty }).suffix(500))
-            UserDefaults.standard.set(reported, forKey: Self.reportedKey)
+            AppPreferences.defaults.set(reported, forKey: Self.reportedKey)
             guard !fresh.isEmpty else { return }
             let dot = model.ensureDot()
             for email in fresh {
@@ -266,3 +267,5 @@ final class EmailWatch {
         }
     }
 }
+
+#endif

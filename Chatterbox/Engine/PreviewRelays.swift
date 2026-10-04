@@ -22,7 +22,7 @@ final class PreviewRelays {
         var process: String
     }
 
-    private(set) var enabled: Set<Int> = Set((UserDefaults.standard.array(forKey: key) as? [Int]) ?? [])
+    private(set) var enabled: Set<Int> = Set((AppPreferences.defaults.array(forKey: key) as? [Int]) ?? [])
     private(set) var sites: [LocalSite] = []
     private(set) var scanning = false
     @ObservationIgnored private var listeners: [Int: SocketRelay] = [:]
@@ -39,7 +39,7 @@ final class PreviewRelays {
 
     func setEnabled(_ port: Int, _ on: Bool) {
         if on { enabled.insert(port) } else { enabled.remove(port) }
-        UserDefaults.standard.set(Array(enabled).sorted(), forKey: Self.key)
+        AppPreferences.defaults.set(Array(enabled).sorted(), forKey: Self.key)
         if on { openRelay(port) } else { closeRelay(port) }
         Task {
             if on { await DotComputer.shared.forward(port: port) } else { await DotComputer.shared.unforward(port: port) }

@@ -1,5 +1,6 @@
 import SwiftUI
 
+#if !GOLEM_APP
 @main
 struct ChatterboxMobileApp: App {
     @UIApplicationDelegateAdaptor(MobilePushAppDelegate.self) private var delegate
@@ -9,15 +10,19 @@ struct ChatterboxMobileApp: App {
         WindowGroup {
             Group {
                 if store.isPaired {
-                    // iPhone: Golem as the home screen, the list a tab away. iPad: the list beside the chat.
-                    if UIDevice.current.userInterfaceIdiom == .phone { MobileHome() } else { ChatListView() }
+                    ChatListView(hidesAssistant:true)
                 } else {
                     ConnectView()
                 }
             }
-            .environment(store)
+            .environment(store).defaultAppStorage(AppPreferences.defaults)
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
+            .onOpenURL { url in
+                guard url.scheme == "chatterbox", url.host == "chat",
+                      let id = UUID(uuidString: url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) else { return }
+                MobilePushNotifications.shared.pendingChat = id
+            }
             #if DEBUG
             .task { await CompanionTransportProbe.runIfRequested() }
             .task {
@@ -31,6 +36,8 @@ struct ChatterboxMobileApp: App {
         }
     }
 }
+
+#endif
 
 extension ReaderStyle {
     static var mobile: ReaderStyle {

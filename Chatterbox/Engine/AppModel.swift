@@ -15,6 +15,10 @@ final class AppModel {
         didSet {
             guard selectedID != oldValue, let session = sessions.first(where: { $0.id == selectedID }) else { return }
             Diagnostics.note("Opened \u{201C}\(session.title)\u{201D} (\(session.items.count) rows\(session.isRunning ? ", working" : ""))")
+            if RuntimeClient.usesDaemon {Task { [weak self] in
+                do {let state=try await RuntimeClient.shared.request("get",body:["chatID":.string(session.id.uuidString)]).decode(RuntimeChatState.self);self?.applyProjection(state)}
+                catch {Diagnostics.note(error.localizedDescription)}
+            }}
         }
     }
     var showingCloneFromGitHub = false
@@ -25,16 +29,22 @@ final class AppModel {
     var showingDot = false {
         didSet {
             guard showingDot != oldValue else { return }
-            UserDefaults.standard.set(showingDot, forKey: GolemMiniWindow.visibleKey)
+            #if GOLEM_APP
+            AppPreferences.defaults.set(showingDot, forKey: GolemMiniWindow.visibleKey)
             if showingDot {
                 if dotMiniWindow == nil { dotMiniWindow = GolemMiniWindow(model: self) }
                 dotMiniWindow?.show()
             } else {
                 dotMiniWindow?.hide()
             }
+            #else
+            if showingDot {GolemIntegration.shared.open();showingDot=false}
+            #endif
         }
     }
+    #if GOLEM_APP
     @ObservationIgnored private(set) var dotMiniWindow: GolemMiniWindow?
+    #endif
     @ObservationIgnored weak var mainChatWindow: NSWindow?
     @ObservationIgnored var revealMainChatWindow: (() -> Void)?
     /// Sidebar toolbar/keyboard requests, consumed by the single column container.
@@ -115,6 +125,9 @@ final class AppModel {
     }
 
     @ObservationIgnored private let directory: URL
+    @ObservationIgnored private var legacyOwnership: RuntimeOwnership?
+    @ObservationIgnored private var projecting = false
+    @ObservationIgnored private var refreshTasks: [UUID:Task<Void,Never>] = [:]
 
     var selected: ChatSession? { sessions.first { $0.id == selectedID } }
 
@@ -134,7 +147,7 @@ final class AppModel {
 
     /// Settings > General: when off, quitting stops any reply still running.
     static let keepRepliesRunningKey = "keepRepliesRunning"
-    static var keepRepliesRunning: Bool { UserDefaults.standard.object(forKey: keepRepliesRunningKey) as? Bool ?? true }
+    static var keepRepliesRunning: Bool { AppPreferences.defaults.object(forKey: keepRepliesRunningKey) as? Bool ?? true }
 
     init() {
         // CHATTERBOX_DATA_DIR keeps tests away from the user's real chats.
@@ -145,6 +158,22 @@ final class AppModel {
             directory = base.appendingPathComponent("Chatterbox/Conversations", isDirectory: true)
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if RuntimeClient.usesDaemon {
+            RuntimeClient.shared.onEvent = { [weak self] event in self?.runtimeEvent(event) }
+            #if GOLEM_APP
+            RuntimeClient.shared.start(role:"golem-ui")
+            #else
+            RuntimeClient.shared.start()
+            #endif
+            NotificationCenter.default.addObserver(forName:NSApplication.willTerminateNotification,object:nil,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.applicationWillTerminate()}}
+            return
+        }
+        // Updated legacy fixtures must never write a store already owned by a daemon.
+        do {
+            guard !FileManager.default.fileExists(atPath:directory.deletingLastPathComponent().appendingPathComponent("runtime-owner.json").path) else{throw RuntimeFailure("This conversation store belongs to the background service")}
+            legacyOwnership = try RuntimeOwnership(root: directory.deletingLastPathComponent())
+        }
+        catch { Diagnostics.note(error.localizedDescription);return }
         // First, so a hang during launch is caught too.
         Diagnostics.shared.start()
         #if DEBUG
@@ -170,11 +199,27 @@ final class AppModel {
         if CompanionServer.shared.isEnabled { CompanionServer.shared.start() }
         // Chats look their Studio up when they talk to their agent.
         ChatSession.studioLookup = { [weak self] id in self?.studio(id) }
-        load()
-        // After loading: what's already waiting isn't news for Dot.
-        DotActivity.shared.start(model: self)
-        EmailWatch.shared.start(model: self)
+        RuntimeHooks.note = { Diagnostics.note($0) }
+        RuntimeHooks.clearSuggestions = { NextSteps.shared.clear($0) }
+        RuntimeHooks.turnEnded = { session in
+            #if GOLEM_APP
+            if !session.isDot, DotActivity.shared.chatFinished(session, watching: Attention.shared.isWatching(session)) { session.skipFinishedAlert = true }
+            if session.isDot { DotActivity.shared.dotTurnEnded(session) }
+            #endif
+            NextSteps.shared.turnEnded(session, commands: session.availableSlashCommands)
+            if session.automaticTurn {
+                session.automaticTurn = false
+                #if GOLEM_APP
+                if session.isDot, DotActivity.shared.finishedAutomaticTurn(session) { session.skipFinishedAlert = true }
+                #endif
+            }
+        }
+        #if GOLEM_APP
+        RuntimeHooks.answered = { GolemJournal.shared.answered($1, suggested: $2, with: $3, in: $0) }
+        RuntimeHooks.suggested = { GolemJournal.shared.suggested($1, in: $0) }
         GolemAvatar.shared.refreshIfStale()
+        #endif
+        load()
         KeepAwake.shared.apply()
         PreviewRelays.shared.start()
         if dot?.record.claudeHost?.running != true, dot?.record.codexHost?.running != true {
@@ -182,9 +227,11 @@ final class AppModel {
         }
         if activeSessions.isEmpty { newChat() } else { selectedID = activeSessions.first?.id }
         Task { await resumeBackgroundReplies() }
-        if UserDefaults.standard.bool(forKey: GolemMiniWindow.visibleKey) {
+        #if GOLEM_APP
+        if AppPreferences.defaults.bool(forKey: GolemMiniWindow.visibleKey) {
             Task { @MainActor [weak self] in self?.showingDot = true }
         }
+        #endif
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.applicationWillTerminate() }
         }
@@ -192,6 +239,10 @@ final class AppModel {
 
     /// Replies keep running in the background host after the app quits, unless turned off.
     private func applicationWillTerminate() {
+        if RuntimeClient.usesDaemon {
+            if !Self.keepRepliesRunning {for session in sessions where !session.isDot && session.isRunning {session.interrupt()}}
+            return
+        }
         Diagnostics.shared.stop()
         for session in sessions { session.killShellJobs() }
         saveUnsaved()
@@ -202,7 +253,7 @@ final class AppModel {
 
     @discardableResult
     func newChat(backend: Backend? = nil) -> ChatSession {
-        let defaults = UserDefaults.standard
+        let defaults = AppPreferences.defaults
         let backend = backend ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
         if let empty = sessions.first(where: { $0.items.isEmpty && !$0.isRunning && $0.record.projectFolder == nil && $0.record.studioID == nil && $0.record.archivedAt == nil && !$0.isDot && !carriesUserIntent($0.record) }) {
             empty.setBackend(backend)
@@ -247,6 +298,10 @@ final class AppModel {
     }
 
     func delete(_ session: ChatSession) {
+        if RuntimeClient.usesDaemon {
+            RuntimeClient.shared.command("delete",body:["chatID":.string(session.id.uuidString)])
+            return
+        }
         session.shutdown()
         unsaved.remove(session.id)
         // A fork shares its original's attachment files; keep any another chat still shows.
@@ -374,7 +429,7 @@ final class AppModel {
     var selectedFolder: String? {
         guard let session = selected else { return nil }
         return session.record.boundFolder ?? session.record.codex?.folder
-            ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+            ?? AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     /// Opens a Terminal window in the selected chat's folder.
@@ -385,7 +440,7 @@ final class AppModel {
 
     /// Where New Project puts folders: the last place used, or wherever most projects are.
     var newProjectLocation: String {
-        if let saved = UserDefaults.standard.string(forKey: "newProjectLocation"), FileManager.default.fileExists(atPath: saved) {
+        if let saved = AppPreferences.defaults.string(forKey: "newProjectLocation"), FileManager.default.fileExists(atPath: saved) {
             return saved
         }
         let parents = sessions.compactMap(\.record.projectFolder).map { ($0 as NSString).deletingLastPathComponent }
@@ -410,7 +465,7 @@ final class AppModel {
             let result = await Git.run("/usr/bin/git", ["init", "--quiet"], in: folder)
             if result.status != 0 { NSLog("Chatterbox: git init failed in \(folder): \(result.err)") }
         }
-        UserDefaults.standard.set(parent, forKey: "newProjectLocation")
+        AppPreferences.defaults.set(parent, forKey: "newProjectLocation")
         openProject(folder)
     }
 
@@ -432,9 +487,14 @@ final class AppModel {
 
     private func makeSession(_ record: ConversationRecord) -> ChatSession {
         let session = ChatSession(record: record)
+        if RuntimeClient.usesDaemon {
+            bindProjection(session)
+            if !projecting { RuntimeClient.shared.command("create",body:["record":(try? .value(record)) ?? .null]) }
+            return session
+        }
         session.onChange = { [weak self] session in
             self?.scheduleSave(session, soon: true)
-            if session.isDot, !session.isRunning, UserDefaults.standard.bool(forKey: "dotApplyDefault") {
+            if session.isDot, !session.isRunning, AppPreferences.defaults.bool(forKey: "dotApplyDefault") {
                 DispatchQueue.main.async { [weak self] in self?.applyRequestedDotDefault() }
             }
         }
@@ -446,6 +506,7 @@ final class AppModel {
     /// matches how far its agent's output was read. Changes save on the next turn of the run
     /// loop; streamed text at most once a second.
     private func scheduleSave(_ session: ChatSession, soon: Bool) {
+        if RuntimeClient.usesDaemon {return}
         companionListRevision += 1
         companionRevisions[session.id, default: 0] += 1
         unsaved.insert(session.id)
@@ -498,6 +559,7 @@ final class AppModel {
     private var studiosFile: URL { directory.deletingLastPathComponent().appendingPathComponent("Studios.json") }
 
     func saveStudios() {
+        if RuntimeClient.usesDaemon {RuntimeClient.shared.command("studios",body:["studios":(try? .value(studios)) ?? []]);return}
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         do {
@@ -523,7 +585,7 @@ final class AppModel {
     private func carriesUserIntent(_ record: ConversationRecord) -> Bool {
         if record.projectFolder != nil || record.studioID != nil || record.worktreeOf != nil || record.archivedAt != nil { return true }
         if record.title != "New chat" || !(record.tags ?? []).isEmpty { return true }
-        let defaults = UserDefaults.standard
+        let defaults = AppPreferences.defaults
         let backend = Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
         if record.backend != backend { return true }
         if record.model != (defaults.string(forKey: "defaultModel") ?? "default") { return true }
@@ -586,4 +648,73 @@ final class AppModel {
                 return session
             }
     }
+    private func bindProjection(_ session: ChatSession) {
+        let chatID=session.id
+        session.remoteCommand = { operation, payload in
+            var body=payload.object ?? [:];body["chatID"] = .string(chatID.uuidString)
+            RuntimeClient.shared.command(operation,body:.object(body))
+        }
+        session.onChange = { [weak self] changed in
+            guard self?.projecting == false else{return}
+            var metadata=changed.record;metadata.items=[]
+            RuntimeClient.shared.command("metadata",body:["record":(try? .value(metadata)) ?? .null])
+        }
+    }
+    private func applyProjection(_ state:RuntimeChatState) {
+        #if !GOLEM_APP
+        guard state.record.isDot != true else{return}
+        #endif
+        projecting=true;defer{projecting=false}
+        if let session=sessions.first(where:{$0.id==state.record.id}) {
+            session.applyingRemoteState=true
+            var record=state.record
+            if let total=state.totalCount,total>record.items.count,let first=record.items.first?.id,
+               let index=session.items.firstIndex(where:{$0.id==first}) {record.items=Array(session.items.prefix(index))+record.items}
+            session.record=record;session.isRunning=state.running
+            if let draft=state.draft{session.draft=draft.text;session.draftAttachments=draft.attachments}
+            session.applyingRemoteState=false
+            Attention.shared.update(session,model:self)
+        }else{
+            let session=ChatSession(record:state.record);session.isRunning=state.running
+            if let draft=state.draft{session.draft=draft.text;session.draftAttachments=draft.attachments}
+            bindProjection(session);sessions.append(session)
+        }
+        if selectedID==nil {selectedID=sessions.first(where:{!$0.isDot})?.id}
+    }
+    private func runtimeEvent(_ event:RuntimeEvent) {
+        #if GOLEM_APP
+        if event.kind=="integration.changed" {
+            Task {
+                if let health=try? await RuntimeClient.shared.request("health"),health["integrationEnabled"]?.bool==false {
+                    sessions.removeAll();showingDot=false
+                } else {runtimeEvent(RuntimeEvent(sequence:event.sequence,revision:0,kind:"runtime.resync"))}
+            }
+            return
+        }
+        #endif
+        #if !GOLEM_APP
+        if event.kind=="pin.open",let raw=event.payload,let pin=try? raw.decode(Pin.self){PinStore.shared.open(pin);return}
+        #endif
+        if event.kind=="runtime.resync" || event.kind=="runtime.configuration" || event.kind=="chat.created" || event.kind=="chat.deleted" {
+            Task {
+                do {
+                    let states=try await RuntimeClient.shared.request("list").decode([RuntimeChatState].self)
+                    studios=try await RuntimeClient.shared.request("getStudios").decode([Studio].self)
+                    await RuntimePreferenceProjection.shared.start()
+                    PinStore.shared.applyRuntimePins(try await RuntimeClient.shared.request("getPins").decode([Pin].self))
+                    let ids=Set(states.map{ $0.record.id });sessions.removeAll{!ids.contains($0.id)}
+                    for state in states {applyProjection(state)}
+                }catch{Diagnostics.note(error.localizedDescription)}
+            }
+        }else if let id=event.chatID {
+            guard refreshTasks[id]==nil else{return}
+            refreshTasks[id]=Task {
+                try? await Task.sleep(for:.milliseconds(100))
+                defer{refreshTasks[id]=nil}
+                do{let state=try await RuntimeClient.shared.request("get",body:["chatID":.string(id.uuidString),"limit":40]).decode(RuntimeChatState.self);applyProjection(state)}
+                catch{Diagnostics.note(error.localizedDescription)}
+            }
+        }
+    }
+
 }

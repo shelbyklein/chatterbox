@@ -6,7 +6,7 @@ import Foundation
 extension ChatSession {
     /// Where the chat works: its project or Studio, its Codex folder, or the working folder.
     var workingFolder: String {
-        record.boundFolder ?? record.codex?.folder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
+        record.boundFolder ?? record.codex?.folder ?? AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()
     }
 
     /// What the chat shows of a command's output, in bytes; the rest is dropped as it arrives.
@@ -16,6 +16,7 @@ extension ChatSession {
     nonisolated static let shellCutOffNote = "\n\u{2026} (output cut off)"
 
     func runShell(_ command: String) {
+        if let remoteCommand {remoteCommand("shell",["command":.string(command)]);return}
         guard !command.isEmpty else { return }
         let itemID = appendItem(DisplayItem(kind: .shell, text: command, toolState: .running, detail: ""))
         let job = ShellJob(command: command)
@@ -56,6 +57,7 @@ extension ChatSession {
 
     /// Stops every "!" command this chat is running: SIGTERM to its process group, then SIGKILL.
     func stopShellJobs() {
+        if let remoteCommand {remoteCommand("stopShell",[:]);return}
         for job in shellJobs.values { job.stop() }
     }
 

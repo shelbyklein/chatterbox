@@ -14,8 +14,8 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
-  XCTAssertTrue(app.tabBars.buttons["Chats"].waitForExistence(timeout: 15))
-  app.tabBars.buttons["Chats"].tap()
+  XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
+  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 10))
   app.buttons["chat-" + uuid("SDHQ")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
@@ -28,16 +28,9 @@ final class HomeNavTests: XCTestCase {
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411"]
   if ProcessInfo.processInfo.environment["NO_EDGE"] != nil { app.launchEnvironment["CHATTERBOX_TEST_NO_EDGE_SWIPE"] = "1" }
   app.launch()
-  XCTAssertTrue(app.tabBars.buttons["Chats"].waitForExistence(timeout: 15))
-  if selected(app) != "Golem" { app.tabBars.buttons.element(boundBy: 0).tap() }
-  try await Task.sleep(for: .seconds(2))
-  capture("1-golem", app)
-  // Golem → Chats: swipe left from the right edge.
-  edgeSwipe(app, fromLeft: false)
-  try await Task.sleep(for: .seconds(1))
-  XCTAssertEqual(selected(app), "Chats", "right-edge swipe goes to Chats")
-  XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 10))
-  capture("2-chats-list", app)
+  XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
+  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
+  capture("1-chats-list",app)
   // Cards, two to a row.
   app.buttons["Show as Cards"].tap()
   try await Task.sleep(for: .seconds(1))
@@ -53,18 +46,17 @@ final class HomeNavTests: XCTestCase {
   // (A synthesized drag can't trigger iOS's own Back swipe; see the calibration test.)
   edgeSwipe(app, fromLeft: true)
   try await Task.sleep(for: .seconds(1.5))
-  XCTAssertEqual(selected(app), "Chats", "no tab switch while a chat is open")
+  XCTAssertFalse(app.tabBars.buttons["Golem"].exists,"ordinary chat navigation does not expose Golem")
   // iOS's own Back swipe may or may not fire for a synthesized drag; either way, back to the list.
   if app.staticTexts["Hi! This is SDHQ."].exists { app.navigationBars.buttons.element(boundBy: 0).tap() }
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 5), "back at the cards")
   capture("4-after-back", app)
-  // Chats → Golem: swipe right from the left edge.
-  edgeSwipe(app, fromLeft: true)
-  try await Task.sleep(for: .seconds(1))
-  XCTAssertEqual(selected(app), "Golem", "left-edge swipe goes back to Golem")
-  // Back to the list for next time.
-  app.tabBars.buttons["Chats"].tap()
-  app.buttons["Show as List"].tap()
+  // Chatterbox remains on ordinary chats after a sidebar edge gesture.
+  edgeSwipe(app,fromLeft:true)
+  try await Task.sleep(for:.seconds(1))
+  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
+  // The system sidebar gesture can hide the sidebar; list/cards interaction
+  // was already verified above before exercising native navigation.
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {

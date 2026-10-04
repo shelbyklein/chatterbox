@@ -12,18 +12,13 @@ final class ComposerTests: XCTestCase {
     app.launchArguments = ["-drafts", "{}", "-mobileHomeTab", "golem"]
     app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19645"]
     app.launch()
-    if UIDevice.current.userInterfaceIdiom == .pad {
-      let row = app.buttons["chat-" + (regular ? "33333333-3333-3333-3333-333333333333" : "11111111-1111-1111-1111-111111111111")]
-      XCTAssertTrue(row.waitForExistence(timeout:15)); row.tap()
-    } else if regular {
-      let tabs = app.tabBars.buttons["Chats"]
-      XCTAssertTrue(tabs.waitForExistence(timeout:15)); tabs.tap()
-      let row = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
-      XCTAssertTrue(row.waitForExistence(timeout:10));row.tap()
-    } else {
-      let golem = app.buttons["Message Regression Golem"]
-      XCTAssertTrue(golem.waitForExistence(timeout:15));golem.tap()
-    }
+    #if GOLEM_APP
+    let golem=app.buttons["Message Regression Golem"]
+    XCTAssertTrue(golem.waitForExistence(timeout:15));golem.tap()
+    #else
+    let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
+    XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
+    #endif
     XCTAssertTrue(field(app).waitForExistence(timeout:5))
     return app
   }
@@ -58,20 +53,18 @@ final class ComposerTests: XCTestCase {
     XCTAssertEqual((log["counts"] as! [Int])[regular ? 1:0],1)
     // Reopening restores only the new draft, never the consumed text.
     app.terminate();app.launchArguments = ["-mobileHomeTab", "golem"];app.launch()
-    if UIDevice.current.userInterfaceIdiom == .pad {
-      let row = app.buttons["chat-" + (regular ? "33333333-3333-3333-3333-333333333333" : "11111111-1111-1111-1111-111111111111")]
-      XCTAssertTrue(row.waitForExistence(timeout:10));row.tap()
-    } else if regular {
-      app.tabBars.buttons["Chats"].tap()
-      let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
-      XCTAssertTrue(row.waitForExistence(timeout:10));row.tap()
-    } else {
-      let golem=app.buttons["Message Regression Golem"]
-      XCTAssertTrue(golem.waitForExistence(timeout:10));golem.tap()
-    }
+    #if GOLEM_APP
+    let golem=app.buttons["Message Regression Golem"]
+    XCTAssertTrue(golem.waitForExistence(timeout:15));golem.tap()
+    #else
+    let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
+    XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
+    #endif
     XCTAssertEqual(field(app).value as? String,"Next draft")
   }
+  #if GOLEM_APP
   @MainActor func testGolemDelayedAcknowledgment() async throws { try await exercise(false) }
+  #else
   @MainActor func testRegularDelayedAcknowledgment() async throws { try await exercise(true) }
   @MainActor func testSuccessfulAndFailedRepeatedSends() async throws {
     _ = try await control("reset")
@@ -94,4 +87,5 @@ final class ComposerTests: XCTestCase {
     XCTAssertEqual(field(app).value as? String,"Recover this failed draft")
     capture(app,"failed-send-recovered")
   }
+  #endif
 }

@@ -68,14 +68,13 @@ func run() async throws {
             fatalError("Switch \(n): transcript or sidebar disappeared. Recognized: \(text)")
         }
         // Exercise actual text input after a switch; do not send it to an agent.
-        if let field = descendants(window.contentView!).first(where: { String(describing: type(of: $0)) == "AppKitTextField" }) as? NSTextField {
-            window.makeFirstResponder(field)
-            if let editor = window.fieldEditor(true, for: field) as? NSTextView {
+        if let editor = descendants(window.contentView!).compactMap({$0 as? NSTextView}).first(where:{$0.isEditable}) {
+            window.makeKeyAndOrderFront(nil)
+            window.makeFirstResponder(editor)
                 editor.selectAll(nil)
                 editor.insertText("Draft survives switch \(n)", replacementRange: editor.selectedRange())
                 try await Task.sleep(for: .milliseconds(100))
-                precondition(chat.draft == "Draft survives switch \(n)", "Composer did not accept input")
-            } else { fatalError("Missing composer editor") }
+                precondition(chat.draft == "Draft survives switch \(n)", "Composer did not accept input: switch=\(n), editor=\(type(of:editor)), text=\(editor.string), expectedChat=\(chat.title), first=\(first.draft), preview=\(preview.draft)")
         } else { fatalError("Missing composer") }
         print("PASS switch \(n): transcript, sidebar and composer")
     }

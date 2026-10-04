@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import SwiftUI
 import UIKit
 
@@ -81,10 +82,11 @@ struct MobileHome: View {
 }
 
 /// Golem's chat as the home screen, kept current while it's showing.
-private struct GolemHome: View {
+struct GolemHome: View {
     @Environment(MobileStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var history: MobileChatHistory?
+    @State private var reading=false
     /// Off: Golem stands centered, tabs showing. On: he's tucked in and the message box is up.
     @State private var composing = false
     @State private var hidesTabs = false
@@ -120,7 +122,8 @@ private struct GolemHome: View {
             }
         }
         .onChange(of: assistant?.id) { attach() }
-        .onAppear { attach() }
+        .onAppear { reading=true;attach() }
+        .onDisappear {reading=false}
         // The list and Golem's transcript, refreshed while the app is open.
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
@@ -129,6 +132,7 @@ private struct GolemHome: View {
                 if store.chatList == nil { await store.loadChats() }
                 attach()
                 if let history { await history.refresh(in: store).value }
+                if reading,let last=history?.detail?.items.last?.id{try? await store.markGolemRead(last)}
                 do { try await Task.sleep(for: .seconds(history?.detail?.summary.isRunning == true ? 1.2 : 4)) }
                 catch { return }
             }
@@ -143,3 +147,5 @@ private struct GolemHome: View {
         fresh.refresh(in: store, force: true)
     }
 }
+
+#endif

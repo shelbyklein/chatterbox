@@ -5,7 +5,7 @@ enum ProjectSort: String, CaseIterable {
     case recent, stalest, name
 
     static let key = "sidebarProjectSort"
-    static var current: ProjectSort { UserDefaults.standard.string(forKey: key).flatMap(Self.init) ?? .recent }
+    static var current: ProjectSort { AppPreferences.defaults.string(forKey: key).flatMap(Self.init) ?? .recent }
 
     var label: String {
         switch self {

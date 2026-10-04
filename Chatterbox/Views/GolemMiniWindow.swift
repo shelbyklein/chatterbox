@@ -1,3 +1,4 @@
+#if GOLEM_APP
 import AppKit
 import Observation
 import SwiftUI
@@ -13,7 +14,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     static let sizeKey = "golemMiniSize"
     static let sizes: [(label: String, scale: CGFloat)] = [("Small", 0.75), ("Medium", 1), ("Large", 1.4), ("Extra Large", 1.85)]
     /// How big Golem is on screen, minimized and open.
-    var scale: CGFloat = CGFloat(UserDefaults.standard.object(forKey: GolemMiniWindow.sizeKey) as? Double ?? 1)
+    var scale: CGFloat = CGFloat(AppPreferences.defaults.object(forKey: GolemMiniWindow.sizeKey) as? Double ?? 1)
     /// Minimized, he stays the size he is open, with room for his pill underneath.
     var avatarSize: CGFloat { characterSize + 12 }
     /// The bar under him: the dot or pill when minimized, the message box when open. Same
@@ -82,7 +83,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
         hoveredReply = nil
     }
 
-    init(model: AppModel, defaults: UserDefaults = .standard) {
+    init(model: AppModel, defaults: UserDefaults = AppPreferences.defaults) {
         self.model = model
         self.defaults = defaults
         collapsed = defaults.bool(forKey: Self.collapsedKey)
@@ -675,12 +676,5 @@ struct MiniDragRegion: NSViewRepresentable {
 }
 
 /// Find the hosting window for main-window activation and per-window keyboard handling.
-struct ChatWindowReader: NSViewRepresentable {
-    var onWindow: (NSWindow) -> Void
-    func makeNSView(context: Context) -> Reader { let view = Reader(); view.onWindow = onWindow; return view }
-    func updateNSView(_ view: Reader, context: Context) { view.onWindow = onWindow }
-    final class Reader: NSView {
-        var onWindow: ((NSWindow) -> Void)?
-        override func viewDidMoveToWindow() { if let window { onWindow?(window) } }
-    }
-}
+
+#endif

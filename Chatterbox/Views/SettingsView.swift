@@ -31,9 +31,11 @@ struct SettingsView: View {
         TabView {
             general
                 .tabItem { Label("General", systemImage: "gearshape") }
+            #if GOLEM_APP
             Form { DotActivitySettings() }
                 .formStyle(.grouped)
                 .tabItem { Label(model.dotName, systemImage: "circle.circle") }
+            #endif
             AppearanceSettingsView()
                 .tabItem { Label("Appearance", systemImage: "textformat.size") }
             InstructionsSettingsView()
@@ -646,6 +648,7 @@ func openForEditing(_ path: String) {
 }
 
 /// Settings → General: Dot checking in on its own, and watching for chats that need you.
+#if GOLEM_APP
 private struct DotActivitySettings: View {
     @Environment(AppModel.self) private var model
     @AppStorage(DotActivity.checkInsKey) private var checkIns = true
@@ -755,6 +758,8 @@ private struct DotActivitySettings: View {
         Calendar.current.component(.hour, from: date) * 60 + Calendar.current.component(.minute, from: date)
     }
 }
+
+#endif
 
 /// Hang and crash reports: what Chatterbox recorded when it stopped responding or didn't
 /// quit cleanly.

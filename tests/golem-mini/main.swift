@@ -17,7 +17,7 @@ func run() async throws {
         "themeBackground": "black", "dotCheckIns": false, "dotWatchWaiting": false,
         "dotSummarizeFinished": false, "dotEmailWatch": false, "companionEnabled": false,
         "keepMacAwake": false, "notifyNeeds": false, "notifyFinished": false,
-        "readerGroupSteps": true, GolemMiniWindow.visibleKey: false
+        "readerGroupSteps": true, GolemMiniWindow.visibleKey: false,GolemMiniWindow.sizeKey:1.0
     ], forName: UserDefaults.argumentDomain)
     // The standalone executable has its own preference domain; never use the live app's.
     precondition(Bundle.main.bundleIdentifier == nil)
@@ -65,9 +65,8 @@ func run() async throws {
 
     func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     func typeDraft(_ text: String, in panel: NSPanel) async throws {
-        let field = descendants(panel.contentView!).compactMap { $0 as? NSTextField }.first { String(describing: type(of: $0)) == "AppKitTextField" }!
-        panel.makeFirstResponder(field)
-        let editor = panel.fieldEditor(true, for: field) as! NSTextView
+        guard let editor=descendants(panel.contentView!).compactMap({$0 as? NSTextView}).first(where:{$0.isEditable}) else{throw RuntimeFailure("Mini composer was not mounted")}
+        panel.makeFirstResponder(editor)
         editor.selectAll(nil); editor.insertText(text, replacementRange: editor.selectedRange())
         try await Task.sleep(for: .milliseconds(100))
         precondition(dot.draft == text, "Draft did not reach the shared session")
@@ -118,7 +117,8 @@ func run() async throws {
     // Click the actual minimize button in the composer, rather than calling its closure.
     try await mouse(.leftMouseDown, at: NSPoint(x: panel.frame.width - 34, y: 37), panel: panel)
     try await mouse(.leftMouseUp, at: NSPoint(x: panel.frame.width - 34, y: 37), panel: panel)
-    precondition(mini.collapsed && panel.frame.size == NSSize(width: 96, height: 96), "Minimize button did not make the avatar")
+    try await Task.sleep(for:.milliseconds(400))
+    precondition(mini.collapsed && panel.frame.size == NSSize(width:170,height:188), "Minimize button did not make the avatar with its action bar")
     precondition(!mini.isReading && !Attention.shared.isWatching(dot))
     dot.appendItem(DisplayItem(kind: .user, text: "Check for updates"))
     dot.appendItem(DisplayItem(kind: .assistant, text: "One new update is ready.", phase: .final))
@@ -143,13 +143,16 @@ func run() async throws {
     try await typeDraft("Still the same draft", in: panel)
     print("PASS inactive visibility, first click, unread clearing and preserved draft")
 
+    // The first click above starts the 340ms expand animation. Compare the
+    // settled saved frame, rather than an intermediate presentation frame.
+    try await Task.sleep(for: .milliseconds(400))
     let expected = panel.frame
     model.showingDot = false
     precondition(!panel.isVisible && panel.contentView == nil)
     model.showingDot = true
     let reopened = mini.panel!
     try await Task.sleep(for: .milliseconds(200))
-    precondition(reopened.frame == expected, "Panel position was not restored")
+    precondition(reopened.frame == expected, "Panel position was not restored: expected \(expected), got \(reopened.frame)")
     precondition(dot.draft == "Still the same draft")
     precondition(model.sessions.filter(\.isDot).count == 1)
     let screen = NSRect(x: 0, y: 0, width: 1200, height: 800)
@@ -187,14 +190,12 @@ func run() async throws {
         session.record.items = fixture
         session.isRunning = true
         let target: NSWindow
-        if session.isDot {
-            model.showingDot = true
-            target = mini.panel!
-        } else {
-            main.contentView = NSHostingView(rootView: ChatView(session: session).environment(model))
-            main.makeKeyAndOrderFront(nil)
-            target = main
-        }
+        // Both products show the full transcript in their main conversation.
+        // The mini intentionally shows a short status/reply bubble instead.
+        model.showingDot = false
+        main.contentView = NSHostingView(rootView: ChatView(session: session).environment(model))
+        main.makeKeyAndOrderFront(nil)
+        target = main
         try await Task.sleep(for: .seconds(2))
         let name = session.isDot ? "golem" : "regular"
         let live = try await capture(name + "-progress", panel: target)
@@ -208,6 +209,7 @@ func run() async throws {
         precondition(finished.contains("ready for review") && !finished.contains("development workflow") && !finished.contains("small draggable window"), "Finished notes did not fold in \(name): \(finished)")
         print("PASS \(name) live progress notes, mid-turn steering and finished grouping")
     }
+    model.showingDot = true
     mini.panel?.makeKeyAndOrderFront(nil)
     ChatCommands.shared.toggleModelPopover()
     try await Task.sleep(for: .milliseconds(400))

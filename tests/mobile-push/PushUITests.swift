@@ -14,7 +14,8 @@ final class PushUITests: XCTestCase {
   XCTAssertTrue(app.buttons["Reconnect Notifications"].exists)
   capture("mobile-notification-settings",app)
   app.buttons["Done"].tap()
-  XCTAssertTrue(app.buttons["chat-11111111-1111-1111-1111-111111111111"].exists)
+  XCTAssertTrue(app.buttons["chat-33333333-3333-3333-3333-333333333333"].exists)
+  XCTAssertFalse(app.buttons["chat-11111111-1111-1111-1111-111111111111"].exists)
  }
  @MainActor func capture(_ name:String,_ app:XCUIApplication) {
   let a=XCTAttachment(screenshot:app.screenshot());a.name=name;a.lifetime = .keepAlways;add(a)

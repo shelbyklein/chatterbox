@@ -36,12 +36,17 @@ struct ChatView: View {
         } else if issuesPanel.isOpen || !session.isDot {
             IssuesPanel(session: session, panel: issuesPanel)
         } else {
+            #if GOLEM_APP
             GolemSidePanel(session: session, showsAvatar: false)
+            #else
+            EmptyView()
+            #endif
         }
     }
+    #if GOLEM_APP
     private var floatingGolem: some View {
         Group {
-            if GolemAvatar.shared.hasAnimations { GolemAnimated(mood: GolemAvatar.mood(of: session)) }
+            if GolemAvatar.shared.hasAnimations && !model.showingDot { GolemAnimated(mood: GolemAvatar.mood(of: session)) }
             else { GolemHead(size: 40) }
         }
         .frame(width: 120, height: 120)
@@ -53,6 +58,9 @@ struct ChatView: View {
         .help(golemPanelOpen ? "Hide activity, decisions and schedule" : "Show activity, decisions and schedule")
     }
 
+    #else
+    private var floatingGolem:some View {EmptyView()}
+    #endif
     private var chatContent: some View {
         VStack(spacing: 0) {
             if session.record.archivedAt != nil { archivedBanner }
@@ -339,7 +347,11 @@ struct ChatView: View {
                     Group {
                     if session.isDot {
                         VStack(spacing: 0) {
+                            #if GOLEM_APP
                             DotConversation(session: session, initialRows: sidebar == nil ? 80 : Self.firstRows, showsInlineAvatar: sidebar == nil)
+                            #else
+                            Text("Open this conversation in Golem.")
+                            #endif
                             Color.clear.frame(height: 1).id("bottom")
                         }
                     } else {

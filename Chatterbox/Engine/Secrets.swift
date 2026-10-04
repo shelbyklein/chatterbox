@@ -97,9 +97,9 @@ final class SecretVault {
     // MARK: - For chats
 
     func entries(for session: ChatSession) -> [SecretEntry] {
-        let folder = (session.record.worktreeOf ?? session.record.projectFolder).map(AppModel.normalize)
+        let folder = (session.record.worktreeOf ?? session.record.projectFolder).map(RuntimePaths.normalize)
         return entries.filter { entry in
-            hasValue(entry) && (entry.projects.isEmpty || folder.map { f in entry.projects.contains { AppModel.normalize($0) == f } } == true)
+            hasValue(entry) && (entry.projects.isEmpty || folder.map { f in entry.projects.contains { RuntimePaths.normalize($0) == f } } == true)
         }
     }
 

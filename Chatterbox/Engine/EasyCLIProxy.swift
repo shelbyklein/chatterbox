@@ -28,8 +28,8 @@ final class EasyCLIProxy {
     private(set) var modelCount = 0
     @ObservationIgnored private var checked = Date.distantPast
 
-    var claudeOn: Bool { UserDefaults.standard.bool(forKey: Self.claudeKey) }
-    var codexOn: Bool { UserDefaults.standard.bool(forKey: Self.codexKey) }
+    var claudeOn: Bool { AppPreferences.defaults.bool(forKey: Self.claudeKey) }
+    var codexOn: Bool { AppPreferences.defaults.bool(forKey: Self.codexKey) }
 
     /// The proxy to use for this agent right now, if it's turned on and answering.
     func active(for backend: Backend) -> Endpoint? {

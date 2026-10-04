@@ -39,12 +39,12 @@ enum PermissionModes {
 
     /// Defaults for new chats, from Settings.
     static var defaultClaude: String {
-        UserDefaults.standard.string(forKey: "claudeDefaultMode")
-            ?? ((UserDefaults.standard.object(forKey: "codexCanEdit") as? Bool ?? false) ? "acceptEdits" : "default")
+        AppPreferences.defaults.string(forKey: "claudeDefaultMode")
+            ?? ((AppPreferences.defaults.object(forKey: "codexCanEdit") as? Bool ?? false) ? "acceptEdits" : "default")
     }
 
     static var defaultCodex: String {
-        UserDefaults.standard.string(forKey: "codexDefaultMode")
-            ?? ((UserDefaults.standard.object(forKey: "codexCanEdit") as? Bool ?? false) ? "ask" : "readOnly")
+        AppPreferences.defaults.string(forKey: "codexDefaultMode")
+            ?? ((AppPreferences.defaults.object(forKey: "codexCanEdit") as? Bool ?? false) ? "ask" : "readOnly")
     }
 }

@@ -190,7 +190,7 @@ final class CodexAppServer {
 
     static func locateBinary() -> String? {
         let fm = FileManager.default
-        if let custom = UserDefaults.standard.string(forKey: "codexPath")?.trimmingCharacters(in: .whitespaces),
+        if let custom = AppPreferences.defaults.string(forKey: "codexPath")?.trimmingCharacters(in: .whitespaces),
            !custom.isEmpty {
             return fm.isExecutableFile(atPath: custom) ? custom : nil
         }

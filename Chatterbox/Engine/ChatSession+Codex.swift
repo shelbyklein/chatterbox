@@ -9,11 +9,13 @@ extension ChatSession {
     // MARK: - Settings
 
     func setCodexFolder(_ path: String) {
+        if let remoteCommand {remoteCommand("settings",["codexFolder":.string(path)]);return}
         record.codex?.folder = path
         onChange?(self)
     }
 
     func setCodexModel(_ model: String?) {
+        if let remoteCommand {remoteCommand("settings",["codexModel":model.map(JSON.string) ?? .null]);return}
         guard model != record.codex?.model else { return }
         record.codex?.model = model
         record.codex?.effort = nil
@@ -22,6 +24,7 @@ extension ChatSession {
     }
 
     func setCodexEffort(_ effort: String?) {
+        if let remoteCommand {remoteCommand("settings",["codexEffort":effort.map(JSON.string) ?? .null]);return}
         guard effort != record.codex?.effort else { return }
         record.codex?.effort = effort
         noteSettingsChange()
@@ -31,6 +34,7 @@ extension ChatSession {
     // MARK: - Turns
 
     func setCodexFastMode(_ enabled: Bool) {
+        if let remoteCommand {remoteCommand("settings",["fastMode":.bool(enabled)]);return}
         guard record.codex != nil, record.codex?.fastMode != enabled else { return }
         record.codex?.fastMode = enabled
         noteSettingsChange()

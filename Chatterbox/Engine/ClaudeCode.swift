@@ -10,7 +10,7 @@ struct ClaudeCodeError: LocalizedError {
 enum BinaryLocator {
     static func find(_ name: String, customPathKey: String) -> String? {
         let fm = FileManager.default
-        if let custom = UserDefaults.standard.string(forKey: customPathKey)?.trimmingCharacters(in: .whitespaces),
+        if let custom = AppPreferences.defaults.string(forKey: customPathKey)?.trimmingCharacters(in: .whitespaces),
            !custom.isEmpty {
             return fm.isExecutableFile(atPath: custom) ? custom : nil
         }

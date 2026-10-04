@@ -134,7 +134,7 @@ struct QuickSwitcher: View {
             switch entry {
             case .chat(let session):
                 Group {
-                    if session.isDot { GolemHead(size: 16) }
+                    if session.isDot { Image(systemName:"sparkles").frame(width:16,height:16) }
                     else { Image(session.record.backend.iconName).resizable().scaledToFit().frame(width: 16, height: 16) }
                 }
                 .foregroundStyle(.secondary)

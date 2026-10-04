@@ -24,6 +24,7 @@ enum Companion {
     struct PairRequest: Codable {
         var code: String
         var deviceName: String
+        var product:String? = nil
     }
 
     /// Where the Mac can be reached right now (its addresses change, and Tailscale may have

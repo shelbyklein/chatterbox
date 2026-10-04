@@ -1,4 +1,7 @@
+
+#if !CHATTERBOX_HEADLESS
 import AppKit
+#endif
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -31,7 +34,8 @@ enum Attachments {
 
     static let directory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("Chatterbox/Attachments", isDirectory: true)
+        let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? base.appendingPathComponent("Chatterbox", isDirectory: true)
+        let dir = root.appendingPathComponent("Attachments", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
@@ -157,6 +161,7 @@ enum Attachments {
 
     /// Attachments on the pasteboard: copied files first, otherwise image data (screenshots, copied images).
     /// Returns nil when the pasteboard holds nothing to attach, so a normal text paste proceeds.
+    #if !CHATTERBOX_HEADLESS
     @MainActor
     static func fromPasteboard(_ pasteboard: NSPasteboard = .general) -> [Attachment]? {
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
@@ -171,6 +176,8 @@ enum Attachments {
               let data = pasteboard.data(forType: type) else { return nil }
         return (try? importImageData(data)).map { [$0] }
     }
+
+    #endif
 
     // MARK: - Claude Code content
 

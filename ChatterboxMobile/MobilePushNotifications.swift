@@ -8,9 +8,9 @@ import UserNotifications
     private(set) var status = "Notifications are off."
     var pendingChat: UUID?
     var readingChat: UUID?
-    var enabled: Bool { UserDefaults.standard.bool(forKey: "pushEnabled") }
+    var enabled: Bool { AppPreferences.defaults.bool(forKey: "pushEnabled") }
     var registration: Companion.PushRegistration? {
-        guard let token = UserDefaults.standard.string(forKey: "apnsToken") else { return nil }
+        guard let token = AppPreferences.defaults.string(forKey: "apnsToken") else { return nil }
         let environment = Bundle.main.object(forInfoDictionaryKey: "ChatterboxAPNsEnvironment") as? String
         return Companion.PushRegistration(token: token, environment: environment == "production" ? "production" : "sandbox", enabled: enabled)
     }
@@ -28,13 +28,13 @@ import UserNotifications
     func enable() async {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            UserDefaults.standard.set(granted, forKey: "pushEnabled")
+            AppPreferences.defaults.set(granted, forKey: "pushEnabled")
             if granted { status = "Connecting to Apple…"; UIApplication.shared.registerForRemoteNotifications() }
             else { status = "Allow notifications in iOS Settings → Chatterbox." }
         } catch { status = error.localizedDescription }
     }
     func disable() {
-        UserDefaults.standard.set(false, forKey: "pushEnabled")
+        AppPreferences.defaults.set(false, forKey: "pushEnabled")
         status = "Notifications are off."
     }
     func refreshPermission() async {
@@ -46,7 +46,7 @@ import UserNotifications
         }
     }
     func receivedToken(_ data: Data) {
-        UserDefaults.standard.set(data.map { String(format: "%02x", $0) }.joined(), forKey: "apnsToken")
+        AppPreferences.defaults.set(data.map { String(format: "%02x", $0) }.joined(), forKey: "apnsToken")
         status = "Ready to connect notifications to your Mac."
     }
     func failed(_ error: Error) { status = "Apple registration failed: " + error.localizedDescription }
@@ -81,11 +81,14 @@ final class MobilePushAppDelegate: NSObject, UIApplicationDelegate {
 }
 
 struct MobileNotificationSettings: View {
+    var body:some View {Form {MobileNotificationControls()}.navigationTitle("Notifications")}
+}
+
+struct MobileNotificationControls: View {
     @Environment(MobileStore.self) private var store
     private var push: MobilePushNotifications { .shared }
     var body: some View {
-        Form {
-            Section {
+        Section {
                 Toggle("Notifications", isOn: Binding(get: { push.enabled }, set: { on in
                     Task {
                         if on { await push.enable() } else { push.disable() }
@@ -99,9 +102,8 @@ struct MobileNotificationSettings: View {
                 Button("Reconnect Notifications") {
                     Task { await push.refreshPermission(); await store.syncPushRegistration(force: true) }
                 }
-            } footer: {
-                Text("Your Mac sends notifications for replies, requests and Golem updates. Set up its Apple signing key in Chatterbox → Settings → iPhone. Your Mac must be awake with Chatterbox open. Tap an alert to open its chat.")
-            }
-        }.navigationTitle("Notifications")
+            } header: {Text("Notifications")} footer: {
+                Text("Your Mac’s background services send notifications while it is awake. Configure notification delivery on your Mac. Tap an alert to open its chat.")
+        }
     }
 }

@@ -22,7 +22,7 @@ struct CloneFromGitHubView: View {
 
     private var parent: String {
         parentFolder.isEmpty
-            ? (UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory())
+            ? (AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory())
             : parentFolder
     }
 
