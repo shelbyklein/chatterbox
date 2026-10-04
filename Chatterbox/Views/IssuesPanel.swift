@@ -96,7 +96,6 @@ struct IssuesPanel: View {
                                 : "This project's folder has no GitHub remote, so there are no issues to show.")
             }
         }
-        .inspectorColumnWidth(min: 300, ideal: 380, max: 640)
         .alert("Send while \(session.record.backend.label) is working?", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
                presenting: pending) { send in
             Button("Send Anyway") { perform(send) }

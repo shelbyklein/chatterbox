@@ -15,11 +15,41 @@ struct ChatView: View {
     @State private var draft: String
     @State private var attachments: [Attachment]
 
-    init(session: ChatSession) {
+    private let sidebar: AnyView?
+
+    init(session: ChatSession, sidebar: AnyView? = nil) {
+        self.sidebar = sidebar
         self.session = session
         _draft = State(initialValue: session.draft)
         _attachments = State(initialValue: session.draftAttachments)
     }
+    private var inspectorOpen: Bool { issuesPanel.isOpen || preview != nil || (session.isDot && golemPanelOpen) }
+    private func closeInspector() {
+        issuesPanel.isOpen = false; preview = nil
+        if session.isDot { golemPanelOpen = false }
+    }
+    @ViewBuilder private var inspectorContent: some View {
+        if let preview {
+            WebPaneView(page: preview) { self.preview = nil }
+        } else if issuesPanel.isOpen || !session.isDot {
+            IssuesPanel(session: session, panel: issuesPanel)
+        } else {
+            GolemSidePanel(session: session)
+        }
+    }
+    private var chatContent: some View {
+        VStack(spacing: 0) {
+            if session.record.archivedAt != nil { archivedBanner }
+            if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
+            if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { claudeBanner(status) }
+            transcript
+            if showingTerminal {
+                TerminalPanel(session: session, onClose: { showingTerminal = false }, pending: $terminalCommand)
+            }
+            composer
+        }
+    }
+
     @State private var attachError: String?
     @State private var isDropTargeted = false
     @State private var pasteMonitor: Any?
@@ -65,28 +95,16 @@ struct ChatView: View {
     static let minWidth: CGFloat = 400
 
     var body: some View {
-        // The sidebar and inspector float over this column (macOS 26), leaving it their widths as
-        // safe-area insets. Those insets would be added to the column's minimum, and the split would
-        // then count the sidebar a second time and lay out wider than the window. So the column
-        // ignores them and keeps its content clear of the panels itself.
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                if session.record.archivedAt != nil { archivedBanner }
-                if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
-                if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { codexBanner(status) }
-                transcript
-                if showingTerminal {
-                    TerminalPanel(session: session, onClose: { withAnimation(.smooth(duration: 0.25)) { showingTerminal = false } },
-                                  pending: $terminalCommand)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                composer
-            }
-            .padding(.leading, geometry.safeAreaInsets.leading)
-            .padding(.trailing, geometry.safeAreaInsets.trailing)
+        Group {
+            if let sidebar {
+                ChatColumns(sidebar: sidebar, chat: AnyView(chatContent),
+                    inspector: inspectorOpen ? AnyView(inspectorContent) : nil,
+                    inspectorMinimum: preview != nil ? 360 : (session.isDot && !issuesPanel.isOpen ? 260 : 300),
+                    inspectorIdeal: preview != nil ? 620 : (session.isDot && !issuesPanel.isOpen ? 320 : 380),
+                    inspectorMaximum: preview != nil ? 1400 : (session.isDot && !issuesPanel.isOpen ? 460 : 640),
+                    closeInspector: closeInspector)
+            } else { chatContent }
         }
-        .ignoresSafeArea(.container, edges: .horizontal)
-        .frame(minWidth: compact ? nil : Self.minWidth)
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
         .background(ChatWindowReader { windowNumber = $0.windowNumber })
@@ -136,26 +154,6 @@ struct ChatView: View {
         .alert("Couldn't open preview", isPresented: Binding(get: { previewOpenError != nil }, set: { if !$0 { previewOpenError = nil } })) {
             Button("OK") { previewOpenError = nil }
         } message: { Text(previewOpenError ?? "") }
-        .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil || (session.isDot && golemPanelOpen) },
-                                        set: { if !$0 { issuesPanel.isOpen = false; preview = nil; if session.isDot { golemPanelOpen = false } } })) {
-            // The window keeps room for the inspector at whatever width it has (see ContentView).
-            // Measured from a background: modifiers on the panels themselves would hide their
-            // inspectorColumnWidth from the split.
-            let inspectorWidthReader = Color.clear
-                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if !compact { model.chatInspectorWidth = $0 } }
-                .onDisappear { if !compact { model.chatInspectorWidth = 0 } }
-            if let preview {
-                WebPaneView(page: preview) { withAnimation(.easeOut(duration: 0.2)) { self.preview = nil } }
-                    .inspectorColumnWidth(min: 360, ideal: 620, max: 1400)
-                    .background(inspectorWidthReader)
-            } else if issuesPanel.isOpen || !session.isDot {
-                IssuesPanel(session: session, panel: issuesPanel)
-                    .background(inspectorWidthReader)
-            } else {
-                GolemSidePanel(session: session)
-                    .background(inspectorWidthReader)
-            }
-        }
         .onChange(of: issuesPanel.isOpen) { _, open in if open { preview = nil } }
         // Re-read git when the chat opens, its folder changes, or a turn ends (the agent may have committed).
         .task(id: "\(session.record.projectFolder ?? "")|\(session.isRunning)") {

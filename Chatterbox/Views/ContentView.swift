@@ -59,62 +59,18 @@ struct ContentView: View {
         #endif
     }
 
-    /// Wide enough for six pin cards to stay tappable (26-point cards).
-    private static let sidebarMinWidth: CGFloat = 230
-
-    /// Room for the sidebar, the chat, and the inspector at their minimums. The split view takes
-    /// a column's minimum as a hard floor and lays out past the window's edges when the window
-    /// is narrower, clipping the sidebar on the left and the inspector on the right; the window
-    /// just doesn't go that narrow.
-    private var windowMinWidth: CGFloat {
-        let inspector = model.chatInspectorWidth
-        return max(760, inspector > 0 ? Self.sidebarMinWidth + ChatView.minWidth + inspector : 0)
+    private var sidebarPane: AnyView {
+        AnyView(VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Search", text: $searchText).textFieldStyle(.plain)
+            }
+            .padding(10).background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10)).padding(12)
+            sidebarColumn
+        }.modifier(ThemedSidebar(background: themeBackground)))
     }
 
-    private var splitView: some View {
-        @Bindable var model = model
-        return NavigationSplitView {
-            sidebarColumn
-            .modifier(ThemedSidebar(background: themeBackground))
-            .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
-            .toolbar {
-                ToolbarItem {
-                    Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
-                        .help("Settings (\u{2318},)")
-                }
-                ToolbarItem {
-                    Menu {
-                        if let studio = model.selected.flatMap(model.studio(for:)), studio.archivedAt == nil {
-                            Button("New Chat in \u{201C}\(studio.name)\u{201D}") { model.newChat(in: studio) }
-                            Divider()
-                        }
-                        Button("New Claude Chat") { model.newChat(backend: .claude) }
-                        Button("New Codex Chat") { model.newChat(backend: .codex) }
-                        Divider()
-                        Button("New Project\u{2026}") { model.showingNewProject = true }
-                        Button("Open Project\u{2026}") { model.chooseAndOpenProject() }
-                        Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
-                        Divider()
-                        if !model.activeStudios.isEmpty {
-                            Menu("New Chat in Studio") {
-                                ForEach(model.activeStudios) { studio in
-                                    Button(studio.name) { model.newChat(in: studio) }
-                                }
-                            }
-                        }
-                        Button("New Studio\u{2026}") { beginNewStudio() }
-                    } label: {
-                        Label("New Chat", systemImage: "square.and.pencil")
-                    } primaryAction: {
-                        model.newChat()
-                    }
-                    .help("New chat (\u{2318}N). Hold to pick Claude, Codex, or a project folder.")
-                }
-            }
-            // Last, so the modifiers above can't hide it from the split: before, the sidebar's
-            // minimum was AppKit's 140, and it was squeezed to that before anything else gave.
-            .navigationSplitViewColumnWidth(min: Self.sidebarMinWidth, ideal: 260)
-        } detail: {
+    private var alternateDetail: some View {
             Group {
             if model.showingSettings {
                 SettingsPage()
@@ -148,9 +104,66 @@ struct ContentView: View {
             }
             }
             .modifier(ThemedDetail(background: themeBackground))
+
+    }
+
+    private var columnRoot: some View {
+        Group {
+            if let session = model.selected, !model.showingSettings, model.webPage == nil,
+               !(session.isDot && model.showingDot) {
+                ChatView(session: session, sidebar: sidebarPane).id(session.id)
+            } else {
+                ChatColumns(sidebar: sidebarPane, chat: AnyView(alternateDetail))
+            }
         }
+        .toolbar {
+                ToolbarItem {
+                    Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
+                        .help("Settings (\u{2318},)")
+                }
+                ToolbarItem {
+                    Menu {
+                        if let studio = model.selected.flatMap(model.studio(for:)), studio.archivedAt == nil {
+                            Button("New Chat in \u{201C}\(studio.name)\u{201D}") { model.newChat(in: studio) }
+                            Divider()
+                        }
+                        Button("New Claude Chat") { model.newChat(backend: .claude) }
+                        Button("New Codex Chat") { model.newChat(backend: .codex) }
+                        Divider()
+                        Button("New Project\u{2026}") { model.showingNewProject = true }
+                        Button("Open Project\u{2026}") { model.chooseAndOpenProject() }
+                        Button("New Project from GitHub\u{2026}") { model.showingCloneFromGitHub = true }
+                        Divider()
+                        if !model.activeStudios.isEmpty {
+                            Menu("New Chat in Studio") {
+                                ForEach(model.activeStudios) { studio in
+                                    Button(studio.name) { model.newChat(in: studio) }
+                                }
+                            }
+                        }
+                        Button("New Studio\u{2026}") { beginNewStudio() }
+                    } label: {
+                        Label("New Chat", systemImage: "square.and.pencil")
+                    } primaryAction: {
+                        model.newChat()
+                    }
+                    .help("New chat (\u{2318}N). Hold to pick Claude, Codex, or a project folder.")
+                }
+            }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button { model.sidebarToggleRequest += 1 } label: { Image(systemName: "sidebar.left") }
+                    .help("Show or hide sidebar").accessibilityLabel("Toggle sidebar")
+                    .keyboardShortcut("s", modifiers: [.command, .control])
+            }
+        }
+    }
+
+    private var splitView: some View {
+        @Bindable var model = model
+        return AnyView(columnRoot)
         .modifier(ThemedWindow(scheme: themeScheme, background: themeBackground, highlight: themeHighlight))
-        .frame(minWidth: windowMinWidth, minHeight: 520)
+        .frame(minWidth: 640, minHeight: 520)
         .background(ChatWindowReader { model.mainChatWindow = $0 })
         .onAppear { model.revealMainChatWindow = { openWindow(id: "main") } }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }

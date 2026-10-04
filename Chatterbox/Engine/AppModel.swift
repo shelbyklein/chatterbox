@@ -37,9 +37,8 @@ final class AppModel {
     @ObservationIgnored private(set) var dotMiniWindow: GolemMiniWindow?
     @ObservationIgnored weak var mainChatWindow: NSWindow?
     @ObservationIgnored var revealMainChatWindow: (() -> Void)?
-    /// The main chat's inspector (Golem's panel, a web preview, or Issues) as laid out, or 0
-    /// when closed. The window's minimum width keeps room for it.
-    var chatInspectorWidth: CGFloat = 0
+    /// Sidebar toolbar/keyboard requests, consumed by the single column container.
+    var sidebarToggleRequest = 0
     /// Dot's memory, open for editing.
     var editingDotMemory = false
     /// The Add Pin sheet, when open.

@@ -36,7 +36,6 @@ struct GolemSidePanel: View {
                 Spacer(minLength: 0)
             }
         }
-        .inspectorColumnWidth(min: 260, ideal: 320, max: 460)
     }
 
     private var content: some View {
