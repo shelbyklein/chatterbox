@@ -61,9 +61,6 @@ typealias Attention=DaemonAttention
         r.items.append(DisplayItem(kind:.notice,text:"Forked from \(s.title)."))
         return try? runtime.insert(r)
     }
-    func startDotComputer() async{await DotComputer.shared.start();dot?.restartClaudeForNewTools()}
-    func setUpDotComputer() async{await DotComputer.shared.setUp();dot?.restartClaudeForNewTools()}
-    func stopDotComputer() async{await DotComputer.shared.stop();dot?.restartClaudeForNewTools()}
     func recordAssistantDecision(_ title:String,detail:String?,chat:ChatSession?){try? runtime.recordAssistantNote(title:title,detail:detail,chat:chat?.id)}
 }
 #endif

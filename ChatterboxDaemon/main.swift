@@ -32,7 +32,6 @@ Task { @MainActor in
         }
         RuntimeHooks.turnEnded={session in NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false}
         print("chatterboxd ready");fflush(stdout)
-        if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_DISABLE_COMPUTER"] != "1" {PreviewRelays.shared.start()}
     } catch {fputs("chatterboxd: \(error.localizedDescription)\n",stderr);exit(1)}
 }
 signal(SIGTERM,SIG_IGN);signal(SIGINT,SIG_IGN)

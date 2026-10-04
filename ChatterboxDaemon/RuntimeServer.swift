@@ -73,7 +73,7 @@ import CoreFoundation
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
-                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","computer","getPreferences","preferences","companionStatus","companion"]
+                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion"]
                 guard allowed.contains(r.operation) else{throw RuntimeFailure("permission_denied")}
                 if let raw=r.body["record"],let record=try? raw.decode(ConversationRecord.self),(record.isDot != true || runtime.session(record.id)?.isDot != true){throw RuntimeFailure("permission_denied")}
                 if r.operation=="preferences",!Set((r.body.object ?? [:]).keys).isSubset(of:["dotDefaultBackend","dotDefaultModel","dotApplyDefault","dotSeenItem"]){throw RuntimeFailure("permission_denied")}
@@ -175,7 +175,7 @@ import CoreFoundation
             s.record.githubRepo=incoming.githubRepo;s.record.gitRemote=incoming.gitRemote
             s.record.claudeMode=incoming.claudeMode;s.record.claudeFastMode=incoming.claudeFastMode
             if let remote=incoming.remoteControl,remote != s.record.remoteControl{s.setRemoteControl(remote)}
-            s.record.useComputer=incoming.useComputer;s.record.currentIssue=incoming.currentIssue
+            s.record.currentIssue=incoming.currentIssue
             if let c=incoming.codex {
                 s.setCodexModel(c.model);s.setCodexEffort(c.effort)
                 s.setCodexFolder(c.folder);s.record.codex?.mode=c.mode;s.record.codex?.fastMode=c.fastMode;s.record.codex?.route=c.route
@@ -242,13 +242,6 @@ import CoreFoundation
             if let x=body["personality"]?.string.flatMap(Personality.init(rawValue:)){s.setPersonality(x)}
         case "remoteControl":try chat(r.body).setRemoteControl(r.body["enabled"]?.bool ?? false)
         case "restartTools":try chat(r.body).restartClaudeForNewTools()
-        case "computer":
-            guard role=="ui" else{throw RuntimeFailure("permission_denied")}
-            let action=r.body["action"]?.string ?? "status"
-            Task {
-                let model=DaemonContext(runtime)
-                switch action {case "start":await model.startDotComputer();case "setUp":await model.setUpDotComputer();case "stop":await model.stopDotComputer();default:await DotComputer.shared.refresh()}
-            }
         case "shell":try chat(r.body).runShell(r.body["command"]?.string ?? "")
         case "stopShell":try chat(r.body).stopShellJobs()
         default:throw RuntimeFailure("unsupported_operation")

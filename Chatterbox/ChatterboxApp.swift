@@ -102,12 +102,5 @@ struct ChatterboxApp: App {
             }
         }
 
-        // Dot's computer, in its own window (from the Computer button in Dot's chat).
-        Window("\(model.dotName)'s Computer", id: DotComputerPanel.windowID) {
-            DotComputerPanel()
-                .environment(model)
-                .frame(minWidth: 640, minHeight: 440)
-        }
-        .defaultSize(width: 1180, height: 800)
     }
 }
