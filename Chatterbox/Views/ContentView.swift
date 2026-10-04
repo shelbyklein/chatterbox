@@ -297,6 +297,7 @@ extension ContentView {
 
     /// Search matches every word against the chat title, project name, and tags.
     private func isShown(_ session: ChatSession) -> Bool {
+        if session.record.sidechatOf == nil, model.sidechats(of: session).contains(where: isShown) { return true }
         if let tag = activeTag, !session.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
             return false
         }
@@ -329,7 +330,7 @@ extension ContentView {
         return DisclosureGroup(isExpanded: expanded) {
             ForEach(chats.filter(isShown)) { session in
                 // Dropping onto a chat in the Studio moves the dragged one in too.
-                row(session, number: numbers[session.id])
+                rowWithSidechats(session, numbers: numbers)
                     .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
             }
             if chats.isEmpty {
@@ -426,7 +427,10 @@ extension ContentView {
             .padding(.horizontal, 10))
         .contextMenu {
             Button("Open \(model.dotName)") { model.openDot() }
-            if let dot { RestartThreadControl(session: dot) }
+            if let dot {
+                RestartThreadControl(session: dot)
+                NewSidechatControl(parent: dot)
+            }
             Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }
             Button(model.showingDot ? "Hide Mini Window" : "Show Mini Window  \u{2318}J") { model.showingDot.toggle() }
         }
@@ -483,6 +487,20 @@ extension ContentView {
                 && event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
             if showShortcuts != onlyCommand { showShortcuts = onlyCommand }
             return event
+        }
+    }
+
+    private func rowWithSidechats(_ session: ChatSession, numbers: [UUID: Int]) -> some View {
+        Group {
+            row(session, number: numbers[session.id])
+            ForEach(model.sidechats(of: session).filter(isShown)) { sidechat in
+                row(sidechat, number: numbers[sidechat.id])
+                    .padding(.leading, 18)
+                    .overlay(alignment: .leading) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    }
+            }
         }
     }
 
@@ -547,7 +565,7 @@ extension ContentView {
                     Button("Unbind from Folder") { session.unbindProject() }
                     Divider()
                 }
-                if session.record.archivedAt == nil, session.record.projectFolder == nil {
+                if session.record.archivedAt == nil, session.record.projectFolder == nil, session.record.sidechatOf == nil {
                     Menu("Move to Studio") {
                         ForEach(model.activeStudios) { studio in
                             Button(studio.name) { model.move(session, to: studio) }
@@ -563,13 +581,24 @@ extension ContentView {
                     .disabled(session.isRunning)
                 }
                 if session.record.archivedAt == nil {
-                    Button("Archive Chat") { model.archive(session) }
+                    NewSidechatControl(parent: session)
+                    Button(session.record.sidechatOf != nil ? "End Sidechat" : "Archive Chat") { model.archive(session) }
                 } else {
                     Button("Unarchive Chat") { model.unarchive(session) }
                 }
                 Divider()
                 Button("Delete Chat\u{2026}", role: .destructive) { pendingDelete = session }
             }
+    }
+}
+
+struct NewSidechatControl: View {
+    @Environment(AppModel.self) private var model
+    let parent: ChatSession
+
+    var body: some View {
+        Button("New Sidechat", systemImage: "bubble.left.and.bubble.right") { model.newSidechat(of: parent) }
+            .help("A temporary separate thread in the same folder; no Git branch is created")
     }
 }
 
@@ -670,6 +699,10 @@ private struct SidebarRow: View {
             } else {
                 Text(session.title)
                     .lineLimit(1)
+            }
+            if session.record.sidechatOf != nil {
+                Text("Temporary").font(.caption2).foregroundStyle(.secondary)
+                    .help("A sidechat sharing its parent's folder. End Sidechat archives its history.")
             }
             Spacer(minLength: 0)
             // Waiting on you, or a finished reply you haven't seen.
@@ -951,10 +984,10 @@ extension ContentView {
             case .projects:
                 let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
                 ForEach(projects) { session in
-                    row(session, number: numbers[session.id])
+                    rowWithSidechats(session, numbers: numbers)
                     // Its worktrees, indented beneath it.
                     ForEach(model.worktrees(of: session)) { worktree in
-                        row(worktree, number: numbers[worktree.id])
+                        rowWithSidechats(worktree, numbers: numbers)
                             .padding(.leading, 18)
                             .overlay(alignment: .leading) {
                                 Image(systemName: "arrow.triangle.branch")
@@ -976,7 +1009,7 @@ extension ContentView {
                 }
             case .chats:
                 let chats = model.sidebarChats.filter(isShown)
-                ForEach(chats) { session in row(session, number: numbers[session.id]) }
+                ForEach(chats) { session in rowWithSidechats(session, numbers: numbers) }
                 if chats.isEmpty {
                     Text(isFiltering ? "No matching chats" : "Chats that aren't in a project or a Studio.")
                         .font(.caption).foregroundStyle(.secondary)

@@ -81,11 +81,59 @@ final class AppModel {
     var sidebarChats: [ChatSession] {
         let studioIDs = Set(activeStudios.map(\.id))
         return activeSessions.filter { session in
-            session.record.projectFolder == nil && !session.isDot && !(session.record.studioID.map(studioIDs.contains) ?? false)
+            session.record.projectFolder == nil && !session.isDot && !hasVisibleSidechatParent(session) && !(session.record.studioID.map(studioIDs.contains) ?? false)
         }
     }
     var sidebarOrder: [ChatSession] {
-        sidebarProjects.flatMap { [$0] + worktrees(of: $0) } + activeStudios.filter { $0.collapsed != true }.flatMap(chats(in:)) + sidebarChats
+        var ordered: [ChatSession] = []
+        for project in sidebarProjects {
+            ordered += [project] + sidechats(of: project)
+            for worktree in worktrees(of: project) { ordered += [worktree] + sidechats(of: worktree) }
+        }
+        for studio in activeStudios where studio.collapsed != true {
+            for chat in chats(in: studio) { ordered += [chat] + sidechats(of: chat) }
+        }
+        for chat in sidebarChats { ordered += [chat] + sidechats(of: chat) }
+        return ordered
+    }
+
+    func hasVisibleSidechatParent(_ chat: ChatSession) -> Bool {
+        guard let parent = chat.record.sidechatOf else { return false }
+        return activeSessions.contains { $0.id == parent && !$0.isDot }
+    }
+
+    func sidechats(of parent: ChatSession) -> [ChatSession] {
+        activeSessions.filter { $0.record.sidechatOf == parent.id }.sorted { $0.lastActivity > $1.lastActivity }
+    }
+
+    @discardableResult
+    func newSidechat(of parent: ChatSession) -> ChatSession {
+        // Always anchor at the original parent; don't make a recursive tree of
+        // temporary chats or resume either of its provider sessions.
+        let anchor = parent.record.sidechatOf.flatMap { id in sessions.first { $0.id == id } } ?? parent
+        var record = ConversationRecord(model: parent.record.model, effort: parent.record.effort, personality: parent.record.personality)
+        let number = sessions.filter { $0.record.sidechatOf == anchor.id }.count + 1
+        record.title = (number == 1 ? "Sidechat" : "Sidechat \(number)") + " · "
+            + (anchor.record.projectFolder != nil ? anchor.projectName : anchor.title)
+        record.sidechatOf = anchor.id
+        record.sidechatFolder = parent.workingFolder
+        record.sidechatProjectFolder = parent.record.sidechatProjectFolder ?? parent.record.worktreeOf ?? parent.record.projectFolder
+        record.activeBackend = parent.record.backend
+        record.claudeFastMode = parent.record.claudeFastMode
+        record.claudeMode = parent.record.claudeMode
+        record.claudeCanEdit = parent.record.claudeCanEdit
+        record.useComputer = parent.record.useComputer
+        record.tags = parent.record.tags
+        record.studioID = parent.record.studioID
+        record.studioFolder = parent.record.studioFolder
+        record.codex = parent.record.codex
+        record.codex?.threadId = nil
+        record.codex?.forkFrom = nil
+        record.codex?.sentRoute = nil
+        record.codex?.folder = parent.workingFolder
+        let chat = insertSession(record)
+        selectedID = chat.id
+        return chat
     }
 
     /// Every tag in use, for the Tags menu.
@@ -233,7 +281,7 @@ final class AppModel {
     /// Hides a chat from the main lists and stops its agent. Nothing is removed; a project
     /// chat keeps its folder, and opening that folder again brings the chat back.
     func archive(_ session: ChatSession) {
-        guard !session.items.isEmpty || session.record.projectFolder != nil else { return delete(session) }
+        guard !session.items.isEmpty || session.record.projectFolder != nil || session.record.sidechatOf != nil else { return delete(session) }
         session.shutdown()
         session.setArchived(true)
         if selectedID == session.id { selectedID = activeSessions.first?.id }
@@ -521,7 +569,7 @@ final class AppModel {
     /// a project or Studio, a name, tags, an archive, or an agent, model, effort or mode that
     /// differs from what a new chat starts with. An untouched "New chat" isn't kept.
     private func carriesUserIntent(_ record: ConversationRecord) -> Bool {
-        if record.projectFolder != nil || record.studioID != nil || record.worktreeOf != nil || record.archivedAt != nil { return true }
+        if record.projectFolder != nil || record.studioID != nil || record.worktreeOf != nil || record.sidechatOf != nil || record.archivedAt != nil { return true }
         if record.title != "New chat" || !(record.tags ?? []).isEmpty { return true }
         let defaults = UserDefaults.standard
         let backend = Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude

@@ -99,6 +99,8 @@ enum Companion {
         var unread: Int? = nil
         /// A worktree of the project listed just before it: its branch, shown nested under it.
         var worktreeBranch: String? = nil
+        /// A temporary independent conversation, listed under this parent when available.
+        var sidechatOf: UUID? = nil
     }
 
     /// The assistant's animations and head image, to play on the phone too.

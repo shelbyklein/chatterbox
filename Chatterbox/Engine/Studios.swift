@@ -65,7 +65,7 @@ extension AppModel {
 
     /// A Studio's open chats, most recent first.
     func chats(in studio: Studio) -> [ChatSession] {
-        activeSessions.filter { $0.record.studioID == studio.id }
+        activeSessions.filter { $0.record.studioID == studio.id && !hasVisibleSidechatParent($0) }
     }
 
     /// Where new Studio folders go: ~/Chatterbox/Studios (inside the data folder under tests).

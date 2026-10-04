@@ -159,6 +159,11 @@ struct ConversationRecord: Codable {
     /// Listed under its project in the sidebar.
     var worktreeOf: String?
     var worktreeBranch: String?
+    /// A temporary independent conversation sharing its parent's working folder.
+    var sidechatOf: UUID?
+    var sidechatFolder: String?
+    /// Parent project scope for existing project-only secrets; no new access is granted.
+    var sidechatProjectFolder: String?
     /// The Studio this chat belongs to, and that Studio's folder, which the chat works in.
     /// The folder is kept here too so the chat can start its agent without looking it up.
     var studioID: UUID?
@@ -197,7 +202,7 @@ struct ConversationRecord: Codable {
     var backend: Backend { activeBackend ?? (codex == nil ? .claude : .codex) }
 
     /// The folder this chat is tied to: its project's, or its Studio's.
-    var boundFolder: String? { projectFolder ?? studioFolder }
+    var boundFolder: String? { sidechatFolder ?? projectFolder ?? studioFolder }
 
     /// The agent processes this chat has in the background host, so a relaunch can pick up
     /// a reply that kept going while the app was closed. Older records leave these unset.
