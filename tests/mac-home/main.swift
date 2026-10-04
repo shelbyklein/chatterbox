@@ -140,6 +140,27 @@ app.setActivationPolicy(.accessory)
     model.showingHome=true; model.showingSettings=true
     precondition(!model.showingHome)
     parent.isRunning=false
+    model.showingSettings=false;model.showingHome=true
+    UserDefaults.standard.set(HomeThreadPage.studios.rawValue,forKey:"macHomePage")
+    var samples=[studioChat]
+    for name in ["PlayCase","SDHQ","USA Archery"] {
+        let added=model.newStudio(named:name)!
+        let chat=model.chats(in:added).first!;chat.setTitle(name+" work")
+        chat.record.items=[DisplayItem(kind:.assistant,text:"The latest work is ready for review, with the original source files preserved.",phase:.final)]
+        samples.append(chat)
+        var second=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+        second.title=name+" follow-up";second.studioID=added.id;second.studioFolder=added.folder;second.activeBackend = .claude
+        model.insertSession(second)
+    }
+    model.showingHome=true
+    try await render(AnyView(ContentView()),2000,1050,"studio-grid-wide")
+    let frames=samples.map {MacHomeDebug.cards[$0.id]!}
+    precondition(Set(frames.map {Int($0.minX)}).count==4,"Studio groups did not fit four columns")
+    precondition(frames.allSatisfy {abs($0.minY-frames[0].minY)<2},"Studio groups were not top aligned")
+    try await render(AnyView(ContentView()),640,1050,"studio-grid-narrow")
+    for frame in MacHomeDebug.cards.values {
+        precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+640,"Studio grid clipped at narrow width")
+    }
     print("PASS: native four-page navigation/persistence, exact active partitions, archive open/history/restore, unique complete groups, collapsed Studio/search/filters, native List/Cards/Home/card clicks, same-session history and draft preserved. Proof: \(root.path)")
     panel.orderOut(nil)
 }

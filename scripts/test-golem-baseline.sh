@@ -1,11 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+golem_root=$(cd "${GOLEM_REPO:-../Golem}" && pwd)
 task_dir=$(mktemp -d /tmp/golem-baseline.XXXXXX)
 trap 'rm -rf "$task_dir"' EXIT
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
-export BASELINE_RIG="$PWD/${GOLEM_REPO:-../Golem}/Golem/rig" BASELINE_REVISION="$(git rev-parse HEAD)"
+export BASELINE_RIG="${golem_root}/Golem/rig" BASELINE_REVISION="$(git rev-parse HEAD)"
 export BASELINE_OUTPUT="$PWD/tests/golem-integration/artifacts/baseline.json"
 products=build/DerivedData/Build/Products/Debug
 rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$task_dir/sources"

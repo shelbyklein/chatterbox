@@ -24,4 +24,7 @@ for product in Chatterbox; do
  xcrun xcresulttool export attachments --path "$artifacts/$product.xcresult" --output-path "$artifacts/$product-screenshots"
 done
 
-"${GOLEM_REPO:-../Golem}/scripts/test-mobile-ui.sh" "$kind"
+kill "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=''
+if [[ "${SKIP_GOLEM_UI:-0}" != 1 ]]; then "${GOLEM_REPO:-../Golem}/scripts/test-mobile-ui.sh" "$kind"; fi

@@ -11,7 +11,7 @@ try:
   if (root/'data/daemon.sock').exists():break
   time.sleep(.05)
  with open(root/'app.log','w') as output:
-  app=subprocess.run(['build/GolemPlan/Build/Products/Debug/Golem.app/Contents/MacOS/Golem','-ApplePersistenceIgnoreState','YES'],env=env,stdout=output,stderr=subprocess.STDOUT,timeout=25)
+  app=subprocess.run([str(Path(os.environ.get('GOLEM_REPO','../Golem'))/'build/GolemPlan/Build/Products/Debug/Golem.app/Contents/MacOS/Golem'),'-ApplePersistenceIgnoreState','YES'],env=env,stdout=output,stderr=subprocess.STDOUT,timeout=25)
  text=(root/'app.log').read_text();print(text);print((root/'daemon.log').read_text())
  assert app.returncode==0 and 'PASS signed Golem' in text
  print('Signed role artifacts:',root)

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+golem_root=$(cd "${GOLEM_REPO:-../Golem}" && pwd)
 task_dir=$(mktemp -d /tmp/golem-projection.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_DAEMON_CLIENT=1 CHATTERBOX_TEST_TRUST_UI=1 CHATTERBOX_TEST_DISABLE_COMPUTER=1
@@ -9,7 +10,7 @@ export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
 export CHATTERBOX_HOST_BINARY="$PWD/build/GolemPlan/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
 export PROJECTION_CAPTURE="$PWD/tests/golem-integration/artifacts/projection.png"
-export GOLEM_TEST_APP_PATH="$PWD/${GOLEM_REPO:-../Golem}/build/GolemPlan/Build/Products/Debug/Golem.app"
+export GOLEM_TEST_APP_PATH="${golem_root}/build/GolemPlan/Build/Products/Debug/Golem.app"
 export GOLEM_TEST_CAPTURE="$PWD/tests/golem-integration/artifacts"
 products=build/GolemPlan/Build/Products/Debug
 rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$task_dir/sources"
@@ -18,7 +19,7 @@ swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -whole-module-optimizatio
 build/runtime/chatterboxd > "$task_dir/daemon.log" 2>&1 &
 daemon_pid=$!
 mkdir -p "$CHATTERBOX_DATA_DIR/Dot/Avatar"
-cp -R "${GOLEM_REPO:-../Golem}/Golem/rig/." "$CHATTERBOX_DATA_DIR/Dot/Avatar/"
+cp -R "${golem_root}/Golem/rig/." "$CHATTERBOX_DATA_DIR/Dot/Avatar/"
 export GOLEM_TEST_DISABLE_AUTOMATION=1
 build/runtime/golemd > "$task_dir/service.log" 2>&1 &
 service_pid=$!

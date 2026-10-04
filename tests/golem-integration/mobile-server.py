@@ -1,6 +1,6 @@
 import http.server,json,os
 from pathlib import Path
-RIG=Path(__file__).resolve().parents[2]/"Golem/rig"
+RIG=Path(os.environ.get("GOLEM_REPO",str(Path(__file__).resolve().parents[2].parent/"Golem")))/"Golem/rig"
 G='11111111-1111-1111-1111-111111111111';C='33333333-3333-3333-3333-333333333333'
 def summary(id,title,dot):return dict(id=id,title=title,subtitle='Fixture',backend='claude',isRunning=False,isWaitingOnYou=False,updatedAt='2026-10-04T00:00:00Z',isDot=dot)
 paused=False
