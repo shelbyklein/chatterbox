@@ -59,19 +59,34 @@ struct ChatView: View {
     @State private var chatHeight: CGFloat = 600
     private let appearance = ReaderStyleSettings()
 
+    /// The narrowest the chat column goes. Nothing inside asks for more (the message box and
+    /// the model line truncate instead), so the sidebar and inspector are never pushed out
+    /// of the window.
+    static let minWidth: CGFloat = 400
+
     var body: some View {
-        VStack(spacing: 0) {
-            if session.record.archivedAt != nil { archivedBanner }
-            if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
-            if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { codexBanner(status) }
-            transcript
-            if showingTerminal {
-                TerminalPanel(session: session, onClose: { withAnimation(.smooth(duration: 0.25)) { showingTerminal = false } },
-                              pending: $terminalCommand)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        // The sidebar and inspector float over this column (macOS 26), leaving it their widths as
+        // safe-area insets. Those insets would be added to the column's minimum, and the split would
+        // then count the sidebar a second time and lay out wider than the window. So the column
+        // ignores them and keeps its content clear of the panels itself.
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                if session.record.archivedAt != nil { archivedBanner }
+                if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
+                if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { codexBanner(status) }
+                transcript
+                if showingTerminal {
+                    TerminalPanel(session: session, onClose: { withAnimation(.smooth(duration: 0.25)) { showingTerminal = false } },
+                                  pending: $terminalCommand)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                composer
             }
-            composer
+            .padding(.leading, geometry.safeAreaInsets.leading)
+            .padding(.trailing, geometry.safeAreaInsets.trailing)
         }
+        .ignoresSafeArea(.container, edges: .horizontal)
+        .frame(minWidth: compact ? nil : Self.minWidth)
         .navigationTitle(session.title)
         .toolbar { toolbarContent }
         .background(ChatWindowReader { windowNumber = $0.windowNumber })
@@ -123,13 +138,22 @@ struct ChatView: View {
         } message: { Text(previewOpenError ?? "") }
         .inspector(isPresented: Binding(get: { issuesPanel.isOpen || preview != nil || (session.isDot && golemPanelOpen) },
                                         set: { if !$0 { issuesPanel.isOpen = false; preview = nil; if session.isDot { golemPanelOpen = false } } })) {
+            // The window keeps room for the inspector at whatever width it has (see ContentView).
+            // Measured from a background: modifiers on the panels themselves would hide their
+            // inspectorColumnWidth from the split.
+            let inspectorWidthReader = Color.clear
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { if !compact { model.chatInspectorWidth = $0 } }
+                .onDisappear { if !compact { model.chatInspectorWidth = 0 } }
             if let preview {
                 WebPaneView(page: preview) { withAnimation(.easeOut(duration: 0.2)) { self.preview = nil } }
                     .inspectorColumnWidth(min: 360, ideal: 620, max: 1400)
+                    .background(inspectorWidthReader)
             } else if issuesPanel.isOpen || !session.isDot {
                 IssuesPanel(session: session, panel: issuesPanel)
+                    .background(inspectorWidthReader)
             } else {
                 GolemSidePanel(session: session)
+                    .background(inspectorWidthReader)
             }
         }
         .onChange(of: issuesPanel.isOpen) { _, open in if open { preview = nil } }
@@ -296,6 +320,8 @@ struct ChatView: View {
                     // Only the drawn tail is grouped and badged; long histories aren't walked per render.
                     let page = transcriptPage(rows: shownRowCount)
                     let agents = page.agents
+                    // The rows take the chat's width; the widest one can't widen the column.
+                    FlexibleWidth {
                     Group {
                     if session.isDot {
                         VStack(spacing: 0) {
@@ -362,6 +388,7 @@ struct ChatView: View {
                     .environment(\.readerStyle, appearance.style)
                     .environment(\.reviewImage, ImageReviewAction { reviewing = $0 })
                     .frame(maxWidth: .infinity)
+                    }
                 }
             }
             .defaultScrollAnchor(.bottom)
@@ -490,6 +517,15 @@ struct ChatView: View {
     }
 
     private var composer: some View {
+        // Takes the width it's given: the model line is the one row that can't wrap, and
+        // without this it would set the chat column's minimum (over 500 points with a few
+        // presets), pushing the sidebar and inspector out of a narrow window.
+        FlexibleWidth {
+            composerContent
+        }
+    }
+
+    private var composerContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             if session.hasBackgroundWork {
                 BackgroundWorkBar(session: session, color: appearance.style.color(for: session.record.backend))
@@ -1449,6 +1485,25 @@ struct SpacedLabelStyle: LabelStyle {
             configuration.icon
             configuration.title
         }
+    }
+}
+
+/// Lays its content out at exactly the width it's offered, so the content's own minimum
+/// never travels up to the column (the navigation split takes a column's minimum as a hard
+/// floor and lays out past the window's edges when the window is narrower). Its height is
+/// the content's, measured no narrower than the chat's minimum so a tiny probe doesn't wrap
+/// text into a tall answer.
+struct FlexibleWidth: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let content = subviews.first else { return .zero }
+        let measured = content.sizeThatFits(ProposedViewSize(width: proposal.width.map { max($0, ChatView.minWidth) },
+                                                             height: proposal.height))
+        return CGSize(width: proposal.width ?? measured.width, height: measured.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: CGPoint(x: bounds.midX, y: bounds.minY), anchor: .top,
+                              proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
     }
 }
 

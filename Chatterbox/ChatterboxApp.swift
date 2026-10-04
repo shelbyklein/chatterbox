@@ -15,7 +15,6 @@ struct ChatterboxApp: App {
         WindowGroup(id: "main") {
             ContentView()
                 .environment(model)
-                .frame(minWidth: 760, minHeight: 520)
                 .task {
                     #if DEBUG
                     MobilePush.shared.runRequestedSetup()
