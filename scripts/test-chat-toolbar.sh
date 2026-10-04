@@ -1,5 +1,5 @@
 #!/bin/bash
-# Times chat switching against copies of your saved chats (read-only; nothing is resumed).
+# Checks the chat toolbar keeps its items across chat switches (#29), against copies of your chats (read-only).
 # Usage: scripts/test-chat-switch-perf.sh [conversations dir]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,12 +22,6 @@ products=build/DerivedData/Build/Products/Debug
   -derivedDataPath build/DerivedData build -quiet
 # -O, like the shipped app's hot paths; Debug-only code paths stay on via -D DEBUG.
 swiftc -I "$products" "$products/SwiftTerm.o" -framework AVKit -framework WebKit -framework PDFKit -D DEBUG -whole-module-optimization -O -o "$test_dir/test" \
-  @"$test_dir/files.txt" tests/chat-switch-perf/main.swift
-if [ -n "${PERF_SAMPLE:-}" ]; then
-  # Profile the switching rounds: a call-graph sample of the main thread lands in $PERF_SAMPLE.
-  "$test_dir/test" & pid=$!
-  sleep 6; sample "$pid" 8 -mayDie -file "$PERF_SAMPLE" >/dev/null 2>&1 || true
-  wait "$pid"
-else
-  "$test_dir/test"
-fi
+  @"$test_dir/files.txt" tests/chat-toolbar/main.swift
+mkdir -p "$HOME/Chatterbox/Screenshots/chat-toolbar"
+TOOLBAR_OUT="$HOME/Chatterbox/Screenshots/chat-toolbar" "$test_dir/test"

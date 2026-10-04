@@ -18,6 +18,7 @@
 		0D0AA5565003163647FC890D /* PinsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25AF49642A0603DB9DB1791 /* PinsSection.swift */; };
 		0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
 		121878FD864195B66430A97B /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
+		12619EA37700E060F9BDE7FD /* ChatToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */; };
 		137ED88037D2881190CDF3F7 /* MobileHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE3430D1F51F793F8FC03FD /* MobileHome.swift */; };
 		1417AE929D75C1B17835DCF3 /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
 		1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07846B056A3EC031B8C536B /* Diagnostics.swift */; };
@@ -194,6 +195,7 @@
 		D05B92875B687F85956F41CE /* Attachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCA3F2B7277E38C199221AE /* Attachments.swift */; };
 		D2C92DDDCB9AEB5902ED8E12 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
 		D47A8E4BD002D63560FFCEA4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
+		D5961041D9791D4160B9DC85 /* WindowToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9757A8AB9051D2B4D7FBD34 /* WindowToolbar.swift */; };
 		D684E7EA272ACE003FF7EFB0 /* ComposerBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09F680C1BF84B3CF1C576C3 /* ComposerBox.swift */; };
 		D8BEA37E7DD21B08FBCAACAB /* ChatComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39303FD805DEF3103AAB3 /* ChatComputer.swift */; };
 		D97B67C5784EABAA2444D438 /* IssueToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A241350B2223FA06355C13DB /* IssueToolbar.swift */; };
@@ -368,6 +370,7 @@
 		7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePaths.swift; sourceTree = "<group>"; };
 		810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxMobileApp.swift; sourceTree = "<group>"; };
 		81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
+		8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatToolbar.swift; sourceTree = "<group>"; };
 		8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostProtocol.swift; sourceTree = "<group>"; };
 		871851519A7251235137D947 /* RuntimePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePreferences.swift; sourceTree = "<group>"; };
 		8964CD6CAA729D104D06907D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -397,6 +400,7 @@
 		B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubIssues.swift; sourceTree = "<group>"; };
 		B7E0882B1086EDE675468281 /* MobileMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileMedia.swift; sourceTree = "<group>"; };
 		B9675867775B38402C20AED2 /* AVKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVKit.framework; path = System/Library/Frameworks/AVKit.framework; sourceTree = SDKROOT; };
+		B9757A8AB9051D2B4D7FBD34 /* WindowToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowToolbar.swift; sourceTree = "<group>"; };
 		BA0BAF2C76EC2D70BB91B0A0 /* GolemJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemJournal.swift; sourceTree = "<group>"; };
 		BACD3896247941A01A6F39FB /* PathLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathLinks.swift; sourceTree = "<group>"; };
 		BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Media.swift"; sourceTree = "<group>"; };
@@ -700,6 +704,7 @@
 				0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */,
 				2C9F2CF5EC415AC3F8FF1EB9 /* ChatSettingsCog.swift */,
 				9C4CA0CF0AC2654218DD2FE2 /* ChatSwitchTransition.swift */,
+				8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */,
 				4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */,
 				3DFC9A91C3FDEEE6DA83D052 /* ChatWindowReader.swift */,
 				5320CE9CF68399C5A7BDC4C6 /* CloneFromGitHubView.swift */,
@@ -736,6 +741,7 @@
 				DB5E034B9A673C82F162376B /* TranscriptPaging.swift */,
 				3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */,
 				4ABAE1B34A7039850D52C275 /* WebPane.swift */,
+				B9757A8AB9051D2B4D7FBD34 /* WindowToolbar.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -989,6 +995,7 @@
 				56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */,
 				3EE9FADECC78423EBD493888 /* ChatSettingsCog.swift in Sources */,
 				82540D87E4AA52D3F549E238 /* ChatSwitchTransition.swift in Sources */,
+				12619EA37700E060F9BDE7FD /* ChatToolbar.swift in Sources */,
 				59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */,
 				55C47B29A75795755C204C1A /* ChatWindowReader.swift in Sources */,
 				DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */,
@@ -1076,6 +1083,7 @@
 				F21C81EE917C3DB8A4CFD123 /* Usage.swift in Sources */,
 				BC976CA7BD9AE7FB18B189EA /* UsageMeter.swift in Sources */,
 				25A75E689316C0AFEEA9CE52 /* WebPane.swift in Sources */,
+				D5961041D9791D4160B9DC85 /* WindowToolbar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

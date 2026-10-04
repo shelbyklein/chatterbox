@@ -1,0 +1,115 @@
+import AppKit
+import SwiftUI
+
+// Run through scripts/test-chat-toolbar.sh. Uses copies of saved chats; no agent is resumed.
+// Checks #29: the chat's toolbar items survive a chat switch and show the new chat.
+let app = NSApplication.shared
+app.setActivationPolicy(.regular)
+
+typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+
+func save(_ window: NSWindow, _ name: String, _ out: String) {
+    window.displayIfNeeded()
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { return }
+    let rep = NSBitmapImageRep(cgImage: image)
+    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+}
+
+func pressAccessible(_ label: String, in root: Any) -> Bool {
+    guard let object = root as? NSObject else { return false }
+    if object.responds(to: NSSelectorFromString("accessibilityLabel")),
+       (object.value(forKey: "accessibilityLabel") as? String) == label,
+       object.responds(to: NSSelectorFromString("accessibilityPerformPress")) {
+        return object.perform(NSSelectorFromString("accessibilityPerformPress")) != nil || true
+    }
+    if object.responds(to: NSSelectorFromString("accessibilityChildren")),
+       let kids = object.value(forKey: "accessibilityChildren") as? [Any] {
+        for kid in kids where pressAccessible(label, in: kid) { return true }
+    }
+    return false
+}
+
+@MainActor
+func run() async throws {
+    guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"],
+          root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("Use the isolated runner") }
+    let out = ProcessInfo.processInfo.environment["TOOLBAR_OUT"] ?? "/tmp"
+    UserDefaults.standard.setVolatileDomain([
+        "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
+        "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false,
+        "notifyFinished": false, "keepMacAwake": false
+    ], forName: UserDefaults.argumentDomain)
+    let model = AppModel()
+    let chats = model.activeSessions.filter { !$0.isDot && $0.record.backend == .claude && $0.record.projectFolder != nil }
+    let others = model.activeSessions.filter { !$0.isDot && $0.record.backend == .codex }
+    guard chats.count >= 2, let codex = others.first else { fatalError("Need two Claude project chats and a Codex chat") }
+    let pinned = ProcessInfo.processInfo.environment["TOOLBAR_FIRST"].flatMap { t in chats.first { $0.title.hasPrefix(t) } }
+    let a = pinned ?? chats[0], b = chats.first { $0.projectName != a.projectName } ?? chats[1]
+
+    let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1400, height: 800),
+                          styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    let host = NSHostingView(rootView: ContentView().environment(model))
+    host.sizingOptions = [.minSize]
+    window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
+
+    func show(_ s: ChatSession) async throws {
+        model.showingHome = false; model.showingCommandCenter = false; model.showingSettings = false
+        model.selectedID = s.id
+        try await Task.sleep(for: .milliseconds(900))
+    }
+    func items() -> [ObjectIdentifier] { (window.toolbar?.items ?? []).map(ObjectIdentifier.init) }
+
+    var failures = 0
+    func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !ok { failures += 1 } }
+    func item(_ id: String) -> NSToolbarItem? { window.toolbar?.items.first { $0.itemIdentifier.rawValue == "chatterbox.\(id)" } }
+    func hidden(_ id: String) -> Bool { if #available(macOS 15.0, *) { return item(id)?.isHidden ?? true } else { return item(id)?.view?.isHidden ?? true } }
+
+    try await show(a)
+    check(WindowToolbar.made.count == 1, "one toolbar for the window (\(WindowToolbar.made.map(\.debugState)))")
+    let first = items()
+    check(first.count >= 12, "toolbar has its items (\(first.count)) for \(a.projectName)")
+    check(window.title == a.title, "window title is the chat's (\(window.title))")
+    check(!hidden("remote"), "Remote Control shows for a Claude chat")
+    save(window, "1-\(a.projectName)", out)
+    try await show(b)
+    check(items() == first, "same toolbar items after switching to \(b.projectName)")
+    check(window.title == b.title, "title follows the switch")
+    save(window, "2-\(b.projectName)", out)
+    try await show(codex)
+    check(items() == first, "same toolbar items for a Codex chat")
+    check(hidden("remote"), "Remote Control hidden for Codex")
+    save(window, "3-codex", out)
+    try await show(a)
+    check(!hidden("remote"), "Remote Control back for Claude")
+    check(items() == first, "same toolbar items after four switches")
+    // The terminal button acts on the chat now showing.
+    if let terminal = item("terminal"), let action = terminal.action { NSApp.sendAction(action, to: terminal.target, from: terminal) }
+    try await Task.sleep(for: .milliseconds(700))
+    save(window, "4-terminal-open", out)
+    model.showingSettings = true
+    try await Task.sleep(for: .milliseconds(600))
+    check(window.title == "Settings", "title reads Settings on the Settings page")
+    check(hidden("terminal"), "chat items hide on the Settings page")
+    save(window, "5-settings", out)
+    model.showingSettings = false
+    try await Task.sleep(for: .milliseconds(1500))
+    check(items() == first && !hidden("terminal"), "chat items return, same items, after Settings")
+    // Home and back.
+    model.showingHome = true
+    try await Task.sleep(for: .milliseconds(800))
+    check(hidden("terminal") && window.title == "Chatterbox", "Home hides the chat's items")
+    save(window, "6-home", out)
+    model.showingHome = false
+    try await Task.sleep(for: .milliseconds(1200))
+    check(!hidden("terminal") && window.title == a.title && items() == first, "back from Home: chat items, title and same items")
+    print(failures == 0 ? "RESULT all passed" : "RESULT \(failures) failed")
+    exit(failures == 0 ? 0 : 1)
+}
+
+Task { @MainActor in
+    do { try await run() } catch { print("error", error); exit(1) }
+}
+app.run()

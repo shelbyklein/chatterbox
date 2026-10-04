@@ -10,7 +10,7 @@ export CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=47440
 mkdir -p "$CHATTERBOX_DATA_DIR" "$CHATTERBOX_HOST_DIR"
-find Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift | sort > "$task_dir/files.txt"
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift | sort > "$task_dir/files.txt"
 swiftc -D DEBUG -Onone \
   -I "$products" "$products/SwiftTerm.o" \
   -framework AVKit -framework WebKit -framework PDFKit \

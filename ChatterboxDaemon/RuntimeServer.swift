@@ -125,6 +125,14 @@ import CoreFoundation
                 }
             case "draft":
                 let s=try chat(r.body);result=try .value(RuntimeDraft(text:s.draft,attachments:s.draftAttachments))
+            case "setDraft":
+                // The newest draft simply replaces the last, so it needs no command receipt and no
+                // conversation rewrite; its save is coalesced. Each keystroke used to rewrite the
+                // runtime state three times and the whole chat file, backing up every request.
+                guard role != "golem-ui" || (try? chat(r.body))?.isDot == true else { throw RuntimeFailure("permission_denied") }
+                let s=try chat(r.body)
+                runtime.updateDraft(s,text:r.body["text"]?.string ?? "",attachments:try r.body["attachments"]?.decode([Attachment].self) ?? [])
+                result = .null
             default:
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
                 result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try mutate(r,role:role=="golem-ui" ? "ui":role)}
@@ -219,9 +227,6 @@ import CoreFoundation
             let s=try chat(r.body)
             guard let id=r.body["itemID"]?.string.flatMap(UUID.init(uuidString:)),let answers=r.body["answers"] else {throw RuntimeFailure("invalid_suggestion")}
             try s.suggestAnswers(id,answers:answers.decode([String:[String]].self),reason:r.body["reason"]?.string ?? "",by:r.body["by"]?.string ?? "Golem")
-        case "setDraft":
-            let s=try chat(r.body)
-            try runtime.updateDraft(s,text:r.body["text"]?.string ?? "",attachments:try r.body["attachments"]?.decode([Attachment].self) ?? [])
         case "archive":try chat(r.body).setArchived(r.body["archived"]?.bool ?? true)
         case "rename":try chat(r.body).setTitle(r.body["title"]?.string ?? "")
         case "delete":guard role=="ui" else{throw RuntimeFailure("permission_denied")};let s=try chat(r.body);try runtime.remove(s.id)
