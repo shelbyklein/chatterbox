@@ -27,10 +27,10 @@ app.setActivationPolicy(.accessory)
     }
     precondition(colored>5,"No prompt color")
     precondition(try! String(contentsOf:rc.appendingPathComponent(".zshrc"),encoding:.utf8)=="export CHATTERBOX_RC_LOADED=yes\nPROMPT='original plain prompt> '\n")
-    let target=try await SCShareableContent.currentProcess.windows.first {$0.windowID==CGWindowID(panel.windowNumber)}!
-    let config=SCStreamConfiguration();config.width=1600;config.height=600
-    let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:target),configuration:config)
-    try NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("prompt.png"))
+    let view=terminal.view;view.layoutSubtreeIfNeeded()
+    let rep=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+    view.cacheDisplay(in:view.bounds,to:rep)
+    try rep.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("prompt.png"))
     terminal.view.send(txt:"exit\r")
     try await Task.sleep(for:.milliseconds(500))
     print("PASS original zsh startup preserved; colored prompt cells \(colored); source rc unchanged")

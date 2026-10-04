@@ -1,6 +1,6 @@
 # Switch checkpoint evidence
 
-Optimized signed Mac apps are staged in `build/GolemReview/Apps`. Source delivery is for review; no live adoption, installation, LaunchAgent loading, real provider requests, physical pairing or real APNs delivery has occurred.
+Optimized signed Mac apps are staged in `build/GolemReview/Apps`. The backed-up Mac development switch is now installed at revision 91809cf with Golem automation paused; see installed-verification.md. Physical pairing, new provider test turns and real APNs remain pending.
 
 Verified:
 - Foundation conversation runtime: fake Claude/Codex turns, questions, denial, steering, stop, queue, replay, single-writer lock, drafts and receipt retries with UIs absent.
@@ -18,4 +18,4 @@ Remaining acceptance:
 - Full physical iPad rotation/window multitasking and VoiceOver remain unverified. Simulator orientation commands did not establish a landscape window despite historical capture filenames.
 - RSS/wakeup, physical-device energy and real-provider workload comparisons remain unverified. CPU results do not establish these properties.
 - GOLEM-06 and GOLEM-08 remain review pending for these limits; criteria have not been waived. GOLEM-07 source fixtures pass; real push is gated separately.
-- Live activation and installed verification are pending. See plans/golem-activation.md and build/GolemReview/switch-checkpoint.md.
+- Mac adoption/installation and signed UI/service readback are verified. Remaining GOLEM-09 physical/provider/rollback criteria are pending. See installed-verification.md and plans/golem-activation.md.
