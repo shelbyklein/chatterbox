@@ -12,6 +12,7 @@ struct CommandCenterSlot: Codable, Identifiable, Equatable {
 final class CommandCenterLayout {
     private(set) var slots: [CommandCenterSlot]
     var activeID: UUID?
+    var singleRow: Bool { didSet { defaults.set(singleRow, forKey: "commandCenterSingleRow") } }
     var columns: Int { didSet { defaults.set(columns, forKey: "commandCenterColumns") } }
     var tileHeight: Double { didSet { defaults.set(tileHeight, forKey: "commandCenterTileHeight") } }
     @ObservationIgnored private let defaults: UserDefaults
@@ -23,6 +24,7 @@ final class CommandCenterLayout {
         let restored = saved.filter { sessions.insert($0.sessionID).inserted && ids.insert($0.id).inserted }
         slots = restored
         activeID = restored.first?.id
+        singleRow = defaults.bool(forKey: "commandCenterSingleRow")
         columns = min(4, max(1, defaults.object(forKey: "commandCenterColumns") as? Int ?? 2))
         tileHeight = min(900, max(400, defaults.object(forKey: "commandCenterTileHeight") as? Double ?? 560))
     }
@@ -92,23 +94,24 @@ struct CommandCenterView: View {
                         Button("Add chat", systemImage: "plus") { choice = ThreadChoice() }.buttonStyle(.borderedProminent)
                     }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0), spacing: 16), count: columns), spacing: 16) {
-                            ForEach(layout.slots) { slot in
-                                if let session = model.sessions.first(where: { $0.id == slot.sessionID }) {
-                                    CommandCenterTile(session: session, active: layout.activeID == slot.id,
-                                        activate: { layout.activeID = slot.id },
-                                        switchThread: { choice = ThreadChoice(slotID: slot.id) },
-                                        remove: { layout.remove(slot.id) })
-                                        .frame(height: layout.tileHeight)
+                    GeometryReader { area in
+                        ScrollViewReader { proxy in
+                            ScrollView(layout.singleRow ? .horizontal : .vertical) {
+                                if layout.singleRow {
+                                    HStack(spacing: 16) {
+                                        tiles(width: max(400, (area.size.width - 32 - CGFloat(max(0, layout.slots.count - 1)) * 16) / CGFloat(max(1, layout.slots.count))),
+                                              height: max(0, area.size.height - 32))
+                                    }.padding(16)
+                                } else {
+                                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 0), spacing: 16), count: columns), spacing: 16) {
+                                        tiles(width: nil, height: layout.tileHeight)
+                                    }.padding(16)
                                 }
                             }
-                        }.padding(16)
-                    }
-                    .onChange(of: layout.slots.map(\.id)) { old, new in
-                        if new.count > old.count, let added = layout.activeID { proxy.scrollTo(added, anchor: .center) }
-                    }
+                            .onChange(of: layout.slots.map(\.id)) { old, new in
+                                if new.count > old.count, let added = layout.activeID { proxy.scrollTo(added, anchor: .center) }
+                            }
+                        }
                     }
                 }
             }
@@ -125,6 +128,18 @@ struct CommandCenterView: View {
             }
         }
     }
+    @ViewBuilder private func tiles(width: CGFloat?, height: CGFloat) -> some View {
+        ForEach(layout.slots) { slot in
+            if let session = model.sessions.first(where: { $0.id == slot.sessionID }) {
+                CommandCenterTile(session: session, active: layout.activeID == slot.id,
+                    activate: { layout.activeID = slot.id },
+                    switchThread: { choice = ThreadChoice(slotID: slot.id) },
+                    remove: { layout.remove(slot.id) })
+                    .frame(width: width, height: height)
+                    .id(slot.id)
+            }
+        }
+    }
     private var heading: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Command Center").font(.title.weight(.bold))
@@ -135,14 +150,20 @@ struct CommandCenterView: View {
     private var controls: some View {
         HStack(spacing: 12) {
             Menu {
+                Picker("Arrangement", selection: $layout.singleRow) {
+                    Text("Grid").tag(false)
+                    Text("Single row · Fill height").tag(true)
+                }
                 Picker("Columns", selection: $layout.columns) {
                     ForEach(1...4, id: \.self) { Text("\($0) columns").tag($0) }
                 }
+                .disabled(layout.singleRow)
                 Picker("Tile height", selection: $layout.tileHeight) {
                     Text("Compact").tag(420.0)
                     Text("Roomy").tag(560.0)
                     Text("Tall").tag(800.0)
                 }
+                .disabled(layout.singleRow)
             } label: { Label("Layout", systemImage: "rectangle.split.2x2") }
             Button("Add chat", systemImage: "plus") { choice = ThreadChoice() }
                 .accessibilityLabel("Add Command Center chat")

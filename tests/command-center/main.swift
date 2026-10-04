@@ -111,6 +111,9 @@ app.setActivationPolicy(.accessory)
         if let frame=CommandCenterDebug.tiles[id] {precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+640,"Clipped narrow tile")}
     }
     precondition(first.draft=="Chatterbox draft A" && second.draft=="SDHQ draft B")
+    layout.singleRow=true
+    try await render(1200,900,"single-row-two-chats")
+    layout.singleRow=false
     try await render(1200,760,"before-add")
     try await click(CommandCenterDebug.add)
     try await Task.sleep(for:.milliseconds(350))
@@ -120,6 +123,18 @@ app.setActivationPolicy(.accessory)
     layout.add(third.id);layout.columns=2;layout.tileHeight=420
     try await render(1200,1030,"four-chats")
     precondition(editors(panel.contentView!).count==4,"Four-chat grid lost composers")
+    layout.singleRow=true
+    try await render(1200,900,"single-row")
+    let frames=CommandCenterDebug.tiles
+    precondition(frames.count==4)
+    let top=frames[first.id]!.minY
+    for frame in frames.values {
+        precondition(abs(frame.minY-top)<1 && frame.height>750,"Single row did not fill height")
+    }
+    precondition(CommandCenterLayout(defaults:defaults).singleRow,"Single row preference lost")
+    try await render(640,900,"single-row-narrow",false)
+    precondition(CommandCenterDebug.tiles[first.id]!.width>=400,"Single row squeezed chat width")
+    layout.singleRow=false
     let restored=CommandCenterLayout(defaults:defaults)
     precondition(restored.slots==layout.slots)
     restored.reconcile(available:[first.id])
