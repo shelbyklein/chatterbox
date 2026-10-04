@@ -10,8 +10,10 @@ Success/deliverables: Mac menu action creates one fresh session preserving paren
 
 - [x] SIDE-1: Add optional parent/folder metadata, creation and safe archiving. Fixture regression validates independent session IDs, inherited settings, same folder and persistence.
 - [x] SIDE-2: Mac creation/end menu, temporary badge/nesting; companion list visibility. Native menu entry/render check; old save compatibility and no duplicate grouping.
-- [ ] SIDE-3: Build, scoped commit/push/install, verify bundle. Screenshot proof and remaining device limits reported.
+- [x] SIDE-3: Build, scoped commit/push/install, verify bundle. Screenshot proof and remaining device limits reported.
 
 Preserve parent files/settings/history; no worktree/branch operations or implicit execution. All history remains local; no transcript copying. Converting projects to Studios is separate, waiting on existing-Studio folder semantics. Tests link production debug module with isolated data, automatic Golem jobs off, no provider turns. Backup installed app /tmp/Chatterbox-before-sidechat.app; revert commit to roll back UI, new optional metadata remains harmless and unknown-field-compatible in saved JSON. Never remove saved sidechat files on rollback.
 
 Verified scripts/test-sidechat.sh: native click creates fresh session, inherited route/effort/Fast/permissions/folder, unchanged parent including running flag and draft, one appearance in companion list, old-record decoding, empty persistence/archive and orphan fallback. Native sidebar render inspected at 280pt: /Users/shelbyklein/Chatterbox/Screenshots/sidechat/sidebar.png. Golem sidechats show in Chats. No real provider turn sent; phone payload checked, mobile UI/device not checked. Creation shared button clicked in native harness, full right-click menu itself not clicked.
+
+Installed Mac code revision b315910; scripts/install.sh succeeded, signed bundle verified by installer, installed/built debug dylib SHA-256 match 4e01899fc9c860e86e8d77915107dd61d2ae89c5e443c5a9f1a39696890cfbbc, /Applications process launched and authenticated local API returned 200. No user project converted and no live Sidechat created during verification. Mobile UI not installed/exercised in this task.

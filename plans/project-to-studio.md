@@ -15,8 +15,10 @@ Target flow: Project context menu → Convert to New Studio → name/explicit ex
 
 - [x] STUDIO-1: Conversion/menu/name sheet with no destructive file operations; idle parent guard.
 - [x] STUDIO-2: Fixture history/settings/children/persistence/old-record checks and native sidebar render inspected.
-- [ ] STUDIO-3: Build, commit/push/install Mac and verify bundle; existing-Studio move reported pending.
+- [x] STUDIO-3: Build, commit/push/install Mac and verify bundle; existing-Studio move reported pending.
 
 Tests: scripts/test-project-studio.sh and scripts/test-sidechat.sh using production debug module and isolated data. Rollback: preserve installed app /tmp/Chatterbox-before-sidechat.app before combined install; restore app if necessary, preserve all new Studio/Sidechat saves. No GitHub issue changes or actual user-project conversion during testing.
 
 Verification: scripts/test-project-studio.sh passed same cwd, provider IDs/tasks/history/draft/settings, running worktree state, descendant uniqueness/order, pins moved, existing design preserved, reload, missing-folder refusal, fork ownership and stale secret scope cleared. Native sidebar render inspected: /Users/shelbyklein/Chatterbox/Screenshots/project-to-studio/converted.png. The menu/name confirmation dialog was not clicked; conversion path was fixture-tested and the resulting production sidebar rendered. No real project was converted. Sidechat regression passed again against integrated code. Existing-Studio direct move remains pending the folder choice.
+
+Installed Mac code revision b315910; scripts/install.sh succeeded, signed bundle verified by installer, installed/built debug dylib SHA-256 match 4e01899fc9c860e86e8d77915107dd61d2ae89c5e443c5a9f1a39696890cfbbc, /Applications process launched and authenticated local API returned 200. No user project converted and no live Sidechat created during verification. Mobile UI not installed/exercised in this task.
