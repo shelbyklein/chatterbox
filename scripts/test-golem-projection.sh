@@ -13,7 +13,7 @@ export PROJECTION_CAPTURE="$PWD/tests/golem-integration/artifacts/projection.png
 export GOLEM_TEST_APP_PATH="${golem_root}/build/GolemPlan/Build/Products/Debug/Golem.app"
 export GOLEM_TEST_CAPTURE="$PWD/tests/golem-integration/artifacts"
 products=build/GolemPlan/Build/Products/Debug
-rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$task_dir/sources"
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$task_dir/sources"
 cp tests/golem-integration/projection.swift "$task_dir/main.swift"
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -whole-module-optimization -Onone -o "$task_dir/projection" @"$task_dir/sources" "$task_dir/main.swift"
 build/runtime/chatterboxd > "$task_dir/daemon.log" 2>&1 &
