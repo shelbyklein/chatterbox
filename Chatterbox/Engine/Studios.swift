@@ -95,6 +95,9 @@ extension AppModel {
     /// `moving` goes in as that first chat instead, when making a Studio from a chat.
     @discardableResult
     func newStudio(named name: String, folder: String? = nil, moving session: ChatSession? = nil) -> Studio? {
+        if let session {
+            guard session.record.projectFolder == nil, !session.isRunning, !session.isRestartingThread, !session.isDot, session.record.archivedAt == nil else { return nil }
+        }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = trimmed.isEmpty ? "Studio" : trimmed
         guard let path = folder ?? Self.makeStudioFolder(named: name) else { return nil }
@@ -109,19 +112,33 @@ extension AppModel {
     /// Converts a project in place; no files, branches or worktree folders move.
     @discardableResult
     func convertProjectToStudio(_ session: ChatSession, named name: String) -> Studio? {
-        guard let folder = session.record.projectFolder, session.record.worktreeOf == nil,
+        guard let folder = session.record.projectFolder ?? session.record.convertedProjectFolder, session.record.worktreeOf == nil,
               session.record.archivedAt == nil, !session.isDot, !session.isRunning, !session.isRestartingThread else { return nil }
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: folder, isDirectory: &isDirectory), isDirectory.boolValue else { return nil }
+        for path in [folder, session.workingFolder] {
+            var directory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &directory), directory.boolValue else { return nil }
+        }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let studio = Studio(name: trimmed.isEmpty ? session.projectName : trimmed, folder: Self.normalize(folder))
-        let children = worktrees(of: session)
-        let sidechats = sidechats(of: session) + children.flatMap { self.sidechats(of: $0) }
+        let studio = Studio(name: trimmed.isEmpty ? session.projectName : trimmed, folder: Self.normalize(session.workingFolder))
         studio.ensureDesignFile()
         studios.append(studio)
         saveStudios()
-        session.record.convertedProjectFolder = folder
-        session.setStudio(studio)
+        return convertProjectToStudio(session, into: studio, keepFolder: true)
+    }
+
+    /// Joins an existing Studio without moving files. Worktrees and Sidechats retain their cwd.
+    @discardableResult
+    func convertProjectToStudio(_ session: ChatSession, into studio: Studio, keepFolder: Bool = true) -> Studio? {
+        guard let folder = session.record.projectFolder ?? session.record.convertedProjectFolder, session.record.worktreeOf == nil,
+              session.record.archivedAt == nil, !session.isDot, !session.isRunning, !session.isRestartingThread,
+              studio.archivedAt == nil, activeStudios.contains(where: { $0.id == studio.id && $0.folder == studio.folder }) else { return nil }
+        for path in [folder, session.workingFolder, studio.folder] {
+            var directory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &directory), directory.boolValue else { return nil }
+        }
+        let children = worktrees(of: session)
+        let sidechats = sidechats(of: session) + children.flatMap { self.sidechats(of: $0) }
+        session.setStudio(studio, keepingFolder: keepFolder ? session.workingFolder : nil, convertedProject: folder)
         let oldPlace = PinPlace(key: "project:" + folder, name: session.projectName)
         for pin in PinStore.shared.pins(in: oldPlace) { PinStore.shared.setPlace(pin, to: PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)) }
         // Worktrees keep their own folders and Git metadata. Only their group
@@ -169,8 +186,22 @@ extension AppModel {
         return session
     }
 
-    /// Puts a chat in a Studio, or takes it out with nil. A chat that's mid-reply, or a
-    /// project's chat, stays put.
+    /// Move a regular thread with an explicit working-folder choice.
+    @discardableResult
+    func joinStudio(_ session: ChatSession, studio: Studio, keepFolder: Bool) -> Bool {
+        guard session.record.projectFolder == nil, session.record.archivedAt == nil,
+              !session.isDot, !session.isRunning, !session.isRestartingThread,
+              studio.archivedAt == nil, activeStudios.contains(where: { $0.id == studio.id && $0.folder == studio.folder }) else { return false }
+        for path in [session.workingFolder, studio.folder] {
+            var directory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &directory), directory.boolValue else { return false }
+        }
+        session.setStudio(studio, keepingFolder: keepFolder ? session.workingFolder : nil)
+        setStudio(studio.id, collapsed: false)
+        return true
+    }
+
+    /// Existing move behavior: regular chats use the Studio folder.
     func move(_ session: ChatSession, to studio: Studio?) {
         // Project chats belong to their project folder.
         guard !session.isRunning, studio == nil || session.record.projectFolder == nil else { return }
@@ -208,8 +239,8 @@ extension AppModel {
         record.updatedAt = Date()
         record.archivedAt = nil
         record.forkedFrom = session.id
-        if let scope = record.convertedProjectFolder {
-            record.sidechatProjectFolder = scope
+        if record.convertedProjectFolder != nil {
+            record.sidechatProjectFolder = session.convertedProjectScope
             record.convertedProjectFolder = nil
         }
         // Never carry Dot's identity into a copy, even if a caller skips canFork.

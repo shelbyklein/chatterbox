@@ -164,12 +164,15 @@ struct ConversationRecord: Codable {
     var sidechatFolder: String?
     /// Parent project scope for existing project-only secrets; no new access is granted.
     var sidechatProjectFolder: String?
-    /// Project-only secret scope retained when converting that folder to a Studio.
+    /// Original project identity for converted roots and their nested worktrees.
+    /// Secret access is retained only while the working folder still matches.
     var convertedProjectFolder: String?
     /// The Studio this chat belongs to, and that Studio's folder, which the chat works in.
     /// The folder is kept here too so the chat can start its agent without looking it up.
     var studioID: UUID?
     var studioFolder: String?
+    /// Optional working folder retained when joining an existing Studio.
+    var studioWorkingFolder: String?
     /// "owner/name" of the GitHub repo the project folder's remote points to. Read from
     /// git, not set by hand; kept here so the sidebar and "From GitHub" can find it.
     var githubRepo: String?
@@ -204,7 +207,7 @@ struct ConversationRecord: Codable {
     var backend: Backend { activeBackend ?? (codex == nil ? .claude : .codex) }
 
     /// The folder this chat is tied to: its project's, or its Studio's.
-    var boundFolder: String? { sidechatFolder ?? projectFolder ?? studioFolder }
+    var boundFolder: String? { sidechatFolder ?? projectFolder ?? studioWorkingFolder ?? studioFolder }
 
     /// The agent processes this chat has in the background host, so a relaunch can pick up
     /// a reply that kept going while the app was closed. Older records leave these unset.

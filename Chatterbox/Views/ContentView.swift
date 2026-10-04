@@ -33,6 +33,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var namingStudio = false
     @State private var studioName = ""
+    @State private var studioDestinationID: UUID?
     /// The chat that goes into the Studio being named, when making one from a chat.
     @State private var studioFromChat: ChatSession?
     @State private var renamingStudio: Studio?
@@ -229,7 +230,7 @@ struct ContentView: View {
                 Text("Also renames the project in the sidebar and toolbar. The folder itself isn't renamed.")
             }
         }
-        .modifier(StudioCreationAlerts(naming: $namingStudio, name: $studioName, source: $studioFromChat))
+        .modifier(StudioCreationAlerts(naming: $namingStudio, name: $studioName, source: $studioFromChat, destination: studioDestinationID))
         .alert("Rename Studio", isPresented: Binding(get: { renamingStudio != nil }, set: { if !$0 { renamingStudio = nil } })) {
             TextField("Name", text: $studioName)
             Button("Rename") { if let studio = renamingStudio { model.renameStudio(studio.id, to: studioName) } }
@@ -327,7 +328,8 @@ extension ContentView {
         return activeTag == nil && chats.isEmpty && matchesSearch(studio.name)
     }
 
-    private func beginNewStudio(from session: ChatSession? = nil) {
+    private func beginNewStudio(from session: ChatSession? = nil, destination: UUID? = nil) {
+        studioDestinationID = destination
         studioFromChat = session
         studioName = session?.record.projectFolder != nil ? (session?.projectName ?? "") : ""
         namingStudio = true
@@ -590,7 +592,7 @@ extension ContentView {
                         renamingProject = session
                     }
                     if session.record.worktreeOf == nil, session.record.archivedAt == nil {
-                        Button("Convert to New Studio\u{2026}") { beginNewStudio(from: session) }
+                        Button("Convert to Studio\u{2026}") { beginNewStudio(from: session) }
                             .disabled(session.isRunning || session.isRestartingThread)
                     }
                     Menu("Tags") {
@@ -608,7 +610,7 @@ extension ContentView {
                 if session.record.archivedAt == nil, session.record.projectFolder == nil, session.record.sidechatOf == nil {
                     Menu("Move to Studio") {
                         ForEach(model.activeStudios) { studio in
-                            Button(studio.name) { model.move(session, to: studio) }
+                            Button(studio.name) { beginNewStudio(from: session, destination: studio.id) }
                                 .disabled(studio.id == session.record.studioID)
                         }
                         if !model.activeStudios.isEmpty { Divider() }
@@ -633,37 +635,116 @@ extension ContentView {
 }
 
 private struct StudioCreationAlerts: ViewModifier {
-    @Environment(AppModel.self) private var model
     @Binding var naming: Bool
     @Binding var name: String
     @Binding var source: ChatSession?
-    @State private var error: String?
-    private var isProject: Bool { source?.record.projectFolder != nil }
+    var destination: UUID?
 
     func body(content: Content) -> some View {
-        content.alert(isProject ? "Convert Project to Studio" : (source == nil ? "New Studio" : "New Studio from Chat"), isPresented: $naming) {
-            TextField("Name", text: $name)
-            Button(isProject ? "Convert" : "Create") {
-                let created: Studio?
-                if let project = source, project.record.projectFolder != nil {
-                    created = model.convertProjectToStudio(project, named: name)
-                } else {
-                    created = model.newStudio(named: name, moving: source)
+        content.sheet(isPresented: $naming, onDismiss: { source = nil }) {
+            StudioDestinationSheet(source: source, initialName: name, destination: destination)
+        }
+    }
+}
+
+#if DEBUG
+@MainActor enum StudioDestinationDebug {
+    static var rootOrigin = CGPoint.zero
+    static var folderFrame = CGRect.zero
+    static var moveFrame = CGRect.zero
+}
+#endif
+
+struct StudioDestinationSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let source: ChatSession?
+    @State private var name: String
+    @State private var destination: UUID?
+    @State private var keepFolder = true
+    @State private var error: String?
+
+    init(source: ChatSession?, initialName: String, destination: UUID? = nil) {
+        self.source = source
+        _name = State(initialValue: initialName)
+        _destination = State(initialValue: destination)
+    }
+
+    private var studio: Studio? { destination.flatMap { model.studio($0) } }
+    private var isProject: Bool { source?.record.projectFolder != nil || source?.record.convertedProjectFolder != nil }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text(source == nil ? "New Studio" : "Move to Studio").font(.title2.bold())
+            if source != nil {
+                Picker("Destination", selection: $destination) {
+                    Text("New Studio").tag(nil as UUID?)
+                    ForEach(model.activeStudios) { studio in
+                        Text(studio.name).tag(Optional(studio.id))
+                    }
                 }
-                if created == nil { error = "Couldn't create the Studio. Check the folder exists and finish any reply or thread restart, then try again." }
-                source = nil
+                .accessibilityIdentifier("studioDestination")
             }
-            Button("Cancel", role: .cancel) { source = nil }
-        } message: {
-            if let folder = source?.record.projectFolder {
-                Text("Use the existing folder at \(folder). History, drafts, files and worktree folders stay in place. The project and its worktree chats will appear in the new Studio.")
-            } else {
-                Text("Its chats share a new folder in \(AppModel.studiosBase.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")), and can save work there.")
+            if destination == nil {
+                TextField("Studio name", text: $name).textFieldStyle(.roundedBorder)
+            }
+            if let source, let studio {
+                Picker("Working folder", selection: $keepFolder) {
+                    Text("Keep current folder").tag(true)
+                    Text("Use Studio folder").tag(false)
+                }.pickerStyle(.segmented)
+                .accessibilityIdentifier("studioFolderChoice")
+                #if DEBUG
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { StudioDestinationDebug.folderFrame = $0 }
+                #endif
+                Text(keepFolder ? source.workingFolder : studio.folder)
+                    .font(.callout.monospaced()).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(keepFolder ? "The thread joins this Studio and continues working in its current folder." : "The thread will work in the Studio’s shared folder. Changing folders resets Claude’s session; your visible history stays.")
+                    .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            } else if let source, isProject {
+                let folder = source.workingFolder
+                Text("The new Studio uses your existing folder: \(folder)")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if source != nil {
+                Text("History and drafts stay. No files move. Worktrees and Sidechats keep their own working folders.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            if let error { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(destination == nil ? (isProject ? "Convert" : "Create") : "Move") { submit() }
+                    .keyboardShortcut(.defaultAction).accessibilityIdentifier("studioMove")
+                    #if DEBUG
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { StudioDestinationDebug.moveFrame = $0 }
+                    #endif
             }
         }
-        .alert("Studio not created", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("OK", role: .cancel) { error = nil }
-        } message: { Text(error ?? "") }
+        .padding(24).frame(width: 480)
+        .background(Color(nsColor: .windowBackgroundColor))
+        #if DEBUG
+        .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { StudioDestinationDebug.rootOrigin = $0 }
+        #endif
+    }
+
+    private func submit() {
+        guard destination == nil || studio != nil else { error = "This Studio is no longer available. Choose another destination."; return }
+        let result: Studio?
+        if let studio, let source {
+            if isProject {
+                result = model.convertProjectToStudio(source, into: studio, keepFolder: keepFolder)
+            } else {
+                result = model.joinStudio(source, studio: studio, keepFolder: keepFolder) ? studio : nil
+            }
+        } else if let source, isProject {
+            result = model.convertProjectToStudio(source, named: name)
+        } else {
+            result = model.newStudio(named: name, moving: source)
+        }
+        if result != nil { dismiss() }
+        else { error = "Couldn’t move this thread. Finish its reply or restart and check that both folders still exist." }
     }
 }
 

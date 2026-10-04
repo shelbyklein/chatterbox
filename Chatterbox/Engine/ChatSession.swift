@@ -480,6 +480,7 @@ final class ChatSession: Identifiable {
         guard folder != record.projectFolder else { return }
         record.projectFolder = folder
         record.convertedProjectFolder = nil
+        record.studioWorkingFolder = nil
         if record.sidechatOf == nil { record.sidechatProjectFolder = nil }
         // A project chat isn't in a Studio.
         record.studioID = nil
@@ -503,15 +504,22 @@ final class ChatSession: Identifiable {
         onChange?(self)
     }
 
+    /// Original project secret scope only while this thread still works in that folder.
+    var convertedProjectScope: String? {
+        record.convertedProjectFolder.flatMap { AppModel.normalize($0) == AppModel.normalize(workingFolder) ? $0 : nil }
+    }
+
     /// Moves this chat into a Studio, where it works in the Studio's folder, or out of one
     /// with nil. A project chat leaves its project.
-    func setStudio(_ studio: Studio?) {
-        guard studio?.id != record.studioID else { return }
+    func setStudio(_ studio: Studio?, keepingFolder: String? = nil, convertedProject: String? = nil) {
+        guard studio?.id != record.studioID || keepingFolder != record.studioWorkingFolder else { return }
         let previousFolder = workingFolder
         if let original = record.convertedProjectFolder,
            studio.map({ AppModel.normalize($0.folder) }) != AppModel.normalize(original) {
             record.convertedProjectFolder = nil
         }
+        record.studioWorkingFolder = studio == nil ? nil : keepingFolder
+        if let convertedProject { record.convertedProjectFolder = convertedProject }
         record.studioID = studio?.id
         record.studioFolder = studio?.folder
         if studio != nil {

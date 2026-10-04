@@ -121,7 +121,7 @@ final class AppModel {
             + (anchor.record.projectFolder != nil ? anchor.projectName : anchor.title)
         record.sidechatOf = anchor.id
         record.sidechatFolder = parent.workingFolder
-        record.sidechatProjectFolder = parent.record.sidechatProjectFolder ?? parent.record.convertedProjectFolder ?? parent.record.worktreeOf ?? parent.record.projectFolder
+        record.sidechatProjectFolder = parent.record.sidechatProjectFolder ?? parent.convertedProjectScope ?? parent.record.worktreeOf ?? parent.record.projectFolder
         record.activeBackend = parent.record.backend
         record.claudeFastMode = parent.record.claudeFastMode
         record.claudeMode = parent.record.claudeMode

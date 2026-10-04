@@ -1,4 +1,4 @@
-# Project → Studio: new conversion and pending existing-Studio move
+# Project → Studio: new and existing destinations
 
 Requested: add a project context-menu option to convert/move it into a Studio. Existing model.move refuses project chats; setStudio clears projectFolder and changes agent cwd to studio.folder. New Studio conversion can reuse the project folder via newStudio(folder:), but needs a deliberate path through the project guard and handling existing worktree/sidechat children so none disappears.
 
@@ -22,3 +22,12 @@ Tests: scripts/test-project-studio.sh and scripts/test-sidechat.sh using product
 Verification: scripts/test-project-studio.sh passed same cwd, provider IDs/tasks/history/draft/settings, running worktree state, descendant uniqueness/order, pins moved, existing design preserved, reload, missing-folder refusal, fork ownership and stale secret scope cleared. Native sidebar render inspected: /Users/shelbyklein/Chatterbox/Screenshots/project-to-studio/converted.png. The menu/name confirmation dialog was not clicked; conversion path was fixture-tested and the resulting production sidebar rendered. No real project was converted. Sidechat regression passed again against integrated code. Existing-Studio direct move remains pending the folder choice.
 
 Installed Mac code revision b315910; scripts/install.sh succeeded, signed bundle verified by installer, installed/built debug dylib SHA-256 match 4e01899fc9c860e86e8d77915107dd61d2ae89c5e443c5a9f1a39696890cfbbc, /Applications process launched and authenticated local API returned 200. No user project converted and no live Sidechat created during verification. Mobile UI not installed/exercised in this task.
+
+## Existing Studio destination (authorized October 4)
+Runtime chooser resolves the earlier folder question: default Keep current folder, explicit Use Studio folder. No files move. Root history/drafts/settings preserved; same-cwd session IDs preserved; worktrees and Sidechats retain their cwd and membership. Switching cwd uses existing session reset behavior. Active/archived/missing-folder guards. Linear GPT-6.1-Sol Medium, R1–R13 pass using existing scope and explicit runtime choice. No GitHub issue mutations.
+- [x] DEST-1: Existing/new destination chooser and persisted working-folder override.
+- [x] DEST-2: Production model regression tests for both folder choices, reload, descendants, pins and safeguards; rendered chooser inspected.
+- [ ] DEST-3: Build, commit/push/install Mac, verify bundle and process.
+Rollback: restore pre-install app backup; preserve saved records and user files.
+
+Destination verification: production Debug build passed; scripts/test-project-studio.sh passed in /tmp/chatterbox-project-studio.YmhAtB. Both cwd choices preserve visible history/drafts, existing Studio count and pins, descendant cwd/running state and reload; same-cwd provider IDs retained; shared-cwd Claude session cleared by existing behavior. Original ownership retained for worktree grouping; original project secret scope only while cwd matches. Already-converted roots can join another Studio. Native production Move button clicked successfully with default Keep current folder. Render inspected and saved at /Users/shelbyklein/Chatterbox/Screenshots/project-to-studio/existing-studio-chooser.png. Destination dropdown and folder selector clicks were not verified: synthesized selector clicks did not change selection in the inactive test panel. Their outcomes are covered through production model calls. Sidechat regression passed in /tmp/chatterbox-sidechat.LpwQHL. No user thread converted and no provider requests sent.
