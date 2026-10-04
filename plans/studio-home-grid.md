@@ -38,8 +38,10 @@ Shelby's reference `742CC953-0EA0-4C4F-B434-0897A8AD50DC` clarifies that Studios
 
 Linear, same GPT-6.1-Sol Medium executor; R1-R13 pass; no blocking questions. Local tracking only. Deliver Core fix + Chatterbox pin committed/pushed, Mac built/installed. Rollback revert pin and restore backed-up app.
 - [x] FLOW1: intrinsic-width Studio groups in a wrapping layout. Native Home suite verifies top-aligned neighboring groups, narrow wrapping/no overlap, four icons per row and existing-thread click. Inspect wide/narrow real renders.
-- [ ] FLOW2: commit/push, build, backup/install/relaunch Mac and verify installed binary.
+- [x] FLOW2: commit/push, build, backup/install/relaunch Mac and verify installed binary.
 
 FLOW1 evidence: `scripts/test-mac-home.sh` passed `/tmp/chatterbox-mac-home.cCcKwU`; actual Home view renders inspected at wide/narrow widths. Four variable-width Studio groups top-aligned side by side, four icons per row/fifth wraps; narrow groups wrap without overlapping; icon opens original session. Mac build passed. Installed manual interactions are not separately tested.
 
 FLOW2: Core `5663024` pushed; app backup `/tmp/Chatterbox-before-studio-flow.app`. Build complete, consumer pin and installation follow under standing authorization. Connection concern investigated read-only: current session Direct ChatGPT/auth present; Gmail/Calendar/ClickUp tools exposed, Drive absent. No provider/auth/settings files modified.
+
+FLOW2 complete: Chatterbox `2eeca2e` pushed, installed and reopened PID 59518; installed debug library SHA256 equals the completed build. Working copies clean after scoped delivery. Only UI app relaunched; no account/provider/pairing changes.
