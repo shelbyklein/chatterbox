@@ -10,8 +10,10 @@ Local tracking, linear execution in current Codex GPT-6.1-Sol Medium handoff. Us
 
 - [x] START1: shared core prompt selector, actual session context wired into EmptyChatView.
 - [x] START2: project/Studio/combined/unbound tests for both backends pass.
-- [ ] START3: inspect project and Studio native renders; pin tested core in both apps, build/commit/push/install under existing Mac authorization.
+- [x] START3: inspect project and Studio native renders; pin tested core in both apps, build/commit/push/install under existing Mac authorization.
 
 Excludes dynamic AI generation, new mobile empty-state UI, provider/account changes, changes to project/Studio instructions, file reading/indexing, and sending anything on behalf of the user.
 
 Visual proof: actual production ChatView window-server captures inspected in `/tmp/chatterbox-starter-ui.IfU2W8`, stable copies `/Users/shelbyklein/Chatterbox/Screenshots/starter-prompts/`. Provider intentionally unavailable in fixture; warning banner is fixture-only. First view-cache capture failed to draw text correctly; using current-process ScreenCaptureKit produced readable native buttons without screen capture of other applications. No messages/drafts submitted.
+
+Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`, Golem `8427c4e`. Mac builds pass; installed hash identity verified. Installed interactions not driven.

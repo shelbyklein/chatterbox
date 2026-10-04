@@ -8,6 +8,8 @@ Local plan; user requested implementation in ongoing turn. Linear, Codex GPT-6.1
 
 - [x] STUDGRID1: nested two-column Studio cards, adaptive outer grid.
 - [x] STUDGRID2: Home navigation/persistence/history checks and real rendered 4-panel + narrow fixture inspected.
-- [ ] STUDGRID3: pin core, commit/push, build/install Mac under standing authorization.
+- [x] STUDGRID3: pin core, commit/push, build/install Mac under standing authorization.
 
 Native Home suite passed in `/tmp/chatterbox-mac-home.pR6D41`; all page/action/history checks passed, four top-aligned Studio panels at 2000pt and in-bounds cards at 640pt. Inspected actual production-view wide/narrow captures in `/Users/shelbyklein/Chatterbox/Screenshots/studio-home-grid`. First fixture failed because creating sample Studios navigated away from Home; explicitly reopening Home after sample creation fixed the fixture. No production failure identified.
+
+Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`, Golem `8427c4e`. Mac builds pass; installed hash identity verified. Installed interactions not driven.
