@@ -89,8 +89,12 @@ func run() async throws {
     if let terminal = item("terminal"), let action = terminal.action { NSApp.sendAction(action, to: terminal.target, from: terminal) }
     try await Task.sleep(for: .milliseconds(700))
     save(window, "4-terminal-open", out)
+    let before = WindowToolbar.reinstalls
     model.showingSettings = true
-    try await Task.sleep(for: .milliseconds(600))
+    var last = CFAbsoluteTimeGetCurrent(), worst = 0.0
+    for _ in 0..<150 { try await Task.sleep(for: .milliseconds(20)); let t = CFAbsoluteTimeGetCurrent(); worst = max(worst, t - last); last = t }
+    print("DIAG settings 3s: reinstalls \(WindowToolbar.reinstalls - before), worst main-thread gap \(Int(worst * 1000)) ms")
+    check(WindowToolbar.reinstalls - before < 5, "Settings doesn't make the toolbar fight SwiftUI")
     check(window.title == "Settings", "title reads Settings on the Settings page")
     check(hidden("terminal"), "chat items hide on the Settings page")
     save(window, "5-settings", out)
