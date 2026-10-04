@@ -10,7 +10,7 @@ struct ChatterboxMobileApp: App {
         WindowGroup {
             Group {
                 if store.isPaired {
-                    ChatListView(hidesAssistant:true)
+                    ChatterboxTabs()
                 } else {
                     ConnectView()
                 }
@@ -34,6 +34,34 @@ struct ChatterboxMobileApp: App {
             }
             #endif
         }
+    }
+}
+
+
+/// The home's bottom tabs: Projects, Studios and Chats, like the Mac's Home pages.
+struct ChatterboxTabs: View {
+    @Environment(MobileStore.self) private var store
+    @AppStorage("mobileChatListPage") private var tab = ChatListView.Page.projects.rawValue
+
+    var body: some View {
+        TabView(selection: $tab) {
+            ForEach(ChatListView.Page.allCases) { page in
+                ChatListView(hidesAssistant: true, fixedPage: page)
+                    .tabItem { Label(page.title, systemImage: page.icon) }
+                    .badge(waiting(on: page))
+                    .tag(page.rawValue)
+            }
+        }
+        // A tapped notification opens the tab its chat lives in.
+        .onChange(of: MobilePushNotifications.shared.pendingChat) { _, id in
+            guard let id else { return }
+            let kind = store.chatList?.groups.first { $0.chats.contains { $0.id == id } }?.kind
+            tab = (ChatListView.Page.allCases.first { $0.kind == kind } ?? .chats).rawValue
+        }
+    }
+
+    private func waiting(on page: ChatListView.Page) -> Int {
+        (store.chatList?.groups ?? []).filter { $0.kind == page.kind }.flatMap(\.chats).filter(\.isWaitingOnYou).count
     }
 }
 
