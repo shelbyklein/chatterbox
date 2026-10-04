@@ -68,6 +68,15 @@ app.setActivationPolicy(.accessory)
         try await Task.sleep(for:.milliseconds(250))
     }
     try await render(1200,760,"wide")
+    let activeBeforeMove=layout.activeID
+    precondition(!layout.move(slotA,by:-1),"Moved beyond first slot")
+    try await click(CommandCenterDebug.moveEarlier[second.id]!)
+    precondition(layout.slots.map(\.id)==[slotB,slotA] && layout.activeID==activeBeforeMove,"Arrow reorder changed active chat or failed")
+    precondition(CommandCenterLayout(defaults:defaults).slots==layout.slots,"Reorder did not persist")
+    precondition(first.draft=="Chatterbox draft" && second.draft=="SDHQ draft" && (try! encoder.encode(first.record))==original,"Reorder changed conversation/draft")
+    try await render(1200,760,"reordered")
+    try await click(CommandCenterDebug.moveEarlier[first.id]!)
+    precondition(layout.slots.map(\.id)==[slotA,slotB],"Move back failed")
     let boxes=editors(panel.contentView!)
     precondition(boxes.count==2,"Expected two independent native composers")
     let left=boxes.first {$0.string=="Chatterbox draft"}!, right=boxes.first {$0.string=="SDHQ draft"}!

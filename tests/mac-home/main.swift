@@ -152,15 +152,28 @@ app.setActivationPolicy(.accessory)
         second.title=name+" follow-up";second.studioID=added.id;second.studioFolder=added.folder;second.activeBackend = .claude
         model.insertSession(second)
     }
+    let lastStudio=model.activeStudios.first(where: {$0.name == "USA Archery"})!
+    for index in 3...5 {
+        var extra=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+        extra.title="USA thread \(index)";extra.studioID=lastStudio.id;extra.studioFolder=lastStudio.folder;extra.activeBackend = .claude
+        model.insertSession(extra)
+    }
     model.showingHome=true
-    try await render(AnyView(ContentView()),2000,1050,"studio-grid-wide")
-    let frames=samples.map {MacHomeDebug.cards[$0.id]!}
-    precondition(Set(frames.map {Int($0.minX)}).count==4,"Studio groups did not fit four columns")
-    precondition(frames.allSatisfy {abs($0.minY-frames[0].minY)<2},"Studio groups were not top aligned")
+    try await render(AnyView(ContentView()),2000,1250,"studio-grid-wide")
+    let groupFrames=HomeThreads.groups(model,page:.studios).map { group in group.threads.compactMap {MacHomeDebug.cards[$0.id]}.min(by: {$0.minX < $1.minX})! }
+    precondition(Set(groupFrames.map {Int($0.minX)}).count==1,"Studio groups are not aligned on the left")
+    precondition(Set(groupFrames.map {Int($0.minY)}).count==4,"Studio groups did not stack vertically")
+    precondition(groupFrames.allSatisfy {$0.width <= 100},"Studio icons expanded into large cards")
+    let studioFrames=model.chats(in:lastStudio).map {MacHomeDebug.cards[$0.id]!}
+    precondition(Set(studioFrames.map {Int($0.minX)}).count==4,"Studio icons did not use four columns")
+    precondition(Set(studioFrames.map {Int($0.minY)}).count==2,"Fifth Studio icon did not wrap")
     try await render(AnyView(ContentView()),640,1050,"studio-grid-narrow")
     for frame in MacHomeDebug.cards.values {
         precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+640,"Studio grid clipped at narrow width")
     }
+    let iconFrame=MacHomeDebug.cards[studioChat.id]!
+    try await click(NSPoint(x:iconFrame.midX-globalOrigin.x,y:panel.contentView!.bounds.height-(iconFrame.midY-globalOrigin.y)))
+    precondition(model.selectedID==studioChat.id && !model.showingHome,"Studio icon did not open the original thread")
     print("PASS: native four-page navigation/persistence, exact active partitions, archive open/history/restore, unique complete groups, collapsed Studio/search/filters, native List/Cards/Home/card clicks, same-session history and draft preserved. Proof: \(root.path)")
     panel.orderOut(nil)
 }
