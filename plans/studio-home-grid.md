@@ -32,3 +32,14 @@ Verification: final Home suite passed `/tmp/chatterbox-mac-home.Nb5iDf`, includi
 Send-delay finding (read-only, separate from UI delivery): Mac projections send via `remoteCommand` and fetch event-triggered state after 100ms. Codex mid-turn `codexSend` appends a user item without `onChange`, then awaits `turn/steer`; immediate transcript notification missing until provider/another event. Matches sent-while-working scenario, but physical timing not measured. No send-path changes or live runtime restart in this UI update.
 
 Delivery: Core `073bcb4` pushed; consumer pin included with native test updates. Mac source built successfully; app backup `/tmp/Chatterbox-before-studio-icons.app`; install verification recorded below after replacement. No Golem app/Core pin or mobile install changes.
+
+## Revision: compact groups side by side
+Shelby's reference `742CC953-0EA0-4C4F-B434-0897A8AD50DC` clarifies that Studios should sit next to each other. Each group takes only the width of its threads (up to four icon columns), with additional threads wrapping inside; whole groups wrap at narrower widths, aligned at their headings. Target sketch: `[SDHQ: icon] [PlayCase: icon] [USA Archery: icon icon icon icon / ...]`. Preserve icon controls, search, filters, selection/history/context menus and all other Home pages. No data, account, runtime or mobile changes.
+
+Linear, same GPT-6.1-Sol Medium executor; R1-R13 pass; no blocking questions. Local tracking only. Deliver Core fix + Chatterbox pin committed/pushed, Mac built/installed. Rollback revert pin and restore backed-up app.
+- [x] FLOW1: intrinsic-width Studio groups in a wrapping layout. Native Home suite verifies top-aligned neighboring groups, narrow wrapping/no overlap, four icons per row and existing-thread click. Inspect wide/narrow real renders.
+- [ ] FLOW2: commit/push, build, backup/install/relaunch Mac and verify installed binary.
+
+FLOW1 evidence: `scripts/test-mac-home.sh` passed `/tmp/chatterbox-mac-home.cCcKwU`; actual Home view renders inspected at wide/narrow widths. Four variable-width Studio groups top-aligned side by side, four icons per row/fifth wraps; narrow groups wrap without overlapping; icon opens original session. Mac build passed. Installed manual interactions are not separately tested.
+
+FLOW2: Core `5663024` pushed; app backup `/tmp/Chatterbox-before-studio-flow.app`. Build complete, consumer pin and installation follow under standing authorization. Connection concern investigated read-only: current session Direct ChatGPT/auth present; Gmail/Calendar/ClickUp tools exposed, Drive absent. No provider/auth/settings files modified.

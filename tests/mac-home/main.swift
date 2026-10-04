@@ -66,7 +66,7 @@ app.setActivationPolicy(.accessory)
     panel.orderFrontRegardless()
     var globalOrigin = CGPoint.zero
     func render(_ view: AnyView, _ width: CGFloat, _ height: CGFloat, _ name: String, _ dark: Bool = true) async throws {
-        MacHomeDebug.cards=[:]
+        MacHomeDebug.cards=[:]; MacHomeDebug.studioGroups=[:]
         panel.setContentSize(NSSize(width:width,height:height))
         panel.appearance=NSAppearance(named:dark ? .darkAqua : .aqua)
         panel.contentView=NSHostingView(rootView:view.environment(model).environment(\.colorScheme,dark ? .dark : .light).onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { globalOrigin = $0 })
@@ -160,16 +160,21 @@ app.setActivationPolicy(.accessory)
     }
     model.showingHome=true
     try await render(AnyView(ContentView()),2000,1250,"studio-grid-wide")
-    let groupFrames=HomeThreads.groups(model,page:.studios).map { group in group.threads.compactMap {MacHomeDebug.cards[$0.id]}.min(by: {$0.minX < $1.minX})! }
-    precondition(Set(groupFrames.map {Int($0.minX)}).count==1,"Studio groups are not aligned on the left")
-    precondition(Set(groupFrames.map {Int($0.minY)}).count==4,"Studio groups did not stack vertically")
-    precondition(groupFrames.allSatisfy {$0.width <= 100},"Studio icons expanded into large cards")
+    let groupFrames=Array(MacHomeDebug.studioGroups.values)
+    precondition(groupFrames.count==4 && Set(groupFrames.map {Int($0.minX)}).count==4,"Studio groups did not sit side by side")
+    precondition(groupFrames.allSatisfy {abs($0.minY-groupFrames[0].minY)<2},"Studio headings did not align")
+    precondition(groupFrames.map(\.width).min()! < groupFrames.map(\.width).max()!,"Studio groups ignored their own thread counts")
     let studioFrames=model.chats(in:lastStudio).map {MacHomeDebug.cards[$0.id]!}
     precondition(Set(studioFrames.map {Int($0.minX)}).count==4,"Studio icons did not use four columns")
     precondition(Set(studioFrames.map {Int($0.minY)}).count==2,"Fifth Studio icon did not wrap")
     try await render(AnyView(ContentView()),640,1050,"studio-grid-narrow")
     for frame in MacHomeDebug.cards.values {
         precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+640,"Studio grid clipped at narrow width")
+    }
+    let narrowGroups=Array(MacHomeDebug.studioGroups.values)
+    precondition(Set(narrowGroups.map {Int($0.minY)}).count > 1,"Studio groups did not wrap")
+    for (index, frame) in narrowGroups.enumerated() {
+        for other in narrowGroups.dropFirst(index+1) {precondition(!frame.intersects(other),"Studio groups overlap")}
     }
     let iconFrame=MacHomeDebug.cards[studioChat.id]!
     try await click(NSPoint(x:iconFrame.midX-globalOrigin.x,y:panel.contentView!.bounds.height-(iconFrame.midY-globalOrigin.y)))
