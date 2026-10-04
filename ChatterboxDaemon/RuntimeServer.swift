@@ -102,6 +102,24 @@ import CoreFoundation
                     else if let number=value as? NSNumber{values[key]=CFGetTypeID(number)==CFBooleanGetTypeID() ? .bool(number.boolValue):.number(number.doubleValue)}
                 }
                 result = .object(values)
+            case "authorizePush":
+                // Push notifications are signed here, so this process needs its own Keychain
+                // access to the APNs key: the key's ACL lists programs by signing identity,
+                // and the app's "Always Allow" doesn't cover chatterboxd. This read may show
+                // the system Keychain prompt, so it runs off the main thread (other chats keep
+                // being answered while it's open). Only Chatterbox's own window may ask; the
+                // reply carries the outcome, never key material. Reading changes nothing, so
+                // there's no command receipt.
+                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+                let outcome=await Task.detached(priority:.userInitiated) { () -> (authorized:Bool,status:String) in
+                    do {
+                        _ = try PushCredentials.read(allowInteraction:true)
+                        return (true,"Keychain access verified for the background service. If the system asked, Always Allow keeps future pushes automatic.")
+                    } catch {
+                        return (false,error.localizedDescription)
+                    }
+                }.value
+                result=["authorized":.bool(outcome.authorized),"status":.string(outcome.status)]
             case "companionStatus":
                 guard ["ui","golem-ui"].contains(role) else{throw RuntimeFailure("permission_denied")}
                 let server=CompanionServer.shared
