@@ -160,6 +160,7 @@ struct ChatHomeView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text("Home").font(.largeTitle.weight(.bold))
                         Spacer()
+                        Button("Command Center", systemImage: "rectangle.split.2x2") { model.showingCommandCenter = true }
                         Button("Back to Chat", systemImage: "arrow.left") { model.showingHome = false }
                     }
                     ViewThatFits(in: .horizontal) {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A90411000000000000000001 /* CommandCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90411000000000000000002 /* CommandCenter.swift */; };
 		A90410000000000000000001 /* ChatHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90410000000000000000002 /* ChatHomeView.swift */; };
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
 		08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590872692259FADBC73667E /* DocumentViewer.swift */; };
@@ -189,6 +190,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A90411000000000000000002 /* CommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCenter.swift; sourceTree = "<group>"; };
 		A90410000000000000000002 /* ChatHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHomeView.swift; sourceTree = "<group>"; };
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
 		0508B744152680991C2150CE /* DotActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotActivity.swift; sourceTree = "<group>"; };
@@ -507,6 +509,7 @@
 				E09F680C1BF84B3CF1C576C3 /* ComposerBox.swift */,
 				DD71DB30FA4E56547B5EDD95 /* ContentView.swift */,
 				A90410000000000000000002 /* ChatHomeView.swift */,
+				A90411000000000000000002 /* CommandCenter.swift */,
 				F590872692259FADBC73667E /* DocumentViewer.swift */,
 				3CFDAD6610DE2982D43178FF /* DotComputerPanel.swift */,
 				6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */,
@@ -775,6 +778,7 @@
 				D684E7EA272ACE003FF7EFB0 /* ComposerBox.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				A90410000000000000000001 /* ChatHomeView.swift in Sources */,
+				A90411000000000000000001 /* CommandCenter.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
 				08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */,
 				61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */,

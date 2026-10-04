@@ -6,6 +6,9 @@ struct ChatView: View {
     @Environment(AppModel.self) private var model
     /// The small chat floating over a page: fewer controls, tighter margins.
     @Environment(\.compactChat) private var compact
+    @Environment(\.commandCenterTile) private var tileContext
+    private var tileActive: Bool { tileContext?.isActive ?? true }
+    private var handlesKeyboard: Bool { tileActive && NSApp.keyWindow?.windowNumber == windowNumber }
     @Environment(\.openWindow) private var openWindow
     @Environment(\.chatSwitchCoordinator) private var switchCoordinator
     private var switchingChats: Bool { switchCoordinator?.switching ?? false }
@@ -121,10 +124,13 @@ struct ChatView: View {
                     inspectorIdeal: preview != nil ? 620 : (session.isDot && !issuesPanel.isOpen ? 320 : 380),
                     inspectorMaximum: preview != nil ? 1400 : (session.isDot && !issuesPanel.isOpen ? 460 : 640),
                     closeInspector: closeInspector)
+            } else if tileContext != nil {
+                ChatColumns(chat: AnyView(chatContent), inspector: preview != nil ? AnyView(inspectorContent) : nil,
+                            inspectorMinimum: 360, inspectorIdeal: 420, inspectorMaximum: 640, closeInspector: closeInspector)
             } else { chatContent }
         }
-        .navigationTitle(session.title)
-        .toolbar { toolbarContent }
+        .modifier(ChatWindowTitle(title: session.title, embedded: tileContext != nil))
+        .toolbar { if tileContext == nil { toolbarContent } }
         .background(ChatWindowReader { windowNumber = $0.windowNumber })
         // Agents often link files by bare path ("/Users/…/Print.pdf"), which macOS can't open as a URL.
         .environment(\.chatFolder, session.workingFolder)
@@ -185,13 +191,16 @@ struct ChatView: View {
             }
         }
         .onAppear {
-            composerFocused = !switchingChats
+            composerFocused = !switchingChats && tileActive
             installPasteMonitor()
         }
-        .onChange(of: switchingChats) { _, switching in composerFocused = !switching }
+        .onChange(of: switchingChats) { _, switching in composerFocused = !switching && tileActive }
+        .onChange(of: tileActive) { _, active in if !active { composerFocused = false } }
+        .onChange(of: composerFocused) { _, focused in if focused { tileContext?.activate() } }
         .onChange(of: draft) { _, text in session.draft = text }
         .onChange(of: attachments) { _, files in session.draftAttachments = files }
         .onDisappear {
+            if tileContext != nil { session.draft = draft; session.draftAttachments = attachments }
             if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
             pasteMonitor = nil
         }
@@ -238,7 +247,7 @@ struct ChatView: View {
         pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                   event.charactersIgnoringModifiers == "v",
-                  event.window?.isKeyWindow == true, event.window?.windowNumber == windowNumber, composerFocused,
+                  event.window?.isKeyWindow == true, event.window?.windowNumber == windowNumber, composerFocused, tileActive,
                   let pasted = Attachments.fromPasteboard() else { return event }
             add(pasted)
             return nil
@@ -717,7 +726,7 @@ struct ChatView: View {
                     .frame(height: 36)
                 ChatSettingsCog(session: session, modelRequest: commands.modelPopoverRequests,
                                 modeRequest: commands.modePopoverRequests,
-                                handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
+                                handlesKeyboardRequest: { handlesKeyboard })
                     .padding(.bottom, 3)
             }
 
@@ -736,7 +745,7 @@ struct ChatView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .keyboardShortcut(".", modifiers: .command)
+                .keyboardShortcut(tileActive ? KeyboardShortcut(".", modifiers: .command) : nil)
                 .help("Stop (Esc or \u{2318}.)")
                 .accessibilityLabel("Stop")
                 // Esc stops the reply from anywhere in the chat. While the "/" menu is open,
@@ -744,14 +753,17 @@ struct ChatView: View {
                 .background {
                     if commandMatches.isEmpty {
                         Button("Stop", action: session.interrupt)
-                            .keyboardShortcut(.escape, modifiers: [])
+                            .keyboardShortcut(tileActive ? KeyboardShortcut(.escape, modifiers: []) : nil)
                             .opacity(0)
                             .accessibilityHidden(true)
                     }
                 }
             }
 
-            Button(action: submit) {
+            Button {
+                tileContext?.activate()
+                submit(now: false, requiresActiveTile: false)
+            } label: {
                 Image(systemName: "arrow.up.circle.fill").font(.system(size: 26))
             }
             .buttonStyle(.plain)
@@ -821,8 +833,8 @@ struct ChatView: View {
     private func submit() { submit(now: false) }
 
     /// `now`: ⌘↩ while the agent works stops it and sends this message right away.
-    private func submit(now: Bool) {
-        guard canSend, sidebar == nil || (!switchingChats && model.selectedID == session.id) else { return }
+    private func submit(now: Bool, requiresActiveTile: Bool = true) {
+        guard canSend, (!requiresActiveTile || tileActive), sidebar == nil || (!switchingChats && model.selectedID == session.id) else { return }
         let text = draft
         let files = attachments
         draft = ""
@@ -1030,7 +1042,7 @@ struct ChatView: View {
             ModelPicker(session: session, summary: modelSummary.short,
                         color: appearance.style.color(for: session.record.backend),
                         openRequest: commands.modelPopoverRequests,
-                        handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
+                        handlesKeyboardRequest: { handlesKeyboard })
             UsageMeter(compact: true, session: session, color: appearance.style.color(for: session.record.backend))
                 .fixedSize()
             Spacer(minLength: 0)
@@ -1069,7 +1081,7 @@ struct ChatView: View {
             ModelPicker(session: session, summary: modelSummary.full,
                         color: appearance.style.color(for: session.record.backend),
                         openRequest: commands.modelPopoverRequests,
-                        handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber })
+                        handlesKeyboardRequest: { handlesKeyboard })
             UsageMeter(session: session, color: appearance.style.color(for: session.record.backend))
             Spacer(minLength: 0)
             PresetPills(session: session, style: appearance.style)
@@ -1089,7 +1101,7 @@ struct ChatView: View {
             header: session.record.backend == .claude ? "Mode" : "How should Codex actions be approved?",
             showsIcons: session.record.backend == .codex,
             openRequest: commands.modePopoverRequests,
-            handlesKeyboardRequest: { NSApp.keyWindow?.windowNumber == windowNumber },
+            handlesKeyboardRequest: { handlesKeyboard },
             onSelect: session.setMode
         )
     }

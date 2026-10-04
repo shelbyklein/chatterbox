@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var chatSwitch: ChatSwitchTransition
+    @State private var commandCenter: CommandCenterLayout
     @AppStorage("macSidebarCards") private var sidebarCards = false
     @AppStorage("showArchived") private var showArchived = false
     @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
@@ -47,8 +48,9 @@ struct ContentView: View {
     @AppStorage(ProjectSort.key) private var projectSort = ProjectSort.recent
     @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
 
-    @MainActor init(chatSwitch: ChatSwitchTransition? = nil) {
+    @MainActor init(chatSwitch: ChatSwitchTransition? = nil, commandCenter: CommandCenterLayout? = nil) {
         _chatSwitch = State(initialValue: chatSwitch ?? ChatSwitchTransition())
+        _commandCenter = State(initialValue: commandCenter ?? CommandCenterLayout())
     }
 
     var body: some View {
@@ -115,14 +117,16 @@ struct ContentView: View {
     }
 
     private var mainChatID: UUID? {
-        guard !model.showingHome, !model.showingSettings, model.webPage == nil, let session = model.selected,
+        guard !model.showingCommandCenter, !model.showingHome, !model.showingSettings, model.webPage == nil, let session = model.selected,
               !(session.isDot && model.showingDot) else { return nil }
         return session.id
     }
 
     private var columnRoot: some View {
         Group {
-            if model.showingHome {
+            if model.showingCommandCenter {
+                CommandCenterView(layout: commandCenter)
+            } else if model.showingHome {
                 ChatHomeView { session in AnyView(row(session, number: nil, card: true, expanded: true)) }
             } else if mainChatID != nil, let session = model.sessions.first(where: {
                 $0.id == (chatSwitch.initialized ? chatSwitch.displayedID : model.selectedID)
@@ -142,6 +146,11 @@ struct ContentView: View {
                     }
                     .help(model.showingHome ? "Return to the open thread" : "Home: full-window thread cards")
                     .accessibilityLabel(model.showingHome ? "Back to Chat" : "Home")
+                }
+                ToolbarItem {
+                    Button { model.showingCommandCenter.toggle() } label: {
+                        Label("Command Center", systemImage: "rectangle.split.2x2")
+                    }.help("Several live chats in one window").accessibilityLabel("Command Center")
                 }
                 ToolbarItem {
                     Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
