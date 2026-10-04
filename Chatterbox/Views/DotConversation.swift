@@ -7,7 +7,14 @@ struct DotConversation: View {
     let session: ChatSession
     @State private var openSteps: Set<UUID> = []
     /// Only the newest rows are drawn, so a long history stays quick.
-    @State private var shown = 80
+    @State private var shown: Int
+    let showsInlineAvatar: Bool
+
+    init(session: ChatSession, initialRows: Int = 80, showsInlineAvatar: Bool = true) {
+        self.session = session
+        self.showsInlineAvatar = showsInlineAvatar
+        _shown = State(initialValue: max(1, initialRows))
+    }
     @Environment(\.readerStyle) private var style
     @Environment(\.chatFolder) private var chatFolder
     @Environment(AppModel.self) private var model
@@ -16,7 +23,7 @@ struct DotConversation: View {
         case mine(DisplayItem)
         case label(DisplayItem)
         /// A reply, the steps behind it, and the chats it's about (to jump to).
-        case reply(DisplayItem, steps: [DisplayItem], chats: [UUID])
+        case reply(DisplayItem, steps: [DisplayItem], context: String)
         case steps(UUID, [DisplayItem])
         case email(DisplayItem)
         case other(DisplayItem)
@@ -49,7 +56,7 @@ struct DotConversation: View {
                 rows.append(item.automatic == true ? .label(item) : .mine(item))
             case .assistant where item.phase != .commentary:
                 guard !item.text.isEmpty else { continue }
-                rows.append(.reply(item, steps: steps, chats: chatIDs(in: prompt + "\n" + item.text)))
+                rows.append(.reply(item, steps: steps, context: prompt + "\n" + item.text))
                 steps = []
             case .assistant where liveNotes.contains(item.id):
                 flushSteps()
@@ -80,7 +87,7 @@ struct DotConversation: View {
             }
             ForEach(grouped.rows.suffix(shown)) { row in
                 // Golem sits beside his latest reply (or the typing bubble while he works).
-                if case .reply = row, GolemAvatar.shared.hasAnimations {
+                if case .reply = row, showsInlineAvatar, GolemAvatar.shared.hasAnimations {
                     HStack(alignment: .bottom, spacing: 8) {
                         avatarColumn(show: row.id == lastReply && !session.isRunning)
                         view(for: row)
@@ -92,7 +99,7 @@ struct DotConversation: View {
             }
             if session.isRunning {
                 HStack(alignment: .bottom, spacing: 8) {
-                    if GolemAvatar.shared.hasAnimations { avatarColumn(show: true) }
+                    if showsInlineAvatar, GolemAvatar.shared.hasAnimations { avatarColumn(show: true) }
                     working(grouped.working)
                 }
             }
@@ -125,7 +132,8 @@ struct DotConversation: View {
                 .background(Capsule().fill(.quaternary.opacity(0.6)))
                 .frame(maxWidth: .infinity)
                 .help(item.kind == .user ? item.text : "")
-        case .reply(let item, let steps, let chats):
+        case .reply(let item, let steps, let context):
+            let chats = chatIDs(in: context)
             VStack(alignment: .leading, spacing: 4) {
                 bubble(item)
                 if !chats.isEmpty {
@@ -153,8 +161,10 @@ struct DotConversation: View {
     }
 
     /// Chat ids ("[UUID]") in a note or reply, for chats that still exist, in order.
+    private static let chatIDPattern = try? NSRegularExpression(pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
     private func chatIDs(in text: String) -> [UUID] {
-        guard let regex = try? NSRegularExpression(pattern: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}") else { return [] }
+        guard let regex = Self.chatIDPattern else { return [] }
         let ns = text as NSString
         var ids: [UUID] = []
         for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {

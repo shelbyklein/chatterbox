@@ -6,6 +6,7 @@ struct ChatColumns: View {
     var sidebar: AnyView?
     var chat: AnyView
     var inspector: AnyView? = nil
+    var floatingGolem: AnyView? = nil
     var inspectorMinimum: CGFloat = 260
     var inspectorIdeal: CGFloat = 320
     var inspectorMaximum: CGFloat = 460
@@ -59,6 +60,13 @@ struct ChatColumns: View {
                         .shadow(radius: 10)
                         .overlay(alignment: .topTrailing) { closeButton(action: closeInspector).padding(8) }
                         .offset(x: max(0, width - min(max(inspectorMinimum, rightWidth), width - 32)))
+                }
+                if let floatingGolem {
+                    let anchorWidth = min(max(260, golemWidth > 0 ? golemWidth : 320), width - 32)
+                    floatingGolem.frame(width: 120, height: 120)
+                        .background(ColumnProbe(role: "floating-golem"))
+                        .offset(x: width - anchorWidth / 2 - 60, y: 18)
+                        .zIndex(2)
                 }
             }
             .frame(width: width, height: geometry.size.height, alignment: .topLeading)
@@ -115,4 +123,23 @@ struct ColumnProbe: NSViewRepresentable {
     func makeNSView(context: Context) -> Probe { let view = Probe(); view.role = role; return view }
     func updateNSView(_ view: Probe, context: Context) { view.role = role }
     final class Probe: NSView { var role = ""; override func hitTest(_ point: NSPoint) -> NSView? { nil } }
+}
+
+/// A native hit region remains aligned while the underlying transcript reflows.
+struct FloatingGolemHitTarget: NSViewRepresentable {
+    var label: String
+    var action: () -> Void
+    func makeNSView(context: Context) -> HitView { HitView() }
+    func updateNSView(_ view: HitView, context: Context) {
+        view.action = action
+        view.setAccessibilityElement(true)
+        view.setAccessibilityRole(.button)
+        view.setAccessibilityLabel(label)
+    }
+    final class HitView: NSView {
+        var action: (() -> Void)?
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func mouseDown(with event: NSEvent) { action?() }
+        override func accessibilityPerformPress() -> Bool { action?(); return true }
+    }
 }

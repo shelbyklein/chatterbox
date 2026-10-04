@@ -9,6 +9,7 @@ struct GolemSidePanel: View {
     @AppStorage("golemPanelTab") private var tab = Tab.activity
     /// Off only for still renders (proof screenshots), which can't draw a scroll view.
     var scrolls = true
+    var showsAvatar = true
     private let journal = GolemJournal.shared
 
     enum Tab: String, CaseIterable, Identifiable {
@@ -57,7 +58,8 @@ struct GolemSidePanel: View {
     private var header: some View {
         VStack(spacing: 6) {
             Group {
-                if GolemAvatar.shared.hasAnimations { GolemAnimated(mood: mood) } else { GolemHead(size: 40) }
+                if !showsAvatar { Color.clear }
+                else if GolemAvatar.shared.hasAnimations { GolemAnimated(mood: mood) } else { GolemHead(size: 40) }
             }
             .frame(width: 120, height: 120)
             Text(session.title).font(.title3.weight(.semibold))

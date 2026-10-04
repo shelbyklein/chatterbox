@@ -19,6 +19,7 @@ app.setActivationPolicy(.accessory)
     for (key,value) in ["mainSidebarVisible":true,"mainSidebarWidth":260.0,"golemInspectorWidth":0.0,"issuesInspectorWidth":0.0,"previewInspectorWidth":0.0] as [String:Any] {
         UserDefaults.standard.set(value,forKey:key)
     }
+    UserDefaults.standard.removeObject(forKey: "golemActivityExpanded")
     let model = AppModel()
     let dot = model.sessions.first { $0.isDot }!
     let project = model.sessions.first { $0.record.projectFolder == "/Users/shelbyklein/Vibes/Chatterbox" }!
@@ -42,6 +43,31 @@ app.setActivationPolicy(.accessory)
         }
     }
     try await Task.sleep(for:.seconds(2))
+    func all(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(all)}
+    func probes()->[ColumnProbe.Probe] {all(panel.contentView!).compactMap {$0 as? ColumnProbe.Probe}}
+    func avatarFrame()->CGRect {
+        let p=probes().first {$0.role=="floating-golem"}!
+        return p.convert(p.bounds,to:nil)
+    }
+    precondition(!probes().contains {$0.role.hasPrefix("inspector")},"Activity did not start collapsed")
+    let collapsedFrame=avatarFrame()
+    snap("00-collapsed-golem")
+    func clickAvatar() {
+        let frame=avatarFrame()
+        for hit in all(panel.contentView!).compactMap({$0 as? FloatingGolemHitTarget.HitView}) { print("CLICK REGION \(hit.convert(hit.bounds,to:nil)) probe=\(frame)"); fflush(stdout) }
+        for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+            let event=NSEvent.mouseEvent(with:type,location:NSPoint(x:frame.midX,y:frame.midY),modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+            panel.sendEvent(event)
+        }
+    }
+    clickAvatar()
+    try await wait {probes().contains {$0.role=="inspector"}}
+    try await Task.sleep(for:.milliseconds(200))
+    precondition(abs(avatarFrame().midX-collapsedFrame.midX)<0.5 && abs(avatarFrame().midY-collapsedFrame.midY)<0.5,"Golem moved on expansion")
+    snap("00-expanded-golem")
+    clickAvatar()
+    try await wait {!probes().contains {$0.role.hasPrefix("inspector")}}
+    precondition(abs(avatarFrame().midX-collapsedFrame.midX)<0.5,"Golem moved on collapse")
     snap("01-golem")
     let switchStarted=Date()
     model.selectedID = project.id
@@ -78,11 +104,17 @@ app.setActivationPolicy(.accessory)
     panel.setContentSize(NSSize(width:800,height:820))
     try await Task.sleep(for:.milliseconds(400))
     snap("07-narrow")
-    func all(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(all)}
     for probe in all(panel.contentView!).compactMap({$0 as? ColumnProbe.Probe}) {
         let f=probe.convert(probe.bounds,to:nil)
         precondition(f.minX >= -0.5 && f.maxX<=800.5,"Animated pane outside window")
     }
+    UserDefaults.standard.set(true,forKey:GolemMiniWindow.collapsedKey)
+    model.showingDot=true
+    try await wait {probes().allSatisfy {$0.role != "floating-golem"}}
+    snap("08-mini-excludes-floating")
+    model.showingDot=false
+    print("PASS mini excludes window avatar")
+    print("PASS actual floating-avatar expand/collapse clicks, stable coordinates, collapsed default")
     print("PASS native Golem/regular hidden swap, outgoing/incoming captures, rapid latest selection, unchanged drafts/transcripts, narrow pane bounds")
     exit(0)
 }

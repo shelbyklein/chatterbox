@@ -36,9 +36,23 @@ struct ChatView: View {
         } else if issuesPanel.isOpen || !session.isDot {
             IssuesPanel(session: session, panel: issuesPanel)
         } else {
-            GolemSidePanel(session: session)
+            GolemSidePanel(session: session, showsAvatar: false)
         }
     }
+    private var floatingGolem: some View {
+        Group {
+            if GolemAvatar.shared.hasAnimations { GolemAnimated(mood: GolemAvatar.mood(of: session)) }
+            else { GolemHead(size: 40) }
+        }
+        .frame(width: 120, height: 120)
+        .overlay {
+            FloatingGolemHitTarget(label: golemPanelOpen ? "Hide Golem activity" : "Show Golem activity") {
+                golemPanelOpen.toggle()
+            }
+        }
+        .help(golemPanelOpen ? "Hide activity, decisions and schedule" : "Show activity, decisions and schedule")
+    }
+
     private var chatContent: some View {
         VStack(spacing: 0) {
             if session.record.archivedAt != nil { archivedBanner }
@@ -70,7 +84,7 @@ struct ChatView: View {
     /// The Issues panel on the right (see IssuesPanel.swift).
     @State private var issuesPanel = IssuesPanelState()
     /// Golem's chat: the column with his activity, decisions and schedule.
-    @AppStorage("golemPanelOpen") private var golemPanelOpen = true
+    @AppStorage("golemActivityExpanded") private var golemPanelOpen = false
     /// A page or file from the chat, open in the browser panel on the right.
     @State private var preview: WebPage?
     @State private var previewLink: PreviewLink?
@@ -101,6 +115,7 @@ struct ChatView: View {
             if let sidebar {
                 ChatColumns(sidebar: sidebar, chat: AnyView(chatContent),
                     inspector: inspectorOpen ? AnyView(inspectorContent) : nil,
+                    floatingGolem: session.isDot ? AnyView(floatingGolem) : nil,
                     inspectorMinimum: preview != nil ? 360 : (session.isDot && !issuesPanel.isOpen ? 260 : 300),
                     inspectorIdeal: preview != nil ? 620 : (session.isDot && !issuesPanel.isOpen ? 320 : 380),
                     inspectorMaximum: preview != nil ? 1400 : (session.isDot && !issuesPanel.isOpen ? 460 : 640),
@@ -319,17 +334,17 @@ struct ChatView: View {
                         .padding(.top, 60)
                 } else {
                     // Only the drawn tail is grouped and badged; long histories aren't walked per render.
-                    let page = transcriptPage(rows: shownRowCount)
-                    let agents = page.agents
                     // The rows take the chat's width; the widest one can't widen the column.
                     FlexibleWidth {
                     Group {
                     if session.isDot {
                         VStack(spacing: 0) {
-                            DotConversation(session: session)
+                            DotConversation(session: session, initialRows: sidebar == nil ? 80 : Self.firstRows, showsInlineAvatar: sidebar == nil)
                             Color.clear.frame(height: 1).id("bottom")
                         }
                     } else {
+                    let page = transcriptPage(rows: shownRowCount)
+                    let agents = page.agents
                     // A bounded eager stack keeps WebKit views and hit regions in the same
                     // layout pass. LazyVStack + bottom anchoring can blank the transcript
                     // on macOS 26 when offscreen web previews change size.
@@ -403,8 +418,19 @@ struct ChatView: View {
                 // Each row costs layout up front (the stack is eager), so the rest of the first
                 // page arrives just after the chat is on screen. One step: growing in several
                 // re-lays out the rows already there each time.
-                guard shownRowCount < Self.rowPage else { return }
-                try? await Task.sleep(for: .milliseconds(30))
+                guard !session.isDot, shownRowCount < Self.rowPage else { return }
+                if sidebar != nil {
+                    // Expanding the eager stack during the fade stalls its frames. Let the
+                    // first page become interactive, finish the 100ms incoming fade, then
+                    // prepare extra history only if this chat is still mounted.
+                    while switchingChats {
+                        try? await Task.sleep(for: .milliseconds(10))
+                        guard !Task.isCancelled else { return }
+                    }
+                    try? await Task.sleep(for: .milliseconds(150))
+                } else {
+                    try? await Task.sleep(for: .milliseconds(30))
+                }
                 guard !Task.isCancelled else { return }
                 shownRowCount = Self.rowPage
                 // The new rows can take more than one pass to lay out; keep the newest in view until they settle.
