@@ -53,7 +53,7 @@ func run() async throws {
     func report(_ label: String) {
         let content = window.contentView!
         let width = content.bounds.width
-        print("== \(session.title) \(label): window content \(content.bounds.size) minSize \(window.contentMinSize) inspector \(model.chatInspectorWidth) ==")
+        print("== \(session.title) \(label): window content \(content.bounds.size) minSize \(window.contentMinSize) single column allocator ==")
         let all = descendants(content)
         for split in all.compactMap({ $0 as? NSSplitView }) {
             let inWindow = split.convert(split.bounds, to: nil)
