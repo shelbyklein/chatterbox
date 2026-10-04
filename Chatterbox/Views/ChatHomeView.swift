@@ -13,6 +13,7 @@ struct ThreadCard: View {
 
     private var title: String { session.isDot ? model.dotName : (session.record.projectFolder != nil ? session.projectName : session.title) }
     private var status: String {
+        if session.record.archivedAt != nil { return "Archived" }
         if session.isWaitingOnYou { return "Needs you" }
         if session.isRunning { return "Working" }
         if session.hasBackgroundWork { return "Background work" }
@@ -117,6 +118,19 @@ enum HomeThreadFilter: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+enum HomeThreadPage: String, CaseIterable, Identifiable {
+    case projects = "Projects", studios = "Studios", chats = "Chats", archive = "Archive"
+    var id: Self { self }
+    var icon: String {
+        switch self {
+        case .projects: "folder"
+        case .studios: "square.stack.3d.up"
+        case .chats: "bubble.left.and.bubble.right"
+        case .archive: "archivebox"
+        }
+    }
+}
+
 /// Home deliberately ignores collapsed sidebar groups: an overview must not hide
 /// a Studio's threads just because its navigation heading is folded.
 @MainActor
@@ -151,6 +165,33 @@ enum HomeThreads {
         result.append(group("other", "Other threads", model.activeSessions.sorted { $0.lastActivity > $1.lastActivity }))
         return result.filter { !$0.threads.isEmpty }
     }
+    /// Partition the overview without changing the combined chooser used by Command Center.
+    static func groups(_ model: AppModel, page: HomeThreadPage, search: String = "", filter: HomeThreadFilter = .all) -> [HomeThreadGroup] {
+        if page == .archive {
+            let needle = search.trimmingCharacters(in: .whitespacesAndNewlines)
+            let archived = model.archivedSessions.filter { session in
+                let attention = session.isWaitingOnYou || Attention.shared.unread.contains(session.id)
+                guard filter != .needsYou || attention, filter != .working || session.isRunning || session.hasBackgroundWork else { return false }
+                return needle.isEmpty || [session.title, session.projectName, model.studio(for: session)?.name ?? "", session.record.worktreeBranch ?? ""]
+                    .contains { $0.localizedCaseInsensitiveContains(needle) }
+            }
+            return archived.isEmpty ? [] : [HomeThreadGroup(id: "archive", title: "Archived threads", threads: archived)]
+        }
+        let studioIDs = Set(model.activeStudios.map { $0.id.uuidString })
+        return groups(model, search: search, filter: filter).compactMap { group in
+            let threads = group.threads.filter { session in
+                let destination: HomeThreadPage
+                if group.id == "projects" { destination = .projects }
+                else if studioIDs.contains(group.id) { destination = .studios }
+                else if group.id == "other", session.record.studioID.map({ studioIDs.contains($0.uuidString) }) == true { destination = .studios }
+                else if group.id == "other", !session.isDot, session.record.projectFolder != nil || session.record.worktreeOf != nil || session.record.convertedProjectFolder != nil { destination = .projects }
+                else { destination = .chats }
+                return destination == page
+            }
+            return threads.isEmpty ? nil : HomeThreadGroup(id: group.id, title: group.title, threads: threads)
+        }
+    }
+
 }
 
 struct ChatHomeView: View {
@@ -159,46 +200,73 @@ struct ChatHomeView: View {
     @State private var filter: HomeThreadFilter = .all
     let card: (ChatSession) -> AnyView
 
+    @AppStorage("macHomePage") private var savedPage = HomeThreadPage.projects.rawValue
+    private var page: HomeThreadPage { HomeThreadPage(rawValue: savedPage) ?? .projects }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Home").font(.largeTitle.weight(.bold))
-                        Spacer()
-                        Button("Command Center", systemImage: "rectangle.split.2x2") { model.showingCommandCenter = true }
-                        Button("Back to Chat", systemImage: "arrow.left") { model.showingHome = false }
-                    }
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 16) { searchField; filterPicker.frame(width: 300) }
-                        VStack(alignment: .leading, spacing: 12) { searchField; filterPicker }
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Home").font(.largeTitle.weight(.bold))
+                    Spacer()
+                    Button("Command Center", systemImage: "rectangle.split.2x2") { model.showingCommandCenter = true }
+                    Button("Back to Chat", systemImage: "arrow.left") { model.showingHome = false }
+                }
+                HStack(spacing: 8) {
+                    ForEach(HomeThreadPage.allCases) { destination in
+                        if destination == .archive { Divider().frame(height: 24).padding(.horizontal, 4) }
+                        Button { savedPage = destination.rawValue } label: {
+                            HStack(spacing: 7) {
+                                Image(systemName: destination.icon)
+                                Text(destination.rawValue)
+                                Text("\(HomeThreads.groups(model, page: destination).reduce(0) { $0 + $1.threads.count })")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity).padding(.vertical, 10)
+                                .background(page == destination ? Color.accentColor.opacity(0.16) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(page == destination ? Color.accentColor.opacity(0.65) : Color.clear))
+                        }.buttonStyle(.plain)
+                            .accessibilityLabel(destination.rawValue)
+                            .accessibilityAddTraits(page == destination ? .isSelected : [])
+                            #if DEBUG
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { MacHomeDebug.tabs[destination] = $0 }
+                            #endif
                     }
                 }
-                let groups = HomeThreads.groups(model, search: search, filter: filter)
-                ForEach(groups) { group in
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text(group.title).font(.title2.weight(.semibold))
-                            Text("\(group.threads.count)").font(.subheadline).foregroundStyle(.secondary)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 16) { searchField; filterPicker.frame(width: 300) }
+                    VStack(alignment: .leading, spacing: 12) { searchField; filterPicker }
+                }
+            }.padding(28)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    let groups = HomeThreads.groups(model, page: page, search: search, filter: filter)
+                    ForEach(groups) { group in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(group.title).font(.title2.weight(.semibold))
+                                Text("\(group.threads.count)").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 440), spacing: 16)], alignment: .leading, spacing: 16) {
+                                ForEach(group.threads) { card($0) }
+                            }
                         }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 440), spacing: 16)], alignment: .leading, spacing: 16) {
-                            ForEach(group.threads) { card($0) }
-                        }
                     }
-                }
-                if groups.isEmpty {
-                    ContentUnavailableView("No matching threads", systemImage: "magnifyingglass", description: Text("Try another search or choose All."))
-                        .frame(maxWidth: .infinity).padding(.vertical, 60)
-                }
-            }.padding(28).frame(maxWidth: .infinity, alignment: .leading)
+                    if groups.isEmpty {
+                        ContentUnavailableView("No \(page.rawValue.lowercased()) to show", systemImage: page.icon,
+                                               description: Text(search.isEmpty && filter == .all ? "Threads will appear here as you add them." : "Try another search or choose All."))
+                            .frame(maxWidth: .infinity).padding(.vertical, 60)
+                    }
+                }.padding(28).frame(maxWidth: .infinity, alignment: .leading)
+            }.id(page)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .accessibilityLabel("Home thread overview")
+        .accessibilityLabel("Home \(page.rawValue.lowercased()) page")
     }
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Search threads, projects and Studios", text: $search).textFieldStyle(.plain)
+            TextField("Search \(page.rawValue.lowercased())", text: $search).textFieldStyle(.plain)
         }.padding(10).background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 8))
     }
     private var filterPicker: some View {
@@ -232,5 +300,6 @@ struct DesktopOverviewControls: View {
 @MainActor enum MacHomeDebug {
     static var cards: [UUID: CGRect] = [:]
     static var home: CGRect = .zero
+    static var tabs: [HomeThreadPage: CGRect] = [:]
 }
 #endif

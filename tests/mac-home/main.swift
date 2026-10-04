@@ -9,7 +9,8 @@ app.setActivationPolicy(.accessory)
     UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"1.6,0.6,0.8"],forName:UserDefaults.argumentDomain)
     precondition(Bundle.main.bundleIdentifier != "com.shelbyklein.Chatterbox")
     UserDefaults.standard.set(false, forKey: "macSidebarCards")
-    defer { UserDefaults.standard.removeObject(forKey: "macSidebarCards") }
+    UserDefaults.standard.set(HomeThreadPage.projects.rawValue,forKey:"macHomePage")
+    defer { UserDefaults.standard.removeObject(forKey: "macSidebarCards"); UserDefaults.standard.removeObject(forKey:"macHomePage") }
     let model = AppModel()
     var golemRecord=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
     golemRecord.title="Golem"; golemRecord.isDot=true; golemRecord.activeBackend = .codex
@@ -34,6 +35,10 @@ app.setActivationPolicy(.accessory)
     let studioChat=model.chats(in:studio).first!
     studioChat.setTitle("Dark Crystal painting"); model.setStudio(studio.id,collapsed:true)
     let regular=model.newChat(backend:.codex); regular.setTitle("PlayCase magnets")
+    var archivedRecord=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+    archivedRecord.title="Archived layout review";archivedRecord.archivedAt=Date()
+    archivedRecord.items=[DisplayItem(kind:.assistant,text:"This archived conversation remains available with its history intact.",phase:.final)]
+    let archived=model.insertSession(archivedRecord);archived.draft="Archived draft stays"
     let question=DisplayItem(kind:.questions,text:"Choose a layout",approvalState:.pending)
     other.record.items.append(question)
     parent.isRunning=true
@@ -45,6 +50,15 @@ app.setActivationPolicy(.accessory)
     precondition(HomeThreads.groups(model,filter:.working).flatMap(\.threads).map(\.id)==[parent.id])
     precondition(HomeThreads.groups(model,filter:.needsYou).flatMap(\.threads).contains {$0.id==other.id})
     precondition(HomeThreads.groups(model,search:"no-match-903").isEmpty)
+    let pageThreads=[HomeThreadPage.projects,.studios,.chats].flatMap { HomeThreads.groups(model,page:$0).flatMap(\.threads) }
+    precondition(Set(pageThreads.map(\.id))==Set(model.activeSessions.map(\.id)) && Set(pageThreads.map(\.id)).count==pageThreads.count)
+    precondition(HomeThreads.groups(model,page:.projects).flatMap(\.threads).contains {$0.id==branch.id})
+    precondition(HomeThreads.groups(model,page:.projects).flatMap(\.threads).contains {$0.id==side.id})
+    precondition(HomeThreads.groups(model,page:.studios).flatMap(\.threads).map(\.id)==[studioChat.id])
+    precondition(HomeThreads.groups(model,page:.chats).flatMap(\.threads).contains( where: {$0.isDot}))
+    precondition(HomeThreads.groups(model,page:.archive).flatMap(\.threads).map(\.id)==[archived.id])
+    precondition(HomeThreads.groups(model,page:.archive,search:"layout").flatMap(\.threads).map(\.id)==[archived.id])
+    precondition(HomeThreads.groups(model,page:.projects,search:"Geekify").isEmpty)
     let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
     let before=try encoder.encode(parent.record)
     model.selectedID=parent.id
@@ -83,6 +97,29 @@ app.setActivationPolicy(.accessory)
     precondition(!model.showingHome && model.selectedID==parent.id,"Native existing-card navigation failed")
     precondition(parent.draft=="Draft stays here" && (try! encoder.encode(parent.record))==before)
     model.showingHome=true
+    try await render(AnyView(ContentView()),1200,1000,"home-projects")
+    for page in [HomeThreadPage.studios,.chats,.archive,.projects] {
+        guard let tab=MacHomeDebug.tabs[page] else {fatalError("Missing Home tab")}
+        try await click(NSPoint(x:tab.midX-globalOrigin.x,y:panel.contentView!.bounds.height-(tab.midY-globalOrigin.y)))
+        precondition(UserDefaults.standard.string(forKey:"macHomePage")==page.rawValue,"Native tab failed")
+        // Remount proves persisted selection, then capture the distinct page.
+        try await render(AnyView(ContentView()),1200,1000,"home-"+page.rawValue.lowercased())
+        let visible=Set(HomeThreads.groups(model,page:page).flatMap(\.threads).map(\.id))
+        precondition(Set(MacHomeDebug.cards.keys)==visible,"Cards from another page appeared")
+    }
+    UserDefaults.standard.set(HomeThreadPage.archive.rawValue,forKey:"macHomePage")
+    try await render(AnyView(ContentView()),1200,1000,"home-archive")
+    let archivedBefore=try encoder.encode(archived.record)
+    let archiveFrame=MacHomeDebug.cards[archived.id]!
+    try await click(NSPoint(x:archiveFrame.midX-globalOrigin.x,y:panel.contentView!.bounds.height-(archiveFrame.midY-globalOrigin.y)))
+    precondition(!model.showingHome && model.selectedID==archived.id && archived.record.archivedAt != nil)
+    precondition(try! encoder.encode(archived.record)==archivedBefore)
+    precondition(archived.draft=="Archived draft stays")
+    model.unarchive(archived)
+    precondition(archived.record.archivedAt==nil && archived.items.map(\.id)==archivedRecord.items.map(\.id))
+    precondition(!HomeThreads.groups(model,page:.archive).flatMap(\.threads).contains {$0.id==archived.id})
+    UserDefaults.standard.set(HomeThreadPage.projects.rawValue,forKey:"macHomePage")
+    model.showingHome=true
     try await render(AnyView(ContentView()),640,850,"home-narrow",false)
     for frame in MacHomeDebug.cards.values {precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+640,"Clipped Home card")}
     setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","230",1)
@@ -103,7 +140,7 @@ app.setActivationPolicy(.accessory)
     model.showingHome=true; model.showingSettings=true
     precondition(!model.showingHome)
     parent.isRunning=false
-    print("PASS: unique complete groups, collapsed Studio/search/filters, native List/Cards/Home/card clicks, same-session history and draft preserved. Proof: \(root.path)")
+    print("PASS: native four-page navigation/persistence, exact active partitions, archive open/history/restore, unique complete groups, collapsed Studio/search/filters, native List/Cards/Home/card clicks, same-session history and draft preserved. Proof: \(root.path)")
     panel.orderOut(nil)
 }
 Task { @MainActor in
