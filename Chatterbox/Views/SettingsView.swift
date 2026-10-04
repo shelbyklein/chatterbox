@@ -40,6 +40,8 @@ struct SettingsView: View {
                 .tabItem { Label("Appearance", systemImage: "textformat.size") }
             InstructionsSettingsView()
                 .tabItem { Label("Instructions", systemImage: "text.book.closed") }
+            SecretsSettingsView()
+                .tabItem { Label("Secrets", systemImage: "key") }
             PluginsSettingsView()
                 .tabItem { Label("Plugins", systemImage: "puzzlepiece.extension") }
             CompanionSettingsView()
@@ -141,7 +143,6 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            SecretsSection()
             ProxySection()
             DiagnosticsSection()
 
@@ -845,6 +846,15 @@ private struct ProxySection: View {
                 session.restartClaudeForNewTools()
             }
         }
+    }
+}
+
+/// Dedicated Settings tab; the existing editor, storage and scope controls are reused.
+struct SecretsSettingsView: View {
+    var body: some View {
+        Form { SecretsSection() }
+            .formStyle(.grouped)
+            .frame(maxWidth: 640, maxHeight: .infinity)
     }
 }
 
