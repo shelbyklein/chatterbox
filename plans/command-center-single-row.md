@@ -11,8 +11,10 @@ Success: one persisted row fills remaining height; narrow windows retain usable 
 
 - [x] ROW1: add persistent arrangement and window-height layout; preserve grid defaults.
 - [x] ROW2: run `scripts/test-command-center.sh`, covering heights, persistence and independent composers; inspect wide/narrow single-row production-view captures.
-- [ ] ROW3: commit/push, back up installed bundle, install Mac update and verify build identity/process.
+- [x] ROW3: commit/push, back up installed bundle, install Mac update and verify build identity/process.
 
 No mobile, service, provider, pairing, history, draft or project changes. No data migration. Rollback: select Grid; to revert bundle use pre-install backup with matching daemon-compatible current lineage. New preference is additive and can be ignored by old UI. Native menu clicks and installed interaction verification are reported separately from harness checks.
 
 Verification: Debug build passed; command-center suite passed in `/tmp/chatterbox-command-center.MjUCo1` (persistence, equal row geometry, usable narrow widths, independent drafts, native switch/add/remove). Inspected two-chat dark and narrow light production-view renders. Layout selection in the harness is set through the model; actual menu clicks are unverified.
+
+Installed and relaunched on Mac; installed dylib matches built binary. Source pushed as `369c4c4`. Backup `/tmp/Chatterbox-before-single-row.app`. Installed menu interaction remains user verification.
