@@ -12,7 +12,7 @@ Separate Golem from Chatterbox on macOS, iPhone and iPad. A headless Golem servi
 - Published issue contains the full plan; relative assets also exist under this worktree in `plans/assets/golem-app/`. Local plan/assets are saved, uncommitted; implementation delivery will commit them with the feature.
 - Mode: **linear**. Runtime ownership and compatibility must land before assistant extraction; one executor avoids competing edits to shared persistence, protocol and generated project files.
 - Executor: **GPT-6.1 Sol (`gpt-6.1-sol`), medium effort**, verified from this session's turn_context. No agents dispatched; no handoff recipient.
-- Implementation: authorized by the user’s “now” on 2026-10-04. GOLEM-01 through GOLEM-05 and GOLEM-07 source checks accepted; GOLEM-06 and GOLEM-08 review pending; GOLEM-09 activation pending.
+- Implementation: authorized by the user’s “now” on 2026-10-04. GOLEM-01 through GOLEM-05 and GOLEM-07 source checks accepted; GOLEM-06 and GOLEM-08 review pending; GOLEM-09 Mac activation verified; physical/provider/rollback acceptance pending.
 - Readiness: **pass · 2026-10-04 · R1–R13**, after local asset, tracker and GitHub readback checks. No waivers. Activation is an explicitly later user gate.
 - Existing main checkout has unfinished `GolemMiniWindow.swift`, mini-hover-ack plan and tests. Do not overwrite or absorb that work; reconcile its owner before extracting the mini. Other worktrees also exist; recheck before implementation.
 
