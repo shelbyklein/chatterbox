@@ -24,6 +24,8 @@ final class ChatSession: Identifiable {
             }
         }
     }
+    var isRestartingThread = false
+    var threadRestartStatus: String?
     /// The "!" commands this chat is running (see ChatSession+Shell), by their transcript row. Not saved.
     var shellJobs: [UUID: ShellJob] = [:]
     /// How full each agent's context is, from its latest token counts. Not saved.
@@ -60,6 +62,8 @@ final class ChatSession: Identifiable {
     /// Slash commands and skills this chat's Claude Code session offers (includes project ones).
     var claudeCommands: [SlashCommand]?
     @ObservationIgnored var claudeStopRequested = false
+    /// An explicit restart must not silently replace a provider session that cannot resume.
+    @ObservationIgnored var preserveClaudeSessionOnResumeFailure = false
 
     // Codex state (see ChatSession+Codex.swift).
     @ObservationIgnored var codexTurnID: String?
@@ -94,6 +98,11 @@ final class ChatSession: Identifiable {
     func turnEnded() {
         Diagnostics.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
         record.updatedAt = Date()
+        if isRestartingThread {
+            automaticTurn = false
+            skipFinishedAlert = true
+            return
+        }
         if restartForToolsAfterTurn {
             // Tools changed during the reply (Dot turned its computer on or off).
             restartForToolsAfterTurn = false
@@ -165,6 +174,7 @@ final class ChatSession: Identifiable {
     // MARK: - Public API
 
     func send(_ raw: String, attachments: [Attachment] = []) {
+        guard !isRestartingThread else { return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
         NextSteps.shared.clear(self)
@@ -187,6 +197,7 @@ final class ChatSession: Identifiable {
     /// ⌘↩ while the agent works: stop what it's doing and take this message right away,
     /// instead of waiting for its next step.
     func sendNow(_ raw: String, attachments: [Attachment] = []) {
+        guard !isRestartingThread else { return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
         guard isRunning, !message.text.hasPrefix("!") else { return send(raw, attachments: attachments) }
@@ -207,6 +218,7 @@ final class ChatSession: Identifiable {
 
     /// "Send Now" on a message that's still queued.
     func sendQueuedNow(_ itemID: UUID) {
+        guard !isRestartingThread else { return }
         guard isRunning, record.items.contains(where: { $0.id == itemID && $0.queued == true }) else { return }
         stoppingToSend = true
         switch record.backend {
@@ -223,6 +235,24 @@ final class ChatSession: Identifiable {
         switch record.backend {
         case .codex: codexInterrupt()
         case .claude: claudeInterrupt()
+        }
+    }
+
+    /// Reconnect only this conversation. Never clears provider IDs or resends a prompt.
+    func restartThread() async {
+        guard !isRestartingThread, !awaitingHostResume else { return }
+        isRestartingThread = true
+        threadRestartStatus = nil
+        defer { isRestartingThread = false; onChange?(self) }
+        do {
+            stopShellJobs()
+            switch record.backend {
+            case .claude: try claudeRestartThread()
+            case .codex: try await codexRestartThread()
+            }
+            threadRestartStatus = "Thread restarted. History kept; send a message to continue."
+        } catch {
+            threadRestartStatus = "Couldn't restart: \(error.localizedDescription) History and draft are kept."
         }
     }
 
@@ -343,7 +373,7 @@ final class ChatSession: Identifiable {
     /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
     /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
-        guard !isRunning, backend != record.backend else { return }
+        guard !isRunning, !isRestartingThread, backend != record.backend else { return }
         let leaving = record.backend
         if !record.items.isEmpty {
             let last = record.items.last?.id

@@ -426,6 +426,7 @@ extension ContentView {
             .padding(.horizontal, 10))
         .contextMenu {
             Button("Open \(model.dotName)") { model.openDot() }
+            if let dot { RestartThreadControl(session: dot) }
             Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }
             Button(model.showingDot ? "Hide Mini Window" : "Show Mini Window  \u{2318}J") { model.showingDot.toggle() }
         }
@@ -516,6 +517,7 @@ extension ContentView {
                     chatTitle = session.record.projectFolder != nil ? session.projectName : session.title
                     renamingChat = session
                 }
+                RestartThreadControl(session: session)
                 if session.record.projectFolder == nil, !session.items.isEmpty {
                     Button("Fork Chat") { model.fork(session) }
                         .disabled(!model.canFork(session))

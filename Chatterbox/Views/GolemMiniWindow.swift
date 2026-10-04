@@ -326,10 +326,10 @@ private struct GolemMiniContent: View {
         if session.isRunning { return "Replying\u{2026}" }
         return latestReply?.text
     }
-    private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty }
+    private var canSend: Bool { !session.isRestartingThread && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty) }
     private var spring: Animation { .smooth(duration: GolemMiniWindow.transition) }
     private var acknowledgementReply: UUID? {
-        guard open, bubbleShow, !showingModels, !session.isRunning, !session.isWaitingOnYou else { return nil }
+        guard open, bubbleShow, !showingModels, !session.isRestartingThread, !session.isRunning, !session.isWaitingOnYou else { return nil }
         return latestReply?.id
     }
 
@@ -347,6 +347,9 @@ private struct GolemMiniContent: View {
                 }
                 if open, !attachments.isEmpty { attachmentStrip.padding(.bottom, 8).transition(.opacity) }
                 if open, let attachmentError { Text(attachmentError).font(.caption).foregroundStyle(.orange).lineLimit(2).padding(.bottom, 8) }
+                if open, session.isRestartingThread || session.threadRestartStatus != nil {
+                    ThreadRestartStatus(session: session).padding(.bottom, 8)
+                }
                 character
                     .padding(.bottom, controller.gapBelow)
                     .zIndex(1)
@@ -475,6 +478,8 @@ private struct GolemMiniContent: View {
     private var composer: some View {
         HStack(alignment: .center, spacing: 8) {
             Menu {
+                RestartThreadControl(session: session)
+                Divider()
                 Button("Attach Files\u{2026}", action: chooseFiles)
                 Button("Paste Image") { if let files = Attachments.fromPasteboard() { attachments += files } }
                 Divider()

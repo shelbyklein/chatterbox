@@ -216,14 +216,21 @@ final class CodexAppServer {
 
     // MARK: - Messaging
 
-    func request(_ method: String, _ params: JSON) async throws -> JSON {
+    func request(_ method: String, _ params: JSON, timeout: Duration? = nil) async throws -> JSON {
         try await ensureStarted()
-        return try await rawRequest(method, params)
+        return try await rawRequest(method, params, timeout: timeout)
     }
 
-    private func rawRequest(_ method: String, _ params: JSON) async throws -> JSON {
+    private func rawRequest(_ method: String, _ params: JSON, timeout: Duration? = nil) async throws -> JSON {
         let id = nextID
         nextID += 1
+        let timer = timeout.map { timeout in
+            Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: timeout) } catch { return }
+                self?.pending.removeValue(forKey: id)?.resume(throwing: CodexError(message: "Codex \(method) timed out."))
+            }
+        }
+        defer { timer?.cancel() }
         return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
             write(["id": .number(Double(id)), "method": .string(method), "params": params])

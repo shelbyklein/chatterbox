@@ -59,6 +59,9 @@ struct ChatSettingsCog: View {
 
     var main: some View {
         VStack(alignment: .leading, spacing: 12) {
+            RestartThreadControl(session: session)
+            ThreadRestartStatus(session: session)
+            Divider()
             if session.supportsFastMode {
                 Toggle("Fast mode", isOn: Binding(get: { session.fastMode },
                                                  set: { session.setFastMode($0) }))
@@ -121,5 +124,39 @@ struct ChatSettingsCog: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Shared by the Chat menu, sidebar menus, Golem settings and mini options.
+struct RestartThreadControl: View {
+    let session: ChatSession
+    var body: some View {
+        Button {
+            Task { await session.restartThread() }
+        } label: {
+            Label(session.isRestartingThread ? "Restarting Thread…" : session.isRunning ? "Stop and Restart Thread" : "Restart Thread",
+                  systemImage: "arrow.clockwise")
+        }
+        .disabled(session.isRestartingThread || session.awaitingHostResume)
+        .help("Reconnect this thread, keeping its history and draft. Stops its current reply without resending anything.")
+    }
+}
+
+struct ThreadRestartStatus: View {
+    let session: ChatSession
+    var body: some View {
+        if session.isRestartingThread || session.threadRestartStatus != nil {
+            HStack(alignment: .top, spacing: 8) {
+                if session.isRestartingThread { ProgressView().controlSize(.small) }
+                Text(session.isRestartingThread ? "Restarting thread…" : session.threadRestartStatus ?? "")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if !session.isRestartingThread {
+                    Button { session.threadRestartStatus = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.plain).accessibilityLabel("Dismiss restart status")
+                }
+            }
+        }
     }
 }

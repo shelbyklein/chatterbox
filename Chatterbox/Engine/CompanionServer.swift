@@ -273,6 +273,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "messages":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. Your message wasn't sent; try again when it's ready.") }
             guard let body = try? Companion.decoder.decode(Companion.SendRequest.self, from: request.body) else {
                 return .error(400, "Bad request.")
             }
@@ -304,6 +305,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "settings":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. Try changing its settings when it's ready.") }
             guard let body = try? Companion.decoder.decode(Companion.SettingsRequest.self, from: request.body) else { return .error(400, "Bad settings.") }
             CompanionMapper.apply(body, to: session)
             return .json(CompanionMapper.detail(session, model: model))
@@ -378,6 +380,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 6) where parts[1] == "chats" && parts[3] == "queued" && parts[5] == "now":
             guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. That message wasn't sent; try again when it's ready.") }
             session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
         case ("GET", 2) where parts[1] == "addresses":

@@ -62,6 +62,7 @@ struct ChatView: View {
             if showingTerminal {
                 TerminalPanel(session: session, onClose: { showingTerminal = false }, pending: $terminalCommand)
             }
+            ThreadRestartStatus(session: session).padding(.horizontal, 20)
             composer
         }
     }
@@ -638,7 +639,7 @@ struct ChatView: View {
     }
 
     private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
+        !session.isRestartingThread && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
     private var composerRow: some View {

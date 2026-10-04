@@ -1,0 +1,19 @@
+# Restart thread without losing history
+There is no user-facing restart control today. Claude has an internal process relaunch helper; Codex shares one server for all threads. Shelby authorizes a Mac thread-scoped restart which preserves saved provider IDs, conversation, draft, attachments, model/effort/route and access. It must never restart the shared Codex process or silently start a new thread.
+
+![Flow](assets/restart-thread/flow.svg)
+Current mini controls: [before exit](/Users/shelbyklein/Chatterbox/Screenshots/mini-hover-ack/before-exit.png). Add Restart Thread to sidebar context menus, Chat menu, Golem settings cog and mini + menu. While replying label is Stop and Restart Thread. Inline outcome tells whether restart succeeded without adding a transcript row. User request authorizes execution now.
+
+Tracker: local:76AFC730-1EE7-4B76-BB56-2633EB5720C0.
+- RESTART-1: backend restart scoped to current chat, single-flight input gating, interrupt then reconnect same Codex ID without new-thread fallback; Claude relaunch uses saved --resume ID. Preserve all history and drafts. Fake-host behavioral checks for provider requests/IDs, active-turn ordering, failure and double click, and untouched other chat.
+- RESTART-2: production Debug build, native control render/click plus regression checks; scoped commit/push/install, signature and binary match.
+
+Success: control is discoverable in main/mini; retains transcript and drafts; stops current reply before reconnecting; errors don't reset provider ID or resend; no effects on other chats. No mobile control in this scoped Mac update. Claude relaunch starts a new process for same session; Codex reconnects with thread/resume, not global process restart or memory reset (unsubscribe unload is delayed by provider grace period). No paid test turns, no original chat mutation. Deliver code, plan, tests committed/pushed and Mac installed. Linear GPT-6.1-Sol Medium, cohesive backend and UI work. No open questions. Rollback: backup installed bundle; restore or revert commit; no schema migration. Test: scripts/test-thread-restart.sh isolated fake providers and host, native ChatSettingsCog/main control screenshots. Readiness R1–R13 pass.
+
+## Verification to date
+Installed Codex CLI smoke: python3 tests/thread-restart/real-codex.py resumes original persisted thread ID, leaves second thread loaded. Uses isolated CODEX_HOME/config/auth/history; injects one local fixture history item, starts no generation turn. An empty newly-created CLI thread cannot resume until history is persisted; regression fixture accounts for this. The control fails closed instead of replacing a missing original thread.
+Fake-provider production-library host test verifies both provider transports, active interrupt ordering, double-click single flight, input gating, failure, late RPC responses and stop timeout. Native settings control clicked and capture inspected. Real Claude/account-backed resume, Mac menu/right-click/mini entry points remain unexercised; same shared control is used and no real ongoing chat was restarted.
+
+Final regression passes all cases, including Claude missing-session failure retaining original ID/history. Native settings capture now uses the same ScrollView as the real cog; all explanatory text wraps. Hover-exit mini regression also passes after adding Restart to the + menu.
+![Restart control](/Users/shelbyklein/Chatterbox/Screenshots/thread-restart/restart-control.png)
+![Reconnect result](/Users/shelbyklein/Chatterbox/Screenshots/thread-restart/restart-result.png)
