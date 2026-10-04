@@ -18,7 +18,7 @@ Deliverables: scoped source, tests, screenshot proofs and this plan committed/pu
 
 - [x] HOME1
 - [x] HOME2
-- [ ] HOME3
+- [x] HOME3
 
 Boundaries: no transcript, folder, provider, permissions or routing changes; no automatic agent requests; preserve other worktrees. Cards retain row context menus. Home ignores sidebar collapse state so threads remain discoverable; sidebar keeps grouping and collapse controls. No blocking questions.
 
@@ -31,3 +31,5 @@ Work preparation: confirmed by direct implementation request; linear GPT-6.1-Sol
 Verification: Debug build passes. scripts/test-mac-home.sh passes on fixture /tmp/chatterbox-mac-home.Mg36yS: complete unique active groups (including Golem, collapsed Studio, worktree and Sidechat), search/attention/working filters, native List/Cards/Home/card clicks, persisted Cards preference on remount, exact parent record/draft preservation, sidebar card bounds at 230pt and Home at 640/1200pt. Production ContentView renders inspected in dark/wide and light/narrow; production Assets.car used. Fixture has no Golem avatar folder, so his head uses the existing fallback. Right-click menu actions and VoiceOver speech not manually exercised; cards use the original row context menu.
 
 Proofs: [Home wide](/Users/shelbyklein/Chatterbox/Screenshots/mac-home/home-wide.png), [Home narrow](/Users/shelbyklein/Chatterbox/Screenshots/mac-home/home-narrow.png), [sidebar cards](/Users/shelbyklein/Chatterbox/Screenshots/mac-home/sidebar-cards.png).
+
+Delivery: f5f7211 pushed to origin/main. scripts/install.sh succeeded; signed Mac app replaced and reopened (PID 13646). Installed Debug dylib matches built code byte-for-byte; authenticated local /v1/chats returned HTTP 200. Installed UI has not been manually clicked; visual and native interaction proof is from the isolated production-view harness. Other worktrees preserved.
