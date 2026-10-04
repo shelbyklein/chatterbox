@@ -48,6 +48,39 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     @ObservationIgnored private var expandedSize = NSSize(width: 400, height: 420)
     @ObservationIgnored private var positioning = false
     @ObservationIgnored private var screenObserver: NSObjectProtocol?
+    @ObservationIgnored private var hoveredReply: UUID?
+    @ObservationIgnored private var acknowledgement: Task<Void, Never>?
+
+    /// One hover region covers the bubble, body and composer, including their gaps.
+    /// Only a completed reply actually hovered by the reader can be acknowledged.
+    func replyHoverChanged(inside: Bool, replyID: UUID?) {
+        acknowledgement?.cancel()
+        acknowledgement = nil
+        if inside {
+            hoveredReply = collapsed ? nil : replyID
+            return
+        }
+        guard !collapsed, let replyID, hoveredReply == replyID else {
+            hoveredReply = nil
+            return
+        }
+        hoveredReply = nil
+        acknowledgement = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(180)) } catch { return }
+            guard let self, !Task.isCancelled, !self.collapsed, NSApp.modalWindow == nil,
+                  let dot = self.model?.dot, !dot.isRunning, !dot.isWaitingOnYou,
+                  dot.items.last(where: { $0.kind == .assistant && $0.phase != .commentary && !$0.text.isEmpty })?.id == replyID
+            else { return }
+            Attention.shared.markSeen(dot.id)
+            self.setCollapsed(true)
+        }
+    }
+
+    private func cancelAcknowledgement() {
+        acknowledgement?.cancel()
+        acknowledgement = nil
+        hoveredReply = nil
+    }
 
     init(model: AppModel, defaults: UserDefaults = .standard) {
         self.model = model
@@ -103,6 +136,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     }
 
     func hide() {
+        cancelAcknowledgement()
         rememberFrame()
         panel?.orderOut(nil)
         // Release hosted chat/media views while hidden. Drafts belong to the session.
@@ -119,6 +153,7 @@ final class GolemMiniWindow: NSObject, NSWindowDelegate {
     /// stays exactly where he is, while the bar under him morphs and the bubble rises.
     func setCollapsed(_ value: Bool) {
         guard value != collapsed, let panel else { return }
+        cancelAcknowledgement()
         if !collapsed { expandedSize = panel.frame.size }
         rememberFrame()
         let here = characterCenter(in: panel.frame.size)
@@ -293,6 +328,10 @@ private struct GolemMiniContent: View {
     }
     private var canSend: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty }
     private var spring: Animation { .smooth(duration: GolemMiniWindow.transition) }
+    private var acknowledgementReply: UUID? {
+        guard open, bubbleShow, !showingModels, !session.isRunning, !session.isWaitingOnYou else { return nil }
+        return latestReply?.id
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -318,12 +357,21 @@ private struct GolemMiniContent: View {
         }
         .preferredColorScheme(Theme.colorScheme(background: background, scheme: scheme))
         .tint(highlight == "default" ? nil : Color.highlight)
-        .onHover { inside in withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { hovering = inside } }
+        .onHover { inside in
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) { hovering = inside }
+            controller.replyHoverChanged(inside: inside, replyID: acknowledgementReply)
+        }
+        .onChange(of: acknowledgementReply) { _, replyID in
+            controller.replyHoverChanged(inside: hovering, replyID: hovering ? replyID : nil)
+        }
         .onChange(of: session.title) { _, title in controller.panel?.title = title }
         .onChange(of: draft) { _, value in session.draft = value }
         .onChange(of: attachments) { _, value in session.draftAttachments = value }
         .onChange(of: controller.collapsed) { _, collapsed in
-            if !collapsed { DispatchQueue.main.asyncAfter(deadline: .now() + GolemMiniWindow.transition) { focused = true } }
+            if collapsed { focused = false }
+            if !collapsed { DispatchQueue.main.asyncAfter(deadline: .now() + GolemMiniWindow.transition) {
+                if !controller.collapsed { focused = true }
+            } }
         }
         .onChange(of: latestReply?.id) { if controller.isReading { Attention.shared.markSeen(session.id) } }
         .onChange(of: ChatCommands.shared.modelPopoverRequests) {
