@@ -59,11 +59,11 @@ struct ChatView: View {
             if session.record.backend == .claude, let status = ClaudeModels.shared.statusMessage { claudeBanner(status) }
             if session.record.backend == .codex, let status = CodexAppServer.shared.statusMessage { claudeBanner(status) }
             transcript
+            ThreadRestartStatus(session: session).padding(.horizontal, 20)
+            composer
             if showingTerminal {
                 TerminalPanel(session: session, onClose: { showingTerminal = false }, pending: $terminalCommand)
             }
-            ThreadRestartStatus(session: session).padding(.horizontal, 20)
-            composer
         }
     }
 
