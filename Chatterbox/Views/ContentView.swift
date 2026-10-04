@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var chatSwitch: ChatSwitchTransition
+    @AppStorage("macSidebarCards") private var sidebarCards = false
     @AppStorage("showArchived") private var showArchived = false
     @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
     @AppStorage("sidebarProjectsCollapsed") private var projectsCollapsed = false
@@ -114,14 +115,16 @@ struct ContentView: View {
     }
 
     private var mainChatID: UUID? {
-        guard !model.showingSettings, model.webPage == nil, let session = model.selected,
+        guard !model.showingHome, !model.showingSettings, model.webPage == nil, let session = model.selected,
               !(session.isDot && model.showingDot) else { return nil }
         return session.id
     }
 
     private var columnRoot: some View {
         Group {
-            if mainChatID != nil, let session = model.sessions.first(where: {
+            if model.showingHome {
+                ChatHomeView { session in AnyView(row(session, number: nil, card: true, expanded: true)) }
+            } else if mainChatID != nil, let session = model.sessions.first(where: {
                 $0.id == (chatSwitch.initialized ? chatSwitch.displayedID : model.selectedID)
             }) {
                 ChatView(session: session, sidebar: sidebarPane)
@@ -133,6 +136,13 @@ struct ContentView: View {
         .environment(\.chatSwitchCoordinator, chatSwitch)
         .task(id: mainChatID) { await chatSwitch.show(mainChatID, reduceMotion: reduceMotion, waitForMount: true) }
         .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button { model.showingHome.toggle(); model.showingSettings = false } label: {
+                        Label(model.showingHome ? "Back to Chat" : "Home", systemImage: model.showingHome ? "arrow.left" : "house")
+                    }
+                    .help(model.showingHome ? "Return to the open thread" : "Home: full-window thread cards")
+                    .accessibilityLabel(model.showingHome ? "Back to Chat" : "Home")
+                }
                 ToolbarItem {
                     Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
                         .help("Settings (\u{2318},)")
@@ -320,10 +330,15 @@ extension ContentView {
         let expanded = Binding(get: { isFiltering || studio.collapsed != true },
                                set: { model.setStudio(studio.id, collapsed: !$0) })
         return DisclosureGroup(isExpanded: expanded) {
-            ForEach(chats.filter(isShown)) { session in
-                // Dropping onto a chat in the Studio moves the dragged one in too.
-                rowWithSidechats(session, numbers: numbers)
+            if sidebarCards {
+                cardGrid(chats.flatMap(cardFamily))
                     .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+            } else {
+                ForEach(chats.filter(isShown)) { session in
+                    // Dropping onto a chat in the Studio moves the dragged one in too.
+                    rowWithSidechats(session, numbers: numbers)
+                        .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+                }
             }
             if chats.isEmpty {
                 Button { model.newChat(in: studio) } label: {
@@ -508,10 +523,18 @@ extension ContentView {
         }
     }
 
-    private func row(_ session: ChatSession, number: Int?) -> some View {
+    private func row(_ session: ChatSession, number: Int?, card: Bool = false, expanded: Bool = false) -> some View {
         let place = session.record.projectFolder != nil ? model.pinPlace(for: session) : nil
-        return SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place),
-                          onOpenPin: { model.selectedID = session.id })
+        return Group {
+            if card || sidebarCards {
+                ThreadCard(session: session, expanded: expanded, selected: model.selectedID == session.id) {
+                    model.selectedID = session.id
+                }
+            } else {
+                SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place),
+                           onOpenPin: { model.selectedID = session.id })
+            }
+        }
             // Drop a link or file on a project to pin it there.
             .onDrop(of: [.url, .fileURL], isTargeted: nil) { providers in
                 guard let place else { return false }
@@ -903,6 +926,7 @@ extension ContentView {
     /// Archived; a collapsed Projects keeps its heading in place.
     var sidebarColumn: some View {
         VStack(spacing: 0) {
+            DesktopOverviewControls().padding(.horizontal, 12).padding(.vertical, 8)
             if !isFiltering {
                 List { Section { dotRow } }
                     .scrollDisabled(true)
@@ -1019,7 +1043,47 @@ extension ContentView {
 
     // MARK: Lists
 
+    @ViewBuilder
     private func sectionList(_ section: SidebarSection) -> some View {
+        if sidebarCards { cardSection(section) } else { listSection(section) }
+    }
+
+    private func cardFamily(_ root: ChatSession) -> [ChatSession] {
+        var threads = [root] + model.sidechats(of: root)
+        if root.record.projectFolder != nil || root.record.convertedProjectFolder != nil {
+            for branch in model.worktrees(of: root) { threads += [branch] + model.sidechats(of: branch) }
+        }
+        return threads.filter(isShown)
+    }
+
+    private func cardGrid(_ threads: [ChatSession]) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(minimum: 0)), GridItem(.flexible(minimum: 0))], spacing: 8) {
+            ForEach(threads) { row($0, number: nil, card: true) }
+        }
+    }
+
+    private func cardSection(_ section: SidebarSection) -> some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+                switch section {
+                case .projects:
+                    let threads = model.sidebarProjects.filter(projectActivity.includes).flatMap(cardFamily)
+                    cardGrid(threads)
+                    if threads.isEmpty { Text("No matching projects").font(.caption).foregroundStyle(.secondary) }
+                case .chats:
+                    let threads = model.sidebarChats.flatMap(cardFamily)
+                    cardGrid(threads)
+                    if threads.isEmpty { Text("No matching chats").font(.caption).foregroundStyle(.secondary) }
+                case .studios:
+                    ForEach(model.activeStudios.filter(isShown)) { studio in
+                        studioGroup(studio, numbers: [:])
+                    }
+                }
+            }.padding(.horizontal, 10).padding(.vertical, 6)
+        }.accessibilityLabel(section.title)
+    }
+
+    private func listSection(_ section: SidebarSection) -> some View {
         // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
         let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
         return List {
