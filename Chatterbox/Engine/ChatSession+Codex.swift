@@ -76,6 +76,34 @@ extension ChatSession {
         Task { try? await server.request("turn/interrupt", ["threadId": .string(thread), "turnId": .string(turn)]) }
     }
 
+    /// Codex's process is shared. Stop this turn and explicitly resume the same thread;
+    /// do not terminate the server, archive it, or fall back to a different conversation.
+    func codexRestartThread() async throws {
+        guard let settings = record.codex else { throw CodexError(message: "This chat isn't set up for Codex.") }
+        let deadline = Date().addingTimeInterval(10)
+        while isRunning, codexTurnID == nil {
+            guard Date() < deadline else { throw CodexError(message: "The current turn hasn't connected yet. Try Stop, then restart again.") }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        if isRunning, let thread = record.codex?.threadId, let turn = codexTurnID {
+            _ = try await CodexAppServer.shared.request("turn/interrupt", ["threadId": .string(thread), "turnId": .string(turn)], timeout: .seconds(10))
+            let stopDeadline = Date().addingTimeInterval(10)
+            while isRunning {
+                guard Date() < stopDeadline else { throw CodexError(message: "The current reply hasn't stopped. Reconnection was cancelled to avoid overlapping replies.") }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+        }
+        guard let thread = record.codex?.threadId else { return }
+        codexRegisterHandler(thread)
+        var params = codexThreadParams(settings)
+        params["threadId"] = .string(thread)
+        params["excludeTurns"] = true
+        let result = try await CodexAppServer.shared.request("thread/resume", .object(params), timeout: .seconds(10))
+        guard result["thread"]?["id"]?.string == thread else { throw CodexError(message: "Codex didn't reconnect to the original thread.") }
+        CodexAppServer.shared.markLoaded(thread)
+        codexDotConfiguration = codexConfigurationKey
+    }
+
     private func codexStartTurn(_ message: UserMessage, items: [UUID]) async {
         guard let settings = record.codex else { return }
         do {
@@ -332,7 +360,7 @@ extension ChatSession {
         let queuedItems = pendingSteeringItems
         pendingSteering.removeAll()
         pendingSteeringItems.removeAll()
-        if startQueued, !queued.text.isEmpty || !queued.attachments.isEmpty {
+        if startQueued, !isRestartingThread, !queued.text.isEmpty || !queued.attachments.isEmpty {
             onChange?(self)
             beginCodexTurn(queued, items: queuedItems)
         } else {

@@ -24,6 +24,8 @@ final class ChatSession: Identifiable {
             }
         }
     }
+    var isRestartingThread = false
+    var threadRestartStatus: String?
     /// The "!" commands this chat is running (see ChatSession+Shell), by their transcript row. Not saved.
     var shellJobs: [UUID: ShellJob] = [:]
     /// How full each agent's context is, from its latest token counts. Not saved.
@@ -62,6 +64,8 @@ final class ChatSession: Identifiable {
     /// Slash commands and skills this chat's Claude Code session offers (includes project ones).
     var claudeCommands: [SlashCommand]?
     @ObservationIgnored var claudeStopRequested = false
+    /// An explicit restart must not silently replace a provider session that cannot resume.
+    @ObservationIgnored var preserveClaudeSessionOnResumeFailure = false
 
     // Codex state (see ChatSession+Codex.swift).
     @ObservationIgnored var codexTurnID: String?
@@ -97,6 +101,11 @@ final class ChatSession: Identifiable {
     func turnEnded() {
         RuntimeHooks.note("Reply ended in \u{201C}\(title)\u{201D} (\(record.items.count) rows)")
         record.updatedAt = Date()
+        if isRestartingThread {
+            automaticTurn = false
+            skipFinishedAlert = true
+            return
+        }
         if restartForToolsAfterTurn {
             // Tools changed during the reply (Dot turned its computer on or off).
             restartForToolsAfterTurn = false
@@ -167,6 +176,7 @@ final class ChatSession: Identifiable {
     // MARK: - Public API
 
     func send(_ raw: String, attachments: [Attachment] = []) {
+        guard !isRestartingThread else { return }
         if let remoteCommand { remoteCommand("send", ["text":.string(raw),"attachments":(try? .value(attachments)) ?? []]);return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
@@ -190,6 +200,7 @@ final class ChatSession: Identifiable {
     /// ⌘↩ while the agent works: stop what it's doing and take this message right away,
     /// instead of waiting for its next step.
     func sendNow(_ raw: String, attachments: [Attachment] = []) {
+        guard !isRestartingThread else { return }
         if let remoteCommand { remoteCommand("sendNow", ["text":.string(raw),"attachments":(try? .value(attachments)) ?? []]);return }
         let message = UserMessage(text: raw.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments)
         guard !message.text.isEmpty || !attachments.isEmpty else { return }
@@ -211,6 +222,7 @@ final class ChatSession: Identifiable {
 
     /// "Send Now" on a message that's still queued.
     func sendQueuedNow(_ itemID: UUID) {
+        guard !isRestartingThread else { return }
         if let remoteCommand {remoteCommand("sendQueuedNow",["itemID":.string(itemID.uuidString)]);return}
         guard isRunning, record.items.contains(where: { $0.id == itemID && $0.queued == true }) else { return }
         stoppingToSend = true
@@ -229,6 +241,31 @@ final class ChatSession: Identifiable {
         switch record.backend {
         case .codex: codexInterrupt()
         case .claude: claudeInterrupt()
+        }
+    }
+
+    /// Reconnect only this conversation. Never clears provider IDs or resends a prompt.
+    func restartThread() async {
+        guard !isRestartingThread, !awaitingHostResume else { return }
+        isRestartingThread = true
+        threadRestartStatus = nil
+        defer { isRestartingThread = false; onChange?(self) }
+        do {
+            #if !CHATTERBOX_HEADLESS
+            if remoteCommand != nil {
+                let result = try await RuntimeClient.shared.request("restartThread", body: ["chatID": .string(id.uuidString)])
+                threadRestartStatus = result["status"]?.string
+                return
+            }
+            #endif
+            stopShellJobs()
+            switch record.backend {
+            case .claude: try claudeRestartThread()
+            case .codex: try await codexRestartThread()
+            }
+            threadRestartStatus = "Thread restarted. History kept; send a message to continue."
+        } catch {
+            threadRestartStatus = "Couldn't restart: \(error.localizedDescription) History and draft are kept."
         }
     }
 
@@ -352,6 +389,7 @@ final class ChatSession: Identifiable {
     /// Switches which agent answers. Mid-chat, the incoming agent is handed a transcript of
     /// whatever it missed, since Claude and Codex keep separate histories.
     func setBackend(_ backend: Backend) {
+        guard !isRestartingThread else { return }
         if let remoteCommand {remoteCommand("settings",["backend":.string(backend.rawValue)]);return}
         guard !isRunning, backend != record.backend else { return }
         let leaving = record.backend
@@ -459,6 +497,9 @@ final class ChatSession: Identifiable {
     func bindProject(_ folder: String) {
         guard folder != record.projectFolder else { return }
         record.projectFolder = folder
+        record.convertedProjectFolder = nil
+        record.studioWorkingFolder = nil
+        if record.sidechatOf == nil { record.sidechatProjectFolder = nil }
         // A project chat isn't in a Studio.
         record.studioID = nil
         record.studioFolder = nil
@@ -481,10 +522,22 @@ final class ChatSession: Identifiable {
         onChange?(self)
     }
 
+    /// Original project secret scope only while this thread still works in that folder.
+    var convertedProjectScope: String? {
+        record.convertedProjectFolder.flatMap { RuntimePaths.normalize($0) == RuntimePaths.normalize(workingFolder) ? $0 : nil }
+    }
+
     /// Moves this chat into a Studio, where it works in the Studio's folder, or out of one
     /// with nil. A project chat leaves its project.
-    func setStudio(_ studio: Studio?) {
-        guard studio?.id != record.studioID else { return }
+    func setStudio(_ studio: Studio?, keepingFolder: String? = nil, convertedProject: String? = nil) {
+        guard studio?.id != record.studioID || keepingFolder != record.studioWorkingFolder else { return }
+        let previousFolder = workingFolder
+        if let original = record.convertedProjectFolder,
+           studio.map({ RuntimePaths.normalize($0.folder) }) != RuntimePaths.normalize(original) {
+            record.convertedProjectFolder = nil
+        }
+        record.studioWorkingFolder = studio == nil ? nil : keepingFolder
+        if let convertedProject { record.convertedProjectFolder = convertedProject }
         record.studioID = studio?.id
         record.studioFolder = studio?.folder
         if studio != nil {
@@ -493,7 +546,10 @@ final class ChatSession: Identifiable {
         }
         let folder = record.boundFolder ?? AppPreferences.defaults.string(forKey: "codexFolder") ?? NSHomeDirectory()
         record.codex?.folder = folder
-        claudeWorkingFolderChanged()
+        if RuntimePaths.normalize(previousFolder) != RuntimePaths.normalize(folder) {
+            if record.sidechatOf == nil { record.sidechatProjectFolder = nil }
+            claudeWorkingFolderChanged()
+        }
         onChange?(self)
     }
 

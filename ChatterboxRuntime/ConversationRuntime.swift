@@ -175,6 +175,24 @@ struct CommandReceipt: Codable {
             state.commands[id]?.state="delivery_uncertain";try? persistState();throw error
         }
     }
+    func executeAsync(id: String, operation: String, fingerprint: String, body: () async throws -> JSON) async throws -> JSON {
+        guard !id.isEmpty, id.count <= 128 else { throw RuntimeFailure("A bounded request ID is required") }
+        if let prior=state.commands[id] {
+            guard prior.operation==operation,prior.fingerprint==fingerprint else { throw RuntimeFailure("Request ID reused for a different command") }
+            if let result=prior.result { return result }
+            throw RuntimeFailure("Command delivery is uncertain after interruption; inspect the chat before explicitly retrying with a new request ID")
+        }
+        guard state.commands.count<100_000 else{throw RuntimeFailure("Command receipt storage is full; no action was applied")}
+        state.commands[id]=CommandReceipt(operation:operation,fingerprint:fingerprint,state:"dispatching")
+        try persistState()
+        do {
+            let result=try await body();try flush()
+            state.commands[id]?.result=result;state.commands[id]?.state="completed"
+            try persistState();return result
+        } catch {
+            state.commands[id]?.state="delivery_uncertain";try? persistState();throw error
+        }
+    }
     func recordAssistantNote(title:String,detail:String?,chat:UUID?) throws {
         var notes=state.assistantNotes ?? []
         notes.append(["id":.string(UUID().uuidString),"title":.string(title),"detail":detail.map(JSON.string) ?? .null,"chatID":chat.map{.string($0.uuidString)} ?? .null])

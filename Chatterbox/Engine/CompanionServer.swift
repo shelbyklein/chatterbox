@@ -365,6 +365,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "messages":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. Your message wasn't sent; try again when it's ready.") }
             guard let body = try? Companion.decoder.decode(Companion.SendRequest.self, from: request.body) else {
                 return .error(400, "Bad request.")
             }
@@ -404,6 +405,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 4) where parts[1] == "chats" && parts[3] == "settings":
             guard let session = session(parts[2]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. Try changing its settings when it's ready.") }
             guard let body = try? Companion.decoder.decode(Companion.SettingsRequest.self, from: request.body) else { return .error(400, "Bad settings.") }
             CompanionMapper.apply(body, to: session)
             return .json(CompanionMapper.detail(session, model: model))
@@ -482,6 +484,7 @@ final class CompanionServer {
             return .json(CompanionMapper.detail(session, model: model))
         case ("POST", 6) where parts[1] == "chats" && parts[3] == "queued" && parts[5] == "now":
             guard let session = session(parts[2]), let itemID = UUID(uuidString: parts[4]) else { return .error(404, "That chat is gone.") }
+            guard !session.isRestartingThread else { return .error(409, "This thread is reconnecting. That message wasn't sent; try again when it's ready.") }
             session.sendQueuedNow(itemID)
             return .json(CompanionMapper.detail(session, model: model))
         case ("GET", 2) where parts[1] == "addresses":
@@ -623,17 +626,18 @@ enum CompanionMapper {
         let projects = model.sidebarProjects
         if !projects.isEmpty {
             // Each project followed by its worktrees, as nested under it in the sidebar.
-            let chats = projects.flatMap { [$0] + model.worktrees(of: $0) }
+            let chats = projects.flatMap { [$0] + model.sidechats(of: $0) + model.worktrees(of: $0).flatMap { [$0] + model.sidechats(of: $0) } }
             groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: chats.map(summary)))
         }
         for studio in model.activeStudios {
-            let chats = model.chats(in: studio)
+            let chats = model.chats(in: studio).flatMap { model.studioFamily(of: $0) }
             let place = PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)
             groups.append(.init(id: "studio-" + studio.id.uuidString, kind: .studio, title: studio.name, chats: chats.map(summary),
                                 studioID: studio.id, instructions: studio.instructions,
                                 pins: PinStore.shared.pins(in: place).map(pin)))
         }
-        let chats = model.sidebarChats.filter { !$0.items.isEmpty }
+        let chats = model.sidebarChats.filter { !$0.items.isEmpty || $0.record.sidechatOf != nil || !model.sidechats(of: $0).isEmpty }
+            .flatMap { [$0] + model.sidechats(of: $0) }
         if !chats.isEmpty { groups.append(.init(id: "chats", kind: .chats, title: "Chats", chats: chats.map(summary))) }
         return Companion.ChatList(revision: model.companionListRevision, groups: groups, pins: PinStore.shared.globalPins.map(pin))
     }
@@ -665,7 +669,8 @@ enum CompanionMapper {
                      pins: isProject ? PinStore.shared.pins(in: PinPlace(key: "project:" + (session.record.projectFolder ?? ""), name: session.projectName)).map(pin) : nil,
                      isDot: session.isDot ? true : nil,
                      unread: session.isDot ? Attention.shared.dotUnreadCount(session) : nil,
-                     worktreeBranch: session.record.worktreeOf != nil ? (session.record.worktreeBranch ?? session.projectName) : nil)
+                     worktreeBranch: session.record.worktreeOf != nil ? (session.record.worktreeBranch ?? session.projectName) : nil,
+                     sidechatOf: session.record.sidechatOf)
     }
 
     static func detail(_ session: ChatSession, model: AppModel) -> Companion.ChatDetail {

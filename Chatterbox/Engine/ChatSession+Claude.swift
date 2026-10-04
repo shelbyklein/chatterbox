@@ -67,6 +67,35 @@ extension ChatSession {
         claudeProcess = nil
     }
 
+    /// Relaunch the dedicated Claude process with --resume, without sending any user input.
+    func claudeRestartThread() throws {
+        let reconnect = claudeProcess != nil || record.claudeSessionID != nil
+        preserveClaudeSessionOnResumeFailure = record.claudeSessionID != nil
+        claudeProcess?.onMessage = nil
+        claudeProcess?.terminate()
+        claudeProcess = nil
+        record.claudeHost = nil
+        isRunning = false
+        automaticTurn = false
+        stoppingToSend = false
+        markRunningToolsFailed()
+        expirePendingApprovals()
+        clearQueuedMessages()
+        clearBackgroundTasks()
+        remoteURL = nil
+        restartForToolsAfterTurn = false
+        claudeStopRequested = false
+        claudeAwaitingEcho = []
+        claudeRender = ResponseRender()
+        claudeToolItems = [:]
+        claudeToolCalls = [:]
+        claudePlanItem = nil
+        claudeStreamedMessages = []
+        claudeCommands = nil
+        onChange?(self)
+        if reconnect { _ = try claudeEnsureProcess(earlierItems: record.items.count) }
+    }
+
     /// Starts the Claude Code session without a message, for Remote Control.
     func claudeStartForRemoteControl() throws -> ClaudeCodeProcess {
         guard remoteCommand == nil else {throw RuntimeFailure("Provider execution belongs to the background service")}
@@ -209,6 +238,7 @@ extension ChatSession {
 
         switch message["type"]?.string {
         case "system":
+            if message["subtype"]?.string == "init" { preserveClaudeSessionOnResumeFailure = false }
             if message["subtype"]?.string == "init", let id = message["session_id"]?.string, id != record.claudeSessionID {
                 record.claudeSessionID = id
                 onChange?(self)
@@ -371,13 +401,20 @@ extension ChatSession {
 
     private func claudeProcessExited(status: Int32, detail: String) {
         claudeProcess = nil
+        if preserveClaudeSessionOnResumeFailure {
+            threadRestartStatus = "Couldn't restart: Claude ended before reconnecting to the original session (exit \(status)). History and draft are kept."
+        }
         let lower = detail.lowercased()
         if lower.contains("no conversation found") || lower.contains("session") && lower.contains("not found") {
             // The saved session is gone; the next message starts a new one, caught up on the chat.
-            record.claudeSessionID = nil
-            record.claudeSeenThrough = nil
-            notice("Couldn't reopen the earlier Claude Code session. Send your message again to continue in a new one.")
-        } else if isRunning || status != 0 {
+            if preserveClaudeSessionOnResumeFailure {
+                threadRestartStatus = "Couldn't restart: Claude couldn't reopen the original session. History and draft are kept."
+            } else {
+                record.claudeSessionID = nil
+                record.claudeSeenThrough = nil
+                notice("Couldn't reopen the earlier Claude Code session. Send your message again to continue in a new one.")
+            }
+        } else if !preserveClaudeSessionOnResumeFailure, isRunning || status != 0 {
             notice("Claude Code stopped unexpectedly (exit \(status))\(detail.isEmpty ? "." : ": \(detail)")")
         }
         markRunningToolsFailed()

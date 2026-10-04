@@ -37,7 +37,7 @@ try:
     denied=Peer('golem-ui'); assert denied.call('list').get('error')=='handshake_required'; denied.close()
     agent=Peer('agent')
     assert agent.call('health',version=2).get('error')=='unsupported_version'
-    for op in ['approve','answer','integration','delete','settings']:
+    for op in ['approve','answer','integration','delete','settings','restartThread']:
         assert agent.call(op).get('error')=='permission_denied', op
     agent.close()
 finally: stop(p)
@@ -67,9 +67,23 @@ try:
     ordinary_record=ui.call('get',{'chatID':chat})['result']['record']
     ordinary_record=dict(ordinary_record,id=str(uuid.uuid4()),isDot=False,items=[])
     ordinary=ui.call('create',{'record':ordinary_record})['result']
+    # Main-thread features must retain ownership and identity through the daemon.
+    metadata=dict(ordinary_record,studioWorkingFolder=str(root/'kept-folder'),convertedProjectFolder=str(root/'original-project'),sidechatProjectFolder=str(root/'original-project'))
+    assert 'result' in ui.call('metadata',{'record':metadata})
+    stored=ui.call('get',{'chatID':ordinary})['result']['record']
+    for field in ('studioWorkingFolder','convertedProjectFolder','sidechatProjectFolder'):assert stored[field]==metadata[field],field
+    child_record=dict(ordinary_record,id=str(uuid.uuid4()),sidechatOf=ordinary,sidechatFolder=str(root/'kept-folder'))
+    child=ui.call('create',{'record':child_record})['result']
+    assert ui.call('get',{'chatID':child})['result']['record']['sidechatOf']==ordinary
+    assert 'result' in ui.call('delete',{'chatID':child})
+    restart_key=str(uuid.uuid4())
+    restarted=ui.call('restartThread',{'chatID':ordinary},restart_key)
+    assert 'History kept' in restarted['result']['status'],restarted
+    assert ui.call('restartThread',{'chatID':ordinary},restart_key)==restarted
+    assert ui.call('get',{'chatID':ordinary})['result']['record']['id']==ordinary
     golem_ui=Peer('golem-ui',True)
     assert 'result' in golem_ui.call('get',{'chatID':ordinary})
-    for op in ('send','setDraft','stop','approve','answer','rename'):
+    for op in ('send','setDraft','stop','approve','answer','rename','restartThread'):
         assert golem_ui.call(op,{'chatID':ordinary,'text':'denied','title':'denied'}).get('error')=='permission_denied',op
     forged=dict(ordinary_record,isDot=True)
     assert golem_ui.call('metadata',{'record':forged}).get('error')=='permission_denied'

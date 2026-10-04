@@ -87,6 +87,10 @@ struct ChatterboxApp: App {
             }
 
             CommandMenu("Chat") {
+                if let session = model.selected {
+                    RestartThreadControl(session: session)
+                }
+                Divider()
                 Button("Choose Model\u{2026}") { ChatCommands.shared.toggleModelPopover() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button("Choose Mode\u{2026}") { ChatCommands.shared.toggleModePopover() }

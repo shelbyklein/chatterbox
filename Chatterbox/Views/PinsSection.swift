@@ -237,9 +237,20 @@ private struct PinRow: View {
 struct PinIcon: View {
     let pin: Pin
 
+    // GitHub's monochrome favicon has a transparent background. Treat its alpha
+    // as a mask so it follows the sidebar theme without tinting other brands.
+    var usesTemplateIcon: Bool {
+        guard pin.kind == .website,
+              let host = PinStore.normalizedURL(pin.target)?.host?.lowercased() else { return false }
+        return host == "github.com" || host == "www.github.com"
+    }
+
     var body: some View {
         if let image = PinStore.shared.icon(for: pin) {
-            Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
+            Image(nsImage: image)
+                .renderingMode(usesTemplateIcon ? .template : .original)
+                .resizable().aspectRatio(contentMode: .fit)
+                .foregroundStyle(.primary)
         } else {
             Image(systemName: pin.kind == .shortcut ? "square.stack.3d.up.fill" : pin.kind == .website ? "globe" : "doc")
                 .foregroundStyle(.secondary)

@@ -40,3 +40,9 @@ Stop and disable only the verified new LaunchAgents and quiesce their writers. R
 ## Limits of command delivery
 
 Completed request IDs return their previous results without repeating side effects. A crash around external provider dispatch can leave `delivery_uncertain`; the client must inspect the chat before explicitly retrying with a new ID. This is not an exactly-once guarantee for an external provider across every crash window. Receipt capacity fails closed rather than evicting receipts and silently resending old operations.
+
+## Mac trial authorization and main integration (2026-10-04)
+
+The user required waiting for main to finish and merging this separate worktree, then said "ok good to go". This authorizes the scoped main integration and backed-up Mac development switch with Golem automation paused. Physical-device provisioning, real APNs, new paid-provider test turns, release and issue closure remain outside this approval.
+
+Main's Restart Thread, Sidechat, Studio conversion, Home and Command Center behavior must survive the daemon split. During activation an unchanged existing provider host may be suspended for an offline snapshot and resumed for daemon reattachment, preserving provider processes and saved offsets. Close the legacy UI gracefully first and verify host/source identity; never leave the legacy UI writing concurrently. Preserve in-memory drafts separately before quit and import them into runtime draft state. No private capture or preferences belong in the public repository.

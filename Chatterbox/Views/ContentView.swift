@@ -7,6 +7,8 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var chatSwitch: ChatSwitchTransition
+    @State private var commandCenter: CommandCenterLayout
+    @AppStorage("macSidebarCards") private var sidebarCards = false
     @AppStorage("showArchived") private var showArchived = false
     @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
     @AppStorage("sidebarProjectsCollapsed") private var projectsCollapsed = false
@@ -31,6 +33,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var namingStudio = false
     @State private var studioName = ""
+    @State private var studioDestinationID: UUID?
     /// The chat that goes into the Studio being named, when making one from a chat.
     @State private var studioFromChat: ChatSession?
     @State private var renamingStudio: Studio?
@@ -46,8 +49,9 @@ struct ContentView: View {
     @AppStorage(ProjectSort.key) private var projectSort = ProjectSort.recent
     @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
 
-    @MainActor init(chatSwitch: ChatSwitchTransition? = nil) {
+    @MainActor init(chatSwitch: ChatSwitchTransition? = nil, commandCenter: CommandCenterLayout? = nil) {
         _chatSwitch = State(initialValue: chatSwitch ?? ChatSwitchTransition())
+        _commandCenter = State(initialValue: commandCenter ?? CommandCenterLayout())
     }
 
     var body: some View {
@@ -129,14 +133,18 @@ struct ContentView: View {
     }
 
     private var mainChatID: UUID? {
-        guard !model.showingSettings, model.webPage == nil, let session = model.selected,
+        guard !model.showingCommandCenter, !model.showingHome, !model.showingSettings, model.webPage == nil, let session = model.selected,
               !(session.isDot && model.showingDot) else { return nil }
         return session.id
     }
 
     private var columnRoot: some View {
         Group {
-            if mainChatID != nil, let session = model.sessions.first(where: {
+            if model.showingCommandCenter {
+                CommandCenterView(layout: commandCenter)
+            } else if model.showingHome {
+                ChatHomeView { session in AnyView(row(session, number: nil, card: true, expanded: true)) }
+            } else if mainChatID != nil, let session = model.sessions.first(where: {
                 $0.id == (chatSwitch.initialized ? chatSwitch.displayedID : model.selectedID)
             }) {
                 ChatView(session: session, sidebar: sidebarPane)
@@ -148,6 +156,18 @@ struct ContentView: View {
         .environment(\.chatSwitchCoordinator, chatSwitch)
         .task(id: mainChatID) { await chatSwitch.show(mainChatID, reduceMotion: reduceMotion, waitForMount: true) }
         .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Button { model.showingHome.toggle(); model.showingSettings = false } label: {
+                        Label(model.showingHome ? "Back to Chat" : "Home", systemImage: model.showingHome ? "arrow.left" : "house")
+                    }
+                    .help(model.showingHome ? "Return to the open thread" : "Home: full-window thread cards")
+                    .accessibilityLabel(model.showingHome ? "Back to Chat" : "Home")
+                }
+                ToolbarItem {
+                    Button { model.showingCommandCenter.toggle() } label: {
+                        Label("Command Center", systemImage: "rectangle.split.2x2")
+                    }.help("Several live chats in one window").accessibilityLabel("Command Center")
+                }
                 ToolbarItem {
                     Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }
                         .help("Settings (\u{2318},)")
@@ -225,16 +245,7 @@ struct ContentView: View {
                 Text("Also renames the project in the sidebar and toolbar. The folder itself isn't renamed.")
             }
         }
-        .alert(studioFromChat == nil ? "New Studio" : "New Studio from Chat", isPresented: $namingStudio) {
-            TextField("Name", text: $studioName)
-            Button("Create") {
-                model.newStudio(named: studioName, moving: studioFromChat)
-                studioFromChat = nil
-            }
-            Button("Cancel", role: .cancel) { studioFromChat = nil }
-        } message: {
-            Text("Its chats share a new folder in \(AppModel.studiosBase.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")), and can save work there.")
-        }
+        .modifier(StudioCreationAlerts(naming: $namingStudio, name: $studioName, source: $studioFromChat, destination: studioDestinationID))
         .alert("Rename Studio", isPresented: Binding(get: { renamingStudio != nil }, set: { if !$0 { renamingStudio = nil } })) {
             TextField("Name", text: $studioName)
             Button("Rename") { if let studio = renamingStudio { model.renameStudio(studio.id, to: studioName) } }
@@ -312,6 +323,8 @@ extension ContentView {
 
     /// Search matches every word against the chat title, project name, and tags.
     private func isShown(_ session: ChatSession) -> Bool {
+        if session.record.sidechatOf == nil, model.sidechats(of: session).contains(where: isShown) { return true }
+        if session.record.convertedProjectFolder != nil, model.worktrees(of: session).contains(where: isShown) { return true }
         if let tag = activeTag, !session.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
             return false
         }
@@ -330,9 +343,10 @@ extension ContentView {
         return activeTag == nil && chats.isEmpty && matchesSearch(studio.name)
     }
 
-    private func beginNewStudio(from session: ChatSession? = nil) {
+    private func beginNewStudio(from session: ChatSession? = nil, destination: UUID? = nil) {
+        studioDestinationID = destination
         studioFromChat = session
-        studioName = ""
+        studioName = session?.record.projectFolder != nil ? (session?.projectName ?? "") : ""
         namingStudio = true
     }
 
@@ -342,10 +356,15 @@ extension ContentView {
         let expanded = Binding(get: { isFiltering || studio.collapsed != true },
                                set: { model.setStudio(studio.id, collapsed: !$0) })
         return DisclosureGroup(isExpanded: expanded) {
-            ForEach(chats.filter(isShown)) { session in
-                // Dropping onto a chat in the Studio moves the dragged one in too.
-                row(session, number: numbers[session.id])
+            if sidebarCards {
+                cardGrid(chats.flatMap(cardFamily))
                     .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+            } else {
+                ForEach(chats.filter(isShown)) { session in
+                    // Dropping onto a chat in the Studio moves the dragged one in too.
+                    rowWithSidechats(session, numbers: numbers)
+                        .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+                }
             }
             if chats.isEmpty {
                 Button { model.newChat(in: studio) } label: {
@@ -442,6 +461,10 @@ extension ContentView {
             .padding(.horizontal, 10))
         .contextMenu {
             Button("Open \(model.dotName)") { model.openDot() }
+            if let dot {
+                RestartThreadControl(session: dot)
+                NewSidechatControl(parent: dot)
+            }
             Button("Rename\u{2026}") { dotName = model.dotName; renamingDot = true }
             Button(model.showingDot ? "Hide Mini Window" : "Show Mini Window  \u{2318}J") { model.showingDot.toggle() }
         }
@@ -503,10 +526,44 @@ extension ContentView {
         }
     }
 
-    private func row(_ session: ChatSession, number: Int?) -> some View {
+    private func rowWithSidechats(_ session: ChatSession, numbers: [UUID: Int]) -> some View {
+        Group {
+            row(session, number: numbers[session.id])
+            ForEach(model.sidechats(of: session).filter(isShown)) { sidechat in
+                row(sidechat, number: numbers[sidechat.id])
+                    .padding(.leading, 18)
+                    .overlay(alignment: .leading) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 10)).foregroundStyle(.tertiary)
+                    }
+            }
+            if session.record.convertedProjectFolder != nil {
+                ForEach(model.worktrees(of: session)) { worktree in
+                    row(worktree, number: numbers[worktree.id])
+                        .padding(.leading, 18)
+                        .overlay(alignment: .leading) {
+                            Image(systemName: "arrow.triangle.branch").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        }
+                    ForEach(model.sidechats(of: worktree).filter(isShown)) { sidechat in
+                        row(sidechat, number: numbers[sidechat.id]).padding(.leading, 36)
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ session: ChatSession, number: Int?, card: Bool = false, expanded: Bool = false) -> some View {
         let place = session.record.projectFolder != nil ? model.pinPlace(for: session) : nil
-        return SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place),
-                          onOpenPin: { model.selectedID = session.id })
+        return Group {
+            if card || sidebarCards {
+                ThreadCard(session: session, expanded: expanded, selected: model.selectedID == session.id) {
+                    model.selectedID = session.id
+                }
+            } else {
+                SidebarRow(session: session, shortcut: showShortcuts ? number : nil, pins: PinStore.shared.pins(in: place),
+                           onOpenPin: { model.selectedID = session.id })
+            }
+        }
             // Drop a link or file on a project to pin it there.
             .onDrop(of: [.url, .fileURL], isTargeted: nil) { providers in
                 guard let place else { return false }
@@ -534,6 +591,7 @@ extension ContentView {
                     chatTitle = session.record.projectFolder != nil ? session.projectName : session.title
                     renamingChat = session
                 }
+                RestartThreadControl(session: session)
                 if session.record.projectFolder == nil, !session.items.isEmpty {
                     Button("Fork Chat") { model.fork(session) }
                         .disabled(!model.canFork(session))
@@ -551,6 +609,10 @@ extension ContentView {
                         projectNickname = session.projectName
                         renamingProject = session
                     }
+                    if session.record.worktreeOf == nil, session.record.archivedAt == nil {
+                        Button("Convert to Studio\u{2026}") { beginNewStudio(from: session) }
+                            .disabled(session.isRunning || session.isRestartingThread)
+                    }
                     Menu("Tags") {
                         ForEach(model.allTags, id: \.self) { tag in
                             Toggle(tag, isOn: Binding(get: { session.tags.contains(tag) }, set: { _ in session.toggleTag(tag) }))
@@ -563,10 +625,10 @@ extension ContentView {
                     Button("Unbind from Folder") { session.unbindProject() }
                     Divider()
                 }
-                if session.record.archivedAt == nil, session.record.projectFolder == nil {
+                if session.record.archivedAt == nil, session.record.projectFolder == nil, session.record.sidechatOf == nil {
                     Menu("Move to Studio") {
                         ForEach(model.activeStudios) { studio in
-                            Button(studio.name) { model.move(session, to: studio) }
+                            Button(studio.name) { beginNewStudio(from: session, destination: studio.id) }
                                 .disabled(studio.id == session.record.studioID)
                         }
                         if !model.activeStudios.isEmpty { Divider() }
@@ -579,13 +641,138 @@ extension ContentView {
                     .disabled(session.isRunning)
                 }
                 if session.record.archivedAt == nil {
-                    Button("Archive Chat") { model.archive(session) }
+                    NewSidechatControl(parent: session)
+                    Button(session.record.sidechatOf != nil ? "End Sidechat" : "Archive Chat") { model.archive(session) }
                 } else {
                     Button("Unarchive Chat") { model.unarchive(session) }
                 }
                 Divider()
                 Button("Delete Chat\u{2026}", role: .destructive) { pendingDelete = session }
             }
+    }
+}
+
+private struct StudioCreationAlerts: ViewModifier {
+    @Binding var naming: Bool
+    @Binding var name: String
+    @Binding var source: ChatSession?
+    var destination: UUID?
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $naming, onDismiss: { source = nil }) {
+            StudioDestinationSheet(source: source, initialName: name, destination: destination)
+        }
+    }
+}
+
+#if DEBUG
+@MainActor enum StudioDestinationDebug {
+    static var rootOrigin = CGPoint.zero
+    static var folderFrame = CGRect.zero
+    static var moveFrame = CGRect.zero
+}
+#endif
+
+struct StudioDestinationSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let source: ChatSession?
+    @State private var name: String
+    @State private var destination: UUID?
+    @State private var keepFolder = true
+    @State private var error: String?
+
+    init(source: ChatSession?, initialName: String, destination: UUID? = nil) {
+        self.source = source
+        _name = State(initialValue: initialName)
+        _destination = State(initialValue: destination)
+    }
+
+    private var studio: Studio? { destination.flatMap { model.studio($0) } }
+    private var isProject: Bool { source?.record.projectFolder != nil || source?.record.convertedProjectFolder != nil }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text(source == nil ? "New Studio" : "Move to Studio").font(.title2.bold())
+            if source != nil {
+                Picker("Destination", selection: $destination) {
+                    Text("New Studio").tag(nil as UUID?)
+                    ForEach(model.activeStudios) { studio in
+                        Text(studio.name).tag(Optional(studio.id))
+                    }
+                }
+                .accessibilityIdentifier("studioDestination")
+            }
+            if destination == nil {
+                TextField("Studio name", text: $name).textFieldStyle(.roundedBorder)
+            }
+            if let source, let studio {
+                Picker("Working folder", selection: $keepFolder) {
+                    Text("Keep current folder").tag(true)
+                    Text("Use Studio folder").tag(false)
+                }.pickerStyle(.segmented)
+                .accessibilityIdentifier("studioFolderChoice")
+                #if DEBUG
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { StudioDestinationDebug.folderFrame = $0 }
+                #endif
+                Text(keepFolder ? source.workingFolder : studio.folder)
+                    .font(.callout.monospaced()).textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(keepFolder ? "The thread joins this Studio and continues working in its current folder." : "The thread will work in the Studio’s shared folder. Changing folders resets Claude’s session; your visible history stays.")
+                    .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            } else if let source, isProject {
+                let folder = source.workingFolder
+                Text("The new Studio uses your existing folder: \(folder)")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if source != nil {
+                Text("History and drafts stay. No files move. Worktrees and Sidechats keep their own working folders.")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            if let error { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(destination == nil ? (isProject ? "Convert" : "Create") : "Move") { submit() }
+                    .keyboardShortcut(.defaultAction).accessibilityIdentifier("studioMove")
+                    #if DEBUG
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { StudioDestinationDebug.moveFrame = $0 }
+                    #endif
+            }
+        }
+        .padding(24).frame(width: 480)
+        .background(Color(nsColor: .windowBackgroundColor))
+        #if DEBUG
+        .onGeometryChange(for: CGPoint.self) { $0.frame(in: .global).origin } action: { StudioDestinationDebug.rootOrigin = $0 }
+        #endif
+    }
+
+    private func submit() {
+        guard destination == nil || studio != nil else { error = "This Studio is no longer available. Choose another destination."; return }
+        let result: Studio?
+        if let studio, let source {
+            if isProject {
+                result = model.convertProjectToStudio(source, into: studio, keepFolder: keepFolder)
+            } else {
+                result = model.joinStudio(source, studio: studio, keepFolder: keepFolder) ? studio : nil
+            }
+        } else if let source, isProject {
+            result = model.convertProjectToStudio(source, named: name)
+        } else {
+            result = model.newStudio(named: name, moving: source)
+        }
+        if result != nil { dismiss() }
+        else { error = "Couldn’t move this thread. Finish its reply or restart and check that both folders still exist." }
+    }
+}
+
+struct NewSidechatControl: View {
+    @Environment(AppModel.self) private var model
+    let parent: ChatSession
+
+    var body: some View {
+        Button("New Sidechat", systemImage: "bubble.left.and.bubble.right") { model.newSidechat(of: parent) }
+            .help("A temporary separate thread in the same folder; no Git branch is created")
     }
 }
 
@@ -686,6 +873,10 @@ private struct SidebarRow: View {
             } else {
                 Text(session.title)
                     .lineLimit(1)
+            }
+            if session.record.sidechatOf != nil {
+                Text("Temporary").font(.caption2).foregroundStyle(.secondary)
+                    .help("A sidechat sharing its parent's folder. End Sidechat archives its history.")
             }
             Spacer(minLength: 0)
             // Waiting on you, or a finished reply you haven't seen.
@@ -843,6 +1034,7 @@ extension ContentView {
     /// Archived; a collapsed Projects keeps its heading in place.
     var sidebarColumn: some View {
         VStack(spacing: 0) {
+            DesktopOverviewControls().padding(.horizontal, 12).padding(.vertical, 8)
             if !isFiltering {
                 #if GOLEM_APP
                 List { Section { dotRow } }
@@ -961,7 +1153,47 @@ extension ContentView {
 
     // MARK: Lists
 
+    @ViewBuilder
     private func sectionList(_ section: SidebarSection) -> some View {
+        if sidebarCards { cardSection(section) } else { listSection(section) }
+    }
+
+    private func cardFamily(_ root: ChatSession) -> [ChatSession] {
+        var threads = [root] + model.sidechats(of: root)
+        if root.record.projectFolder != nil || root.record.convertedProjectFolder != nil {
+            for branch in model.worktrees(of: root) { threads += [branch] + model.sidechats(of: branch) }
+        }
+        return threads.filter(isShown)
+    }
+
+    private func cardGrid(_ threads: [ChatSession]) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible(minimum: 0)), GridItem(.flexible(minimum: 0))], spacing: 8) {
+            ForEach(threads) { row($0, number: nil, card: true) }
+        }
+    }
+
+    private func cardSection(_ section: SidebarSection) -> some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+                switch section {
+                case .projects:
+                    let threads = model.sidebarProjects.filter(projectActivity.includes).flatMap(cardFamily)
+                    cardGrid(threads)
+                    if threads.isEmpty { Text("No matching projects").font(.caption).foregroundStyle(.secondary) }
+                case .chats:
+                    let threads = model.sidebarChats.flatMap(cardFamily)
+                    cardGrid(threads)
+                    if threads.isEmpty { Text("No matching chats").font(.caption).foregroundStyle(.secondary) }
+                case .studios:
+                    ForEach(model.activeStudios.filter(isShown)) { studio in
+                        studioGroup(studio, numbers: [:])
+                    }
+                }
+            }.padding(.horizontal, 10).padding(.vertical, 6)
+        }.accessibilityLabel(section.title)
+    }
+
+    private func listSection(_ section: SidebarSection) -> some View {
         // ⌘-numbers follow the full sidebar, so they don't shift while filtering.
         let numbers = Dictionary(uniqueKeysWithValues: model.sidebarOrder.prefix(9).enumerated().map { ($1.id, $0 + 1) })
         return List {
@@ -969,10 +1201,10 @@ extension ContentView {
             case .projects:
                 let projects = model.sidebarProjects.filter(isShown).filter(projectActivity.includes)
                 ForEach(projects) { session in
-                    row(session, number: numbers[session.id])
+                    rowWithSidechats(session, numbers: numbers)
                     // Its worktrees, indented beneath it.
                     ForEach(model.worktrees(of: session)) { worktree in
-                        row(worktree, number: numbers[worktree.id])
+                        rowWithSidechats(worktree, numbers: numbers)
                             .padding(.leading, 18)
                             .overlay(alignment: .leading) {
                                 Image(systemName: "arrow.triangle.branch")
@@ -994,7 +1226,7 @@ extension ContentView {
                 }
             case .chats:
                 let chats = model.sidebarChats.filter(isShown)
-                ForEach(chats) { session in row(session, number: numbers[session.id]) }
+                ForEach(chats) { session in rowWithSidechats(session, numbers: numbers) }
                 if chats.isEmpty {
                     Text(isFiltering ? "No matching chats" : "Chats that aren't in a project or a Studio.")
                         .font(.caption).foregroundStyle(.secondary)

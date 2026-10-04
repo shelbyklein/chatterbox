@@ -53,7 +53,7 @@ import CoreFoundation
                     while let newline=buffer.firstIndex(of:10){
                         let line=buffer.subdata(in:buffer.startIndex..<newline);buffer.removeSubrange(buffer.startIndex...newline)
                         guard let request=try? JSONDecoder().decode(RuntimeRequest.self,from:line) else {peer.send(RuntimeReply(error:"Malformed request"));continue}
-                        DispatchQueue.main.async { MainActor.assumeIsolated { self?.handle(request,peer:peer) } }
+                        Task { @MainActor [weak self] in await self?.handle(request,peer:peer) }
                     }
                 }
                 peer.stop()
@@ -61,7 +61,7 @@ import CoreFoundation
             }.start()
         }
     }
-    private func handle(_ r:RuntimeRequest,peer:RuntimePeer){
+    private func handle(_ r:RuntimeRequest,peer:RuntimePeer) async {
         do {
             guard r.version==1 else {throw RuntimeFailure("unsupported_version")}
             if r.operation=="hello" {
@@ -73,7 +73,7 @@ import CoreFoundation
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
-                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","computer","getPreferences","preferences","companionStatus","companion"]
+                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","computer","getPreferences","preferences","companionStatus","companion"]
                 guard allowed.contains(r.operation) else{throw RuntimeFailure("permission_denied")}
                 if let raw=r.body["record"],let record=try? raw.decode(ConversationRecord.self),(record.isDot != true || runtime.session(record.id)?.isDot != true){throw RuntimeFailure("permission_denied")}
                 if r.operation=="preferences",!Set((r.body.object ?? [:]).keys).isSubset(of:["dotDefaultBackend","dotDefaultModel","dotApplyDefault","dotSeenItem"]){throw RuntimeFailure("permission_denied")}
@@ -83,7 +83,7 @@ import CoreFoundation
                 }
                 if !["get","draft"].contains(r.operation),let id=r.body["chatID"]?.string.flatMap(UUID.init(uuidString:)),runtime.session(id)?.isDot != true{throw RuntimeFailure("permission_denied")}
             }
-            if ["approve","answer","integration","studios","metadata","delete","settings","remoteControl","restartTools","shell","stopShell","companion","preferences"].contains(r.operation), !["ui","golem-ui"].contains(role) {
+            if ["approve","answer","integration","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","preferences"].contains(r.operation), !["ui","golem-ui"].contains(role) {
                 throw RuntimeFailure("permission_denied")
             }
             if ["golem","agent","golem-ui"].contains(role),!runtime.state.integrationEnabled,!["health","subscribe"].contains(r.operation) {throw RuntimeFailure("integration_disabled")}
@@ -116,6 +116,13 @@ import CoreFoundation
                 var record=s.record
                 if let limit=r.body["limit"]?.int {record.items=Array(record.items.suffix(max(40,min(500,limit))))}
                 result=try .value(RuntimeChatState(record:record,running:s.isRunning,revision:runtime.state.revisions[s.id.uuidString] ?? 0,draft:RuntimeDraft(text:s.draft,attachments:s.draftAttachments),totalCount:s.items.count))
+            case "restartThread":
+                let s = try chat(r.body)
+                let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
+                result = try await runtime.executeAsync(id: r.id, operation: r.operation, fingerprint: fingerprint) {
+                    await s.restartThread()
+                    return ["status": s.threadRestartStatus.map(JSON.string) ?? .null]
+                }
             case "draft":
                 let s=try chat(r.body);result=try .value(RuntimeDraft(text:s.draft,attachments:s.draftAttachments))
             default:
@@ -162,6 +169,8 @@ import CoreFoundation
             s.setModel(incoming.model);s.setEffort(incoming.effort);s.setPersonality(incoming.personality)
             s.record.projectNickname=incoming.projectNickname;s.record.tags=incoming.tags
             s.record.projectFolder=incoming.projectFolder;s.record.studioID=incoming.studioID;s.record.studioFolder=incoming.studioFolder
+            s.record.sidechatOf=incoming.sidechatOf;s.record.sidechatFolder=incoming.sidechatFolder;s.record.sidechatProjectFolder=incoming.sidechatProjectFolder
+            s.record.studioWorkingFolder=incoming.studioWorkingFolder;s.record.convertedProjectFolder=incoming.convertedProjectFolder
             s.record.worktreeOf=incoming.worktreeOf;s.record.worktreeBranch=incoming.worktreeBranch
             s.record.githubRepo=incoming.githubRepo;s.record.gitRemote=incoming.gitRemote
             s.record.claudeMode=incoming.claudeMode;s.record.claudeFastMode=incoming.claudeFastMode

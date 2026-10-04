@@ -23,11 +23,15 @@ typealias Attention=DaemonAttention
     var companionListRevision:Int{runtime.state.sequence}
     func companionRevision(of id:UUID)->Int{runtime.state.revisions[id.uuidString] ?? 0}
     var sidebarProjects:[ChatSession]{activeSessions.filter{$0.record.projectFolder != nil && $0.record.worktreeOf==nil && !$0.isDot}.sorted{$0.record.updatedAt>$1.record.updatedAt}}
-    var sidebarChats:[ChatSession]{activeSessions.filter{$0.record.projectFolder==nil && $0.record.studioID==nil && !$0.isDot}}
+    var sidebarChats:[ChatSession]{activeSessions.filter{$0.record.projectFolder==nil && $0.record.studioID==nil && $0.record.sidechatOf==nil && !$0.isDot}}
     var activeStudios:[Studio]{runtime.studios.filter{$0.archivedAt==nil}}
     func studio(_ id:UUID)->Studio?{runtime.studios.first{$0.id==id}}
-    func chats(in studio:Studio)->[ChatSession]{activeSessions.filter{$0.record.studioID==studio.id && !$0.isDot}}
-    func worktrees(of project:ChatSession)->[ChatSession]{activeSessions.filter{$0.record.worktreeOf==project.record.projectFolder}}
+    func chats(in studio:Studio)->[ChatSession]{activeSessions.filter { chat in
+        chat.record.studioID == studio.id && !chat.isDot && !activeSessions.contains { parent in
+            chat.record.sidechatOf == parent.id || (chat.record.worktreeOf != nil && chat.record.worktreeOf == parent.record.convertedProjectFolder)
+        }
+    }}
+    func worktrees(of project:ChatSession)->[ChatSession]{activeSessions.filter{$0.record.worktreeOf != nil && $0.record.worktreeOf == (project.record.projectFolder ?? project.record.convertedProjectFolder)}}
     func newChat(backend:Backend?=nil) throws ->ChatSession {
         var r=ConversationRecord(model:AppPreferences.defaults.string(forKey:"defaultModel") ?? "default",effort:AppPreferences.defaults.string(forKey:"defaultEffort") ?? "",personality:.friendly)
         r.activeBackend=backend ?? Backend(rawValue:AppPreferences.defaults.string(forKey:"defaultBackend") ?? "") ?? .claude
@@ -40,9 +44,16 @@ typealias Attention=DaemonAttention
     func renameDot(_ title:String){dot?.setTitle(title);dot?.restartClaudeForNewTools()}
     func setInstructions(_ text:String,forStudio id:UUID){var all=runtime.studios;guard let i=all.firstIndex(where:{$0.id==id}) else{return};all[i].instructions=text;try? runtime.updateStudios(all)}
     func canFork(_ s:ChatSession)->Bool{!s.isRunning && !s.isDot && s.record.projectFolder==nil && !s.items.isEmpty}
+    func sidechats(of parent: ChatSession) -> [ChatSession] { activeSessions.filter { $0.record.sidechatOf == parent.id }.sorted { $0.record.updatedAt > $1.record.updatedAt } }
+    func studioFamily(of parent: ChatSession) -> [ChatSession] {
+        var family = [parent] + sidechats(of: parent)
+        if parent.record.convertedProjectFolder != nil { for child in worktrees(of: parent) { family += [child] + sidechats(of: child) } }
+        return family
+    }
     func fork(_ s:ChatSession)->ChatSession?{
         guard canFork(s) else{return nil}
         var r=s.record;r.id=UUID();r.title += " (fork)";r.createdAt=Date();r.updatedAt=Date();r.archivedAt=nil;r.forkedFrom=s.id
+        if r.convertedProjectFolder != nil { r.sidechatProjectFolder=s.convertedProjectScope;r.convertedProjectFolder=nil }
         r.isDot=nil;r.sentDotName=nil;r.dotFollowing=nil;r.currentIssue=nil;r.turnStartedAt=nil;r.backgroundTasks=nil;r.claudeHost=nil;r.codexHost=nil
         r.claudeForkPending=r.claudeSessionID != nil ? true:nil
         if let thread=r.codex?.threadId{r.codex?.forkFrom=thread;r.codex?.threadId=nil}
