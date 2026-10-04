@@ -210,16 +210,7 @@ struct ContentView: View {
                 Text("Also renames the project in the sidebar and toolbar. The folder itself isn't renamed.")
             }
         }
-        .alert(studioFromChat == nil ? "New Studio" : "New Studio from Chat", isPresented: $namingStudio) {
-            TextField("Name", text: $studioName)
-            Button("Create") {
-                model.newStudio(named: studioName, moving: studioFromChat)
-                studioFromChat = nil
-            }
-            Button("Cancel", role: .cancel) { studioFromChat = nil }
-        } message: {
-            Text("Its chats share a new folder in \(AppModel.studiosBase.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")), and can save work there.")
-        }
+        .modifier(StudioCreationAlerts(naming: $namingStudio, name: $studioName, source: $studioFromChat))
         .alert("Rename Studio", isPresented: Binding(get: { renamingStudio != nil }, set: { if !$0 { renamingStudio = nil } })) {
             TextField("Name", text: $studioName)
             Button("Rename") { if let studio = renamingStudio { model.renameStudio(studio.id, to: studioName) } }
@@ -298,6 +289,7 @@ extension ContentView {
     /// Search matches every word against the chat title, project name, and tags.
     private func isShown(_ session: ChatSession) -> Bool {
         if session.record.sidechatOf == nil, model.sidechats(of: session).contains(where: isShown) { return true }
+        if session.record.convertedProjectFolder != nil, model.worktrees(of: session).contains(where: isShown) { return true }
         if let tag = activeTag, !session.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
             return false
         }
@@ -318,7 +310,7 @@ extension ContentView {
 
     private func beginNewStudio(from session: ChatSession? = nil) {
         studioFromChat = session
-        studioName = ""
+        studioName = session?.record.projectFolder != nil ? (session?.projectName ?? "") : ""
         namingStudio = true
     }
 
@@ -501,6 +493,18 @@ extension ContentView {
                             .font(.system(size: 10)).foregroundStyle(.tertiary)
                     }
             }
+            if session.record.convertedProjectFolder != nil {
+                ForEach(model.worktrees(of: session)) { worktree in
+                    row(worktree, number: numbers[worktree.id])
+                        .padding(.leading, 18)
+                        .overlay(alignment: .leading) {
+                            Image(systemName: "arrow.triangle.branch").font(.system(size: 10)).foregroundStyle(.tertiary)
+                        }
+                    ForEach(model.sidechats(of: worktree).filter(isShown)) { sidechat in
+                        row(sidechat, number: numbers[sidechat.id]).padding(.leading, 36)
+                    }
+                }
+            }
         }
     }
 
@@ -553,6 +557,10 @@ extension ContentView {
                         projectNickname = session.projectName
                         renamingProject = session
                     }
+                    if session.record.worktreeOf == nil, session.record.archivedAt == nil {
+                        Button("Convert to New Studio\u{2026}") { beginNewStudio(from: session) }
+                            .disabled(session.isRunning || session.isRestartingThread)
+                    }
                     Menu("Tags") {
                         ForEach(model.allTags, id: \.self) { tag in
                             Toggle(tag, isOn: Binding(get: { session.tags.contains(tag) }, set: { _ in session.toggleTag(tag) }))
@@ -589,6 +597,41 @@ extension ContentView {
                 Divider()
                 Button("Delete Chat\u{2026}", role: .destructive) { pendingDelete = session }
             }
+    }
+}
+
+private struct StudioCreationAlerts: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Binding var naming: Bool
+    @Binding var name: String
+    @Binding var source: ChatSession?
+    @State private var error: String?
+    private var isProject: Bool { source?.record.projectFolder != nil }
+
+    func body(content: Content) -> some View {
+        content.alert(isProject ? "Convert Project to Studio" : (source == nil ? "New Studio" : "New Studio from Chat"), isPresented: $naming) {
+            TextField("Name", text: $name)
+            Button(isProject ? "Convert" : "Create") {
+                let created: Studio?
+                if let project = source, project.record.projectFolder != nil {
+                    created = model.convertProjectToStudio(project, named: name)
+                } else {
+                    created = model.newStudio(named: name, moving: source)
+                }
+                if created == nil { error = "Couldn't create the Studio. Check the folder exists and finish any reply or thread restart, then try again." }
+                source = nil
+            }
+            Button("Cancel", role: .cancel) { source = nil }
+        } message: {
+            if let folder = source?.record.projectFolder {
+                Text("Use the existing folder at \(folder). History, drafts, files and worktree folders stay in place. The project and its worktree chats will appear in the new Studio.")
+            } else {
+                Text("Its chats share a new folder in \(AppModel.studiosBase.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")), and can save work there.")
+            }
+        }
+        .alert("Studio not created", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) { error = nil }
+        } message: { Text(error ?? "") }
     }
 }
 

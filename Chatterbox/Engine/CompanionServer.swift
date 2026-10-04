@@ -519,7 +519,7 @@ enum CompanionMapper {
             groups.append(.init(id: "projects", kind: .projects, title: "Projects", chats: chats.map(summary)))
         }
         for studio in model.activeStudios {
-            let chats = model.chats(in: studio).flatMap { [$0] + model.sidechats(of: $0) }
+            let chats = model.chats(in: studio).flatMap { model.studioFamily(of: $0) }
             let place = PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)
             groups.append(.init(id: "studio-" + studio.id.uuidString, kind: .studio, title: studio.name, chats: chats.map(summary),
                                 studioID: studio.id, instructions: studio.instructions,

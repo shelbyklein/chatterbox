@@ -91,7 +91,7 @@ final class AppModel {
             for worktree in worktrees(of: project) { ordered += [worktree] + sidechats(of: worktree) }
         }
         for studio in activeStudios where studio.collapsed != true {
-            for chat in chats(in: studio) { ordered += [chat] + sidechats(of: chat) }
+            for chat in chats(in: studio) { ordered += studioFamily(of: chat) }
         }
         for chat in sidebarChats { ordered += [chat] + sidechats(of: chat) }
         return ordered
@@ -117,7 +117,7 @@ final class AppModel {
             + (anchor.record.projectFolder != nil ? anchor.projectName : anchor.title)
         record.sidechatOf = anchor.id
         record.sidechatFolder = parent.workingFolder
-        record.sidechatProjectFolder = parent.record.sidechatProjectFolder ?? parent.record.worktreeOf ?? parent.record.projectFolder
+        record.sidechatProjectFolder = parent.record.sidechatProjectFolder ?? parent.record.convertedProjectFolder ?? parent.record.worktreeOf ?? parent.record.projectFolder
         record.activeBackend = parent.record.backend
         record.claudeFastMode = parent.record.claudeFastMode
         record.claudeMode = parent.record.claudeMode
@@ -315,7 +315,7 @@ final class AppModel {
     /// The chat bound to `folder`, if any. Each folder has at most one.
     func session(boundTo folder: String) -> ChatSession? {
         let target = Self.normalize(folder)
-        return sessions.first { $0.record.projectFolder.map(Self.normalize) == target }
+        return sessions.first { ($0.record.projectFolder ?? $0.record.convertedProjectFolder).map(Self.normalize) == target }
     }
 
     /// Binds `session` to `folder`, unless another chat already owns it; that chat is returned instead.
@@ -330,8 +330,8 @@ final class AppModel {
 
     /// A project's worktree chats, newest first.
     func worktrees(of project: ChatSession) -> [ChatSession] {
-        guard let folder = project.record.projectFolder.map(Self.normalize) else { return [] }
-        return activeSessions.filter { $0.record.worktreeOf.map(Self.normalize) == folder }
+        guard let folder = (project.record.projectFolder ?? project.record.convertedProjectFolder).map(Self.normalize) else { return [] }
+        return activeSessions.filter { $0.record.worktreeOf.map(Self.normalize) == folder && $0.record.studioID == project.record.studioID }
             .sorted { $0.record.createdAt > $1.record.createdAt }
     }
 

@@ -164,6 +164,8 @@ struct ConversationRecord: Codable {
     var sidechatFolder: String?
     /// Parent project scope for existing project-only secrets; no new access is granted.
     var sidechatProjectFolder: String?
+    /// Project-only secret scope retained when converting that folder to a Studio.
+    var convertedProjectFolder: String?
     /// The Studio this chat belongs to, and that Studio's folder, which the chat works in.
     /// The folder is kept here too so the chat can start its agent without looking it up.
     var studioID: UUID?

@@ -479,6 +479,8 @@ final class ChatSession: Identifiable {
     func bindProject(_ folder: String) {
         guard folder != record.projectFolder else { return }
         record.projectFolder = folder
+        record.convertedProjectFolder = nil
+        if record.sidechatOf == nil { record.sidechatProjectFolder = nil }
         // A project chat isn't in a Studio.
         record.studioID = nil
         record.studioFolder = nil
@@ -505,6 +507,11 @@ final class ChatSession: Identifiable {
     /// with nil. A project chat leaves its project.
     func setStudio(_ studio: Studio?) {
         guard studio?.id != record.studioID else { return }
+        let previousFolder = workingFolder
+        if let original = record.convertedProjectFolder,
+           studio.map({ AppModel.normalize($0.folder) }) != AppModel.normalize(original) {
+            record.convertedProjectFolder = nil
+        }
         record.studioID = studio?.id
         record.studioFolder = studio?.folder
         if studio != nil {
@@ -513,7 +520,10 @@ final class ChatSession: Identifiable {
         }
         let folder = record.boundFolder ?? UserDefaults.standard.string(forKey: "codexFolder") ?? NSHomeDirectory()
         record.codex?.folder = folder
-        claudeWorkingFolderChanged()
+        if AppModel.normalize(previousFolder) != AppModel.normalize(folder) {
+            if record.sidechatOf == nil { record.sidechatProjectFolder = nil }
+            claudeWorkingFolderChanged()
+        }
         onChange?(self)
     }
 

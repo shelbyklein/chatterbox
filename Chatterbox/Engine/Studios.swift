@@ -65,7 +65,22 @@ extension AppModel {
 
     /// A Studio's open chats, most recent first.
     func chats(in studio: Studio) -> [ChatSession] {
-        activeSessions.filter { $0.record.studioID == studio.id && !hasVisibleSidechatParent($0) }
+        activeSessions.filter { $0.record.studioID == studio.id && !hasVisibleSidechatParent($0) && !hasVisibleConvertedParent($0) }
+    }
+
+    func hasVisibleConvertedParent(_ chat: ChatSession) -> Bool {
+        guard let folder = chat.record.worktreeOf else { return false }
+        return activeSessions.contains {
+            $0.record.studioID == chat.record.studioID && $0.record.convertedProjectFolder.map(Self.normalize) == Self.normalize(folder)
+        }
+    }
+
+    func studioFamily(of parent: ChatSession) -> [ChatSession] {
+        var family = [parent] + sidechats(of: parent)
+        if parent.record.convertedProjectFolder != nil {
+            for child in worktrees(of: parent) { family += [child] + sidechats(of: child) }
+        }
+        return family
     }
 
     /// Where new Studio folders go: ~/Chatterbox/Studios (inside the data folder under tests).
@@ -88,6 +103,36 @@ extension AppModel {
         studios.append(studio)
         saveStudios()
         if let session { move(session, to: studio) } else { newChat(in: studio) }
+        return studio
+    }
+
+    /// Converts a project in place; no files, branches or worktree folders move.
+    @discardableResult
+    func convertProjectToStudio(_ session: ChatSession, named name: String) -> Studio? {
+        guard let folder = session.record.projectFolder, session.record.worktreeOf == nil,
+              session.record.archivedAt == nil, !session.isDot, !session.isRunning, !session.isRestartingThread else { return nil }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folder, isDirectory: &isDirectory), isDirectory.boolValue else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let studio = Studio(name: trimmed.isEmpty ? session.projectName : trimmed, folder: Self.normalize(folder))
+        let children = worktrees(of: session)
+        let sidechats = sidechats(of: session) + children.flatMap { self.sidechats(of: $0) }
+        studio.ensureDesignFile()
+        studios.append(studio)
+        saveStudios()
+        session.record.convertedProjectFolder = folder
+        session.setStudio(studio)
+        let oldPlace = PinPlace(key: "project:" + folder, name: session.projectName)
+        for pin in PinStore.shared.pins(in: oldPlace) { PinStore.shared.setPlace(pin, to: PinPlace(key: "studio:" + studio.id.uuidString, name: studio.name)) }
+        // Worktrees keep their own folders and Git metadata. Only their group
+        // changes; an active child process is never restarted by conversion.
+        for child in children + sidechats {
+            child.record.studioID = studio.id
+            child.record.studioFolder = studio.folder
+            child.onChange?(child)
+        }
+        setStudio(studio.id, collapsed: false)
+        selectedID = session.id
         return studio
     }
 
@@ -163,6 +208,10 @@ extension AppModel {
         record.updatedAt = Date()
         record.archivedAt = nil
         record.forkedFrom = session.id
+        if let scope = record.convertedProjectFolder {
+            record.sidechatProjectFolder = scope
+            record.convertedProjectFolder = nil
+        }
         // Never carry Dot's identity into a copy, even if a caller skips canFork.
         record.isDot = nil
         record.sentDotName = nil
