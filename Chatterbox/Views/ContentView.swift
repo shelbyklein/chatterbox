@@ -5,6 +5,8 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var chatSwitch: ChatSwitchTransition
     @AppStorage("showArchived") private var showArchived = false
     @AppStorage("sidebarSectionWeights") private var sectionWeights = "1,1,1"
     @AppStorage("sidebarProjectsCollapsed") private var projectsCollapsed = false
@@ -43,6 +45,10 @@ struct ContentView: View {
     @AppStorage(Theme.highlightKey) private var themeHighlight = "default"
     @AppStorage(ProjectSort.key) private var projectSort = ProjectSort.recent
     @AppStorage("sidebarProjectActivity") private var projectActivity = ProjectActivity.all
+
+    @MainActor init(chatSwitch: ChatSwitchTransition? = nil) {
+        _chatSwitch = State(initialValue: chatSwitch ?? ChatSwitchTransition())
+    }
 
     var body: some View {
         #if DEBUG
@@ -107,15 +113,26 @@ struct ContentView: View {
 
     }
 
+    private var mainChatID: UUID? {
+        guard !model.showingSettings, model.webPage == nil, let session = model.selected,
+              !(session.isDot && model.showingDot) else { return nil }
+        return session.id
+    }
+
     private var columnRoot: some View {
         Group {
-            if let session = model.selected, !model.showingSettings, model.webPage == nil,
-               !(session.isDot && model.showingDot) {
-                ChatView(session: session, sidebar: sidebarPane).id(session.id)
+            if mainChatID != nil, let session = model.sessions.first(where: {
+                $0.id == (chatSwitch.initialized ? chatSwitch.displayedID : model.selectedID)
+            }) {
+                ChatView(session: session, sidebar: sidebarPane)
+                    .onAppear { chatSwitch.didMount(session.id) }.id(session.id)
             } else {
                 ChatColumns(sidebar: sidebarPane, chat: AnyView(alternateDetail))
             }
         }
+        .environment(\.chatSwitchPresentation, ChatSwitchPresentation(opacity: chatSwitch.opacity,
+            offset: chatSwitch.offset, switching: chatSwitch.switching || (mainChatID != nil && chatSwitch.initialized && chatSwitch.displayedID != mainChatID)))
+        .task(id: mainChatID) { await chatSwitch.show(mainChatID, reduceMotion: reduceMotion, waitForMount: true) }
         .toolbar {
                 ToolbarItem {
                     Button { model.showingSettings.toggle() } label: { Label("Settings", systemImage: "gearshape") }

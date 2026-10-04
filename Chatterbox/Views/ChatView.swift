@@ -7,6 +7,7 @@ struct ChatView: View {
     /// The small chat floating over a page: fewer controls, tighter margins.
     @Environment(\.compactChat) private var compact
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.chatSwitchPresentation) private var switchPresentation
     let session: ChatSession
     /// The message box's text and attachments. Typing stays in this view; each change is
     /// copied to the chat (ChatSession.draft), so it's still there after looking at another
@@ -167,9 +168,10 @@ struct ChatView: View {
             }
         }
         .onAppear {
-            composerFocused = true
+            composerFocused = !switchPresentation.switching
             installPasteMonitor()
         }
+        .onChange(of: switchPresentation.switching) { _, switching in composerFocused = !switching }
         .onChange(of: draft) { _, text in session.draft = text }
         .onChange(of: attachments) { _, files in session.draftAttachments = files }
         .onDisappear {
@@ -792,7 +794,7 @@ struct ChatView: View {
 
     /// `now`: ⌘↩ while the agent works stops it and sends this message right away.
     private func submit(now: Bool) {
-        guard canSend else { return }
+        guard canSend, sidebar == nil || (!switchPresentation.switching && model.selectedID == session.id) else { return }
         let text = draft
         let files = attachments
         draft = ""
