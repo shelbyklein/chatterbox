@@ -5,4 +5,4 @@ for name in Models ChatSession ChatSession+Claude ChatSession+Codex ChatSession+
 done
 printf '%s\n' Chatterbox/Support/JSON.swift Chatterbox/Support/HostProtocol.swift Chatterbox/Support/Attachments.swift
 printf '%s\n' Shared/AppPreferences.swift Shared/Backend.swift Shared/MediaKind.swift Shared/FilePaths.swift
-rg --files ChatterboxRuntime -g '*.swift' -g '!RuntimeClient.swift'
+rg --follow --files ChatterboxRuntime -g '*.swift' -g '!RuntimeClient.swift'

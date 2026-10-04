@@ -17,9 +17,11 @@ trap 'kill "$server_pid" 2>/dev/null || true; xcrun simctl shutdown "$simulator"
 xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 xcrun simctl ui "$simulator" appearance dark
-for product in Chatterbox Golem; do
+for product in Chatterbox; do
  xcodebuild -project Chatterbox.xcodeproj -scheme "${product}MobileAcceptance" -configuration Debug \
  -destination "platform=iOS Simulator,id=$simulator" -derivedDataPath "${GOLEM_MOBILE_DERIVED_DATA:-$artifacts/build}" \
  -resultBundlePath "$artifacts/$product.xcresult" CODE_SIGNING_ALLOWED=NO test > "$artifacts/$product.log" 2>&1
  xcrun xcresulttool export attachments --path "$artifacts/$product.xcresult" --output-path "$artifacts/$product-screenshots"
 done
+
+"${GOLEM_REPO:-../Golem}/scripts/test-mobile-ui.sh" "$kind"

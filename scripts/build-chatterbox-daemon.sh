@@ -11,5 +11,5 @@ printf '%s\n' \
  Chatterbox/Engine/CompanionMutationLedger.swift Chatterbox/Engine/NextSteps.swift \
  Chatterbox/Engine/MobilePush.swift Chatterbox/Engine/Pins.swift \
  Chatterbox/Support/HTTPFileTransfer.swift Shared/CompanionAPI.swift Shared/CompanionRetry.swift >> "$manifest"
-rg --files ChatterboxDaemon -g '*.swift' >> "$manifest"
+rg --follow --files ChatterboxDaemon -g '*.swift' >> "$manifest"
 swiftc -D DEBUG -D CHATTERBOX_HEADLESS -whole-module-optimization -Onone -o build/runtime/chatterboxd @"$manifest"

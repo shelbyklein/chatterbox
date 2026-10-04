@@ -7,6 +7,7 @@ Pick the backend per chat: the Claude/Codex switch on an empty chat, the New Cha
 ## Run it
 
 ```bash
+git submodule update --init --recursive
 xcodegen generate
 ```
 
@@ -129,3 +130,9 @@ Verification: `scripts/test-companion-pdf.sh` tests the Mac route and bounded tr
 On the Mac, Settings → iPhone → Push notifications accepts an APNs Key ID and .p8 signing key (stored in Keychain). Enable the companion server, then on each paired mobile device tap the bell in the chat list and turn on Notifications. The Mac can send a test to each registered device.
 
 Approvals/questions, finished replies, Golem briefings and important emails can each be enabled separately; previews and sound are optional. The Mac must stay awake with Chatterbox open. Notifications arrive through Apple on cellular as well as Wi-Fi; tapping into the actual chat still needs a connection to the Mac. Debug installs use APNs sandbox; Release uses production. See [validation and setup limits](design/mobile-push/delivery.md).
+
+## Repository boundaries
+
+Golem is developed separately in [shelbyklein/golem](https://github.com/shelbyklein/golem). This repository owns Chatterbox's Mac/mobile entrypoints and icons, chatterboxd, host and MCP tools. Both products pin the shared source package [chatterbox-core](https://github.com/shelbyklein/chatterbox-core) at `Core/` (Git submodule). Clone with `--recurse-submodules` or run `git submodule update --init --recursive` before generating/building. Shared Swift sources are compiled by the product, preserving existing conditional flags; Core is not a SwiftPM module.
+
+Edit reusable code in Core, commit/push there, then update the tested gitlink in both consumers. The source directory aliases point within this checkout for existing scripts and navigation; do not duplicate code into them. Golem app/service/mobile/rig ownership has left this repository. Historical commits remain intact. Cross-product fixture scripts accept `GOLEM_REPO` (default `../Golem`), solely for integration tests; application builds do not need the sibling checkout.

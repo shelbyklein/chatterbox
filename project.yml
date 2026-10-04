@@ -17,18 +17,20 @@ targets:
     type: application
     platform: macOS
     sources:
-    - path: Chatterbox
+    - path: Chatterbox/ChatterboxApp.swift
+    - path: Chatterbox/Assets.xcassets
       excludes:
-      - Info.plist
-    - path: ChatterboxRuntime
-    - path: Shared
+      - '*.imageset'
+    - path: Core/Chatterbox
+    - path: Core/ChatterboxRuntime
+    - path: Core/Shared
       excludes:
       - GolemRig.swift
       - GolemRigView.swift
-    - path: prompts
+    - path: Core/prompts
       type: folder
       buildPhase: resources
-    - path: DotComputer
+    - path: Core/DotComputer
       type: folder
       buildPhase: resources
     dependencies:
@@ -73,8 +75,8 @@ targets:
     platform: macOS
     sources:
     - path: ChatterboxHost
-    - path: Chatterbox/Support/JSON.swift
-    - path: Chatterbox/Support/HostProtocol.swift
+    - path: Core/Chatterbox/Support/JSON.swift
+    - path: Core/Chatterbox/Support/HostProtocol.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Host
@@ -103,14 +105,18 @@ targets:
     platform: iOS
     deploymentTarget: '17.0'
     sources:
-    - path: ChatterboxMobile
-    - path: Shared
+    - path: ChatterboxMobile/ChatterboxMobileApp.swift
+    - path: ChatterboxMobile/Assets.xcassets
+      excludes:
+      - '*.imageset'
+    - path: Core/ChatterboxMobile
+    - path: Core/Shared
       excludes:
       - GolemRig.swift
       - GolemRigView.swift
-    - path: Chatterbox/Views/MarkdownText.swift
-    - path: Chatterbox/Views/ReaderStyle.swift
-    - path: Chatterbox/Views/PathLinks.swift
+    - path: Core/Chatterbox/Views/MarkdownText.swift
+    - path: Core/Chatterbox/Views/ReaderStyle.swift
+    - path: Core/Chatterbox/Views/PathLinks.swift
     info:
       path: ChatterboxMobile/Info.plist
       properties:
@@ -120,26 +126,26 @@ targets:
           CFBundleURLSchemes:
           - chatterbox
         ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
-        UILaunchScreen: &id001 {}
-        UISupportedInterfaceOrientations: &id002
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
         - UIInterfaceOrientationPortrait
         - UIInterfaceOrientationLandscapeLeft
         - UIInterfaceOrientationLandscapeRight
-        UISupportedInterfaceOrientations~ipad: &id003
+        UISupportedInterfaceOrientations~ipad:
         - UIInterfaceOrientationPortrait
         - UIInterfaceOrientationPortraitUpsideDown
         - UIInterfaceOrientationLandscapeLeft
         - UIInterfaceOrientationLandscapeRight
         NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on
           your Mac over your network.
-        NSBonjourServices: &id004
+        NSBonjourServices:
         - _chatterbox._tcp
         NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats
           to Photos when you ask it to.
         NSMicrophoneUsageDescription: Chatterbox listens while you dictate a message.
         NSSpeechRecognitionUsageDescription: Chatterbox turns what you say into the
           text of your message.
-        NSAppTransportSecurity: &id005
+        NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
           NSExceptionDomains:
             127.0.0.0/8:
@@ -172,113 +178,74 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_VERSION: '5.0'
         CODE_SIGN_ENTITLEMENTS: ChatterboxMobile/ChatterboxMobile.entitlements
-      configs: &id006
+      configs:
         Debug:
           APNS_ENVIRONMENT: development
         Release:
           APNS_ENVIRONMENT: production
-  Golem:
-    type: application
-    platform: macOS
-    sources:
-    - path: Chatterbox
-      excludes:
-      - ChatterboxApp.swift
-      - Info.plist
-    - path: ChatterboxRuntime
-    - path: Shared
-    - path: GolemApp
-    - path: prompts
-      type: folder
-      buildPhase: resources
-    - path: DotComputer
-      type: folder
-      buildPhase: resources
-    dependencies:
-    - sdk: AVKit.framework
-    - package: SwiftTerm
-    - target: GolemService
-      embed: true
-      codeSign: true
-      copy:
-        destination: executables
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Golem
-        PRODUCT_NAME: Golem
-        GENERATE_INFOPLIST_FILE: true
-        ASSETCATALOG_COMPILER_APPICON_NAME: GolemAppIcon
-        INFOPLIST_KEY_CFBundleDisplayName: Golem
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
-        CODE_SIGN_ENTITLEMENTS: Chatterbox/Chatterbox.entitlements
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: Apple Development
-        DEVELOPMENT_TEAM: 9F3MKVW9C5
-        ENABLE_HARDENED_RUNTIME: true
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP
   ChatterboxDaemon:
     type: tool
     platform: macOS
     sources:
-    - Chatterbox/Engine/Models.swift
-    - Chatterbox/Engine/ChatSession.swift
-    - Chatterbox/Engine/ChatSession+Claude.swift
-    - Chatterbox/Engine/ChatSession+Codex.swift
-    - Chatterbox/Engine/ChatSession+Host.swift
-    - Chatterbox/Engine/ChatSession+Status.swift
-    - Chatterbox/Engine/ChatSession+Summary.swift
-    - Chatterbox/Engine/ChatSession+Shell.swift
-    - Chatterbox/Engine/ChatSession+Remote.swift
-    - Chatterbox/Engine/ChatSession+Tasks.swift
-    - Chatterbox/Engine/ChatSession+Issues.swift
-    - Chatterbox/Engine/ClaudeCode.swift
-    - Chatterbox/Engine/CodexAppServer.swift
-    - Chatterbox/Engine/HostClient.swift
-    - Chatterbox/Engine/Usage.swift
-    - Chatterbox/Engine/ClaudeModels.swift
-    - Chatterbox/Engine/SlashCommands.swift
-    - Chatterbox/Engine/Tools.swift
-    - Chatterbox/Engine/ModelPresets.swift
-    - Chatterbox/Engine/GitHub.swift
-    - Chatterbox/Engine/GitHubIssues.swift
-    - Chatterbox/Engine/IssuePrompts.swift
-    - Chatterbox/Engine/Prompts.swift
-    - Chatterbox/Engine/PermissionModes.swift
-    - Chatterbox/Engine/Secrets.swift
-    - Chatterbox/Engine/EasyCLIProxy.swift
-    - Chatterbox/Engine/CodexRoute.swift
-    - Chatterbox/Engine/BackgroundTasks.swift
-    - Chatterbox/Engine/ChatComputer.swift
-    - Chatterbox/Engine/DotComputer.swift
-    - Chatterbox/Engine/PreviewRelays.swift
-    - Chatterbox/Support/JSON.swift
-    - Chatterbox/Support/HostProtocol.swift
-    - Chatterbox/Support/Attachments.swift
-    - Shared/Backend.swift
-    - Shared/MediaKind.swift
-    - Shared/FilePaths.swift
-    - ChatterboxRuntime/AssistantInstructions.swift
-    - ChatterboxRuntime/RuntimeWire.swift
-    - ChatterboxRuntime/RuntimePaths.swift
-    - ChatterboxRuntime/RuntimeSocket.swift
-    - ChatterboxRuntime/ChatSession+Media.swift
-    - ChatterboxRuntime/AssistantConfiguration.swift
-    - ChatterboxRuntime/ConversationRuntime.swift
-    - ChatterboxRuntime/RuntimePreferences.swift
-    - ChatterboxRuntime/RuntimePeer.swift
-    - ChatterboxRuntime/RuntimeClient.swift
-    - ChatterboxRuntime/Studio.swift
-    - Chatterbox/Engine/CompanionServer.swift
-    - Chatterbox/Engine/CompanionDocuments.swift
-    - Chatterbox/Engine/CompanionMutationLedger.swift
-    - Chatterbox/Engine/NextSteps.swift
-    - Chatterbox/Engine/MobilePush.swift
-    - Chatterbox/Engine/Pins.swift
-    - Chatterbox/Support/HTTPFileTransfer.swift
-    - Shared/CompanionAPI.swift
-    - Shared/CompanionRetry.swift
+    - path: Core/Chatterbox/Engine/Models.swift
+    - path: Core/Chatterbox/Engine/ChatSession.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Claude.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Codex.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Host.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Status.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Summary.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Shell.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Remote.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Tasks.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Issues.swift
+    - path: Core/Chatterbox/Engine/ClaudeCode.swift
+    - path: Core/Chatterbox/Engine/CodexAppServer.swift
+    - path: Core/Chatterbox/Engine/HostClient.swift
+    - path: Core/Chatterbox/Engine/Usage.swift
+    - path: Core/Chatterbox/Engine/ClaudeModels.swift
+    - path: Core/Chatterbox/Engine/SlashCommands.swift
+    - path: Core/Chatterbox/Engine/Tools.swift
+    - path: Core/Chatterbox/Engine/ModelPresets.swift
+    - path: Core/Chatterbox/Engine/GitHub.swift
+    - path: Core/Chatterbox/Engine/GitHubIssues.swift
+    - path: Core/Chatterbox/Engine/IssuePrompts.swift
+    - path: Core/Chatterbox/Engine/Prompts.swift
+    - path: Core/Chatterbox/Engine/PermissionModes.swift
+    - path: Core/Chatterbox/Engine/Secrets.swift
+    - path: Core/Chatterbox/Engine/EasyCLIProxy.swift
+    - path: Core/Chatterbox/Engine/CodexRoute.swift
+    - path: Core/Chatterbox/Engine/BackgroundTasks.swift
+    - path: Core/Chatterbox/Engine/ChatComputer.swift
+    - path: Core/Chatterbox/Engine/DotComputer.swift
+    - path: Core/Chatterbox/Engine/PreviewRelays.swift
+    - path: Core/Chatterbox/Support/JSON.swift
+    - path: Core/Chatterbox/Support/HostProtocol.swift
+    - path: Core/Chatterbox/Support/Attachments.swift
+    - path: Core/Shared/Backend.swift
+    - path: Core/Shared/MediaKind.swift
+    - path: Core/Shared/FilePaths.swift
+    - path: Core/ChatterboxRuntime/AssistantInstructions.swift
+    - path: Core/ChatterboxRuntime/RuntimeWire.swift
+    - path: Core/ChatterboxRuntime/RuntimePaths.swift
+    - path: Core/ChatterboxRuntime/RuntimeSocket.swift
+    - path: Core/ChatterboxRuntime/ChatSession+Media.swift
+    - path: Core/ChatterboxRuntime/AssistantConfiguration.swift
+    - path: Core/ChatterboxRuntime/ConversationRuntime.swift
+    - path: Core/ChatterboxRuntime/RuntimePreferences.swift
+    - path: Core/ChatterboxRuntime/RuntimePeer.swift
+    - path: Core/ChatterboxRuntime/RuntimeClient.swift
+    - path: Core/ChatterboxRuntime/Studio.swift
+    - path: Core/Chatterbox/Engine/CompanionServer.swift
+    - path: Core/Chatterbox/Engine/CompanionDocuments.swift
+    - path: Core/Chatterbox/Engine/CompanionMutationLedger.swift
+    - path: Core/Chatterbox/Engine/NextSteps.swift
+    - path: Core/Chatterbox/Engine/MobilePush.swift
+    - path: Core/Chatterbox/Engine/Pins.swift
+    - path: Core/Chatterbox/Support/HTTPFileTransfer.swift
+    - path: Core/Shared/CompanionAPI.swift
+    - path: Core/Shared/CompanionRetry.swift
     - path: ChatterboxDaemon
-    - Shared/AppPreferences.swift
+    - path: Core/Shared/AppPreferences.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Daemon
@@ -289,115 +256,6 @@ targets:
         ENABLE_HARDENED_RUNTIME: true
         SKIP_INSTALL: true
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) CHATTERBOX_HEADLESS
-  GolemService:
-    type: tool
-    platform: macOS
-    sources:
-    - Chatterbox/Engine/Models.swift
-    - Chatterbox/Engine/ChatSession.swift
-    - Chatterbox/Engine/ChatSession+Claude.swift
-    - Chatterbox/Engine/ChatSession+Codex.swift
-    - Chatterbox/Engine/ChatSession+Host.swift
-    - Chatterbox/Engine/ChatSession+Status.swift
-    - Chatterbox/Engine/ChatSession+Summary.swift
-    - Chatterbox/Engine/ChatSession+Shell.swift
-    - Chatterbox/Engine/ChatSession+Remote.swift
-    - Chatterbox/Engine/ChatSession+Tasks.swift
-    - Chatterbox/Engine/ChatSession+Issues.swift
-    - Chatterbox/Engine/ClaudeCode.swift
-    - Chatterbox/Engine/CodexAppServer.swift
-    - Chatterbox/Engine/HostClient.swift
-    - Chatterbox/Engine/Usage.swift
-    - Chatterbox/Engine/ClaudeModels.swift
-    - Chatterbox/Engine/SlashCommands.swift
-    - Chatterbox/Engine/Tools.swift
-    - Chatterbox/Engine/ModelPresets.swift
-    - Chatterbox/Engine/GitHub.swift
-    - Chatterbox/Engine/GitHubIssues.swift
-    - Chatterbox/Engine/IssuePrompts.swift
-    - Chatterbox/Engine/Prompts.swift
-    - Chatterbox/Engine/PermissionModes.swift
-    - Chatterbox/Engine/Secrets.swift
-    - Chatterbox/Engine/EasyCLIProxy.swift
-    - Chatterbox/Engine/CodexRoute.swift
-    - Chatterbox/Engine/BackgroundTasks.swift
-    - Chatterbox/Engine/ChatComputer.swift
-    - Chatterbox/Engine/DotComputer.swift
-    - Chatterbox/Engine/PreviewRelays.swift
-    - Chatterbox/Support/JSON.swift
-    - Chatterbox/Support/HostProtocol.swift
-    - Chatterbox/Support/Attachments.swift
-    - Shared/Backend.swift
-    - Shared/MediaKind.swift
-    - Shared/FilePaths.swift
-    - ChatterboxRuntime/AssistantInstructions.swift
-    - ChatterboxRuntime/RuntimeWire.swift
-    - ChatterboxRuntime/RuntimePaths.swift
-    - ChatterboxRuntime/RuntimeSocket.swift
-    - ChatterboxRuntime/ChatSession+Media.swift
-    - ChatterboxRuntime/AssistantConfiguration.swift
-    - ChatterboxRuntime/ConversationRuntime.swift
-    - ChatterboxRuntime/RuntimePreferences.swift
-    - ChatterboxRuntime/RuntimePeer.swift
-    - ChatterboxRuntime/Studio.swift
-    - ChatterboxRuntime/RuntimeClient.swift
-    - path: GolemService
-    - Shared/AppPreferences.swift
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Golem.Service
-        PRODUCT_NAME: golemd
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: Apple Development
-        DEVELOPMENT_TEAM: 9F3MKVW9C5
-        ENABLE_HARDENED_RUNTIME: true
-        SKIP_INSTALL: true
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) CHATTERBOX_HEADLESS
-  GolemMobile:
-    type: application
-    platform: iOS
-    deploymentTarget: '17.0'
-    sources:
-    - path: ChatterboxMobile
-      excludes:
-      - Info.plist
-      - Assets.xcassets/AppIcon.appiconset
-    - path: Shared
-    - path: Chatterbox/Views/MarkdownText.swift
-    - path: Chatterbox/Views/ReaderStyle.swift
-    - path: Chatterbox/Views/PathLinks.swift
-    - path: GolemMobile
-    info:
-      path: GolemMobile/Info.plist
-      properties:
-        CFBundleDisplayName: Golem
-        ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
-        UILaunchScreen: *id001
-        UISupportedInterfaceOrientations: *id002
-        UISupportedInterfaceOrientations~ipad: *id003
-        NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on
-          your Mac over your network.
-        NSBonjourServices: *id004
-        NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats
-          to Photos when you ask it to.
-        NSMicrophoneUsageDescription: Chatterbox listens while you dictate a message.
-        NSSpeechRecognitionUsageDescription: Chatterbox turns what you say into the
-          text of your message.
-        NSAppTransportSecurity: *id005
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Golem.mobile
-        PRODUCT_NAME: Golem
-        MARKETING_VERSION: 0.1.0
-        CURRENT_PROJECT_VERSION: '1'
-        TARGETED_DEVICE_FAMILY: 1,2
-        DEVELOPMENT_TEAM: 9F3MKVW9C5
-        CODE_SIGN_STYLE: Automatic
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        SWIFT_VERSION: '5.0'
-        CODE_SIGN_ENTITLEMENTS: ChatterboxMobile/ChatterboxMobile.entitlements
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP
-      configs: *id006
   ChatterboxMobileProductTests:
     type: bundle.ui-testing
     platform: iOS
@@ -411,36 +269,15 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.ChatterboxMobileProductTests
         GENERATE_INFOPLIST_FILE: true
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited)
-  GolemMobileProductTests:
-    type: bundle.ui-testing
-    platform: iOS
-    deploymentTarget: '17.0'
-    sources:
-    - path: tests/golem-integration/MobileProductTests.swift
-    dependencies:
-    - target: GolemMobile
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.GolemMobileProductTests
-        GENERATE_INFOPLIST_FILE: true
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP
 schemes:
   Chatterbox:
     build:
       targets:
         Chatterbox: all
-  Golem:
-    build:
-      targets:
-        Golem: all
   ChatterboxMobile:
     build:
       targets:
         ChatterboxMobile: all
-  GolemMobile:
-    build:
-      targets:
-        GolemMobile: all
   ChatterboxMobileAcceptance:
     build:
       targets:
@@ -449,11 +286,3 @@ schemes:
     test:
       targets:
       - ChatterboxMobileProductTests
-  GolemMobileAcceptance:
-    build:
-      targets:
-        GolemMobile: all
-        GolemMobileProductTests: all
-    test:
-      targets:
-      - GolemMobileProductTests
