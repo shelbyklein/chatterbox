@@ -14,7 +14,7 @@ func run() async throws {
     let out = ProcessInfo.processInfo.environment["THUMB_OUT"] ?? "/tmp"
     UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
         "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
-        "macHomePage": "Studios"], forName: UserDefaults.argumentDomain)
+        "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios"], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1500, height: 900),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -28,7 +28,11 @@ func run() async throws {
     let shown = studioChats.filter { ThreadThumbnails.shared.images[$0.id] != nil }
     print("Studio threads \(studioChats.count), with a thumbnail \(shown.count): \(shown.map(\.title).prefix(6))")
     if let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() {
-        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(out)/studios.png"))
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(out)/\((ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios").lowercased()).png"))
+    }
+    for s in model.activeSessions where s.record.projectFolder != nil && s.record.worktreeOf == nil {
+        let folder = s.record.projectFolder!
+        print("ICON \(s.projectName): \(ProjectIcons.shared.icons[folder] != nil ? (ProjectIcons.detect(in: folder)?.path.replacingOccurrences(of: folder, with: "…") ?? "custom") : "none")")
     }
     print(shown.isEmpty ? "RESULT no thumbnails" : "RESULT ok")
     exit(0)
