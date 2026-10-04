@@ -59,12 +59,22 @@ struct ContentView: View {
         #endif
     }
 
+    /// Wide enough for six pin cards to stay tappable (26-point cards).
+    private static let sidebarMinWidth: CGFloat = 230
+
+    /// Room for the sidebar, the chat, and the inspector at their minimums. The split view takes
+    /// a column's minimum as a hard floor and lays out past the window's edges when the window
+    /// is narrower, clipping the sidebar on the left and the inspector on the right; the window
+    /// just doesn't go that narrow.
+    private var windowMinWidth: CGFloat {
+        let inspector = model.chatInspectorWidth
+        return max(760, inspector > 0 ? Self.sidebarMinWidth + ChatView.minWidth + inspector : 0)
+    }
+
     private var splitView: some View {
         @Bindable var model = model
         return NavigationSplitView {
             sidebarColumn
-            // Wide enough for six pin cards to stay tappable (26-point cards).
-            .navigationSplitViewColumnWidth(min: 230, ideal: 260)
             .modifier(ThemedSidebar(background: themeBackground))
             .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
             .toolbar {
@@ -101,6 +111,9 @@ struct ContentView: View {
                     .help("New chat (\u{2318}N). Hold to pick Claude, Codex, or a project folder.")
                 }
             }
+            // Last, so the modifiers above can't hide it from the split: before, the sidebar's
+            // minimum was AppKit's 140, and it was squeezed to that before anything else gave.
+            .navigationSplitViewColumnWidth(min: Self.sidebarMinWidth, ideal: 260)
         } detail: {
             Group {
             if model.showingSettings {
@@ -137,6 +150,7 @@ struct ContentView: View {
             .modifier(ThemedDetail(background: themeBackground))
         }
         .modifier(ThemedWindow(scheme: themeScheme, background: themeBackground, highlight: themeHighlight))
+        .frame(minWidth: windowMinWidth, minHeight: 520)
         .background(ChatWindowReader { model.mainChatWindow = $0 })
         .onAppear { model.revealMainChatWindow = { openWindow(id: "main") } }
         .sheet(isPresented: $model.showingCloneFromGitHub) { CloneFromGitHubView() }

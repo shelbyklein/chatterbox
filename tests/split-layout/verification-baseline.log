@@ -1,0 +1,126 @@
+Chatterbox/Views/ContentView.swift:290:68: warning: result of call to 'drop(_:into:)' is unused [#no-usage]
+ 288 |                 // Dropping onto a chat in the Studio moves the dragged one in too.
+ 289 |                 row(session, number: numbers[session.id])
+ 290 |                     .dropDestination(for: String.self) { ids, _ in drop(ids, into: studio) }
+     |                                                                    `- warning: result of call to 'drop(_:into:)' is unused [#no-usage]
+ 291 |             }
+ 292 |             if chats.isEmpty {
+
+Chatterbox/Views/ContentView.swift:634:76: warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 632 |                 || session.items.contains(where: { ($0.kind == .approval || $0.kind == .questions) && $0.approvalState == .pending }) {
+ 633 |                 Circle().fill(Color.highlight).frame(width: 7, height: 7)
+ 634 |                     .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
+     |                                                                            `- warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 635 |                     .help("Needs your attention")
+ 636 |             }
+
+Chatterbox/Views/ContentView.swift:655:76: warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 653 |                 ActivitySpinner(color: appearance.style.color(for: session.record.backend))
+ 654 |                     .frame(width: 10, height: 10)
+ 655 |                     .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
+     |                                                                            `- warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 656 |                     .help("\(session.record.backend.label) is working")
+ 657 |             } else if session.hasBackgroundWork {
+
+Chatterbox/Views/ContentView.swift:661:76: warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 659 |                 ActivitySpinner(color: .secondary)
+ 660 |                     .frame(width: 10, height: 10)
+ 661 |                     .alignmentGuide(.firstTextBaseline, computeValue: Self.centerOnTextLine)
+     |                                                                            `- warning: converting non-Sendable function value to '@Sendable (ViewDimensions) -> CGFloat' may introduce data races
+ 662 |                     .help("Running in the background: \(session.backgroundTasks.map(\.title).joined(separator: ", "))")
+ 663 |             } else if session.record.projectFolder != nil {
+Chatterbox/Engine/ChatSession+Shell.swift:112:13: warning: 'posix_spawn_file_actions_addchdir_np' was deprecated in macOS 26.0: posix_spawn_file_actions_addchdir(3) has replaced posix_spawn_file_actions_addchdir_np(3) [#DeprecatedDeclaration]
+110 |             posix_spawnattr_init(&attributes)
+111 |             defer { posix_spawn_file_actions_destroy(&actions); posix_spawnattr_destroy(&attributes) }
+112 |             posix_spawn_file_actions_addchdir_np(&actions, folder)
+    |             `- warning: 'posix_spawn_file_actions_addchdir_np' was deprecated in macOS 26.0: posix_spawn_file_actions_addchdir(3) has replaced posix_spawn_file_actions_addchdir_np(3) [#DeprecatedDeclaration]
+113 |             posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0)
+114 |             posix_spawn_file_actions_adddup2(&actions, writeFD, 1)
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Chatterbox/Engine/MobilePush.swift:21:19: warning: 'SecKeychainGetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 19 |         var previousInteraction: DarwinBoolean = true
+ 20 |         if !allowInteraction {
+ 21 |             guard SecKeychainGetUserInteractionAllowed(&previousInteraction) == errSecSuccess,
+    |                   `- warning: 'SecKeychainGetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 22 |                   SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else {
+ 23 |                 throw PushFailure.message("Couldn't safely access Keychain without prompting.")
+
+Chatterbox/Engine/MobilePush.swift:22:19: warning: 'SecKeychainSetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 20 |         if !allowInteraction {
+ 21 |             guard SecKeychainGetUserInteractionAllowed(&previousInteraction) == errSecSuccess,
+ 22 |                   SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else {
+    |                   `- warning: 'SecKeychainSetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 23 |                 throw PushFailure.message("Couldn't safely access Keychain without prompting.")
+ 24 |             }
+
+Chatterbox/Engine/MobilePush.swift:26:40: warning: 'SecKeychainSetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 24 |             }
+ 25 |         }
+ 26 |         defer { if !allowInteraction { SecKeychainSetUserInteractionAllowed(previousInteraction.boolValue) } }
+    |                                        `- warning: 'SecKeychainSetUserInteractionAllowed' was deprecated in macOS 10.10: SecKeychain is deprecated [#DeprecatedDeclaration]
+ 27 |         var value: CFTypeRef?
+ 28 |         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+
+Chatterbox/Engine/MobilePush.swift:30:57: warning: 'kSecUseAuthenticationUIAllow' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+ 28 |         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+ 29 |             kSecAttrAccount: "provider", kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
+ 30 |             kSecUseAuthenticationUI: allowInteraction ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail]
+    |                                                         `- warning: 'kSecUseAuthenticationUIAllow' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+ 31 |         var status = SecItemCopyMatching(query as CFDictionary, &value)
+ 32 |         let migrating = status == errSecItemNotFound
+
+Chatterbox/Engine/MobilePush.swift:30:88: warning: 'kSecUseAuthenticationUIFail' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+ 28 |         var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+ 29 |             kSecAttrAccount: "provider", kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
+ 30 |             kSecUseAuthenticationUI: allowInteraction ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail]
+    |                                                                                        `- warning: 'kSecUseAuthenticationUIFail' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+ 31 |         var status = SecItemCopyMatching(query as CFDictionary, &value)
+ 32 |         let migrating = status == errSecItemNotFound
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Chatterbox/Engine/Secrets.swift:164:68: warning: 'kSecUseAuthenticationUIFail' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+162 |         let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: id.uuidString,
+163 |                                           kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne,
+164 |                                           kSecUseAuthenticationUI: kSecUseAuthenticationUIFail] as CFDictionary, &value)
+    |                                                                    `- warning: 'kSecUseAuthenticationUIFail' was deprecated in macOS 11.0: Instead of kSecUseAuthenticationUI, use kSecUseAuthenticationContext and set LAContext.interactionNotAllowed property [#DeprecatedDeclaration]
+165 |         guard status == errSecSuccess, let data = value as? Data else { return nil }
+166 |         return String(data: data, encoding: .utf8)
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+== Golem 1600: window content (1600.0, 820.0) minSize (861.0, 216.0) inspector 0.0 ==
+ NSSplitView frame (0.0, 0.0, 1600.0, 820.0) inWindow (0.0, 0.0, 1600.0, 820.0)
+   column0 x 0.0 width 148.0 fitting 148.0
+   column1 x 0.0 width 1600.0 fitting 860.5
+   item0 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 140.0 collapsed=false min=140.0 max=-1.0 prio=260.0
+   item1 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 1600.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+ NSSplitView frame (0.0, 0.0, 1600.0, 820.0) inWindow (0.0, 0.0, 1600.0, 820.0)
+   column0 x 0.0 width 1600.0 fitting 712.5
+   column1 x 1280.0 width 320.0 fitting 260.0
+   item0 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 1600.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+   item1 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 320.0 collapsed=false min=260.0 max=460.0 prio=261.0
+   capture /tmp/chatterbox-split.kaqZHD/golem-1600.png 3200x1744
+== Golem 1100: window content (1100.0, 820.0) minSize (861.0, 216.0) inspector 0.0 ==
+ NSSplitView frame (0.0, 0.0, 1100.0, 820.0) inWindow (0.0, 0.0, 1100.0, 820.0)
+   column0 x 0.0 width 148.0 fitting 148.0
+   column1 x 0.0 width 1100.0 fitting 860.5
+   item0 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 140.0 collapsed=false min=140.0 max=-1.0 prio=260.0
+   item1 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 1100.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+ NSSplitView frame (0.0, 0.0, 1100.0, 820.0) inWindow (0.0, 0.0, 1100.0, 820.0)
+   column0 x 0.0 width 1100.0 fitting 712.5
+   column1 x 780.0 width 320.0 fitting 260.0
+   item0 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 1100.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+   item1 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 320.0 collapsed=false min=260.0 max=460.0 prio=261.0
+   capture /tmp/chatterbox-split.kaqZHD/golem-1100.png 2200x1744
+== Golem 900: window content (900.0, 820.0) minSize (861.0, 216.0) inspector 0.0 ==
+ NSSplitView frame (0.0, 0.0, 900.0, 820.0) inWindow (0.0, 0.0, 900.0, 820.0)
+   column0 x 0.0 width 148.0 fitting 148.0
+   column1 x 0.0 width 900.0 fitting 860.5
+   item0 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 140.0 collapsed=false min=140.0 max=-1.0 prio=260.0
+   item1 NSHostingView<ModifiedContent<ColumnView, NavigationPaneModi width 900.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+ NSSplitView frame (0.0, 0.0, 900.0, 820.0) inWindow (0.0, 0.0, 900.0, 820.0)
+   column0 x 0.0 width 900.0 fitting 712.5
+   column1 x 580.0 width 320.0 fitting 260.0
+   item0 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 900.0 collapsed=false min=-1.0 max=-1.0 prio=250.0
+   item1 NSHostingView<ModifiedContent<_ViewList_View, NavigationPane width 320.0 collapsed=false min=260.0 max=460.0 prio=261.0
+   capture /tmp/chatterbox-split.kaqZHD/golem-900.png 1800x1744
