@@ -170,6 +170,7 @@
 		B309C2DF59B192AD411D109B /* StarterPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6240D04D668176B8C39EAF3F /* StarterPrompts.swift */; };
 		B4C0CF83925F8F0C9F708CBD /* FilePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */; };
 		B548D09F2AF1C222286B54D4 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D880F9204CBD1DAFCB11DD /* Secrets.swift */; };
+		B79ABA062171F68288AF9C7D /* ProxyQuotaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251C7FD9A35A3EF56C8496A7 /* ProxyQuotaView.swift */; };
 		B8D903B35D82ECB4C76BF4CD /* ChatColumnWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */; };
 		B8F25425303EC0D5CA5A29F1 /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */; };
@@ -215,6 +216,7 @@
 		E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
 		E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3918CAE546531216A58EABAA /* DaemonContext.swift */; };
 		E5009C6A623772CB59FBC42D /* RuntimePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */; };
+		E5EDA7BDB550296E04013793 /* ProxyQuota.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */; };
 		E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
 		E9422879FFA0BE8563EB91C4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
 		E9BA32C051BDE7E4D0FF0AB8 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CA0C530A3B250D3DD1CB52 /* main.swift */; };
@@ -309,6 +311,7 @@
 		1CE3430D1F51F793F8FC03FD /* MobileHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileHome.swift; sourceTree = "<group>"; };
 		1E0A3400587A22E3D749EF5D /* StudioInstructionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioInstructionsSheet.swift; sourceTree = "<group>"; };
 		1F39BB2D7B99DF4FC05C5C5E /* MobileGolem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileGolem.swift; sourceTree = "<group>"; };
+		251C7FD9A35A3EF56C8496A7 /* ProxyQuotaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyQuotaView.swift; sourceTree = "<group>"; };
 		25CA0C530A3B250D3DD1CB52 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		263AB703BFEE4CE044BF0EEE /* Cards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cards.swift; sourceTree = "<group>"; };
 		276EA46A76921A11440633E3 /* ItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemView.swift; sourceTree = "<group>"; };
@@ -400,6 +403,7 @@
 		B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPreview.swift; sourceTree = "<group>"; };
 		B3F39303FD805DEF3103AAB3 /* ChatComputer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatComputer.swift; sourceTree = "<group>"; };
 		B55108B3057B43E6116C7F3E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyQuota.swift; sourceTree = "<group>"; };
 		B6987D2087FA491665C4A101 /* SketchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SketchView.swift; sourceTree = "<group>"; };
 		B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubIssues.swift; sourceTree = "<group>"; };
 		B7E0882B1086EDE675468281 /* MobileMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileMedia.swift; sourceTree = "<group>"; };
@@ -625,6 +629,7 @@
 				A81413A73CF1A4475E1CF397 /* Pins.swift */,
 				09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */,
 				A125487FAFCF644CD583045D /* Prompts.swift */,
+				B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */,
 				5941C429D29DB4AF6D3E6812 /* RuntimePreferenceProjection.swift */,
 				A5D880F9204CBD1DAFCB11DD /* Secrets.swift */,
 				ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */,
@@ -738,6 +743,7 @@
 				77EB75509370857E3265A65B /* PluginsSettingsView.swift */,
 				178D4801E24EF3B55783AF8A /* PreviewDestination.swift */,
 				44CB087C33DC73A1CD510AEC /* ProjectIcons.swift */,
+				251C7FD9A35A3EF56C8496A7 /* ProxyQuotaView.swift */,
 				8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */,
 				2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */,
 				505EA4AEFE9AD144D1946F33 /* SettingsView.swift */,
@@ -1067,6 +1073,8 @@
 				44A3E498036D57EEB3766443 /* ProjectIcons.swift in Sources */,
 				C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */,
 				6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */,
+				E5EDA7BDB550296E04013793 /* ProxyQuota.swift in Sources */,
+				B79ABA062171F68288AF9C7D /* ProxyQuotaView.swift in Sources */,
 				7DDA7CD35006881E95258A76 /* QuickSwitcher.swift in Sources */,
 				1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */,
 				9B2381AF4F9F3ED0C38A0473 /* RuntimeClient.swift in Sources */,
