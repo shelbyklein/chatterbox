@@ -5,17 +5,22 @@ import SwiftUI
 struct ChatterboxMobileApp: App {
     @UIApplicationDelegateAdaptor(MobilePushAppDelegate.self) private var delegate
     @State private var store = MobileStore()
+    @AppStorage(MobileAppearance.schemeKey, store: AppPreferences.defaults) private var scheme = "system"
+    @AppStorage(MobileAppearance.claudeKey, store: AppPreferences.defaults) private var claudeColor = ReaderStyle.claudeDefault
+    @AppStorage(MobileAppearance.codexKey, store: AppPreferences.defaults) private var codexColor = ReaderStyle.codexDefault
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if store.isPaired {
-                    ChatterboxTabs()
+                    // Redrawn when the agents' colors change (Appearance).
+                    ChatterboxTabs().id(claudeColor + "|" + codexColor)
                 } else {
                     ConnectView()
                 }
             }
             .environment(store).defaultAppStorage(AppPreferences.defaults)
+            .preferredColorScheme(MobileAppearance.colorScheme(scheme))
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
             .onOpenURL { url in

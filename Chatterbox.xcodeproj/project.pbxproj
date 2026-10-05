@@ -219,6 +219,7 @@
 		E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */; };
 		E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3918CAE546531216A58EABAA /* DaemonContext.swift */; };
 		E5009C6A623772CB59FBC42D /* RuntimePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */; };
+		E547EA430271FAE3BA043A35 /* MobileAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */; };
 		E5EDA7BDB550296E04013793 /* ProxyQuota.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */; };
 		E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
 		E9422879FFA0BE8563EB91C4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
@@ -375,6 +376,7 @@
 		6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatColumnWidths.swift; sourceTree = "<group>"; };
 		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
 		7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionSettingsView.swift; sourceTree = "<group>"; };
+		77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAppearance.swift; sourceTree = "<group>"; };
 		77EB75509370857E3265A65B /* PluginsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsSettingsView.swift; sourceTree = "<group>"; };
 		7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Remote.swift"; sourceTree = "<group>"; };
 		7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewProjectSheet.swift; sourceTree = "<group>"; };
@@ -573,6 +575,7 @@
 				66E5A2ED4CB638E3E92864B6 /* ConnectView.swift */,
 				F5955B401AB9BC438178B6BD /* Dictation.swift */,
 				93F4855A5280DDE920296921 /* GolemVoice.swift */,
+				77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */,
 				E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */,
 				EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */,
 				1F39BB2D7B99DF4FC05C5C5E /* MobileGolem.swift */,
@@ -1148,6 +1151,7 @@
 				194C29C495FC8617E8B39AED /* GolemVoice.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
+				E547EA430271FAE3BA043A35 /* MobileAppearance.swift in Sources */,
 				6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */,
 				8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */,
 				376721BCF4B3022E340A0F44 /* MobileGolem.swift in Sources */,
