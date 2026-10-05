@@ -18,7 +18,11 @@ ditto "$BUILD" /Applications/Chatterbox.app
 codesign --verify --deep --strict /Applications/Chatterbox.app
 # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
 # and `open` hands the caller's environment to the app. Launch it without any of them.
-clean_open() { env $(env | sed -n 's/^\(CHATTERBOX_[A-Z_]*\)=.*/-u \1/p') open "$@"; }
+clean_open() {
+  local -a unset_vars
+  for name in ${(k)parameters[(I)CHATTERBOX_*]}; do unset_vars+=(-u "$name"); done
+  env "${unset_vars[@]}" open "$@"
+}
 if (( $# )); then
   clean_open /Applications/Chatterbox.app --args "$@"
 else
