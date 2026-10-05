@@ -14,7 +14,9 @@ func run() async throws {
     let out = ProcessInfo.processInfo.environment["THUMB_OUT"] ?? "/tmp"
     UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
         "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
-        "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios"], forName: UserDefaults.argumentDomain)
+        "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios",
+        "homeCardScale": Double(ProcessInfo.processInfo.environment["THUMB_SCALE"] ?? "1") ?? 1,
+        "themeBackground": ProcessInfo.processInfo.environment["THUMB_THEME"] ?? "standard"], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1500, height: 900),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -28,7 +30,7 @@ func run() async throws {
     let shown = studioChats.filter { ThreadThumbnails.shared.images[$0.id] != nil }
     print("Studio threads \(studioChats.count), with a thumbnail \(shown.count): \(shown.map(\.title).prefix(6))")
     if let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() {
-        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(out)/\((ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios").lowercased()).png"))
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(out)/\((ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios").lowercased())\(ProcessInfo.processInfo.environment["THUMB_TAG"] ?? "").png"))
     }
     for s in model.activeSessions where s.record.projectFolder != nil && s.record.worktreeOf == nil {
         let folder = s.record.projectFolder!
