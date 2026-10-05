@@ -19,6 +19,22 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     await runtime!.resume()
     do { let second=try ConversationRuntime(root:root);_ = second;throw RuntimeFailure("Duplicate writer accepted") }
     catch {try check(error.localizedDescription.contains("active writer"),"duplicate writer refused")}
+    try RuntimePreferences.update(["proxyClaudeChats":true,"proxyCodexChats":false])
+    AppPreferences.defaults.removeObject(forKey:"proxyClaudeChats")
+    try RuntimePreferences.load()
+    try check(EasyCLIProxy.shared.claudeOn && !EasyCLIProxy.shared.codexOn,"proxy preferences persist and reload under their actual keys")
+    await EasyCLIProxy.shared.refresh()
+    var proxyRecord=ConversationRecord(model:"default",effort:"",personality:.neutral)
+    proxyRecord.activeBackend = .claude
+    let proxySession=ChatSession(record:proxyRecord)
+    if EasyCLIProxy.shared.isRunning {
+        try check(proxySession.claudeProxyEnvironment["ANTHROPIC_BASE_URL"] == EasyCLIProxy.shared.endpoint?.base,"Claude launch environment selects healthy proxy")
+        proxySession.record.isDot=true
+        try check(proxySession.claudeProxyEnvironment.isEmpty,"assistant remains direct")
+    }
+    try RuntimePreferences.update(["proxyClaudeChats":false])
+    proxySession.record.isDot=false
+    try check(proxySession.claudeProxyEnvironment.isEmpty,"disabled Claude routing remains direct")
     for backend in Backend.allCases {
         var r=ConversationRecord(model:"default",effort:"",personality:.neutral)
         r.activeBackend=backend

@@ -87,6 +87,9 @@ import CoreFoundation
                 throw RuntimeFailure("permission_denied")
             }
             if ["golem","agent","golem-ui"].contains(role),!runtime.state.integrationEnabled,!["health","subscribe"].contains(r.operation) {throw RuntimeFailure("integration_disabled")}
+            if r.operation == "preferences", r.body["proxyClaudeChats"] != nil || r.body["proxyCodexChats"] != nil {
+                await EasyCLIProxy.shared.refresh()
+            }
             let result:JSON
             switch r.operation {
             case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]
@@ -198,7 +201,15 @@ import CoreFoundation
             if let enabled=r.body["enabled"]?.bool{server.setEnabled(enabled)}
             if r.body["newCode"]?.bool==true{server.newPairingCode()}
             if let id=r.body["forget"]?.string.flatMap(UUID.init(uuidString:)),let device=server.devices.first(where:{$0.id==id}){server.forget(device)}
-        case "preferences":try RuntimePreferences.update(r.body.object ?? [:]);runtime.publishConfiguration()
+        case "preferences":
+            let previousClaude = EasyCLIProxy.shared.claudeOn
+            try RuntimePreferences.update(r.body.object ?? [:])
+            if previousClaude != EasyCLIProxy.shared.claudeOn {
+                for session in runtime.sessions where !session.isDot && session.record.backend == .claude {
+                    session.restartClaudeForNewTools()
+                }
+            }
+            runtime.publishConfiguration()
         case "pins":
             guard role=="ui",let raw=r.body["pins"] else{throw RuntimeFailure("permission_denied")}
             let pins=try raw.decode([Pin].self)

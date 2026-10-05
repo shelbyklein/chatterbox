@@ -11,6 +11,7 @@ Task { @MainActor in
             AppPreferences.defaults.setVolatileDomain(["claudePath":fake,"codexPath":fake,"easyCLIProxyEnabled":false,"remoteControlClaudeChats":false],forName:UserDefaults.argumentDomain)
         }
         #endif
+        await EasyCLIProxy.shared.refresh()
         let runtime=try ConversationRuntime()
         RuntimeHooks.note={ message in fputs("chatterboxd: \(message)\n",stderr) }
         await runtime.resume()
