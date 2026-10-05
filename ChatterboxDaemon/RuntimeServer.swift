@@ -73,7 +73,7 @@ import CoreFoundation
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
-                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion"]
+                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion","authorizePush","pushStatus","testPush","setGolemPushEnabled"]
                 guard allowed.contains(r.operation) else{throw RuntimeFailure("permission_denied")}
                 if let raw=r.body["record"],let record=try? raw.decode(ConversationRecord.self),(record.isDot != true || runtime.session(record.id)?.isDot != true){throw RuntimeFailure("permission_denied")}
                 if r.operation=="preferences",!Set((r.body.object ?? [:]).keys).isSubset(of:["dotDefaultBackend","dotDefaultModel","dotApplyDefault","dotSeenItem"]){throw RuntimeFailure("permission_denied")}
@@ -102,15 +102,37 @@ import CoreFoundation
                     else if let number=value as? NSNumber{values[key]=CFGetTypeID(number)==CFBooleanGetTypeID() ? .bool(number.boolValue):.number(number.doubleValue)}
                 }
                 result = .object(values)
+            case "setGolemPushEnabled":
+                guard ["ui", "golem-ui"].contains(role), let enabled = r.body["enabled"]?.bool else { throw RuntimeFailure("permission_denied") }
+                try RuntimePreferences.update(["golemPushEnabled": .bool(enabled)])
+                result = ["enabled": .bool(MobilePush.shared.enabled(forProduct: "golem"))]
+            case "pushStatus", "testPush":
+                guard ["ui", "golem-ui"].contains(role) else { throw RuntimeFailure("permission_denied") }
+                let product = r.body["product"]?.string ?? (role == "golem-ui" ? "golem" : "chatterbox")
+                guard ["golem", "chatterbox"].contains(product), role != "golem-ui" || product == "golem" else { throw RuntimeFailure("permission_denied") }
+                let push = MobilePush.shared
+                if r.operation == "pushStatus" {
+                    result = ["configured": .bool(push.configured), "enabled": .bool(push.enabled(forProduct: product)),
+                              "optedIn": .bool(product == "golem" ? (AppPreferences.defaults.object(forKey: "golemPushEnabled") as? Bool ?? (AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true)) : (AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true)),
+                              "status": .string(push.deliveryStatus(product: product))]
+                } else {
+                    guard let deviceID = r.body["deviceID"]?.string.flatMap(UUID.init(uuidString:)),
+                          CompanionServer.shared.devices.contains(where: { $0.id == deviceID && ($0.product ?? "chatterbox") == product }) else { throw RuntimeFailure("permission_denied") }
+                    let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
+                    result = try await runtime.executeAsync(id: r.id, operation: r.operation, fingerprint: fingerprint) {
+                        let status = try await push.testDelivery(deviceID, product: product, identity: r.id)
+                        return ["accepted": true, "status": .string(status)]
+                    }
+                }
             case "authorizePush":
                 // Push notifications are signed here, so this process needs its own Keychain
                 // access to the APNs key: the key's ACL lists programs by signing identity,
                 // and the app's "Always Allow" doesn't cover chatterboxd. This read may show
                 // the system Keychain prompt, so it runs off the main thread (other chats keep
-                // being answered while it's open). Only Chatterbox's own window may ask; the
+                // being answered while it's open). Only a signed product window may ask; the
                 // reply carries the outcome, never key material. Reading changes nothing, so
                 // there's no command receipt.
-                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+                guard ["ui","golem-ui"].contains(role) else{throw RuntimeFailure("permission_denied")}
                 let outcome=await Task.detached(priority:.userInitiated) { () -> (authorized:Bool,status:String) in
                     do {
                         _ = try PushCredentials.read(allowInteraction:true)
