@@ -13,7 +13,7 @@ export CHATTERBOX_COMPANION_PORT=0
 mkdir -p "$CHATTERBOX_DATA_DIR/Conversations"
 # Copies only, with background-host links removed so no agent is reattached.
 for file in "$source_dir"/*.json; do
-  python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); r.pop("claudeHost",None); r.pop("codexHost",None); json.dump(r,open(sys.argv[2],"w"))' \
+  /usr/bin/python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); r.pop("claudeHost",None); r.pop("codexHost",None); json.dump(r,open(sys.argv[2],"w"))' \
     "$file" "$CHATTERBOX_DATA_DIR/Conversations/$(basename "$file")"
 done
 cp "$source_dir/../Studios.json" "$CHATTERBOX_DATA_DIR/" 2>/dev/null || true

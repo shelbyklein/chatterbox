@@ -19,7 +19,7 @@ xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -sdk iphonesim
   -configuration Debug -derivedDataPath "$artifacts/build" CODE_SIGNING_ALLOWED=NO build > "$artifacts/build.log" 2>&1
 app="$artifacts/build/Build/Products/Debug-iphonesimulator/Chatterbox.app"
 cp -R "$app" "$artifacts/before.app"
-python3 - "$artifacts/before.app/Info.plist" <<'PY'
+/usr/bin/python3 - "$artifacts/before.app/Info.plist" <<'PY'
 import plistlib,sys
 path=sys.argv[1];p=plistlib.load(open(path,'rb'))
 p['NSAppTransportSecurity']={'NSAllowsLocalNetworking':True}
@@ -36,7 +36,7 @@ for policy in before after; do
   rm -f "$data_dir/Documents/companion-transport-probe.json"
   SIMCTL_CHILD_CHATTERBOX_TRANSPORT_PROBE="$probe_host" SIMCTL_CHILD_CHATTERBOX_TRANSPORT_PROBE_LAN="$probe_lan" \
     xcrun simctl launch "$simulator" com.shelbyklein.Chatterbox.mobile
-  python3 - "$data_dir/Documents/companion-transport-probe.json" "$artifacts/$policy.json" "$policy" "$probe_host" <<'PY'
+  /usr/bin/python3 - "$data_dir/Documents/companion-transport-probe.json" "$artifacts/$policy.json" "$policy" "$probe_host" <<'PY'
 import json,sys,time,shutil
 from pathlib import Path
 source=Path(sys.argv[1]);deadline=time.monotonic()+30

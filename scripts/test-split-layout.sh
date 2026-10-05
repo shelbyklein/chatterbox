@@ -15,7 +15,7 @@ export CHATTERBOX_COMPANION_PORT=$((${SPLIT_PORT:-47471} + 1))
 export SPLIT_CHAT="$chat"
 mkdir -p "$CHATTERBOX_DATA_DIR/Conversations" "$out"
 # Copies only, with background-host links removed so no agent is reattached.
-python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); r.pop("claudeHost",None); r.pop("codexHost",None); json.dump(r,open(sys.argv[2],"w"))' \
+/usr/bin/python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); r.pop("claudeHost",None); r.pop("codexHost",None); json.dump(r,open(sys.argv[2],"w"))' \
   "$source_dir/$chat.json" "$CHATTERBOX_DATA_DIR/Conversations/$chat.json"
 [ -f "$HOME/Library/Application Support/Chatterbox/Studios.json" ] && cp "$HOME/Library/Application Support/Chatterbox/Studios.json" "$CHATTERBOX_DATA_DIR/"
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$test_dir/files.txt"

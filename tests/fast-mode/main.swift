@@ -29,12 +29,20 @@ app.setActivationPolicy(.accessory)
     panel.contentView=NSHostingView(rootView:ChatSettingsCog(session:session).main.padding().background(Color.black))
     panel.orderFrontRegardless()
     try await Task.sleep(for:.seconds(1))
-    let target=try await SCShareableContent.currentProcess.windows.first{$0.windowID==CGWindowID(panel.windowNumber)}!
-    let config=SCStreamConfiguration();config.width=680;config.height=1120;config.ignoreShadowsSingleWindow=true
-    let cg=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:target),configuration:config)
+    let cg=windowImage(panel)
     try NSBitmapImageRep(cgImage:cg).representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("fast-mode-cog.png"))
     panel.orderOut(nil)
     print("PASS rendered Golem Fast mode control")
 }
 Task {do {try await run();exit(0)}catch{print(error);exit(1)}}
 app.run()
+
+/// The window server's image of one of this process's own windows. Needs no screen-recording
+/// permission, which ScreenCaptureKit now asks for even for your own windows.
+func windowImage(_ window: NSWindow) -> CGImage {
+    window.displayIfNeeded()
+    typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { fatalError("Couldn't capture the test window") }
+    return image
+}

@@ -78,9 +78,7 @@ app.setActivationPolicy(.accessory)
     panel.appearance=NSAppearance(named:.darkAqua)
     func capture(_ window:NSWindow,_ name:String) async throws {
         try await Task.sleep(for:.seconds(2))
-        let target=try await SCShareableContent.currentProcess.windows.first{$0.windowID==CGWindowID(window.windowNumber)}!
-        let config=SCStreamConfiguration();config.width=Int(window.frame.width);config.height=Int(window.frame.height);config.ignoreShadowsSingleWindow=true
-        let cg=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:target),configuration:config)
+        let cg=windowImage(window)
         try NSBitmapImageRep(cgImage:cg).representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent(name+".png"))
     }
     panel.contentView=NSHostingView(rootView:Form{MobilePushSettings()}.formStyle(.grouped));panel.orderFrontRegardless()
@@ -89,7 +87,7 @@ app.setActivationPolicy(.accessory)
     try await capture(panel,"gmail")
     panel.orderOut(nil)
     let mini=GolemMiniWindow(model:model);mini.show()
-    mini.panel!.backgroundColor = .windowBackgroundColor
+    mini.panel!.backgroundColor = NSColor.windowBackgroundColor
     mini.panel!.isOpaque = true
     try await capture(mini.panel!,"shadow");mini.hide()
     Attention.shared.start(model:model)
@@ -100,7 +98,7 @@ app.setActivationPolicy(.accessory)
     mini.setCollapsed(true)
     for size in GolemMiniWindow.sizes {
         mini.setScale(size.scale)
-        mini.panel!.backgroundColor = .windowBackgroundColor
+        mini.panel!.backgroundColor = NSColor.windowBackgroundColor
         mini.panel!.isOpaque = true
         CGWarpMouseCursorPosition(CGPoint(x:0,y:0))
         try await capture(mini.panel!,"shadow-unread-"+size.label.replacingOccurrences(of:" ",with:"-"))
@@ -110,3 +108,13 @@ app.setActivationPolicy(.accessory)
 }
 Task {do {try await run();exit(0)}catch{print("FAIL \(error)");exit(1)}}
 app.run()
+
+/// The window server's image of one of this process's own windows. Needs no screen-recording
+/// permission, which ScreenCaptureKit now asks for even for your own windows.
+func windowImage(_ window: NSWindow) -> CGImage {
+    window.displayIfNeeded()
+    typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { fatalError("Couldn't capture the test window") }
+    return image
+}

@@ -73,10 +73,7 @@ func run() async throws {
     }
     @discardableResult
     func capture(_ name: String, panel: NSWindow) async throws -> String {
-        let window = try await SCShareableContent.currentProcess.windows.first { $0.windowID == CGWindowID(panel.windowNumber) }!
-        let config = SCStreamConfiguration(); config.width = Int(panel.frame.width) * 2; config.height = Int(panel.frame.height) * 2
-        config.ignoreShadowsSingleWindow = true
-        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: window), configuration: config)
+        let image = windowImage(panel)
         try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: root.appendingPathComponent(name + ".png"))
         let recognize = VNRecognizeTextRequest()
         try VNImageRequestHandler(cgImage: image).perform([recognize])
@@ -232,3 +229,13 @@ Task { @MainActor in
     catch { fputs("Mini regression failed: \(error)\n", stderr); exit(1) }
 }
 app.run()
+
+/// The window server's image of one of this process's own windows. Needs no screen-recording
+/// permission, which ScreenCaptureKit now asks for even for your own windows.
+func windowImage(_ window: NSWindow) -> CGImage {
+    window.displayIfNeeded()
+    typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { fatalError("Couldn't capture the test window") }
+    return image
+}

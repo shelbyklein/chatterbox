@@ -8,6 +8,6 @@ export CHATTERBOX_HOST_DIR="$artifacts/host"
 export CHATTERBOX_AGENT_PORT=19648
 export CHATTERBOX_COMPANION_PORT=0
 mkdir -p "$CHATTERBOX_DATA_DIR"
-rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$artifacts/files.txt"
-swiftc -D DEBUG -whole-module-optimization -Onone -o "$artifacts/test" @"$artifacts/files.txt" tests/companion-pdf/main.swift
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' > "$artifacts/files.txt"
+swiftc -I build/DerivedData/Build/Products/Debug build/DerivedData/Build/Products/Debug/SwiftTerm.o -framework AVKit -framework WebKit -framework PDFKit -D DEBUG -whole-module-optimization -Onone -o "$artifacts/test" @"$artifacts/files.txt" tests/companion-pdf/main.swift
 "$artifacts/test"

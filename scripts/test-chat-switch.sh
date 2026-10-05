@@ -7,7 +7,7 @@ trap 'cp "$fixture"/*.png "$out/" 2>/dev/null || true; rm -rf "$fixture"' EXIT
 mkdir -p "$out"
 swiftc Chatterbox/Views/ChatSwitchTransition.swift tests/chat-switch/Coordinator.swift -o "$fixture/policy"
 "$fixture/policy"
-python3 - "$fixture" <<'PY'
+/usr/bin/python3 - "$fixture" <<'PY'
 import pathlib,json,shutil,sys
 out=pathlib.Path(sys.argv[1]);(out/'Conversations').mkdir()
 source=pathlib.Path.home()/'Library/Application Support/Chatterbox/Conversations'

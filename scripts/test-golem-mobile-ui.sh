@@ -8,7 +8,7 @@ case "$kind" in
  *) exit 2 ;;
 esac
 artifacts=$(mktemp -d "$PWD/build/golem-mobile-ui.XXXXXX")
-python3 tests/golem-integration/mobile-server.py > "$artifacts/server.log" 2>&1 &
+/usr/bin/python3 tests/golem-integration/mobile-server.py > "$artifacts/server.log" 2>&1 &
 server_pid=$!
 sleep 0.3
 kill -0 "$server_pid"

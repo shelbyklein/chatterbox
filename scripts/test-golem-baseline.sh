@@ -9,7 +9,7 @@ export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
 export BASELINE_RIG="${golem_root}/Golem/rig" BASELINE_REVISION="$(git rev-parse HEAD)"
 export BASELINE_OUTPUT="$PWD/tests/golem-integration/artifacts/baseline.json"
 products=build/DerivedData/Build/Products/Debug
-rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$task_dir/sources"
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' > "$task_dir/sources"
 cp tests/golem-integration/baseline.swift "$task_dir/main.swift"
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -D GOLEM_APP -whole-module-optimization -O \
   -o "$task_dir/baseline" @"$task_dir/sources" "$task_dir/main.swift"

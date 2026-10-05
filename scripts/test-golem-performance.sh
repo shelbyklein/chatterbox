@@ -9,7 +9,7 @@ export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
 export BASELINE_REVISION="$(git rev-parse HEAD)" BASELINE_OUTPUT="$PWD/tests/golem-integration/artifacts/performance.json"
 export PERF_DAEMON="$PWD/build/runtime/chatterboxd" PERF_SERVICE="$PWD/build/runtime/golemd"
 products=build/GolemPlan/Build/Products/Debug
-rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' > "$task_dir/sources"
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' > "$task_dir/sources"
 cp tests/golem-integration/performance.swift "$task_dir/main.swift"
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -whole-module-optimization -O -o "$task_dir/performance" @"$task_dir/sources" "$task_dir/main.swift"
 "$task_dir/performance"

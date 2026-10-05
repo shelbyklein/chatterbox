@@ -7,7 +7,7 @@ export CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=19650
 mkdir -p "$CHATTERBOX_DATA_DIR"
-rg --follow --files Chatterbox ChatterboxRuntime Shared -g '*.swift' -g '!ChatterboxApp.swift' | sort > "$task_dir/files.txt"
+find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' | sort > "$task_dir/files.txt"
 engine_key=$({ swiftc --version; cat "$task_dir/files.txt"; while IFS= read -r source; do cat "$source"; done < "$task_dir/files.txt"; } | shasum -a 256 | cut -c 1-16)
 engine_dir="/tmp/chatterbox-mini-engine.$engine_key"
 if [[ ! -f "$engine_dir/libChatterboxTestEngine.dylib" || ! -f "$engine_dir/ChatterboxTestEngine.swiftmodule" ]]; then
@@ -19,13 +19,13 @@ if [[ ! -f "$engine_dir/libChatterboxTestEngine.dylib" || ! -f "$engine_dir/Chat
 fi
 mkdir -p "$task_dir/PushTest.app/Contents/MacOS" "$task_dir/PushTest.app/Contents/Resources"
 cp build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Resources/Assets.car "$task_dir/PushTest.app/Contents/Resources/"
-python3 - "$task_dir" <<'PYINFO'
+/usr/bin/python3 - "$task_dir" <<'PYINFO'
 import plistlib,sys
 from pathlib import Path
 p=Path(sys.argv[1])/'PushTest.app/Contents/Info.plist'
 p.write_bytes(plistlib.dumps({'CFBundleExecutable':'test','CFBundlePackageType':'APPL','CFBundleName':'PushTest'}))
 PYINFO
-swiftc -I "$engine_dir" -L "$engine_dir" -lChatterboxTestEngine \
+swiftc -I "$engine_dir" -I build/GolemPlan/Build/Products/Debug -L "$engine_dir" -lChatterboxTestEngine \
   -Xlinker -rpath -Xlinker "$engine_dir" -o "$task_dir/PushTest.app/Contents/MacOS/test" tests/fast-mode/main.swift
 "$task_dir/PushTest.app/Contents/MacOS/test"
 echo "Fast mode test artifacts: $task_dir"

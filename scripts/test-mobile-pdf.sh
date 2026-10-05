@@ -20,12 +20,12 @@ cleanup() {
 }
 trap cleanup EXIT
 export CHATTERBOX_TEST_OUTPUT="$artifacts"
-python3 tests/mobile-pdf/server.py > "$artifacts/server.log" 2>&1 &
+/usr/bin/python3 tests/mobile-pdf/server.py > "$artifacts/server.log" 2>&1 &
 server_pid=$!
 sleep 0.3
 # A busy test port is an error; never fall back to the live companion server.
 kill -0 "$server_pid"
-python3 - "$root" "$artifacts" <<'PY'
+/usr/bin/python3 - "$root" "$artifacts" <<'PY'
 from pathlib import Path
 import plistlib,sys
 root=Path(sys.argv[1]); out=Path(sys.argv[2])

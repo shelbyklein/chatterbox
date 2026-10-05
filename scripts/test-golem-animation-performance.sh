@@ -15,7 +15,7 @@ daemon_pid=$!
 build/runtime/golemd > "$root/service.log" 2>&1 &
 service_pid=$!
 trap 'kill "$service_pid" "$daemon_pid" 2>/dev/null || true; echo "Animation performance artifacts: $root"' EXIT
-python3 tests/golem-integration/service-performance.py "$daemon_pid" "$service_pid" "$GOLEM_TEST_PERFORMANCE.services.json" > "$root/sampler.log" 2>&1 &
+/usr/bin/python3 tests/golem-integration/service-performance.py "$daemon_pid" "$service_pid" "$GOLEM_TEST_PERFORMANCE.services.json" > "$root/sampler.log" 2>&1 &
 sampler_pid=$!
 trap 'kill "$sampler_pid" "$service_pid" "$daemon_pid" 2>/dev/null || true; echo "Animation performance artifacts: $root"' EXIT
 "${GOLEM_PERF_APP:-${golem_root}/build/GolemPlan/Build/Products/Debug/Golem.app/Contents/MacOS/Golem}" -ApplePersistenceIgnoreState YES > "$root/app.log" 2>&1

@@ -42,9 +42,7 @@ app.setActivationPolicy(.accessory)
     try await Task.sleep(for:.seconds(1))
     func webCount(_ v:NSView) -> Int { (v is WKWebView ? 1:0) + v.subviews.reduce(0) { $0 + webCount($1) } }
     precondition(webCount(view) == 0 && selected == nil, "Chooser eagerly loaded a web view")
-    let target = try await SCShareableContent.currentProcess.windows.first { $0.windowID == CGWindowID(panel.windowNumber) }!
-    let capture = SCStreamConfiguration();capture.width=840;capture.height=Int(panel.frame.height*2);capture.ignoreShadowsSingleWindow=true
-    let image = try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:target),configuration:capture)
+    let image = windowImage(panel)
     try NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("chooser.png"))
     func targets(_ v: NSView) -> [NSView] {
         let type = String(describing: type(of:v))
@@ -70,12 +68,20 @@ app.setActivationPolicy(.accessory)
     fastPanel.contentView = NSHostingView(rootView:ModelPopover(session:session) {})
     fastPanel.center(); fastPanel.orderFrontRegardless()
     try await Task.sleep(for:.milliseconds(700))
-    let fastTarget = try await SCShareableContent.currentProcess.windows.first { $0.windowID == CGWindowID(fastPanel.windowNumber) }!
-    capture.width=760;capture.height=Int(fastPanel.frame.height*2)
-    let fastImage = try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:fastTarget),configuration:capture)
+    let fastImage = windowImage(fastPanel)
     try NSBitmapImageRep(cgImage:fastImage).representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("claude-fast.png"))
     fastPanel.close()
     print("PASS six lazy destinations (zero WKWebViews before choice); native mouse button selections; browser application IDs; Claude model support, persistence, mobile settings mapping and session CLI arguments. No paid request or external browser launch.")
 }
 Task {do{try await run();exit(0)}catch{print("FAIL",error);exit(1)}}
 app.run()
+
+/// The window server's image of one of this process's own windows. Needs no screen-recording
+/// permission, which ScreenCaptureKit now asks for even for your own windows.
+func windowImage(_ window: NSWindow) -> CGImage {
+    window.displayIfNeeded()
+    typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { fatalError("Couldn't capture the test window") }
+    return image
+}

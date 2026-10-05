@@ -4,7 +4,7 @@ import SwiftUI
 import Vision
 
 // Run through scripts/test-chat-rendering.sh. No saved chats or agent sessions are used.
-// ScreenCaptureKit captures only this test process, without screen-recording permission.
+// Captures only this test process's own window, without screen-recording permission.
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 
@@ -53,11 +53,7 @@ func run() async throws {
         let chat = n.isMultiple(of: 2) ? first : preview
         model.selectedID = chat.id
         try await Task.sleep(for: .seconds(2))
-        let windows = try await SCShareableContent.currentProcess.windows
-        let target = windows.first { $0.windowID == CGWindowID(window.windowNumber) }!
-        let config = SCStreamConfiguration()
-        config.width = 1200; config.height = 800; config.ignoreShadowsSingleWindow = true
-        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: config)
+        let image = windowImage(window)
         try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!
             .write(to: URL(fileURLWithPath: root).appendingPathComponent("switch-\(n).png"))
         let recognize = VNRecognizeTextRequest()
@@ -95,3 +91,13 @@ Task { @MainActor in
     catch { fputs("Rendering regression failed: \(error)\n", stderr); exit(1) }
 }
 app.run()
+
+/// The window server's image of one of this process's own windows. Needs no screen-recording
+/// permission, which ScreenCaptureKit now asks for even for your own windows.
+func windowImage(_ window: NSWindow) -> CGImage {
+    window.displayIfNeeded()
+    typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
+    guard let image = capture(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() else { fatalError("Couldn't capture the test window") }
+    return image
+}
