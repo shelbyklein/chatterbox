@@ -16,7 +16,8 @@ func run() async throws {
         "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
         "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios",
         "homeCardScale": Double(ProcessInfo.processInfo.environment["THUMB_SCALE"] ?? "1") ?? 1,
-        "themeBackground": ProcessInfo.processInfo.environment["THUMB_THEME"] ?? "standard"], forName: UserDefaults.argumentDomain)
+        "themeBackground": ProcessInfo.processInfo.environment["THUMB_THEME"] ?? "standard",
+        "sidebarTagFilter": ProcessInfo.processInfo.environment["THUMB_TAGS"] ?? ""], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1500, height: 900),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -24,7 +25,7 @@ func run() async throws {
     window.contentView = host
     window.makeKeyAndOrderFront(nil)
     app.activate(ignoringOtherApps: true)
-    model.showingHome = true
+    model.showingHome = ProcessInfo.processInfo.environment["THUMB_SIDEBAR"] == nil
     try await Task.sleep(for: .seconds(4))
     let studioChats = model.activeSessions.filter { model.studio(for: $0) != nil }
     let shown = studioChats.filter { ThreadThumbnails.shared.images[$0.id] != nil }
