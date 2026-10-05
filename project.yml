@@ -214,6 +214,7 @@ targets:
     - path: Core/Chatterbox/Engine/BackgroundTasks.swift
     - path: Core/Chatterbox/Engine/ChatComputer.swift
     - path: Core/Chatterbox/Engine/ProjectAutomations.swift
+    - path: Core/Chatterbox/Engine/CodexModelCatalog.swift
     - path: Core/Chatterbox/Support/JSON.swift
     - path: Core/Chatterbox/Support/HostProtocol.swift
     - path: Core/Chatterbox/Support/Attachments.swift
