@@ -55,6 +55,9 @@ func run() async throws {
     window.makeKeyAndOrderFront(nil)
     app.activate(ignoringOtherApps: true)
 
+    // The window installs its toolbar (and opens on Home) once it's on screen.
+    try await Task.sleep(for: .milliseconds(1500))
+    let openedOnHome = model.showingHome
     func show(_ s: ChatSession) async throws {
         model.showingHome = false; model.showingCommandCenter = false; model.showingSettings = false
         model.selectedID = s.id
@@ -70,9 +73,11 @@ func run() async throws {
     try await show(a)
     check(WindowToolbar.made.count == 1, "one toolbar for the window (\(WindowToolbar.made.map(\.debugState)))")
     let first = items()
-    check(first.count >= 12, "toolbar has its items (\(first.count)) for \(a.projectName)")
+    check(first.count >= 11, "toolbar has its items (\(first.count)) for \(a.projectName)")
     check(window.title == a.title, "window title is the chat's (\(window.title))")
-    check(!hidden("remote"), "Remote Control shows for a Claude chat")
+    let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
+    check(Array(order.prefix(4)) == ["home", "newChat", "sidebar", "commandCenter"] && order.last == "settings" && !order.contains("remote"),
+          "order: Home, New Chat, Chats, Command Center on the left; Settings last; no Remote Control (\(order))")
     save(window, "1-\(a.projectName)", out)
     try await show(b)
     check(items() == first, "same toolbar items after switching to \(b.projectName)")
@@ -80,10 +85,8 @@ func run() async throws {
     save(window, "2-\(b.projectName)", out)
     try await show(codex)
     check(items() == first, "same toolbar items for a Codex chat")
-    check(hidden("remote"), "Remote Control hidden for Codex")
     save(window, "3-codex", out)
     try await show(a)
-    check(!hidden("remote"), "Remote Control back for Claude")
     check(items() == first, "same toolbar items after four switches")
     // The terminal button acts on the chat now showing.
     if let terminal = item("terminal"), let action = terminal.action { NSApp.sendAction(action, to: terminal.target, from: terminal) }
