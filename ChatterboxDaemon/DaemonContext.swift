@@ -38,6 +38,12 @@ typealias Attention=DaemonAttention
         if r.backend == .codex {r.codex=CodexSettings(folder:RuntimePaths.data.path,canEdit:false,mode:PermissionModes.defaultCodex)}
         return try runtime.insert(r)
     }
+    /// A Sidechat of a project's chat, built as the app builds them.
+    func newSidechat(of parent:ChatSession) throws ->ChatSession {
+        let anchor=parent.record.sidechatOf.flatMap{id in sessions.first{$0.id==id}} ?? parent
+        let number=sessions.filter{$0.record.sidechatOf==anchor.id}.count+1
+        return try runtime.insert(ChatSession.sidechatRecord(of:parent,anchor:anchor,number:number))
+    }
     func newChat(in studio:Studio,backend:Backend?=nil) throws ->ChatSession {let s=try newChat(backend:backend);s.record.studioID=studio.id;s.record.studioFolder=studio.folder;s.onChange?(s);try runtime.flush();return s}
     func ensureDot() throws ->ChatSession{try runtime.ensureAssistant()}
     func archive(_ s:ChatSession){s.shutdown();s.setArchived(true)}

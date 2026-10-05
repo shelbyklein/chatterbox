@@ -54,6 +54,51 @@ func chatList() throws -> [[String: Any]] {
     ((try call("/v1/chats") as? [String: Any])?["groups"] as? [[String: Any]]) ?? []
 }
 
+/// Projects' own chats (not their worktrees or Sidechats).
+func projectChats() throws -> [[String: Any]] {
+    var result: [[String: Any]] = []
+    for group in try chatList() where (group["kind"] as? String) == "projects" {
+        let chats: [[String: Any]] = (group["chats"] as? [[String: Any]]) ?? []
+        for chat in chats where chat["worktreeBranch"] == nil && chat["sidechatOf"] == nil { result.append(chat) }
+    }
+    return result
+}
+
+/// A project by its chat's id, its exact name, or part of its name.
+func findProject(_ wanted: String, in projects: [[String: Any]]) -> [String: Any]? {
+    func name(_ chat: [String: Any]) -> String { (chat["project"] as? String) ?? "" }
+    if let byID = projects.first(where: { ($0["id"] as? String)?.lowercased() == wanted.lowercased() }) { return byID }
+    if let exact = projects.first(where: { name($0).caseInsensitiveCompare(wanted) == .orderedSame }) { return exact }
+    return projects.first { name($0).localizedCaseInsensitiveContains(wanted) }
+}
+
+func presetList() throws -> [[String: Any]] {
+    (try call("/v1/presets") as? [[String: Any]]) ?? []
+}
+
+/// A preset by its nickname or title, ignoring case.
+func resolvePreset(_ name: String) throws -> [String: Any] {
+    let wanted = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    let presets = try presetList()
+    if let match = presets.first(where: { ($0["nickname"] as? String)?.caseInsensitiveCompare(wanted) == .orderedSame })
+        ?? presets.first(where: { ($0["title"] as? String)?.caseInsensitiveCompare(wanted) == .orderedSame })
+        ?? presets.first(where: { ($0["title"] as? String)?.localizedCaseInsensitiveContains(wanted) == true }) {
+        return match
+    }
+    let names = presets.map { ($0["nickname"] as? String) ?? ($0["title"] as? String ?? "") }.joined(separator: ", ")
+    throw ToolError(message: "No preset is called \u{201C}\(wanted)\u{201D}. Presets: \(names).")
+}
+
+/// The nicknames, as they're added to start_chat's description when the tools are listed.
+func presetNicknames() -> String {
+    guard let presets = try? presetList() else { return "" }
+    let named = presets.compactMap { preset -> String? in
+        guard let nickname = preset["nickname"] as? String else { return nil }
+        return "\u{201C}\(nickname)\u{201D} (\(preset["summary"] as? String ?? ""))"
+    }
+    return named.isEmpty ? "" : " The user's preset nicknames: " + named.joined(separator: ", ") + "."
+}
+
 /// A chat named by its id, or by (part of) its title or project name.
 func resolveChat(_ reference: String) throws -> [String: Any] {
     let wanted = reference.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -147,6 +192,62 @@ struct Tool {
     var run: ([String: Any]) throws -> String
 }
 
+let startChatProperties: [String: [String: Any]] = ["studio": ["type": "string", "description": "A Studio's name or id to start the chat in (optional)."],
+                      "project": ["type": "string", "description": "A project's name (or its chat's id) to start a Sidechat of (optional; not with studio)."],
+                      "preset": ["type": "string", "description": "A preset's nickname or title: its agent, model and effort (optional). See list_presets."],
+                      "agent": ["type": "string", "enum": ["claude", "codex"], "description": "Which agent answers (optional; the preset's, or the user's default otherwise)."],
+                      "message": ["type": "string", "description": "A first message to send (optional)."]]
+
+func startChat(_ arguments: [String: Any]) throws -> String {
+        var body: [String: Any] = [:]
+        if let agent = arguments["agent"] as? String { body["backend"] = agent }
+        if let name = arguments["preset"] as? String, !name.isEmpty {
+            let preset = try resolvePreset(name)
+            body["preset"] = preset["id"]
+            if arguments["agent"] == nil { body["backend"] = preset["backend"] }
+        }
+        if let project = arguments["project"] as? String, !project.isEmpty {
+            guard arguments["studio"] == nil else { throw ToolError(message: "Give a project or a Studio, not both.") }
+            let wanted = project.trimmingCharacters(in: .whitespacesAndNewlines)
+            let projects = try projectChats()
+            guard let match = findProject(wanted, in: projects), let id = match["id"] else {
+                let names = projects.compactMap { $0["project"] as? String }.prefix(30).joined(separator: ", ")
+                throw ToolError(message: "No project matches \u{201C}\(wanted)\u{201D}. Projects: \(names).")
+            }
+            body["project"] = id
+        }
+        if let studio = arguments["studio"] as? String, !studio.isEmpty {
+            let studios = try chatList().filter { $0["studioID"] != nil }
+            guard let match = studios.first(where: { ($0["studioID"] as? String)?.lowercased() == studio.lowercased() })
+                    ?? studios.first(where: { ($0["title"] as? String)?.localizedCaseInsensitiveContains(studio) == true }),
+                  let studioID = match["studioID"] else { throw ToolError(message: "No Studio matches \u{201C}\(studio)\u{201D}.") }
+            body["studio"] = studioID
+        }
+        guard let detail = try call("/v1/chats", method: "POST", body: body) as? [String: Any],
+              let id = (detail["summary"] as? [String: Any])?["id"] as? String else { throw ToolError(message: "Couldn't start a chat.") }
+        if let message = arguments["message"] as? String, !message.isEmpty {
+            _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": message, "fromDot": true])
+            return "Started chat \(id) and sent the message. Use wait_for_reply with chat \(id)."
+        }
+        return "Started chat \(id)."
+    }
+
+let startChatTool: Tool = Tool(name: "start_chat",
+         description: "Start a new chat, on its own, inside a Studio, or as a Sidechat of a project (a temporary thread in the project's folder with its own history, so the project's main chat isn't disturbed), optionally with a model preset and a first message. When the user says \u{201C}start that in <place> with <name>\u{201D}, <place> is a project or Studio and <name> is a preset's nickname. Put everything the new chat needs into the message: it can't see this conversation. Returns the new chat's id.",
+         properties: startChatProperties,
+         required: [], run: startChat)
+
+let listPresetsTool: Tool = Tool(name: "list_presets",
+         description: "The user's model presets: each one's nickname (what the user calls it), title, and the agent, model and effort it switches to. Use a nickname with start_chat's preset.",
+         properties: [:], required: []) { _ in
+        let presets = try presetList()
+        guard !presets.isEmpty else { return "No presets." }
+        return presets.map { preset in
+            let nickname = (preset["nickname"] as? String).map { "\u{201C}\($0)\u{201D} \u{2014} " } ?? ""
+            return "\(nickname)\(preset["title"] as? String ?? ""): \(preset["summary"] as? String ?? "")"
+        }.joined(separator: "\n")
+    }
+
 let tools: [Tool] = [
     Tool(name: "list_chats",
          description: "List the user's Chatterbox chats, grouped as in the sidebar (Projects, each Studio, other chats), with each chat's id, agent, whether it's working or waiting on the user, and its latest line.",
@@ -183,29 +284,8 @@ let tools: [Tool] = [
         _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": text, "now": arguments["send_now"] as? Bool ?? false, "fromDot": true])
         return "Sent. Use wait_for_reply to get the answer, or carry on: if you don't, Chatterbox tells you when the chat finishes so you can report back to the user."
     },
-    Tool(name: "start_chat",
-         description: "Start a new chat, on its own or inside a Studio, optionally with a first message. Returns the new chat's id.",
-         properties: ["studio": ["type": "string", "description": "A Studio's name or id to start the chat in (optional)."],
-                      "agent": ["type": "string", "enum": ["claude", "codex"], "description": "Which agent answers (optional; the user's default otherwise)."],
-                      "message": ["type": "string", "description": "A first message to send (optional)."]],
-         required: []) { arguments in
-        var body: [String: Any] = [:]
-        if let agent = arguments["agent"] as? String { body["backend"] = agent }
-        if let studio = arguments["studio"] as? String, !studio.isEmpty {
-            let studios = try chatList().filter { $0["studioID"] != nil }
-            guard let match = studios.first(where: { ($0["studioID"] as? String)?.lowercased() == studio.lowercased() })
-                    ?? studios.first(where: { ($0["title"] as? String)?.localizedCaseInsensitiveContains(studio) == true }),
-                  let studioID = match["studioID"] else { throw ToolError(message: "No Studio matches \u{201C}\(studio)\u{201D}.") }
-            body["studio"] = studioID
-        }
-        guard let detail = try call("/v1/chats", method: "POST", body: body) as? [String: Any],
-              let id = (detail["summary"] as? [String: Any])?["id"] as? String else { throw ToolError(message: "Couldn't start a chat.") }
-        if let message = arguments["message"] as? String, !message.isEmpty {
-            _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": message, "fromDot": true])
-            return "Started chat \(id) and sent the message. Use wait_for_reply with chat \(id)."
-        }
-        return "Started chat \(id)."
-    },
+    startChatTool,
+    listPresetsTool,
     Tool(name: "wait_for_reply",
          description: "Wait until a chat's agent finishes its reply (or stops to wait on the user), then return its latest reply. Waits up to timeout_seconds (default 300, at most 1800).",
          properties: ["chat": ["type": "string", "description": "The chat's title (or part of it) or id."],
@@ -284,6 +364,8 @@ func send(_ message: [String: Any]) {
     FileHandle.standardOutput.write(Data(line.utf8))
 }
 
+
+
 func reply(_ id: Any, _ result: [String: Any]) { send(["jsonrpc": "2.0", "id": id, "result": result]) }
 
 while let line = readLine(strippingNewline: true) {
@@ -299,8 +381,9 @@ while let line = readLine(strippingNewline: true) {
                         "serverInfo": ["name": "chatterbox", "version": "0.1.0"],
                         "instructions": "Tools for the user's Chatterbox chats: list, read, start, message, wait on, and stop them. Approvals and questions in a chat are only for the user."])
     case "tools/list":
+        let nicknames = presetNicknames()
         reply(id ?? 0, ["tools": shownTools.map { tool in
-            ["name": tool.name, "description": tool.description,
+            ["name": tool.name, "description": tool.name == "start_chat" ? tool.description + nicknames : tool.description,
              "inputSchema": ["type": "object", "properties": tool.properties, "required": tool.required]]
         }])
     case "tools/call":
