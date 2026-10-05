@@ -127,6 +127,13 @@ import CoreFoundation
                         return ["accepted": true, "status": .string(status)]
                     }
                 }
+            case "runAutomation":
+                // "Run Now" on a project's automation; only Chatterbox's own window may ask.
+                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+                guard let id=r.body["id"]?.string.flatMap(UUID.init(uuidString:)),
+                      let automation=ProjectAutomations.load().first(where:{$0.id==id}) else{throw RuntimeFailure("That automation is gone.")}
+                guard let runner=AutomationRunner.shared else{throw RuntimeFailure("Automations aren't running yet.")}
+                result=["threadID":.string(try runner.run(automation,manual:true).uuidString)]
             case "authorizePush":
                 // Push notifications are signed here, so this process needs its own Keychain
                 // access to the APNs key: the key's ACL lists programs by signing identity,

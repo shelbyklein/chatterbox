@@ -116,6 +116,7 @@
 		73645E513DB79C5847930EC2 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */; };
 		73D4465AAFFAD57CDBDD47B5 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		73D83C8064E9C10AEB7D857E /* RuntimeServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */; };
+		7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */; };
 		757230ABE064F535ABB98E03 /* PathLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACD3896247941A01A6F39FB /* PathLinks.swift */; };
 		7674615B45429144E4FA38F6 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A125487FAFCF644CD583045D /* Prompts.swift */; };
 		7949AF037EC20688BA18CE32 /* BackgroundTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C34CF3713DD45D9DE202B1 /* BackgroundTasks.swift */; };
@@ -124,6 +125,7 @@
 		7BE8FFBD061EF07370F07247 /* HostClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DE3A68946E9818C4FA0A43 /* HostClient.swift */; };
 		7C7B993E45FFCD02FDE64010 /* BackgroundWorkBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */; };
 		7CC4DEB3A30342880D4A07E8 /* CommandCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8D7D2F235E3F6DC973ABA35 /* CommandCenter.swift */; };
+		7D05173AFF8A14463612E0E0 /* AutomationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA78EBBB4F6A55D6FB08863 /* AutomationRunner.swift */; };
 		7DDA7CD35006881E95258A76 /* QuickSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */; };
 		81391861CA4A3E9466F6959F /* Child.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6115C97D436D69FEDDE1D /* Child.swift */; };
 		81C66D91CD4AC00D7BF70892 /* MobilePush.swift in Sources */ = {isa = PBXBuildFile; fileRef = C39831B5DD1FA91C7E353C65 /* MobilePush.swift */; };
@@ -164,6 +166,7 @@
 		AB708721BCC8467087735CED /* ChatColumns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CB314DEA89B87998298D8B /* ChatColumns.swift */; };
 		ABF8489B231E5AD2D1054115 /* DotActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0508B744152680991C2150CE /* DotActivity.swift */; };
 		ACB41DDBD0BF127A2B797F79 /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
+		AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
 		B1EA337411B3D6C236F4829B /* TranscriptPaging.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5E034B9A673C82F162376B /* TranscriptPaging.swift */; };
@@ -220,6 +223,7 @@
 		E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
 		E9422879FFA0BE8563EB91C4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
 		E9BA32C051BDE7E4D0FF0AB8 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CA0C530A3B250D3DD1CB52 /* main.swift */; };
+		EB8E9F83549CA91E457A34D2 /* AutomationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C730A3C46C1BA05DCD3159 /* AutomationsSheet.swift */; };
 		EC5E7AF05EE1C19F438032F2 /* RuntimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE207ED6C4BA57F3EE832C77 /* RuntimeClient.swift */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		EDA06FE1F8A03C54C284197A /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
@@ -316,6 +320,7 @@
 		263AB703BFEE4CE044BF0EEE /* Cards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cards.swift; sourceTree = "<group>"; };
 		276EA46A76921A11440633E3 /* ItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemView.swift; sourceTree = "<group>"; };
 		294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Summary.swift"; sourceTree = "<group>"; };
+		2AA78EBBB4F6A55D6FB08863 /* AutomationRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationRunner.swift; sourceTree = "<group>"; };
 		2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderStyle.swift; sourceTree = "<group>"; };
 		2C9F2CF5EC415AC3F8FF1EB9 /* ChatSettingsCog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSettingsCog.swift; sourceTree = "<group>"; };
 		2E985FA69A646D773A6202FA /* ChatterboxDaemon */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxDaemon; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -339,6 +344,7 @@
 		44CB087C33DC73A1CD510AEC /* ProjectIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectIcons.swift; sourceTree = "<group>"; };
 		44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySpinner.swift; sourceTree = "<group>"; };
 		462CBBE17D4E507D8351DFF1 /* DotMemorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotMemorySheet.swift; sourceTree = "<group>"; };
+		47C730A3C46C1BA05DCD3159 /* AutomationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationsSheet.swift; sourceTree = "<group>"; };
 		480A4365D3D11CC93334737A /* ChatterboxHost */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxHost; sourceTree = BUILT_PRODUCTS_DIR; };
 		499506AD5BC0D2785F115FFA /* Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tools.swift; sourceTree = "<group>"; };
 		4ABAE1B34A7039850D52C275 /* WebPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPane.swift; sourceTree = "<group>"; };
@@ -376,6 +382,7 @@
 		7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePaths.swift; sourceTree = "<group>"; };
 		810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxMobileApp.swift; sourceTree = "<group>"; };
 		81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
+		83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAutomations.swift; sourceTree = "<group>"; };
 		8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatToolbar.swift; sourceTree = "<group>"; };
 		8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostProtocol.swift; sourceTree = "<group>"; };
 		871851519A7251235137D947 /* RuntimePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePreferences.swift; sourceTree = "<group>"; };
@@ -627,6 +634,7 @@
 				9FD98C94B6B0110116CCF659 /* NextSteps.swift */,
 				E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */,
 				A81413A73CF1A4475E1CF397 /* Pins.swift */,
+				83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */,
 				09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */,
 				A125487FAFCF644CD583045D /* Prompts.swift */,
 				B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */,
@@ -643,6 +651,7 @@
 		A3FB81445F0C799EB97DE0F5 /* ChatterboxDaemon */ = {
 			isa = PBXGroup;
 			children = (
+				2AA78EBBB4F6A55D6FB08863 /* AutomationRunner.swift */,
 				3918CAE546531216A58EABAA /* DaemonContext.swift */,
 				25CA0C530A3B250D3DD1CB52 /* main.swift */,
 				62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */,
@@ -705,6 +714,7 @@
 			isa = PBXGroup;
 			children = (
 				44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */,
+				47C730A3C46C1BA05DCD3159 /* AutomationsSheet.swift */,
 				0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */,
 				12CB314DEA89B87998298D8B /* ChatColumns.swift */,
 				6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */,
@@ -984,6 +994,7 @@
 				C2553C9E5C131530E84F8ED4 /* AssistantInstructions.swift in Sources */,
 				D05B92875B687F85956F41CE /* Attachments.swift in Sources */,
 				185FE4741650353C7DB76AFB /* Attention.swift in Sources */,
+				EB8E9F83549CA91E457A34D2 /* AutomationsSheet.swift in Sources */,
 				A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */,
 				7949AF037EC20688BA18CE32 /* BackgroundTasks.swift in Sources */,
 				7C7B993E45FFCD02FDE64010 /* BackgroundWorkBar.swift in Sources */,
@@ -1070,6 +1081,7 @@
 				0D0AA5565003163647FC890D /* PinsSection.swift in Sources */,
 				831329C2CBD309EF09838EC0 /* PluginsSettingsView.swift in Sources */,
 				D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */,
+				AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */,
 				44A3E498036D57EEB3766443 /* ProjectIcons.swift in Sources */,
 				C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */,
 				6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */,
@@ -1163,6 +1175,7 @@
 				4FA3AC81E7EB95F204BE0985 /* AssistantConfiguration.swift in Sources */,
 				7BAA5803F0550B78599187C7 /* AssistantInstructions.swift in Sources */,
 				17019507B38999546156EB4B /* Attachments.swift in Sources */,
+				7D05173AFF8A14463612E0E0 /* AutomationRunner.swift in Sources */,
 				62A8710D3A01763ADF5B0D92 /* Backend.swift in Sources */,
 				0A64724F5E82293ED71B97B7 /* BackgroundTasks.swift in Sources */,
 				C794786D4F9D8290B05A4C21 /* ChatComputer.swift in Sources */,
@@ -1204,6 +1217,7 @@
 				ACB41DDBD0BF127A2B797F79 /* NextSteps.swift in Sources */,
 				BD0FF238483A303F2DC234E2 /* PermissionModes.swift in Sources */,
 				28DDC8A2DD7364FFD02158BC /* Pins.swift in Sources */,
+				7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */,
 				7674615B45429144E4FA38F6 /* Prompts.swift in Sources */,
 				EC5E7AF05EE1C19F438032F2 /* RuntimeClient.swift in Sources */,
 				E5009C6A623772CB59FBC42D /* RuntimePaths.swift in Sources */,
