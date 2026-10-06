@@ -60,6 +60,30 @@ setbuf(stdout,nil)
     precondition(relevant.map {$0["method"] as! String}==["turn/interrupt","thread/resume"])
     precondition(!requests().contains { ["turn/start","turn/steer","thread/start","thread/archive","thread/delete"].contains($0["method"] as? String ?? "") })
     print("PASS active interrupt before reconnect; queued prompt retained without resend")
+    let stale=chat(.codex,"stale-idle")
+    stale.isRunning=true;stale.codexTurnID=nil
+    let staleQueue=DisplayItem(kind:.user,text:"Keep queued",queued:true)
+    stale.record.items.append(staleQueue)
+    stale.pendingSteering=[UserMessage(text:"Keep queued")];stale.pendingSteeringItems=[staleQueue.id]
+    let staleHistory=stale.items
+    await stale.restartThread()
+    precondition(!stale.isRunning && stale.items==staleHistory && stale.pendingSteeringItems==[staleQueue.id])
+    precondition(stale.threadRestartStatus?.hasPrefix("Thread restarted")==true)
+    precondition(!requests().contains {$0["method"] as? String=="turn/interrupt" && $0["threadId"] as? String=="stale-idle"})
+    let recovered=chat(.codex,"missing-active");recovered.isRunning=true;recovered.codexTurnID=nil
+    recovered.codexRegisterHandler("missing-active")
+    await recovered.restartThread()
+    precondition(!recovered.isRunning && recovered.threadRestartStatus?.hasPrefix("Thread restarted")==true)
+    precondition(requests().contains {$0["method"] as? String=="turn/interrupt" && $0["turnId"] as? String=="recovered-turn"})
+    let unknown=chat(.codex,"unknown-state");unknown.isRunning=true;unknown.codexTurnID=nil
+    await unknown.restartThread()
+    precondition(unknown.isRunning && unknown.threadRestartStatus?.hasPrefix("Couldn't restart")==true)
+    precondition(!requests().contains {$0["method"] as? String=="thread/resume" && $0["threadId"] as? String=="unknown-state"})
+    let starting=chat(.codex,"starting");starting.isRunning=true;starting.codexStartInFlight=true
+    let beforeStart=requests().count
+    _ = try await starting.codexReconcileMissingTurn()
+    precondition(starting.isRunning && requests().count==beforeStart)
+    print("PASS provider-confirmed stale state recovery; queued messages/history retained; missing active ID recovered; unknown/in-flight state fails closed")
     let failed=chat(.codex,"fail"), failedHistory=failed.items
     await failed.restartThread()
     precondition(failed.record.codex?.threadId=="fail" && failed.items==failedHistory && !failed.isRestartingThread && failed.threadRestartStatus?.hasPrefix("Couldn't restart")==true)

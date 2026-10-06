@@ -16,6 +16,10 @@ for line in sys.stdin:
         if p['threadId']!='never-stops':
             out({'method':'turn/completed','params':{'threadId':p['threadId'],'turn':{'id':p['turnId'],'status':'interrupted'}}})
         result={}
+    elif method=='thread/read':
+        status='unknown' if p['threadId']=='unknown-state' else ('active' if p['threadId']=='missing-active' else 'idle')
+        turns=[{'id':'recovered-turn','status':'inProgress'}] if status=='active' else []
+        result={'thread':{'id':p['threadId'],'status':{'type':status},'turns':turns}}
     elif method=='model/list':result={'data':[]}
     elif method=='test/slow':time.sleep(.3);result={}
     else:result={}
