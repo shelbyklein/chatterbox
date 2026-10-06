@@ -1,5 +1,5 @@
 #!/bin/bash
-# Checks the chat toolbar keeps its items across chat switches (#29), against copies of your chats (read-only).
+# ⌘F search in a long chat, against copies of your chats (read-only).
 # Usage: scripts/test-chat-switch-perf.sh [conversations dir]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,6 +23,6 @@ products=build/DerivedData/Build/Products/Debug
 # -O, like the shipped app's hot paths; Debug-only code paths stay on via -D DEBUG.
 cp "$products/SwiftTerm.o" "$test_dir/SwiftTerm.o"
 swiftc -I "$products" "$test_dir/SwiftTerm.o" -framework AVKit -framework WebKit -framework PDFKit -D DEBUG -whole-module-optimization -O -o "$test_dir/test" \
-  @"$test_dir/files.txt" tests/chat-toolbar/main.swift
-mkdir -p "$HOME/Chatterbox/Screenshots/chat-toolbar"
-TOOLBAR_OUT="$HOME/Chatterbox/Screenshots/chat-toolbar" "$test_dir/test"
+  @"$test_dir/files.txt" tests/chat-bottom/main.swift
+mkdir -p "$HOME/Chatterbox/Screenshots/chat-bottom"
+FIND_OUT="$HOME/Chatterbox/Screenshots/chat-bottom" "$test_dir/test"
