@@ -77,9 +77,9 @@ func run() async throws {
     check(first.count >= 11, "toolbar has its items (\(first.count)) for \(a.projectName)")
     check(window.title == a.title, "window title is the chat's (\(window.title))")
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(order.prefix(2) == ["title", "views"] && !order.contains("newChat") && order.suffix(4) == ["usage", "terminal", "NSToolbarSpaceItem", "settings"]
+    check(order.prefix(3) == ["title", "views", "newChat"] && order.suffix(4) == ["usage", "terminal", "NSToolbarSpaceItem", "settings"]
             && !order.contains("images") && !order.contains("remote"),
-          "order: title, then the views group on the left; no New Chat; session info with the library; usage and terminal; Settings last (\(order))")
+          "order: title, then the views group followed by a separate New Chat button; session info with the library; usage and terminal; Settings last (\(order))")
     save(window, "1-\(a.projectName)", out)
     try await show(b)
     check(items() == first, "same toolbar items after switching to \(b.projectName)")
