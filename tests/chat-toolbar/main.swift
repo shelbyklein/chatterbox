@@ -114,6 +114,12 @@ func run() async throws {
     model.showingHome = false
     try await Task.sleep(for: .milliseconds(1200))
     check(!hidden("terminal") && window.title == a.title && items() == first, "back from Home: chat items, title and same items")
+    model.showingHome = true
+    if let plus = item("newChat"), let action = plus.action {
+        NSApp.sendAction(action, to: plus.target, from: plus)
+        try await Task.sleep(for: .milliseconds(800))
+        check(!model.showingHome && !model.showingCommandCenter && !model.showingSettings && model.selected?.items.isEmpty == true, "standalone plus opens an empty chat from Studios")
+    } else { check(false, "standalone plus has a working action") }
     print(failures == 0 ? "RESULT all passed" : "RESULT \(failures) failed")
     exit(failures == 0 ? 0 : 1)
 }
