@@ -116,8 +116,13 @@ func run() async throws {
     check(!hidden("terminal") && window.title == a.title && items() == first, "back from Home: chat items, title and same items")
     model.showingHome = true
     if let group = item("views") as? NSToolbarItemGroup, let action = group.action {
-        check(group.subitems.count == 4, "four controls share the view group")
+        check(group.subitems.count == 5, "views and New Chat share the group")
         group.selectedIndex = 3
+        NSApp.sendAction(action, to: group.target, from: group)
+        check(model.showingAutomations, "Automations opens from toolbar")
+        try await Task.sleep(for: .milliseconds(600))
+        save(window, "7-automations", out)
+        group.selectedIndex = 4
         NSApp.sendAction(action, to: group.target, from: group)
         try await Task.sleep(for: .milliseconds(800))
         check(!model.showingHome && !model.showingCommandCenter && !model.showingSettings && model.selected?.items.isEmpty == true, "speech bubble opens an empty chat from Studios")
