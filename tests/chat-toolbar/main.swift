@@ -74,12 +74,12 @@ func run() async throws {
     try await show(a)
     check(WindowToolbar.made.count == 1, "one toolbar for the window (\(WindowToolbar.made.map(\.debugState)))")
     let first = items()
-    check(first.count >= 11, "toolbar has its items (\(first.count)) for \(a.projectName)")
+    check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
     check(window.title == a.title, "window title is the chat's (\(window.title))")
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(order.prefix(3) == ["title", "views", "newChat"] && order.suffix(4) == ["usage", "terminal", "NSToolbarSpaceItem", "settings"]
-            && !order.contains("images") && !order.contains("remote"),
-          "order: title, then the views group followed by a separate New Chat button; session info with the library; usage and terminal; Settings last (\(order))")
+    check(order.prefix(2) == ["title", "views"] && order.suffix(4) == ["usage", "terminal", "NSToolbarSpaceItem", "settings"]
+            && !order.contains("newChat") && !order.contains("images") && !order.contains("remote"),
+          "order: title, then the views group containing New Chat; session info with the library; usage and terminal; Settings last (\(order))")
     save(window, "1-\(a.projectName)", out)
     try await show(b)
     check(items() == first, "same toolbar items after switching to \(b.projectName)")
@@ -115,11 +115,14 @@ func run() async throws {
     try await Task.sleep(for: .milliseconds(1200))
     check(!hidden("terminal") && window.title == a.title && items() == first, "back from Home: chat items, title and same items")
     model.showingHome = true
-    if let plus = item("newChat"), let action = plus.action {
-        NSApp.sendAction(action, to: plus.target, from: plus)
+    if let group = item("views") as? NSToolbarItemGroup, let action = group.action {
+        check(group.subitems.count == 4, "four controls share the view group")
+        group.selectedIndex = 3
+        NSApp.sendAction(action, to: group.target, from: group)
         try await Task.sleep(for: .milliseconds(800))
-        check(!model.showingHome && !model.showingCommandCenter && !model.showingSettings && model.selected?.items.isEmpty == true, "standalone plus opens an empty chat from Studios")
-    } else { check(false, "standalone plus has a working action") }
+        check(!model.showingHome && !model.showingCommandCenter && !model.showingSettings && model.selected?.items.isEmpty == true, "speech bubble opens an empty chat from Studios")
+        check(group.selectedIndex == 0, "New Chat returns selection to chat view")
+    } else { check(false, "view group has a working action") }
     print(failures == 0 ? "RESULT all passed" : "RESULT \(failures) failed")
     exit(failures == 0 ? 0 : 1)
 }
