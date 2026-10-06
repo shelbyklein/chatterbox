@@ -73,7 +73,7 @@ import CoreFoundation
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
-                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion","authorizePush","pushStatus","testPush","setGolemPushEnabled"]
+                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion","authorizePush","pushStatus","testPush","setGolemPushEnabled","codexModels"]
                 guard allowed.contains(r.operation) else{throw RuntimeFailure("permission_denied")}
                 if let raw=r.body["record"],let record=try? raw.decode(ConversationRecord.self),(record.isDot != true || runtime.session(record.id)?.isDot != true){throw RuntimeFailure("permission_denied")}
                 if r.operation=="preferences",!Set((r.body.object ?? [:]).keys).isSubset(of:["dotDefaultBackend","dotDefaultModel","dotApplyDefault","dotSeenItem"]){throw RuntimeFailure("permission_denied")}
@@ -93,6 +93,15 @@ import CoreFoundation
             let result:JSON
             switch r.operation {
             case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]
+            case "codexModels":
+                guard ["ui", "golem-ui"].contains(role) else { throw RuntimeFailure("permission_denied") }
+                try await CodexAppServer.shared.refreshModels()
+                result = .array(CodexAppServer.shared.models.map { model in
+                    ["model": .string(model.model), "displayName": .string(model.displayName),
+                     "defaultEffort": .string(model.defaultEffort),
+                     "efforts": .array(model.efforts.map(JSON.string)),
+                     "hidden": .bool(model.hidden), "isDefault": .bool(model.isDefault)]
+                })
             case "getStudios":result=try .value(runtime.studios)
             case "getPins":result=try .value(PinStore.shared.pins)
             case "assistantNotes":result=try .value(runtime.state.assistantNotes ?? [])
