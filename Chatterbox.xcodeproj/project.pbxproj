@@ -76,6 +76,7 @@
 		3F9ACF6416461B4A49E77584 /* MobileMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0882B1086EDE675468281 /* MobileMedia.swift */; };
 		4005AC8EBB1D653AFBFF631B /* ChatSession+Claude.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */; };
 		40F22648E6D7DC9D88380151 /* ItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 276EA46A76921A11440633E3 /* ItemView.swift */; };
+		4246C0009B2DA25884176621 /* ChatFind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00772506A1F5031126B3A36E /* ChatFind.swift */; };
 		42E0AA7989519D1AC9812E73 /* prompts in Resources */ = {isa = PBXBuildFile; fileRef = F8396140D14FE6E04F22C13F /* prompts */; };
 		44658C948D45F241891438FB /* MediaKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E506CEBABA8892B98B49AE9 /* MediaKind.swift */; };
 		4472F5FDCE4368B4566A6DD3 /* RuntimePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871851519A7251235137D947 /* RuntimePreferences.swift */; };
@@ -297,6 +298,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00772506A1F5031126B3A36E /* ChatFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFind.swift; sourceTree = "<group>"; };
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
 		0508B744152680991C2150CE /* DotActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotActivity.swift; sourceTree = "<group>"; };
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -729,6 +731,7 @@
 				6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */,
 				5F02305CEDD843C4F7102555 /* ChatCommands.swift */,
 				3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */,
+				00772506A1F5031126B3A36E /* ChatFind.swift */,
 				6B9B9BA5000628B0F42E2188 /* ChatHomeView.swift */,
 				0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */,
 				2C9F2CF5EC415AC3F8FF1EB9 /* ChatSettingsCog.swift */,
@@ -1013,6 +1016,7 @@
 				EFB541351775E9D69EF1DB32 /* ChatCommands.swift in Sources */,
 				D8BEA37E7DD21B08FBCAACAB /* ChatComputer.swift in Sources */,
 				AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */,
+				4246C0009B2DA25884176621 /* ChatFind.swift in Sources */,
 				3E2D20C60750AB355102FFE9 /* ChatHomeView.swift in Sources */,
 				28DEC7A04F7372851A27B9B6 /* ChatImageGallery.swift in Sources */,
 				677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */,
