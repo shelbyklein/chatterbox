@@ -38,7 +38,8 @@ func run() async throws {
     UserDefaults.standard.setVolatileDomain([
         "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
         "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false,
-        "notifyFinished": false, "keepMacAwake": false
+        "notifyFinished": false, "keepMacAwake": false,
+        "themeBackground": ProcessInfo.processInfo.environment["TOOLBAR_THEME"] ?? "standard", "settingsPage": ProcessInfo.processInfo.environment["TOOLBAR_PAGE"] ?? "models"
     ], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let chats = model.activeSessions.filter { !$0.isDot && $0.record.backend == .claude && $0.record.projectFolder != nil }
