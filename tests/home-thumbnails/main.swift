@@ -43,6 +43,10 @@ func run() async throws {
         let folder = s.record.projectFolder!
         print("ICON \(s.projectName): \(ProjectIcons.shared.icons[folder] != nil ? (ProjectIcons.detect(in: folder)?.path.replacingOccurrences(of: folder, with: "…") ?? "custom") : "none")")
     }
+    for s in model.sidebarProjects {
+        if let drift = GitStatusStore.shared.status(for: s.record.projectFolder)?.mainDriftText { print("DRIFT \(s.projectName): \(drift)") }
+    }
+    print("git statuses loaded:", model.sidebarProjects.filter { GitStatusStore.shared.status(for: $0.record.projectFolder) != nil }.count, "of", model.sidebarProjects.count)
     print(shown.isEmpty ? "RESULT no thumbnails" : "RESULT ok")
     exit(0)
 }
