@@ -117,6 +117,15 @@ func resolveChat(_ reference: String) throws -> [String: Any] {
     throw ToolError(message: "Several chats match \u{201C}\(wanted)\u{201D}: \(names.joined(separator: "; ")). Use the id.")
 }
 
+/// A message's text. "message" is the name start_chat and send_message both use; "text" was
+/// send_message's old name, and models trip between the two, so either is read.
+func messageText(_ arguments: [String: Any]) -> String? {
+    for key in ["message", "text"] {
+        if let value = arguments[key] as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return value }
+    }
+    return nil
+}
+
 func chatID(_ arguments: [String: Any]) throws -> String {
     guard let reference = arguments["chat"] as? String, !reference.isEmpty else { throw ToolError(message: "Say which chat (its title or id).") }
     let id = try resolveChat(reference)["id"] as? String ?? reference
@@ -225,7 +234,7 @@ func startChat(_ arguments: [String: Any]) throws -> String {
         }
         guard let detail = try call("/v1/chats", method: "POST", body: body) as? [String: Any],
               let id = (detail["summary"] as? [String: Any])?["id"] as? String else { throw ToolError(message: "Couldn't start a chat.") }
-        if let message = arguments["message"] as? String, !message.isEmpty {
+        if let message = messageText(arguments) {
             _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": message, "fromDot": true])
             return "Started chat \(id) and sent the message. Use wait_for_reply with chat \(id)."
         }
@@ -276,11 +285,11 @@ let tools: [Tool] = [
     Tool(name: "send_message",
          description: "Send a message to a chat's agent, as if the user typed it. If the agent is working, the message joins its current reply; set send_now to stop it and send right away.",
          properties: ["chat": ["type": "string", "description": "The chat's title (or part of it) or id."],
-                      "text": ["type": "string", "description": "The message."],
+                      "message": ["type": "string", "description": "The message."],
                       "send_now": ["type": "boolean", "description": "Stop the agent's current reply and send this immediately."]],
-         required: ["chat", "text"]) { arguments in
+         required: ["chat", "message"]) { arguments in
         let id = try chatID(arguments)
-        guard let text = arguments["text"] as? String, !text.isEmpty else { throw ToolError(message: "Nothing to send.") }
+        guard let text = messageText(arguments) else { throw ToolError(message: "Nothing to send: put the message in \"message\".") }
         _ = try call("/v1/chats/\(id)/messages", method: "POST", body: ["text": text, "now": arguments["send_now"] as? Bool ?? false, "fromDot": true])
         return "Sent. Use wait_for_reply to get the answer, or carry on: if you don't, Chatterbox tells you when the chat finishes so you can report back to the user."
     },
