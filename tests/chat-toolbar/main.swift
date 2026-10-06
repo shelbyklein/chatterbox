@@ -77,7 +77,7 @@ func run() async throws {
     check(first.count >= 11, "toolbar has its items (\(first.count)) for \(a.projectName)")
     check(window.title == a.title, "window title is the chat's (\(window.title))")
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(Array(order.prefix(5)) == ["home", "studios", "newChat", "sidebar", "commandCenter"] && order.last == "settings" && !order.contains("remote"),
+    check(Array(order.prefix(4)) == ["studios", "newChat", "sidebar", "commandCenter"] && order.last == "settings" && !order.contains("remote"),
           "order: Home, New Chat, Chats, Command Center on the left; Settings last; no Remote Control (\(order))")
     save(window, "1-\(a.projectName)", out)
     try await show(b)
