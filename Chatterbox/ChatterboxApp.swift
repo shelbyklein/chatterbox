@@ -4,13 +4,6 @@ import SwiftUI
 struct ChatterboxApp: App {
     @State private var model = AppModel()
 
-    private func chatMenuTitle(_ number: Int) -> String {
-        let order = model.sidebarOrder
-        guard order.indices.contains(number - 1) else { return "Chat \(number)" }
-        let session = order[number - 1]
-        return session.record.projectFolder != nil ? session.projectName : session.title
-    }
-
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
@@ -68,11 +61,19 @@ struct ChatterboxApp: App {
                 Button("Previous Chat") { model.selectAdjacentChat(-1) }
                     .keyboardShortcut("[", modifiers: [.command, .shift])
                 Divider()
-                ForEach(1...9, id: \.self) { number in
-                    Button(chatMenuTitle(number)) { model.selectChat(number: number) }
-                        .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: .command)
-                        .disabled(model.sidebarOrder.count < number)
+                // ⌘1–⌘3 switch views, in the toolbar's order.
+                Button("Chat View") {
+                    model.showingSettings = false; model.showingCommandCenter = false; model.showingHome = false
                 }
+                .keyboardShortcut("1")
+                Button("Studios") {
+                    model.showingSettings = false; model.showingCommandCenter = false; model.showingHome = true
+                }
+                .keyboardShortcut("2")
+                Button("Command Center") {
+                    model.showingSettings = false; model.showingHome = false; model.showingCommandCenter = true
+                }
+                .keyboardShortcut("3")
             }
 
             CommandMenu("Pins") {
