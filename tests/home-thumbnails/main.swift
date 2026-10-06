@@ -20,7 +20,8 @@ func run() async throws {
         "sidebarTagFilter": ProcessInfo.processInfo.environment["THUMB_TAGS"] ?? "",
         "sidebarLineSpacing": Double(ProcessInfo.processInfo.environment["THUMB_LINES"] ?? "2") ?? 2,
         "sidebarRowSpacing": Double(ProcessInfo.processInfo.environment["THUMB_ROWS"] ?? "0") ?? 0,
-        "sidebarProjectSort": ProcessInfo.processInfo.environment["THUMB_SORT"] ?? "recent"], forName: UserDefaults.argumentDomain)
+        "sidebarProjectSort": ProcessInfo.processInfo.environment["THUMB_SORT"] ?? "recent",
+        "macSidebarCards": ProcessInfo.processInfo.environment["THUMB_CARDS"] != nil], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1500, height: 900),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
