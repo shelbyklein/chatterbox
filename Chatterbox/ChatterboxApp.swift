@@ -62,7 +62,8 @@ struct ChatterboxApp: App {
                     .keyboardShortcut("[", modifiers: [.command, .shift])
                 Divider()
                 // ⌘1–⌘3 switch views, in the toolbar's order.
-                Button("Chat View") {
+                Button("Projects") {
+                    model.showingChatsSidebar = false
                     model.showingSettings = false; model.showingCommandCenter = false; model.showingHome = false
                 }
                 .keyboardShortcut("1")

@@ -22,6 +22,30 @@ final class ComposerTests: XCTestCase {
     XCTAssertTrue(field(app).waitForExistence(timeout:5))
     return app
   }
+  @MainActor func testSessionControls() async throws {
+    _ = try await control("reset"); _ = try await control("running")
+    let app = open(true)
+    field(app).tap(); field(app).typeText("Keep this draft")
+    app.buttons["Chat Menu"].tap()
+    XCTAssertTrue(app.buttons["Stop Reply"].waitForExistence(timeout:5))
+    XCTAssertTrue(app.buttons["Restart Thread"].exists)
+    capture(app,"session-controls-menu")
+    app.buttons["Stop Reply"].tap()
+    let stopped = NSPredicate { _,_ in !app.buttons["Stop"].exists }
+    let check=expectation(for:stopped,evaluatedWith:nil);await fulfillment(of:[check],timeout:8)
+    app.buttons["Chat Menu"].tap();app.buttons["Restart Thread"].tap()
+    XCTAssertTrue(app.alerts["Restart Thread?"].waitForExistence(timeout:5))
+    capture(app,"restart-confirmation")
+    app.alerts.buttons["Cancel"].tap()
+    app.buttons["Chat Menu"].tap();app.buttons["Restart Thread"].tap()
+    app.alerts.buttons["Restart Thread"].tap()
+    try await Task.sleep(for:.seconds(1))
+    XCTAssertTrue((field(app).value as? String ?? "").contains("Keep this draft"))
+    let log = try await control("log",post:false)
+    let actions=(log["requests"] as? [[String:Any]] ?? []).compactMap { $0["action"] as? String }
+    XCTAssertEqual(actions,["stop","restart"])
+    capture(app,"session-restarted-draft-kept")
+  }
   @MainActor func field(_ app:XCUIApplication) -> XCUIElement {
     app.textViews["messageComposer"].exists ? app.textViews["messageComposer"] : app.textFields["messageComposer"]
   }
@@ -65,6 +89,20 @@ final class ComposerTests: XCTestCase {
   #if GOLEM_APP
   @MainActor func testGolemDelayedAcknowledgment() async throws { try await exercise(false) }
   #else
+  @MainActor func testActivityTimeline() async throws {
+    _ = try await control("reset")
+    let app=XCUIApplication()
+    app.launchArguments=["-drafts","{}","-mobileChatListPage","activity"]
+    app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"19645"]
+    app.launch()
+    let entries=app.buttons.matching(identifier:"Regression Project, turn ended")
+    XCTAssertTrue(entries.firstMatch.waitForExistence(timeout:15))
+    XCTAssertEqual(entries.count,2)
+    capture(app,"activity-timeline")
+    entries.firstMatch.tap()
+    XCTAssertTrue(field(app).waitForExistence(timeout:10))
+    capture(app,"activity-opened-chat")
+  }
   @MainActor func testRegularDelayedAcknowledgment() async throws { try await exercise(true) }
   @MainActor func testSuccessfulAndFailedRepeatedSends() async throws {
     _ = try await control("reset")

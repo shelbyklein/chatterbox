@@ -10,6 +10,8 @@ export CHATTERBOX_DATA_DIR="$test_dir/data"
 export CHATTERBOX_HOST_DIR="$test_dir/host"
 export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=0
+export CHATTERBOX_PREFERENCES_SUITE="chatterbox.toolbar.$(basename "$test_dir")"
+export CHATTERBOX_LEGACY_RUNTIME=1
 mkdir -p "$CHATTERBOX_DATA_DIR/Conversations"
 # Copies only, with background-host links removed so no agent is reattached.
 for file in "$source_dir"/*.json; do

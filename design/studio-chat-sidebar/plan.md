@@ -1,0 +1,11 @@
+# Studio chat sidebar
+
+Directly authorized: opening a Studio chat shows only sessions belonging to that Studio in the existing sidebar. Current two-state Projects/Chats navigation defaults Studio chats to Projects. Add a Studio sidebar ID independent of thumbnail overview; selection routes by Studio membership, no data changes. Header named for Studio, + creates in same Studio; list default with separate card preference. Ignore project tag filters, search stays within Studio. Projects/Chats toolbar buttons explicitly leave Studio mode; Studios thumbnail button stays overview. Preserve unrelated local changes. No daemon API/restart or GitHub writes.
+
+- [x] S1 Route Studio selection from thumbnails, linked shortcut, activity bell and restored selection; keep project/standalone routes distinct.
+- [x] S2 Scoped list/cards and New Studio Chat control; filters and toolbar highlights correct.
+- [x] S3 Isolated navigation/new-chat/filter tests, actual ContentView render, Mac build/local install.
+
+Verification: test-studio-chat-sidebar.sh passed with two Studios, unrelated project and standalone sessions, linked shortcut, completion bell, and new Studio chat. It caught and fixed selection occurring before new-chat Studio membership was assigned. Inspected actual ContentView render: Playcase Studio header, its three sessions only, + control, no unrelated sections despite project tag filter. Mac build/install passed; installed executable matches build. Daemon PID 77155 remained unchanged. Phone Stop/Restart build installed and launched successfully on iPhone F4FC8595-E825-5003-A210-6D1B898C02A4; physical Stop/Restart interaction not exercised. Changes local and uncommitted; no GitHub writes.
+
+Acceptance: Studio A shows A only, Studio B shows B only; project/standalone transitions clear Studio scope; opening via link/bell behaves same; adding chat doesn't create outside Studio; history unchanged. Linear current session, no subagents. Visual target target.svg, runtime capture studio-sidebar.png. Rollback scoped UI source and previous app backup. No schema migration. GitHub stays read-only. Service currently active; defective prior activation job removed and no restart queued. R1-R13 scope/readiness checked against user-specified UI result; no unresolved product decisions.
