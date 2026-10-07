@@ -14,6 +14,8 @@ if ! git diff --cached --quiet && [[ -z "${1:-}" ]]; then
   echo 'Staged changes require a commit message: ./scripts/ship.sh "Describe the change"' >&2
   exit 1
 fi
+# The Xcode project must match project.yml, and the service's source lists must be sound.
+./scripts/check-sources.sh
 xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \
   -derivedDataPath build/DerivedData build -quiet
 if ! git diff --cached --quiet; then

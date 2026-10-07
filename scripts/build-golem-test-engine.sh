@@ -13,7 +13,7 @@ engine_key=$({ swiftc --version; cat "$test_dir/files.txt"; while IFS= read -r s
 engine_dir="/tmp/chatterbox-mini-engine.$engine_key"
 if [[ ! -f "$engine_dir/libChatterboxTestEngine.dylib" || ! -f "$engine_dir/ChatterboxTestEngine.swiftmodule" ]]; then
   mkdir -p "$engine_dir"
-  swiftc -I build/GolemPlan/Build/Products/Debug build/GolemPlan/Build/Products/Debug/SwiftTerm.o -D DEBUG -D GOLEM_APP -whole-module-optimization -Onone -enable-testing \
+  swiftc -I build/DerivedData/Build/Products/Debug build/DerivedData/Build/Products/Debug/SwiftTerm.o -D DEBUG -D GOLEM_APP -whole-module-optimization -Onone -enable-testing \
     -emit-library -emit-module -module-name ChatterboxTestEngine \
     -emit-module-path "$engine_dir/ChatterboxTestEngine.swiftmodule" \
     -o "$engine_dir/libChatterboxTestEngine.dylib" @"$test_dir/files.txt"

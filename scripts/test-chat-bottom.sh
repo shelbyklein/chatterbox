@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # ⌘F search in a long chat, against copies of your chats (read-only).
 # Usage: scripts/test-chat-switch-perf.sh [conversations dir]
 set -euo pipefail

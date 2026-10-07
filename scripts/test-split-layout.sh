@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Measures the main window's columns against copies of your saved chats (read-only; nothing is resumed).
 # Usage: scripts/test-split-layout.sh <chat UUID> [out dir]   (SPLIT_WIDTHS=1600,900 to choose widths)
 set -euo pipefail

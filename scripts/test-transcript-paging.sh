@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Checks that drawing only the newest transcript rows matches grouping the whole history.
 # Reads saved chats (read-only). Needs a built tree: xcodebuild -scheme Chatterbox -derivedDataPath build/DerivedData build
 set -euo pipefail

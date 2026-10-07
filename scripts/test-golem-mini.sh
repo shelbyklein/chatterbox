@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 test_dir=$(mktemp -d /tmp/chatterbox-mini.XXXXXX)
@@ -9,6 +10,6 @@ export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=0
 mkdir -p "$CHATTERBOX_DATA_DIR"
 engine_dir=$(./scripts/build-golem-test-engine.sh)
-swiftc -I build/GolemPlan/Build/Products/Debug -I "$engine_dir" -L "$engine_dir" -lChatterboxTestEngine \
+swiftc -I build/DerivedData/Build/Products/Debug -I "$engine_dir" -L "$engine_dir" -lChatterboxTestEngine \
   -Xlinker -rpath -Xlinker "$engine_dir" -o "$test_dir/GolemMiniRegression" tests/golem-mini/main.swift
 "$test_dir/GolemMiniRegression"

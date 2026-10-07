@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Times chat switching against copies of your saved chats (read-only; nothing is resumed).
 # Usage: scripts/test-chat-switch-perf.sh [conversations dir]
 set -euo pipefail

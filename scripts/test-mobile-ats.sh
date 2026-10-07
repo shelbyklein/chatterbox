@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Read-only requests to a running companion, in a disposable iOS simulator.
 # Usage: scripts/test-mobile-ats.sh 100.x.y.z [LAN-IP]
 set -euo pipefail
@@ -16,8 +17,8 @@ cleanup() {
 }
 trap cleanup EXIT
 xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -sdk iphonesimulator \
-  -configuration Debug -derivedDataPath "$artifacts/build" CODE_SIGNING_ALLOWED=NO build > "$artifacts/build.log" 2>&1
-app="$artifacts/build/Build/Products/Debug-iphonesimulator/Chatterbox.app"
+  -configuration Debug -derivedDataPath "$PWD/build/DerivedData-MobileTests" CODE_SIGNING_ALLOWED=NO build > "$artifacts/build.log" 2>&1
+app="$PWD/build/DerivedData-MobileTests/Build/Products/Debug-iphonesimulator/Chatterbox.app"
 cp -R "$app" "$artifacts/before.app"
 /usr/bin/python3 - "$artifacts/before.app/Info.plist" <<'PY'
 import plistlib,sys

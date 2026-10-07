@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Empty chats that carry user intent (name, Studio, agent/model) survive a relaunch; blank ones don't.
 # Needs a built app first: xcodebuild -scheme Chatterbox -derivedDataPath build/DerivedData build
 set -euo pipefail

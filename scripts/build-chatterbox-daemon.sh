@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib/source-list.sh
 mkdir -p build/runtime
 manifest=$(mktemp /tmp/golem-daemon-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT
@@ -12,4 +13,5 @@ printf '%s\n' \
  Chatterbox/Engine/MobilePush.swift Chatterbox/Engine/Pins.swift Chatterbox/Engine/ProjectAutomations.swift \
  Chatterbox/Support/HTTPFileTransfer.swift Shared/CompanionRetry.swift >> "$manifest"
 find -L ChatterboxDaemon -name '*.swift' >> "$manifest"
+check_source_list "$manifest"
 swiftc -D DEBUG -D CHATTERBOX_HEADLESS -whole-module-optimization -Onone -o build/runtime/chatterboxd @"$manifest"

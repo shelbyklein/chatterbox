@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Stress-tests "!" shell commands: bounded output, Stop/shutdown killing the process tree,
 # and normal commands. Uses an isolated data dir; builds the engine library into /tmp.
 # Needs a prior `xcodebuild -scheme Chatterbox -derivedDataPath build/DerivedData build` (for SwiftTerm).

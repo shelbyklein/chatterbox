@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 kind=${1:-iphone}
@@ -19,7 +20,7 @@ xcrun simctl bootstatus "$simulator" -b
 xcrun simctl ui "$simulator" appearance dark
 for product in Chatterbox; do
  xcodebuild -project Chatterbox.xcodeproj -scheme "${product}MobileAcceptance" -configuration Debug \
- -destination "platform=iOS Simulator,id=$simulator" -derivedDataPath "${GOLEM_MOBILE_DERIVED_DATA:-$artifacts/build}" \
+ -destination "platform=iOS Simulator,id=$simulator" -derivedDataPath "${GOLEM_MOBILE_DERIVED_DATA:-$PWD/build/DerivedData-MobileTests}" \
  -resultBundlePath "$artifacts/$product.xcresult" CODE_SIGNING_ALLOWED=NO test > "$artifacts/$product.log" 2>&1
  xcrun xcresulttool export attachments --path "$artifacts/$product.xcresult" --output-path "$artifacts/$product-screenshots"
 done

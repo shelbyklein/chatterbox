@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Claude task tools (TaskCreate/TaskUpdate/TaskList) mirrored as the chat's plan: deleting
 # by id, empty list clears the plan, status/subject/order updates. No live agents.
 set -euo pipefail

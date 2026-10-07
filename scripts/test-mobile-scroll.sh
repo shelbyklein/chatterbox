@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 case "${1:-iphone}" in
@@ -80,6 +81,6 @@ printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
 xcodebuild -project "$artifacts/MobileScrollRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$artifacts/build" -resultBundlePath "$artifacts/results.xcresult" test || status=$?
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" test || status=$?
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"
 exit "${status:-0}"

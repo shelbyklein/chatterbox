@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Checks the markdown/path-link caches against the uncached functions, and times them.
 # Needs a built tree: xcodebuild -scheme Chatterbox -derivedDataPath build/DerivedData build
 set -euo pipefail

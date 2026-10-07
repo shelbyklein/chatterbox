@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 # Renders Home's Studios page against copies of your chats (read-only) and checks thread image thumbnails.
 # Usage: scripts/test-chat-switch-perf.sh [conversations dir]
 set -euo pipefail

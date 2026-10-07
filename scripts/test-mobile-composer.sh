@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 case "${1:-iphone}" in
@@ -82,5 +83,5 @@ xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 xcodebuild -project "$artifacts/MobileComposerRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$artifacts/build" -resultBundlePath "$results" test "${@:2}"
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$results" test "${@:2}"
 xcrun xcresulttool export attachments --path "$results" --output-path "$artifacts/screenshots"
