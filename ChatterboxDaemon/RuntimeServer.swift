@@ -288,7 +288,11 @@ import CoreFoundation
             guard role=="ui" else{throw RuntimeFailure("permission_denied")}
             let s=try chat(r.body)
             guard let id=r.body["itemID"]?.string.flatMap(UUID.init(uuidString:)) else{throw RuntimeFailure("item_not_found")}
-            if r.operation=="answer" {s.answerQuestions(id,answers:try r.body["answers"]?.decode([String:[String]].self))}
+            if r.operation=="answer" {
+                // Skip sends no answers (missing or null): the agent carries on without them.
+                let raw=r.body["answers"]
+                s.answerQuestions(id,answers:raw == nil || raw == .null ? nil : try raw!.decode([String:[String]].self))
+            }
             else {guard let decision=r.body["decision"]?.string.flatMap(DisplayItem.ApprovalState.init(rawValue:)),[.approved,.approvedForSession,.denied].contains(decision) else{throw RuntimeFailure("invalid_decision")};s.resolveApproval(id,decision)}
         case "suggest":
             let s=try chat(r.body)
