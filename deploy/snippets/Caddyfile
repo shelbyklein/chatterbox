@@ -1,0 +1,28 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv/site
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# Private snippets: see private.caddy (blocked until Cloudflare Access guards /private).
+	@private path /private /private/*
+	handle @private {
+		import /etc/caddy/private.caddy
+	}
+	handle / {
+		respond "Snippets" 200
+	}
+	handle {
+		# No folder listings: a folder without index.html is a 404.
+		file_server {
+			hide .*
+		}
+	}
+}

@@ -68,6 +68,7 @@
 		36C8961B485B4DB26F4B01B7 /* Cards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 263AB703BFEE4CE044BF0EEE /* Cards.swift */; };
 		376721BCF4B3022E340A0F44 /* MobileGolem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F39BB2D7B99DF4FC05C5C5E /* MobileGolem.swift */; };
 		3790CB0F26FEF9A44AA9AF3A /* GolemMiniWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB81F880A459C5B4411E0929 /* GolemMiniWindow.swift */; };
+		38747DB4FA4BD1380422F7ED /* bin in Resources */ = {isa = PBXBuildFile; fileRef = 6C7A085DC138EF093037DABD /* bin */; };
 		38C35AD484F69B297C79B9B8 /* CodexAppServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C3FB24651A1A367B53C36 /* CodexAppServer.swift */; };
 		397690B122D0F245FAEA23D9 /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
 		39F63EAA08309F2F5D960BD8 /* DotMemorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462CBBE17D4E507D8351DFF1 /* DotMemorySheet.swift */; };
@@ -401,6 +402,7 @@
 		69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsAndExtras.swift; sourceTree = "<group>"; };
 		6A3E8A37E34CF7D0D7E03E69 /* DotConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotConversation.swift; sourceTree = "<group>"; };
 		6B9B9BA5000628B0F42E2188 /* ChatHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHomeView.swift; sourceTree = "<group>"; };
+		6C7A085DC138EF093037DABD /* bin */ = {isa = PBXFileReference; lastKnownFileType = folder; path = bin; sourceTree = SOURCE_ROOT; };
 		6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptImages.swift; sourceTree = "<group>"; };
 		6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatColumnWidths.swift; sourceTree = "<group>"; };
 		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
@@ -702,6 +704,7 @@
 		A7DB699FF1B4A1B6456E2A07 = {
 			isa = PBXGroup;
 			children = (
+				6C7A085DC138EF093037DABD /* bin */,
 				F8396140D14FE6E04F22C13F /* prompts */,
 				154C18D3935765CA48CB7EE9 /* Chatterbox */,
 				4BA34E139479E429C387801B /* Chatterbox */,
@@ -1017,6 +1020,7 @@
 			files = (
 				17BF765717748A9396DC6875 /* Assets.xcassets in Resources */,
 				8767304DFCD79431AA3A486C /* Assets.xcassets in Resources */,
+				38747DB4FA4BD1380422F7ED /* bin in Resources */,
 				42E0AA7989519D1AC9812E73 /* prompts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

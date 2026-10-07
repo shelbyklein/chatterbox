@@ -1,0 +1,6 @@
+# Private snippets stay unreachable until a Cloudflare Access application protects
+# snippets.shelbyklein.com/private. Then replace this with:
+#   @access header Cf-Access-Authenticated-User-Email *
+#   file_server @access { hide .* }
+#   respond 403
+respond "Private snippets aren't enabled yet." 403

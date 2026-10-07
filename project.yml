@@ -30,6 +30,10 @@ targets:
     - path: Core/prompts
       type: folder
       buildPhase: resources
+    # The snippet command (bin/snippet); install.sh links it into ~/.local/bin for agents.
+    - path: bin
+      type: folder
+      buildPhase: resources
     dependencies:
     - target: ChatterboxHost
       embed: true

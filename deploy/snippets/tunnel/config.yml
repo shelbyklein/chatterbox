@@ -1,0 +1,6 @@
+tunnel: 9f038e77-125d-4b4f-937c-e9eb88382045
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: snippets.shelbyklein.com
+    service: http://127.0.0.1:3120
+  - service: http_status:404

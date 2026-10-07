@@ -16,6 +16,9 @@ for i in {1..20}; do pgrep -xq Chatterbox || break; sleep 0.25; done
 rm -rf /Applications/Chatterbox.app
 ditto "$BUILD" /Applications/Chatterbox.app
 codesign --verify --deep --strict /Applications/Chatterbox.app
+# Chats' agents publish web snippets with `snippet` (bin/snippet), from their shell's PATH.
+mkdir -p "$HOME/.local/bin"
+ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/snippet "$HOME/.local/bin/snippet"
 # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
 # and `open` hands the caller's environment to the app. Launch it without any of them.
 clean_open() {
