@@ -15,7 +15,7 @@ source scripts/lib/safe-stop.sh
 apply=0; [[ " $* " == *" --apply "* ]] && apply=1
 repo=$PWD
 # The only build folders scripts may use (see AGENTS.md, "Build and test hygiene").
-keep_builds="DerivedData DerivedDataMobile DerivedData-MobileTests runtime"
+keep_builds="DerivedData DerivedDataMobile DerivedData-MobileTests runtime TestFlight"
 day=$((24*3600)); now=$(date +%s)
 removable=0; kept=0; other_apps=0
 

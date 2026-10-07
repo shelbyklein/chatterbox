@@ -33,6 +33,8 @@
 	<string>1</string>
 	<key>ChatterboxAPNsEnvironment</key>
 	<string>$(APNS_ENVIRONMENT)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

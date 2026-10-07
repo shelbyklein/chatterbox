@@ -5,11 +5,12 @@ once, and Chatterbox runs the chats they work in, so leftovers and blind restart
 
 ## Build and test hygiene
 
-- **Builds go in four folders only**, one build each, reused run to run:
+- **Builds go in these folders only**, one build each, reused run to run:
   - `build/DerivedData`: the Mac app, service and host (`install.sh`, `ship.sh`, Mac tests)
   - `build/DerivedDataMobile`: iPhone/iPad device builds
   - `build/DerivedData-MobileTests`: simulator tests
   - `build/runtime`: the service built by `scripts/build-chatterbox-daemon.sh`
+  - `build/TestFlight`: the newest TestFlight archive (`scripts/testflight.sh`)
 
   Never build into `/tmp` or a per-run folder. Each extra build leaves a full app copy that macOS
   then offers as Chatterbox.
