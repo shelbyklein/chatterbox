@@ -83,7 +83,7 @@ while IFS= read -r app; do
 done < <( { find /tmp /private/tmp -maxdepth 6 \( -name Chatterbox.app -o -name Golem.app \) -type d -prune 2>/dev/null
             find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o \( -name Chatterbox.app -o -name Golem.app \) -type d -prune -print 2>/dev/null; } | sort -u)
 
-(( other_apps )) && item "$other_apps app copies in other repos' build folders (e.g. Golem); their own tidy covers them"
+(( other_apps )) && item "$other_apps app copies in other repos' build folders (e.g. Golem); left for that repo's own cleanup"
 
 section "Simulators made by tests"
 while IFS= read -r line; do
