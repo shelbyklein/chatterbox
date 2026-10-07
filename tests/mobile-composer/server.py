@@ -5,7 +5,7 @@ IDS=['11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-33333333333
 logs=[]; messages=[[],[]]; hold=False; fail=False; release=threading.Event(); lock=threading.Lock(); running=False
 def summary(i):return {'id':IDS[i],'title':['Regression Golem','Regression Project'][i],'backend':'codex','isRunning':running,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':i==0}
 def detail(i):
- return {'revision':len(messages[i])+1,'summary':summary(i),'settings':'Codex','earlierCount':0,'items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':'Ready for send regression.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]+messages[i]}
+ return {'revision':len(messages[i])+1,'summary':summary(i),'settings':'Codex','earlierCount':0,'items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':'Ready for send regression.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]+messages[i],'nextSteps':(['Run the full test suite','Open a pull request for this change','Write up what changed for the changelog'] if i==1 and not running else None)}
 class Handler(http.server.BaseHTTPRequestHandler):
  def reply(self,x,status=200):
   b=json.dumps(x).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(b)));self.send_header('Cache-Control','no-store');self.end_headers()

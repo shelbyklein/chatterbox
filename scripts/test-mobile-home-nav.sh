@@ -47,9 +47,9 @@ targets:
     platform: iOS
     sources:
 '''
-for source in ['ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
+for source in ['ChatterboxMobile','ChatterboxMobile/ChatterboxMobileApp.swift','Core/ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
     y+='      - path: '+str(root/source)+'\n'
-    if source=='ChatterboxMobile': y+='        excludes: [Info.plist]\n'
+    if source=='ChatterboxMobile': y+='        excludes: [Info.plist, "*.swift"]\n'
 y+='''    settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.HomeNavRegression

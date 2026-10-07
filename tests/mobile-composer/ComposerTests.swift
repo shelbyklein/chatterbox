@@ -22,6 +22,27 @@ final class ComposerTests: XCTestCase {
     XCTAssertTrue(field(app).waitForExistence(timeout:5))
     return app
   }
+  #if !GOLEM_APP
+  /// Next Steps arrive folded to one line; tapping shows and hides them, and a step fills the box.
+  @MainActor func testNextStepsFolded() async throws {
+    _ = try await control("reset")
+    let app = open()
+    let show = app.buttons["Show 3 suggested next steps"]
+    XCTAssertTrue(show.waitForExistence(timeout:8))
+    XCTAssertFalse(app.buttons["Run the full test suite"].exists)
+    capture(app,"next-steps-folded")
+    show.tap()
+    let step = app.buttons["Run the full test suite"]
+    XCTAssertTrue(step.waitForExistence(timeout:3))
+    capture(app,"next-steps-open")
+    app.buttons["Hide suggested next steps"].tap()
+    XCTAssertTrue(app.buttons["Show 3 suggested next steps"].waitForExistence(timeout:3))
+    XCTAssertFalse(app.buttons["Run the full test suite"].exists)
+    app.buttons["Show 3 suggested next steps"].tap()
+    app.buttons["Run the full test suite"].tap()
+    XCTAssertEqual(field(app).value as? String, "Run the full test suite")
+  }
+  #endif
   @MainActor func testSessionControls() async throws {
     _ = try await control("reset"); _ = try await control("running")
     let app = open(true)

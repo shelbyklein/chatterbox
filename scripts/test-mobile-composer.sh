@@ -48,10 +48,10 @@ targets:
     platform: iOS
     sources:
 '''
-for source in (['GolemMobile'] if os.environ.get('GOLEM_TEST_PRODUCT')=='golem' else [])+['ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
+for source in (['GolemMobile'] if os.environ.get('GOLEM_TEST_PRODUCT')=='golem' else [])+['ChatterboxMobile','ChatterboxMobile/ChatterboxMobileApp.swift','Core/ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
     y+='      - path: '+str(Path(os.environ.get('GOLEM_REPO',str(root.parent/'Golem')))/source if source=='GolemMobile' else root/source)+'\n'
     if source=='GolemMobile': y+='        excludes: [Info.plist]\n'
-    if source=='ChatterboxMobile': y+='        excludes: [Info.plist, Assets.xcassets/AppIcon.appiconset]\n'
+    if source=='ChatterboxMobile': y+='        excludes: [Info.plist, Assets.xcassets/AppIcon.appiconset, "*.swift"]\n'
 y+='''    settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression
