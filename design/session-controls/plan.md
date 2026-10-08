@@ -51,3 +51,18 @@ User confirms combining New replies and Working and keeping the combined section
 Target sketch updated to bottom Activity with New replies and Working rows. Linear; current session, exact model/effort unavailable; user direct request authorizes implementation now. R1–R13 pass for this local scoped follow-up, no blocking questions. Rollback by reverting these UI commits.
 
 Combined footer verified: Mac build and source check passed; finished-chat-bell test passed navigation, persistence and clearing. Inspected [combined Activity](combined-sidebar.png), containing two unread sessions and one working session. Not installed.
+
+## Global Pins in the toolbar — 2026-10-08
+User requests global pins in the middle top bar, managed in their own Settings tab. Keep scoped project/Studio pins under their owners and add them directly via owner right-click menus; remove the global sidebar grid. Preserve saved pins, opening actions and keyboard shortcuts. Global toolbar icons open pins, overflow remains reachable, and Settings offers add, rename, remove, reorder, icon size and website opening preference. Add Pin uses its requested scope without an Everywhere/project selector. No migration, service restart or runtime change.
+
+- [x] T7 Move global pins to a persistent central toolbar slot and add Settings > Pins. Build, inspect toolbar/settings renders, verify scoped pin creation and existing pins, commit/push. Install awaits approval.
+
+Linear execution, current session; no delegation. User scope is implementation-ready, R1-R13 covered by this scope, existing target and checks. Rollback by reverting the scoped UI commits; stored pin data unchanged.
+
+Pins evidence: Mac build and source check passed. scripts/test-sidebar-pins.sh passed global/project separation, reorder and rename checks; inspected [global icons](global-pins.png), [Pins settings](pins-settings.png), and [project-scoped Add Pin](project-add-pin.png). Inspected [full toolbar](global-pins-toolbar.png): global icons sit in the center, session controls remain at the chat's right, and global sidebar grid is gone. Existing project pills and context menus remain. Mechanical layout scan returned no findings. Tidy report remains 126 old test folders, 837 MB; no deletion.
+
+The first full toolbar suite passed the new centered-slot and stable-item checks but failed one Studios transition assertion before its render showed the correct Studios title and disabled Terminal. The harness now restores window focus and waits up to three seconds for the page/toolbar state, instead of a fixed 800 ms. Repeat check pending. Installed mouse interaction is still an acceptance check after approved installation.
+
+Repeated transition tests revealed native action validation was re-enabling Terminal on overview pages, despite apply() setting it disabled. Terminal now sets autovalidates=false so its availability follows the selected page/session, while other native buttons retain normal validation. This tiny adjacent fix is needed for consistent toolbar behavior; Mac rebuild passed. Final full suite pending.
+
+Final verification: all full toolbar checks passed, including the centered Pins slot, stable items on every page, disabled Terminal on overview pages, and attention navigation/clearing. Inspected the final toolbar render again. All scoped work is ready to commit/push; installation remains pending under AGENTS.md.

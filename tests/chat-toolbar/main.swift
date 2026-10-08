@@ -51,6 +51,10 @@ func run() async throws {
         "themeBackground": ProcessInfo.processInfo.environment["TOOLBAR_THEME"] ?? "standard", "settingsPage": ProcessInfo.processInfo.environment["TOOLBAR_PAGE"] ?? "models"
     ], forName: UserDefaults.argumentDomain)
     let model = AppModel()
+    for pin in PinStore.shared.pins { PinStore.shared.remove(pin) }
+    for path in ["/Applications", "/System/Applications/Notes.app", "/System/Applications/Calendar.app"] {
+        PinStore.shared.add(Pin(title: URL(fileURLWithPath: path).lastPathComponent, kind: path.hasSuffix(".app") ? .app : .file, target: path, place: nil))
+    }
     let chats = model.activeSessions.filter { !$0.isDot && $0.record.backend == .claude && $0.record.projectFolder != nil }
     let others = model.activeSessions.filter { !$0.isDot && $0.record.backend == .codex }
     guard chats.count >= 2, let codex = others.first else { fatalError("Need two Claude project chats and a Codex chat") }
@@ -82,12 +86,13 @@ func run() async throws {
 
     try await show(a)
     check(WindowToolbar.made.count == 1, "one toolbar for the window (\(WindowToolbar.made.map(\.debugState)))")
+    check(window.toolbar?.centeredItemIdentifiers.contains(NSToolbarItem.Identifier("chatterbox.pins")) == true, "global pins use the centered toolbar slot")
     let first = items()
     let titleWidth = item("title")?.view?.frame.width ?? 0
     // AppKit adds four points of field padding to the constrained 200-point label.
     check((200...205).contains(titleWidth), "fixed title width reserves navigation space (\(titleWidth))")
     func checkGlobalBar(_ page: String) {
-        check(["views", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
+        check(["pins", "views", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
         check(abs((item("title")?.view?.frame.width ?? 0) - titleWidth) < 1, "title space unchanged on \(page)")
     }
     check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
@@ -174,8 +179,14 @@ func run() async throws {
     check(items() == first && !hidden("terminal"), "chat items return, same items, after Settings")
     // Home and back.
     model.showingHome = true
-    try await Task.sleep(for: .milliseconds(800))
-    check(!hidden("terminal") && item("terminal")?.isEnabled == false && window.title == "Studios", "Studios retains disabled Terminal and uses its own title")
+    window.makeKeyAndOrderFront(nil)
+    // Native toolbar validation follows the page's layout; wait for the actual
+    // state rather than assuming an 800 ms page-switch deadline.
+    for _ in 0..<30 {
+        if !hidden("terminal") && item("terminal")?.isEnabled == false && window.title == "Studios" { break }
+        try await Task.sleep(for: .milliseconds(100))
+    }
+    check(!hidden("terminal") && item("terminal")?.isEnabled == false && window.title == "Studios", "Studios retains disabled Terminal and uses its own title (title=\(window.title), terminal=\(String(describing: item("terminal")?.isEnabled)))")
     checkGlobalBar("Studios")
     save(window, "6-home", out)
     model.showingHome = false
