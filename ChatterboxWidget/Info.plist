@@ -20,8 +20,6 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>ChatterboxSharedKeychainGroup</key>
-	<string>$(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>

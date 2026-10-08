@@ -127,8 +127,6 @@ targets:
           CFBundleURLSchemes:
           - chatterbox
         ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
-        # Where the app leaves the widget's snapshot (a Keychain group both can read).
-        ChatterboxSharedKeychainGroup: $(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
         - UIInterfaceOrientationPortrait
@@ -202,7 +200,6 @@ targets:
         CFBundleDisplayName: Chatterbox
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
-        ChatterboxSharedKeychainGroup: $(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.mobile.widget
