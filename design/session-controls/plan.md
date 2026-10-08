@@ -68,3 +68,10 @@ Repeated transition tests revealed native action validation was re-enabling Term
 Final verification: all full toolbar checks passed, including the centered Pins slot, stable items on every page, disabled Terminal on overview pages, and attention navigation/clearing. Inspected the final toolbar render again. All scoped work is ready to commit/push; installation remains pending under AGENTS.md.
 
 Installed acceptance — 2026-10-08: user approved installation. scripts/install.sh completed; installed executable SHA-256 matches the verified build. chatterboxd retained PID 24522. App reconnected and restored Building Chatterbox. Native inspection confirmed five saved global pins centered in the toolbar, the bottom Activity footer with two working sessions above Archived, Settings > Pins with all five saved pins, and Add Global Pin opening the Global-scoped sheet. Dismissed without changing pins and returned to the active chat. No service restart or interrupted replies.
+
+## Always-expanded Projects — 2026-10-08
+User requests removing the ability to minimize Projects. Replace its clickable chevron heading with a plain heading and always render its list, ignoring any old collapsed preference. Keep Filter, New Project, cards/list choice, pinned threads, Studio/Chats collapse and Activity unchanged. Scoped UI follow-up, linear execution; direct request authorizes implementation.
+
+- [x] T8 Build and render Projects with a previously collapsed preference; inspect that cards remain visible and the heading has no collapse affordance. Run studio-sidebar fixture and source check; commit/push. Installation awaits approval under AGENTS.md.
+
+Always-open verification: Mac Debug build and source check passed. Studio sidebar routing fixture passed and rendered Projects with sidebarProjectsCollapsed=true. Inspected [Projects expanded](projects-expanded.png): the project card is visible beneath a plain Projects heading without a chevron; filter and + remain. Tidy report remains 126 old folders, no removals. Not installed.

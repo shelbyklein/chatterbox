@@ -37,6 +37,17 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let view=panel.contentView!;view.layoutSubtreeIfNeeded()
  let bitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:bitmap)
  try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/studio-sidebar.png"))
+ // A previously saved collapsed Projects preference must not hide the list.
+ var preferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
+ preferences["sidebarProjectsCollapsed"]=true
+ preferences["sidebarTagFilter"]=""
+ UserDefaults.standard.setVolatileDomain(preferences,forName:UserDefaults.argumentDomain)
+ model.selectedID=project.id
+ try await Task.sleep(for:.milliseconds(700))
+ view.layoutSubtreeIfNeeded()
+ let projectsBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:projectsBitmap)
+ try projectsBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/projects-expanded.png"))
  print("PASS: studio A/B, project/standalone routing, linked shortcut, bell navigation and new-chat membership; native ContentView render: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}};app.run()
