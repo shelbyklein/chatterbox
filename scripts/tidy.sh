@@ -85,6 +85,18 @@ done < <( { find /tmp /private/tmp -maxdepth 6 \( -name Chatterbox.app -o -name 
 
 (( other_apps )) && item "$other_apps app copies in other repos' build folders (e.g. Golem); left for that repo's own cleanup"
 
+# The simulator service can wedge and leave simctl hanging; give up after 20 seconds.
+simulators() {
+  local out; out=$(mktemp /tmp/chatterbox-tidy-sims.XXXXXX)
+  xcrun simctl list devices > "$out" 2>/dev/null & local pid=$!
+  for _ in $(seq 40); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null
+    item "simulator list didn't answer in 20 s (the simulator service may need a restart); skipped" >&2
+  fi
+  cat "$out"; rm -f "$out"
+}
+
 section "Simulators made by tests"
 while IFS= read -r line; do
   [[ -n "$line" ]] || continue
@@ -93,8 +105,7 @@ while IFS= read -r line; do
   removable=$((removable+1)); listed "simulator: $line"
   (( apply )) && xcrun simctl delete "$udid" >/dev/null 2>&1
   true
-done < <(xcrun simctl list devices 2>/dev/null \
-  | grep -E 'Golem separation|Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' | sed -E 's/^ +//')
+done < <(simulators | grep -E 'Golem separation|Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' | sed -E 's/^ +//')
 
 section "Restart jobs and activation folders"
 for pid in $(pgrep -f 'restart-service.sh|Activation/activate.sh|cb-restart.sh' 2>/dev/null); do
