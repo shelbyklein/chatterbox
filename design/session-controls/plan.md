@@ -89,3 +89,10 @@ User shows Studios overview tiles as the target for pinned Studio sessions. Rend
 - [x] T10 Build; inspect Studio sidebar list/card renders with pinned image sessions and verify cache loads and existing navigation checks. Commit/push. Install together with pending Projects and card-thumbnail changes after approval.
 
 Pinned Studio verification: Mac build and source check passed; studio-sidebar fixture passed routing/shortcut/new-session checks and thumbnail loading. Inspected [pinned tiles in list mode](studio-pins-list.png) and [pinned tiles above cards](studio-pins-cards.png). Both use the same compact overview tile with name below; non-pinned rows/cards remain unchanged. Standalone harness has no provider asset catalog, so empty provider fallback/badge in these fixture renders is a known harness limitation; native icon resources and existing overview tile implementation are unchanged. Tidy report remains report-only. Not installed.
+
+Installed acceptance for T8–T10: user approved restarting; scripts/install.sh completed and installed executable matched the build. Background service PID remained unchanged.
+
+## Matching session control heights — 2026-10-08
+User requests equal heights for tools, notes, quick prompts and collapsed message pins. Give all four collapsed labels an explicit 32-point height with existing horizontal padding and full rectangular hit areas. Expanded notes/pins retain natural panel height. Scoped linear UI follow-up; implementation authorized directly. Build and inspect a control render, commit/push; installation awaits approval.
+
+Verified: Mac build and source check passed; chat-pins fixture passed persistence/toggle checks and rendered open/folded panels. Inspected [collapsed pin control](pins-matched-height.png). All four collapsed labels use 32 points, while expanded panel headings remain unconstrained. Previous installed batch reconnected and restored the Studio session in native inspection. Installation of this height adjustment remains pending.
