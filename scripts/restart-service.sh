@@ -6,6 +6,9 @@
 #   scripts/restart-service.sh --now      restart right away (replies in progress stop;
 #                                         their chats keep their history)
 #   scripts/restart-service.sh --app      also quit and reopen Chatterbox afterwards
+#   scripts/restart-service.sh --codex    also stop Chatterbox's Codex process (only the one
+#                                         under its host, never the ChatGPT app's), so the next
+#                                         Codex chat starts it fresh with current settings
 #   scripts/restart-service.sh --delay N  start N seconds from now (so a chat's reply lands first)
 #
 # Runs detached and replaces any restart already queued, so restarts never stack up.
@@ -26,11 +29,12 @@ if [[ "${RESTART_SERVICE_DETACHED:-}" != 1 ]]; then
   exit 0
 fi
 
-now=0 app=0 delay=0
+now=0 app=0 codex=0 delay=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --now) now=1 ;;
     --app) app=1 ;;
+    --codex) codex=1 ;;
     --delay) delay=${2:-0}; shift ;;
   esac
   shift
@@ -64,6 +68,16 @@ launchctl kickstart -k "gui/$(id -u)/com.shelbyklein.chatterboxd"
 for _ in $(seq 60); do
   new=$(pgrep -x chatterboxd); [[ -n "$new" && "$new" != "$old" ]] && break; sleep 1
 done
+if (( codex )); then
+  # Chatterbox keeps one Codex app-server in its host and reattaches to it across restarts,
+  # so a changed launch setting only applies to a fresh one. Chats keep their threads.
+  for host in $(pgrep -f "Chatterbox.app/Contents/MacOS/ChatterboxHost"); do
+    for pid in $(pgrep -P "$host" -f "codex app-server"); do
+      log "stopping Chatterbox's Codex app-server (pid $pid)"
+      kill "$pid" 2>/dev/null
+    done
+  done
+fi
 if (( app )); then
   osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null
   for _ in $(seq 40); do pgrep -xq Chatterbox || break; sleep 0.5; done
