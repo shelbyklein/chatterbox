@@ -126,6 +126,7 @@
 		6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */; };
 		70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */; };
 		727A362E83382B75592BA2B8 /* AssistantConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325E96EC802C7975CFC0E53E /* AssistantConfiguration.swift */; };
+		72BE225D2DC2DA67DEEB5CD8 /* ChatPins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE5B9593D09D0EE54B45984 /* ChatPins.swift */; };
 		73645E513DB79C5847930EC2 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */; };
 		73D4465AAFFAD57CDBDD47B5 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		73D83C8064E9C10AEB7D857E /* RuntimeServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */; };
@@ -205,6 +206,7 @@
 		C13032352B9C1BC38FEE5334 /* HTTPFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */; };
 		C2062E2BD580A322486C6A14 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
 		C2553C9E5C131530E84F8ED4 /* AssistantInstructions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928B73BF6D5470A41AA10484 /* AssistantInstructions.swift */; };
+		C25C36518A6BF374EBC20D08 /* GolemCapabilitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4266553DB50DB97AF95C8C /* GolemCapabilitiesView.swift */; };
 		C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */; };
 		C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		C571AA7E4E3DC1956AE2D81A /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E5A2ED4CB638E3E92864B6 /* ConnectView.swift */; };
@@ -449,6 +451,7 @@
 		8A195847F26FA0A20E3EC6D6 /* QuickSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickSwitcher.swift; sourceTree = "<group>"; };
 		8B92F8FDD1CBCE6C1FE09B53 /* IssuesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuesPanel.swift; sourceTree = "<group>"; };
 		8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxApp.swift; sourceTree = "<group>"; };
+		8CE5B9593D09D0EE54B45984 /* ChatPins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPins.swift; sourceTree = "<group>"; };
 		8F15AA06275FEBC5A7954E50 /* Studios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Studios.swift; sourceTree = "<group>"; };
 		8FACABAADB1BC61CD83F6473 /* OutputBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutputBuffer.swift; sourceTree = "<group>"; };
 		928B73BF6D5470A41AA10484 /* AssistantInstructions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantInstructions.swift; sourceTree = "<group>"; };
@@ -514,6 +517,7 @@
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
+		EB4266553DB50DB97AF95C8C /* GolemCapabilitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemCapabilitiesView.swift; sourceTree = "<group>"; };
 		EB73F11534DDADDA5F5063E8 /* ConversationRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationRuntime.swift; sourceTree = "<group>"; };
 		EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileConversationStyle.swift; sourceTree = "<group>"; };
 		ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommands.swift; sourceTree = "<group>"; };
@@ -642,6 +646,7 @@
 				F5955B401AB9BC438178B6BD /* Dictation.swift */,
 				0363FE3EC140EFFD83FD9DE4 /* GolemAppearance.swift */,
 				2017DD6EF562F5B527BC36B2 /* GolemAudioSession.swift */,
+				EB4266553DB50DB97AF95C8C /* GolemCapabilitiesView.swift */,
 				93F4855A5280DDE920296921 /* GolemVoice.swift */,
 				77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */,
 				E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */,
@@ -816,6 +821,7 @@
 				00772506A1F5031126B3A36E /* ChatFind.swift */,
 				6B9B9BA5000628B0F42E2188 /* ChatHomeView.swift */,
 				0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */,
+				8CE5B9593D09D0EE54B45984 /* ChatPins.swift */,
 				2C9F2CF5EC415AC3F8FF1EB9 /* ChatSettingsCog.swift */,
 				9C4CA0CF0AC2654218DD2FE2 /* ChatSwitchTransition.swift */,
 				8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */,
@@ -1136,6 +1142,7 @@
 				4246C0009B2DA25884176621 /* ChatFind.swift in Sources */,
 				3E2D20C60750AB355102FFE9 /* ChatHomeView.swift in Sources */,
 				28DEC7A04F7372851A27B9B6 /* ChatImageGallery.swift in Sources */,
+				72BE225D2DC2DA67DEEB5CD8 /* ChatPins.swift in Sources */,
 				677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */,
 				27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */,
 				E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */,
@@ -1289,6 +1296,7 @@
 				B4C0CF83925F8F0C9F708CBD /* FilePaths.swift in Sources */,
 				E66C78FB28C2789272D9343A /* GolemAppearance.swift in Sources */,
 				25E12B5D55CF4291A23A0EF3 /* GolemAudioSession.swift in Sources */,
+				C25C36518A6BF374EBC20D08 /* GolemCapabilitiesView.swift in Sources */,
 				B16799B7A681E45726C435EC /* GolemConversationShortcuts.swift in Sources */,
 				2734036DB8DD02AA836CF905 /* GolemQuickPrompts.swift in Sources */,
 				194C29C495FC8617E8B39AED /* GolemVoice.swift in Sources */,
