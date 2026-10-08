@@ -42,3 +42,12 @@ Target: the existing target sketch plus a bottom Working heading and one-line ro
 Follow-up verification: Mac Debug build and source check passed. scripts/test-finished-chat-bell.sh passed running/completed filtering, persistence and native activity navigation. Inspected [compact Working list](working-sidebar.png). Tools, Notes and Quick prompts labels now have contentShape(Rectangle()) after their padding, so padded label areas participate in hit testing. Installed bottom placement and padding-click acceptance remain pending user-approved installation. Tidy report unchanged (126 older temp folders); nothing deleted.
 
 Follow-up installed acceptance: user approved installation; scripts/install.sh completed, installed executable matches the build and chatterboxd PID stayed unchanged. Inspected installed sidebar with Working above Archived (three sessions, then four as another turn began). Clicked empty padding near the lower-left of the Notes button, and the notes text box expanded. Further UI actions were stopped when native computer use detected concurrent user navigation. No replies interrupted.
+
+## Combined Activity footer — 2026-10-08
+User confirms combining New replies and Working and keeping the combined section at the bottom. Replace the sidebar's two sections with one compact, collapsible Activity section above Archived. Show unseen finished replies first (blue dot), then running sessions (provider-colored spinner), each as a one-line clickable session name. Header shows separate new/working counts, with a bounded scroll area for all rows. Chats shows All caught up when empty. Studios thumbnail page remains unchanged. Preserve attention, navigation and unread-clearing semantics; no runtime, iOS or transcript data changes.
+
+- [x] T6 Implement and build combined footer; render a fixture with both new and working sessions, run scripts/test-finished-chat-bell.sh and source check, inspect render, commit/push. Installation requires separate user approval under AGENTS.md.
+
+Target sketch updated to bottom Activity with New replies and Working rows. Linear; current session, exact model/effort unavailable; user direct request authorizes implementation now. R1–R13 pass for this local scoped follow-up, no blocking questions. Rollback by reverting these UI commits.
+
+Combined footer verified: Mac build and source check passed; finished-chat-bell test passed navigation, persistence and clearing. Inspected [combined Activity](combined-sidebar.png), containing two unread sessions and one working session. Not installed.
