@@ -11,9 +11,15 @@ app.setActivationPolicy(.accessory)
     var record = ConversationRecord(model:"opus", effort:"medium", personality:.pragmatic)
     record.title = "Question waiting"
     record.items = [DisplayItem(kind:.questions,text:"Which layout should I use?",approvalState:.pending)]
+    let artwork=URL(fileURLWithPath:root).appendingPathComponent("latest-artwork.png")
+    let icon=NSWorkspace.shared.icon(forFile:"/System/Applications/Notes.app")
+    let representation=NSBitmapImageRep(data:icon.tiffRepresentation!)!
+    try representation.representation(using:.png,properties:[:])!.write(to:artwork)
+    record.items.insert(DisplayItem(kind:.assistant,text:"Latest artwork: [Preview](" + artwork.path + ")",phase:.final),at:0)
     let waiting = model.insertSession(record)
-    record.id = UUID(); record.title = "Ready session"; record.items = []
+    record.id = UUID(); record.title = "Ready session"; record.items = [DisplayItem(kind:.assistant,text:"Latest artwork: [Preview](" + artwork.path + ")",phase:.final)]
     let ready = model.insertSession(record)
+    precondition(ChatSession.referencedImages(in: "Latest artwork: [Preview](" + artwork.path + ")", folder: root).contains(artwork))
     let window = NSWindow(contentRect:NSRect(x:50,y:80,width:750,height:550),styleMask:[.titled,.closable],backing:.buffered,defer:false)
     window.orderFrontRegardless()
     func render(_ name:String, _ dark:Bool) async throws {
@@ -21,9 +27,9 @@ app.setActivationPolicy(.accessory)
         window.contentView = NSHostingView(rootView: VStack(alignment:.leading,spacing:16) {
             Text("Pending question: unselected / selected / ready").font(.headline)
             HStack(alignment:.top,spacing:16) {
-                ThreadCard(session:waiting) {}.frame(width:220)
-                ThreadCard(session:waiting,selected:true) {}.frame(width:220)
-                ThreadCard(session:ready) {}.frame(width:220)
+                ThreadCard(session:waiting) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
+                ThreadCard(session:waiting,selected:true) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
+                ThreadCard(session:ready) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
             }
             HStack(spacing:24) {
                 ThreadCard(session:waiting,iconOnly:true) {}
@@ -39,8 +45,9 @@ app.setActivationPolicy(.accessory)
     }
     precondition(waiting.isWaitingOnYou && !ready.isWaitingOnYou)
     try await render("pending-dark",true)
+    precondition(ThreadThumbnails.shared.images[waiting.id] != nil && ThreadThumbnails.shared.images[ready.id] != nil)
     try await render("pending-light",false)
-    waiting.record.items[0].approvalState = .approved
+    waiting.record.items[1].approvalState = .approved
     precondition(!waiting.isWaitingOnYou)
     try await render("answered-dark",true)
     let html = URL(fileURLWithPath:root).appendingPathComponent("Website Review.html")
