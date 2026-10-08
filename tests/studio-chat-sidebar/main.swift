@@ -30,6 +30,13 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let created=model.newChat(in:a)
  precondition(created.record.studioID==a.id && model.studioSidebarID==a.id)
  model.selectedID=first.id
+ let artwork=URL(fileURLWithPath:root+"/studio-artwork.png")
+ let icon=NSWorkspace.shared.icon(forFile:"/System/Applications/Notes.app")
+ let representation=NSBitmapImageRep(data:icon.tiffRepresentation!)!
+ try representation.representation(using:.png,properties:[:])!.write(to:artwork)
+ first.record.items.append(DisplayItem(kind:.assistant,text:"[Latest artwork]("+artwork.path+")",phase:.final))
+ model.togglePinnedThread(first)
+ model.togglePinnedThread(second)
  let panel=NSPanel(contentRect:NSRect(x:80,y:80,width:1240,height:780),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
  panel.appearance=NSAppearance(named:.darkAqua);panel.orderFrontRegardless()
  panel.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
@@ -37,6 +44,15 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let view=panel.contentView!;view.layoutSubtreeIfNeeded()
  let bitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:bitmap)
  try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/studio-sidebar.png"))
+ precondition(ThreadThumbnails.shared.images[first.id] != nil)
+ var cardPreferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
+ cardPreferences["macStudioSidebarCards"]=true
+ UserDefaults.standard.setVolatileDomain(cardPreferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ view.layoutSubtreeIfNeeded()
+ let cardBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:cardBitmap)
+ try cardBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/studio-pinned-cards.png"))
  // A previously saved collapsed Projects preference must not hide the list.
  var preferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
  preferences["sidebarProjectsCollapsed"]=true
