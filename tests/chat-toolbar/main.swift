@@ -92,6 +92,22 @@ func run() async throws {
     }
     check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
     check(window.title == a.title, "window title is the chat's (\(window.title))")
+    check(hidden("tone") && hidden("place") && hidden("repo"), "session tools are inside the chat, not duplicated in the global toolbar")
+    save(window, "12-session-tools", out)
+    // Render the panel directly: this harness does not reliably expose SwiftUI controls
+    // through AX or synthetic clicks. Actual popover interaction remains an installed check.
+    let toolsBridge = ChatToolbarBridge()
+    let toolsPanel = IssuesPanelState()
+    toolsBridge.attach(a, owner: UUID(), issuesPanel: toolsPanel, showImages: {}, toggleTerminal: {}, chooseProject: {})
+    let toolsWindow = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 560, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    toolsWindow.appearance = NSAppearance(named: .darkAqua)
+    toolsWindow.contentView = NSHostingView(rootView: SessionToolsPanel(bridge: toolsBridge).padding(20).environment(model).environment(\.colorScheme, .dark))
+    toolsWindow.orderFrontRegardless()
+    try await Task.sleep(for: .milliseconds(400))
+    save(toolsWindow, "13-session-tools-panel", out)
+    toolsWindow.close()
+    window.makeKeyAndOrderFront(nil)
+    app.activate(ignoringOtherApps: true)
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
     check(order.prefix(2) == ["title", "views"] && order.suffix(6) == ["usage", "terminal", "finished", "NSToolbarSpaceItem", "settings", "newChat"]
             && order.contains("newChat") && !order.contains("images") && !order.contains("remote"),
@@ -214,12 +230,21 @@ func run() async throws {
     sideWindow.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
     sideWindow.orderFrontRegardless()
     model.showingChatsSidebar = true
+    model.showingSettings = true
+    finishedChat.record.archivedAt = nil
+    finishedChat.isRunning = true; Attention.shared.update(finishedChat, model: model)
+    finishedChat.isRunning = false; Attention.shared.update(finishedChat, model: model)
+    model.showingSettings = false
     MacHomeDebug.cards=[:]
     try await Task.sleep(for:.seconds(1))
     // SwiftUI does not expose this offscreen sidebar through the harness AX tree.
     // Inspect the native captures for section and filter parity instead.
     print("RENDER Chats sidebar with project tag filter: inspect 8-chats-sidebar.png")
     save(sideWindow,"8-chats-sidebar",out)
+    check(Attention.shared.finishedChats(in: model).contains(where: { $0.id == finishedChat.id }), "Chats sidebar fixture contains an unread finished reply")
+    check(Attention.shared.openFinishedChat(finishedChat.id, in: model) && !Attention.shared.unread.contains(finishedChat.id), "New replies opens the chat and clears the unread entry")
+    try await Task.sleep(for: .milliseconds(400))
+    save(sideWindow, "14-chats-caught-up", out)
     AppPreferences.defaults.set("",forKey:"sidebarTagFilter")
     model.showingChatsSidebar = false
     MacHomeDebug.cards=[:]
