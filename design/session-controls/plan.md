@@ -29,3 +29,14 @@ Tidy report: 126 older test folders (837 MB), no leftover test processes or stra
 
 ## Installed acceptance
 2026-10-08: user approved installation; scripts/install.sh completed and the installed executable matched the verified build. The app reconnected; chatterboxd retained PID 24522. Through native computer use, Session tools opened its popover with Friendly, USA Archery and Image Library; Image Library opened the current session’s six images. Closed the sheet and returned to the same chat. Inspected the installed screenshot showing tools, Notes and Quick prompts on the right. No service restart or interruption of replies.
+
+## Compact Working list — 2026-10-08 follow-up
+User requests currently turning sessions at the bottom of the left sidebar, minimal. Confirmed scope: all regular sidebar pages, above Archived, provider-colored spinner and one-line title; collapsible heading and a bounded scrolling list, hidden when empty. New replies stays at the top. No new persisted chat data, runtime changes or iOS work. Use Attention.workingChats and openWorkingChat.
+
+- [x] T4 Build and inspect the compact Working strip; existing activity test verifies running/finished filtering and navigation. Run scripts/test-finished-chat-bell.sh and the Mac Debug build, then commit/push. Installed check waits for user approval under AGENTS.md.
+
+Target: the existing target sketch plus a bottom Working heading and one-line rows directly above Archived. Linear; current session, exact model/effort unavailable. R1–R13 pass for this scoped addition; no blocking questions. Rollback by reverting these UI commits.
+
+- [x] T5 Make the whole padded Tools, Notes and Quick prompts label clickable, not just its glyph. Verify padding clicks in the installed app after approved installation. No behavior or data change beyond hit areas.
+
+Follow-up verification: Mac Debug build and source check passed. scripts/test-finished-chat-bell.sh passed running/completed filtering, persistence and native activity navigation. Inspected [compact Working list](working-sidebar.png). Tools, Notes and Quick prompts labels now have contentShape(Rectangle()) after their padding, so padded label areas participate in hit testing. Installed bottom placement and padding-click acceptance remain pending user-approved installation. Tidy report unchanged (126 older temp folders); nothing deleted.

@@ -18,6 +18,16 @@ app.setActivationPolicy(.regular)
  let a=chat("Website review",project:true),b=chat("Design discussion"),unseen=chat("Never ran"),working=chat("Building a new feature")
  working.record.turnStartedAt=Date().addingTimeInterval(-75);working.isRunning=true;attention.update(working,model:model)
  precondition(attention.workingChats(in:model).map(\.id)==[working.id])
+ let workingPanel=NSPanel(contentRect:NSRect(x:80,y:80,width:280,height:100),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+ workingPanel.appearance=NSAppearance(named:.darkAqua)
+ workingPanel.contentView=NSHostingView(rootView:WorkingSessionsStrip().padding(12).environment(model).environment(\.colorScheme,.dark))
+ workingPanel.orderFrontRegardless()
+ try await Task.sleep(for:.milliseconds(400))
+ let workingView=workingPanel.contentView!;workingView.layoutSubtreeIfNeeded()
+ let workingBitmap=workingView.bitmapImageRepForCachingDisplay(in:workingView.bounds)!
+ workingView.cacheDisplay(in:workingView.bounds,to:workingBitmap)
+ try workingBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/working-sidebar.png"))
+ workingPanel.close()
  working.record.archivedAt=Date();precondition(attention.workingChats(in:model).isEmpty);working.record.archivedAt=nil
  model.selectedID=a.id;model.showingSettings=true
  func finish(_ session:ChatSession) {
