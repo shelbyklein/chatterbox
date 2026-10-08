@@ -33,8 +33,8 @@
 	<string>1</string>
 	<key>ChatterboxAPNsEnvironment</key>
 	<string>$(APNS_ENVIRONMENT)</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+	<key>ChatterboxSharedKeychainGroup</key>
+	<string>$(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

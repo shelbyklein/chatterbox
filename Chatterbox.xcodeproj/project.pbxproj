@@ -19,6 +19,7 @@
 		0C05433F3D417EFBF927AD1F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90E1FEF54757E746B104D0F /* main.swift */; };
 		0D0AA5565003163647FC890D /* PinsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25AF49642A0603DB9DB1791 /* PinsSection.swift */; };
 		0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
+		12069144D157B29FCB0815F3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		121878FD864195B66430A97B /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
 		12619EA37700E060F9BDE7FD /* ChatToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */; };
 		137ED88037D2881190CDF3F7 /* MobileHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE3430D1F51F793F8FC03FD /* MobileHome.swift */; };
@@ -51,6 +52,7 @@
 		2734036DB8DD02AA836CF905 /* GolemQuickPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DE0E3B1B7232E6F04FAAED /* GolemQuickPrompts.swift */; };
 		276EB339DC400FBCFE8D603E /* WideFormStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C151709A832C444A1409D2 /* WideFormStyle.swift */; };
 		27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */; };
+		28372556AE4BB0A64CDCDE67 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		286A355D770106A89DA0551C /* Dictation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5955B401AB9BC438178B6BD /* Dictation.swift */; };
 		28DDC8A2DD7364FFD02158BC /* Pins.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81413A73CF1A4475E1CF397 /* Pins.swift */; };
 		28DEC7A04F7372851A27B9B6 /* ChatImageGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */; };
@@ -60,6 +62,7 @@
 		2D48AEA40066889EB6AFFD04 /* CompanionRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */; };
 		2DDAEA2004F04D51E4EF2430 /* GolemAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1767B59C4C4C368214261D /* GolemAvatar.swift */; };
 		2F1B60297BF6B1E6A6A8BB08 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
+		2FB71D9AA2A2CA4EB04E316A /* ChatterboxWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */; };
 		32DA4519D8A6AF10EFEF00BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B55108B3057B43E6116C7F3E /* Assets.xcassets */; };
 		3453C4E8264324D032F40A73 /* GitHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA6AEF5454AAA03F422E2A83 /* GitHub.swift */; };
@@ -111,6 +114,7 @@
 		5F0BC7AEA79F4CF348EA5935 /* CodexRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFFE37B80756592FFA1C4E /* CodexRoute.swift */; };
 		5FB81543834E300F4736AFE1 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		61B0870D58D1582854C7C5A3 /* Dot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439370872F6E041E6DB407AF /* Dot.swift */; };
+		61E2DE8E9AC65F9F834630C0 /* ChatterboxWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */; };
 		62274C8508FBA7F285193C28 /* CompanionDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */; };
 		62A8710D3A01763ADF5B0D92 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		65DFD36FCBC41F84E758DF29 /* ConversationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB73F11534DDADDA5F5063E8 /* ConversationRuntime.swift */; };
@@ -243,6 +247,7 @@
 		E631F4772E55260D5D7A2939 /* UtteranceTranscript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D418B517334C825CDCF5216 /* UtteranceTranscript.swift */; };
 		E66C78FB28C2789272D9343A /* GolemAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0363FE3EC140EFFD83FD9DE4 /* GolemAppearance.swift */; };
 		E7740955205D1F5FF8F479FB /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
+		E7E97C400408C81738252805 /* MobileWidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09288A3CF85309BDD4A2156 /* MobileWidgetSync.swift */; };
 		E9422879FFA0BE8563EB91C4 /* IssuePrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */; };
 		E9BA32C051BDE7E4D0FF0AB8 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CA0C530A3B250D3DD1CB52 /* main.swift */; };
 		EB8E9F83549CA91E457A34D2 /* AutomationsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C730A3C46C1BA05DCD3159 /* AutomationsSheet.swift */; };
@@ -262,6 +267,7 @@
 		F7536EF03980D8DF1AF66274 /* CompanionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA9F0B419529549C12E3317 /* CompanionAPI.swift */; };
 		F8B670EE672EBDE0BA77AC87 /* ElevenLabsSpeechSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 684370C40CDFEB2C4E7F70BE /* ElevenLabsSpeechSettings.swift */; };
 		FA765A7C0DE9F18A246F90EE /* MobileProductTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E022C0C64F7986EC3E3C3B37 /* MobileProductTests.swift */; };
+		FAA7515AF05681D60A8E1AE3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
 		FC04411E7BB76D3B86BB87BA /* CodexAppServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C3FB24651A1A367B53C36 /* CodexAppServer.swift */; };
 		FC8BFEAC696C3CA2113BA6E3 /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
@@ -290,6 +296,13 @@
 			remoteGlobalIDString = 578988CD38A582FB0EF4CA0C;
 			remoteInfo = ChatterboxMobile;
 		};
+		D0E52EA84E07492100BD50B0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 332F3704E8BF10712F3EA051 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B407DAAFC1BC33B70EF46DA8;
+			remoteInfo = ChatterboxWidget;
+		};
 		EEB5BAC35F3D9AC5EA999551 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 332F3704E8BF10712F3EA051 /* Project object */;
@@ -311,6 +324,17 @@
 				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		365D1F970BEC4EDDDB8630C7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2FB71D9AA2A2CA4EB04E316A /* ChatterboxWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -392,6 +416,7 @@
 		59D2A3DE96AF0E796C221742 /* Studio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Studio.swift; sourceTree = "<group>"; };
 		5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileHTMLPreview.swift; sourceTree = "<group>"; };
 		5F02305CEDD843C4F7102555 /* ChatCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCommands.swift; sourceTree = "<group>"; };
+		5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxWidget.swift; sourceTree = "<group>"; };
 		609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionDocuments.swift; sourceTree = "<group>"; };
 		6240D04D668176B8C39EAF3F /* StarterPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarterPrompts.swift; sourceTree = "<group>"; };
 		62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeServer.swift; sourceTree = "<group>"; };
@@ -434,6 +459,7 @@
 		9C4CA0CF0AC2654218DD2FE2 /* ChatSwitchTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSwitchTransition.swift; sourceTree = "<group>"; };
 		9F0AFE1BA90D359718CB671D /* MobileNewReplies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileNewReplies.swift; sourceTree = "<group>"; };
 		9FD98C94B6B0110116CCF659 /* NextSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextSteps.swift; sourceTree = "<group>"; };
+		A09288A3CF85309BDD4A2156 /* MobileWidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileWidgetSync.swift; sourceTree = "<group>"; };
 		A125487FAFCF644CD583045D /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
 		A241350B2223FA06355C13DB /* IssueToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueToolbar.swift; sourceTree = "<group>"; };
 		A25AF49642A0603DB9DB1791 /* PinsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinsSection.swift; sourceTree = "<group>"; };
@@ -482,6 +508,7 @@
 		E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileComposerDraft.swift; sourceTree = "<group>"; };
 		E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EasyCLIProxy.swift; sourceTree = "<group>"; };
 		E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Shell.swift"; sourceTree = "<group>"; };
+		E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ChatterboxWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E5B972A7FDEA18389B723512 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		E65FB7F7B2B0B0DDEAC21AFD /* ChatterboxMobileProductTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChatterboxMobileProductTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
@@ -492,6 +519,7 @@
 		ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommands.swift; sourceTree = "<group>"; };
 		EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPFileTransfer.swift; sourceTree = "<group>"; };
 		F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionRetry.swift; sourceTree = "<group>"; };
+		F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F590872692259FADBC73667E /* DocumentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewer.swift; sourceTree = "<group>"; };
 		F5955B401AB9BC438178B6BD /* Dictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dictation.swift; sourceTree = "<group>"; };
@@ -573,6 +601,7 @@
 				199795CA97CD07D743A50C57 /* ChatterboxMCP */,
 				CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */,
 				E65FB7F7B2B0B0DDEAC21AFD /* ChatterboxMobileProductTests.xctest */,
+				E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -626,6 +655,7 @@
 				DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */,
 				406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */,
 				667AC120BEF5177C4AB1C659 /* MobileStore.swift */,
+				A09288A3CF85309BDD4A2156 /* MobileWidgetSync.swift */,
 				69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */,
 				B6987D2087FA491665C4A101 /* SketchView.swift */,
 				CA49B80C67589CFEA0ED49EF /* SpeechAnalyzerEngine.swift */,
@@ -717,11 +747,21 @@
 				E2635671C5C6C1D1304588F2 /* ChatterboxMobile */,
 				7D886BBEF0A5D092E293232F /* ChatterboxMobile */,
 				1824A168C645EF6FDBB77F10 /* ChatterboxRuntime */,
+				ACE27DE7E8D2BCC8B6839207 /* ChatterboxWidget */,
 				D24426DC8DC18F52B4BF66F0 /* golem-integration */,
 				C6B12A3603C9CF94D6D9FD59 /* Shared */,
 				23F87C5E2E945F111C863034 /* Frameworks */,
 				2F9592D1030ED1DCAA887DA5 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		ACE27DE7E8D2BCC8B6839207 /* ChatterboxWidget */ = {
+			isa = PBXGroup;
+			children = (
+				5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */,
+			);
+			name = ChatterboxWidget;
+			path = Core/ChatterboxWidget;
 			sourceTree = "<group>";
 		};
 		BEA4E58928416F73C90BFFA2 /* ChatterboxMCP */ = {
@@ -748,6 +788,7 @@
 				6240D04D668176B8C39EAF3F /* StarterPrompts.swift */,
 				C520C60380E1A12AF90AF044 /* UtterancePause.swift */,
 				2D418B517334C825CDCF5216 /* UtteranceTranscript.swift */,
+				F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */,
 			);
 			name = Shared;
 			path = Core/Shared;
@@ -882,10 +923,12 @@
 			buildPhases = (
 				97F2FCDBAB73EB8D988AF393 /* Sources */,
 				CFF72267322F674B1B1FA945 /* Resources */,
+				365D1F970BEC4EDDDB8630C7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6A98F434DAFD5C07D89D0130 /* PBXTargetDependency */,
 			);
 			name = ChatterboxMobile;
 			packageProductDependencies = (
@@ -910,6 +953,23 @@
 			productName = ChatterboxDaemon;
 			productReference = 2E985FA69A646D773A6202FA /* ChatterboxDaemon */;
 			productType = "com.apple.product-type.tool";
+		};
+		B407DAAFC1BC33B70EF46DA8 /* ChatterboxWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCBAF9FD6A02B8CBC24D6F3C /* Build configuration list for PBXNativeTarget "ChatterboxWidget" */;
+			buildPhases = (
+				1041882950B3BCD285A4ADE1 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChatterboxWidget;
+			packageProductDependencies = (
+			);
+			productName = ChatterboxWidget;
+			productReference = E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		D299F600849DAEBF23CE54AB /* ChatterboxHost */ = {
 			isa = PBXNativeTarget;
@@ -971,6 +1031,10 @@
 						DevelopmentTeam = 9F3MKVW9C5;
 						ProvisioningStyle = Manual;
 					};
+					B407DAAFC1BC33B70EF46DA8 = {
+						DevelopmentTeam = 9F3MKVW9C5;
+						ProvisioningStyle = Automatic;
+					};
 					D299F600849DAEBF23CE54AB = {
 						DevelopmentTeam = 9F3MKVW9C5;
 						ProvisioningStyle = Manual;
@@ -1001,6 +1065,7 @@
 				D299F600849DAEBF23CE54AB /* ChatterboxHost */,
 				159C00E94E712B7D36CA0F6E /* ChatterboxMCP */,
 				578988CD38A582FB0EF4CA0C /* ChatterboxMobile */,
+				B407DAAFC1BC33B70EF46DA8 /* ChatterboxWidget */,
 				733AF63E580406FD19867832 /* ChatterboxDaemon */,
 				FE583FF9E37F26BE875FAF5C /* ChatterboxMobileProductTests */,
 			);
@@ -1036,6 +1101,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				DDA317C76C77D32F8E771879 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1041882950B3BCD285A4ADE1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61E2DE8E9AC65F9F834630C0 /* ChatterboxWidget.swift in Sources */,
+				12069144D157B29FCB0815F3 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1176,6 +1250,7 @@
 				86FD72699B9898ED45B9F795 /* UtteranceTranscript.swift in Sources */,
 				25A75E689316C0AFEEA9CE52 /* WebPane.swift in Sources */,
 				276EB339DC400FBCFE8D603E /* WideFormStyle.swift in Sources */,
+				FAA7515AF05681D60A8E1AE3 /* WidgetSnapshot.swift in Sources */,
 				D5961041D9791D4160B9DC85 /* WindowToolbar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1231,6 +1306,7 @@
 				6DA818645AA618460684665B /* MobilePDFViewer.swift in Sources */,
 				22DD258AFC5A17209F364B57 /* MobilePushNotifications.swift in Sources */,
 				240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */,
+				E7E97C400408C81738252805 /* MobileWidgetSync.swift in Sources */,
 				3676EB8F6588D30D5BB9A400 /* PathLinks.swift in Sources */,
 				1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */,
 				FF3C1F89AA5F1CE49531E94B /* ReaderStyle.swift in Sources */,
@@ -1241,6 +1317,7 @@
 				C5AA2B923B13F157E0B511FA /* TranscriptViews.swift in Sources */,
 				CF74FC843C65A5211ED9E849 /* UtterancePause.swift in Sources */,
 				E631F4772E55260D5D7A2939 /* UtteranceTranscript.swift in Sources */,
+				28372556AE4BB0A64CDCDE67 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1339,6 +1416,11 @@
 			target = 159C00E94E712B7D36CA0F6E /* ChatterboxMCP */;
 			targetProxy = 36D9C35A2F71910A6A84E3D7 /* PBXContainerItemProxy */;
 		};
+		6A98F434DAFD5C07D89D0130 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B407DAAFC1BC33B70EF46DA8 /* ChatterboxWidget */;
+			targetProxy = D0E52EA84E07492100BD50B0 /* PBXContainerItemProxy */;
+		};
 		BDFAB3564F6F8952CBE2E171 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D299F600849DAEBF23CE54AB /* ChatterboxHost */;
@@ -1347,6 +1429,30 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		421B94903CC22098B41B3851 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ChatterboxWidget/ChatterboxWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				INFOPLIST_FILE = ChatterboxWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.mobile.widget;
+				PRODUCT_NAME = ChatterboxWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		5C23ABE6C6804C72240D2BD1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1615,6 +1721,30 @@
 			};
 			name = Debug;
 		};
+		A7002EB7138142C39D38242D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ChatterboxWidget/ChatterboxWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				INFOPLIST_FILE = ChatterboxWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.mobile.widget;
+				PRODUCT_NAME = ChatterboxWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		B97516C3142AC356BC24555F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1773,6 +1903,15 @@
 			buildConfigurations = (
 				FA51A9DDD3C6ADFD3DCCFBF7 /* Debug */,
 				8D9977C4C1FD36E42DC86319 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DCBAF9FD6A02B8CBC24D6F3C /* Build configuration list for PBXNativeTarget "ChatterboxWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7002EB7138142C39D38242D /* Debug */,
+				421B94903CC22098B41B3851 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

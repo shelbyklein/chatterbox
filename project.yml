@@ -127,6 +127,8 @@ targets:
           CFBundleURLSchemes:
           - chatterbox
         ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
+        # Where the app leaves the widget's snapshot (a Keychain group both can read).
+        ChatterboxSharedKeychainGroup: $(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
         - UIInterfaceOrientationPortrait
@@ -184,6 +186,35 @@ targets:
           APNS_ENVIRONMENT: development
         Release:
           APNS_ENVIRONMENT: production
+    dependencies:
+    # The Home Screen and Lock Screen widget, embedded in the app.
+    - target: ChatterboxWidget
+  ChatterboxWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+    - path: Core/ChatterboxWidget
+    - path: Core/Shared/WidgetSnapshot.swift
+    info:
+      path: ChatterboxWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Chatterbox
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        ChatterboxSharedKeychainGroup: $(AppIdentifierPrefix)com.shelbyklein.Chatterbox.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.mobile.widget
+        PRODUCT_NAME: ChatterboxWidget
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: '1'
+        TARGETED_DEVICE_FAMILY: 1,2
+        DEVELOPMENT_TEAM: 9F3MKVW9C5
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: '5.0'
+        CODE_SIGN_ENTITLEMENTS: ChatterboxWidget/ChatterboxWidget.entitlements
+        SKIP_INSTALL: true
   ChatterboxDaemon:
     type: tool
     platform: macOS
