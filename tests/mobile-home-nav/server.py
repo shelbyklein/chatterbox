@@ -11,9 +11,9 @@ PROJECTS=[('Chatterbox','Shipped the Next Steps plugin and the new message box.'
  ('Tracker Trapper','Checked the menu-bar progress after the update.',None,False)]
 def summary(name,line,branch=None,waiting=False,dot=False):
  s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
- if name=='Coach Archie':
+ if name in ['Coach Archie','Chatterbox']:
   s['thumbnail']={'id':cid('thumbnail'),'name':'proof.png','mediaType':'image/png','isImage':True,'revision':'1'}
-  s['project']=None
+  if name=='Coach Archie':s['project']=None
  if branch:s['worktreeBranch']=branch
  return s
 def chats():

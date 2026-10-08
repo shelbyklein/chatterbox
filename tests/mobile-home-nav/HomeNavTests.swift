@@ -38,6 +38,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(first.waitForExistence(timeout: 5) && second.exists)
   XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2, "two cards share a row")
   XCTAssertLessThan(first.frame.maxX, second.frame.minX, "side by side")
+  XCTAssertFalse(app.images["Latest image in Chatterbox"].exists, "Projects never show thumbnails")
   capture("3-cards", app)
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()

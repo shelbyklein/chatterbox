@@ -25,10 +25,10 @@ app.setActivationPolicy(.accessory)
     func render(_ name:String, _ dark:Bool) async throws {
         window.appearance = NSAppearance(named:dark ? .darkAqua : .aqua)
         window.contentView = NSHostingView(rootView: VStack(alignment:.leading,spacing:16) {
-            Text("Pending question: unselected / selected / ready").font(.headline)
+            Text("Pending question: Studio unselected / selected / Project without thumbnail").font(.headline)
             HStack(alignment:.top,spacing:16) {
-                ThreadCard(session:waiting) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
-                ThreadCard(session:waiting,selected:true) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
+                ThreadCard(session:waiting,showsThumbnail:true) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
+                ThreadCard(session:waiting,selected:true,showsThumbnail:true) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
                 ThreadCard(session:ready) {}.frame(width:220).fixedSize(horizontal:false,vertical:true)
             }
             HStack(spacing:24) {
