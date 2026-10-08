@@ -96,3 +96,17 @@ Installed acceptance for T8–T10: user approved restarting; scripts/install.sh 
 User requests equal heights for tools, notes, quick prompts and collapsed message pins. Give all four collapsed labels an explicit 32-point height with existing horizontal padding and full rectangular hit areas. Expanded notes/pins retain natural panel height. Scoped linear UI follow-up; implementation authorized directly. Build and inspect a control render, commit/push; installation awaits approval.
 
 Verified: Mac build and source check passed; chat-pins fixture passed persistence/toggle checks and rendered open/folded panels. Inspected [collapsed pin control](pins-matched-height.png). All four collapsed labels use 32 points, while expanded panel headings remain unconstrained. Previous installed batch reconnected and restored the Studio session in native inspection. Installation of this height adjustment remains pending.
+
+## Mobile Studio card thumbnails — 2026-10-08
+The supplied iPhone photo shows Studio cards with no artwork. Add the latest image below the preview, preserving proportions, provider/status, title and activity; no-image cards stay plain. Same placement as the accepted Mac card thumbnails above supplies the target. Linear execution, current session; exact model/effort unavailable. User request authorizes implementation. No image edits, migrations, publishing or GitHub issue changes. Optional wire field keeps older clients/servers compatible; revert commits to roll back.
+
+Success: authenticated preview endpoint serves JPEG at most 320 pixels; unpaired and cross-chat requests are refused. Simulator Studio cards show fetched preview and unchanged no-image card. Deliver committed/pushed code, tests, evidence and device build; install/restart requires approval under AGENTS.md.
+
+- [x] T11 Share bounded cached lookup and authenticated off-main encoding; verify API dimensions/access with scripts/test-companion-pdf.sh.
+- [x] T12 Add mobile cached previews; build iOS/Mac, render Studios with scripts/test-mobile-home-nav.sh; inspect, commit/push. Install/activation pending.
+
+Readiness R1–R13 pass for scoped follow-up using user screenshot and accepted Mac card evidence; no blocking questions. Existing native styling retained. Local plan only, no issue mutations.
+
+API acceptance: companion-pdf fixture passed existing byte-identical file/PDF checks plus thumbnail authentication, cross-chat rejection and exact 640x480 → 320x240 downsampling. Mac and signed iPhone builds pass. Cached scan now includes final/streaming phase so a finished reply refreshes previews. Initial Studio UI test passed and was visually inspected; it left Studios selected and broke the following navigation calibration. The fixture now restores Projects; full rerun pending.
+
+Final verification: all three mobile-home-nav tests pass after restoring Projects at the end of the Studio test. Inspected [Studio cards in the iPhone simulator](mobile-card-thumbnails.png): bounded aspect-preserving rounded preview below reply, plain no-image neighbor. A simulator Apple Intelligence banner obscures the header but not the cards. Test artwork is a synthetic gradient; real phone artwork acceptance awaits installation. Signed iOS/Mac builds and source check pass. Tidy reported leftovers only and kept the active fixture; no removals or service restart.

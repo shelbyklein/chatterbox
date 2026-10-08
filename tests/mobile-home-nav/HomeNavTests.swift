@@ -58,6 +58,18 @@ final class HomeNavTests: XCTestCase {
   // The system sidebar gesture can hide the sidebar; list/cards interaction
   // was already verified above before exercising native navigation.
  }
+ @MainActor func testStudioCardThumbnails() async throws {
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
+  app.tabBars.buttons["Studios"].tap()
+  if app.buttons["Show as Cards"].exists { app.buttons["Show as Cards"].tap() }
+  XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
+  XCTAssertFalse(app.images["Latest image in No image"].exists)
+  capture("studio-card-thumbnails",app)
+  app.tabBars.buttons["Projects"].tap()
+ }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",

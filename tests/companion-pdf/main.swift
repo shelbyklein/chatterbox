@@ -1,3 +1,4 @@
+import ImageIO
 import AppKit
 import Foundation
 let app = NSApplication.shared
@@ -42,14 +43,29 @@ app.setActivationPolicy(.prohibited)
  let attached=try await request("/v1/chats/\(chat.id.uuidString)/files/\(attachment.id.uuidString)")
  precondition(attached.1==200 && attached.0==original)
  let imageURL=URL(fileURLWithPath:root).appendingPathComponent("existing-image.png")
- let pixels=Data(base64Encoded:"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==")!
+ let bitmap=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:640,pixelsHigh:480,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+ let graphics=NSGraphicsContext(bitmapImageRep:bitmap)!
+ NSGraphicsContext.saveGraphicsState();NSGraphicsContext.current=graphics
+ NSColor.blue.setFill();NSRect(x:0,y:0,width:640,height:480).fill()
+ NSGraphicsContext.restoreGraphicsState()
+ let pixels=bitmap.representation(using:.png,properties:[:])!
  try pixels.write(to:imageURL)
  let image=Attachment(name:"existing-image.png",path:imageURL.path,mediaType:"image/png",kind:.image)
  chat.appendItem(DisplayItem(kind:.user,text:"Attached image",attachments:[image]))
  let existingImage=try await request("/v1/chats/\(chat.id.uuidString)/files/\(image.id.uuidString)")
  precondition(existingImage.1==200 && existingImage.0==pixels)
+ let thumbnail=CompanionMapper.summary(chat).thumbnail!
+ precondition(thumbnail.id==ChatSession.mediaID(imageURL.path))
+ let thumbPath="/v1/chats/\(chat.id.uuidString)/thumbnail/\(thumbnail.id.uuidString)"
+ let thumb=try await request(thumbPath)
+ precondition(thumb.1==200)
+ let thumbSource=CGImageSourceCreateWithData(thumb.0 as CFData,nil)!
+ let thumbImage=CGImageSourceCreateImageAtIndex(thumbSource,0,nil)!
+ precondition(thumbImage.width == 320 && thumbImage.height == 240)
+ let thumbUnauthorized=try await request(thumbPath,authenticated:false);precondition(thumbUnauthorized.1==401)
  let other=model.newChat(backend:.claude)
  let cross=try await request("/v1/chats/\(other.id.uuidString)/files/\(id.uuidString)");precondition(cross.1==404)
+ let crossThumb=try await request("/v1/chats/\(other.id.uuidString)/thumbnail/\(thumbnail.id.uuidString)");precondition(crossThumb.1==404)
  try FileManager.default.removeItem(at:url)
  let missing=try await request(path);precondition(missing.1==404)
  print("PASS: portable relative/absolute links, unchanged transcript, authenticated byte-identical 8 MiB transfer, cross-chat/unknown/missing rejection, attachment and image transfer compatibility")
