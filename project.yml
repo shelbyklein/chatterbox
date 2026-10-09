@@ -121,6 +121,7 @@ targets:
     info:
       path: ChatterboxMobile/Info.plist
       properties:
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Chatterbox
         CFBundleURLTypes:
         - CFBundleURLName: com.shelbyklein.Chatterbox.chat
@@ -197,6 +198,7 @@ targets:
     info:
       path: ChatterboxWidget/Info.plist
       properties:
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDisplayName: Chatterbox
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension

@@ -31,7 +31,7 @@ mkdir -p "$out"
 find "$out" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 archive="$out/Chatterbox-$build.xcarchive"
 
-echo "Archiving build $build…"
+echo "Archiving build ${build}…"
 xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Release \
   -destination generic/platform=iOS -derivedDataPath build/DerivedDataMobile \
   -archivePath "$archive" CURRENT_PROJECT_VERSION="$build" "${auth[@]}" -quiet archive

@@ -27,6 +27,10 @@ already sends to the right one for each device.
 
 5. **Install TestFlight** on the iPhone and iPad from the App Store.
 
+The app record is now **Chatterbox Companion**, Apple ID **6821003584**, with bundle ID
+`com.shelbyklein.Chatterbox.mobile` and SKU `chatterbox-mobile`. It was created through
+Xcode's first-upload flow on October 9, 2026; don't create another record.
+
 ## Each release
 
     ./scripts/testflight.sh
@@ -34,3 +38,15 @@ already sends to the right one for each device.
 After Apple processes the build (usually 5–15 minutes), it shows in App Store Connect →
 TestFlight. Add yourself once as an internal tester there (Internal Testing → +), and every
 later build arrives in the TestFlight app automatically. Internal builds expire after 90 days.
+
+## First upload status — October 9, 2026
+
+Build **202610090952**, version **1.0**, was accepted by App Store Connect; `xcodebuild`
+reported **EXPORT SUCCEEDED** and **Uploaded package is processing**. The app and widget
+both use `CURRENT_PROJECT_VERSION`, so subsequent uploads get the script's new build number.
+The archive is in `build/TestFlight/Chatterbox-202610090952.xcarchive` (replaced on the next release).
+
+Still to verify in App Store Connect: processing completion, an internal testing group,
+the account holder added as a tester, and the build assigned to that group. A browser sign-in
+is required to complete those steps; an accepted upload alone doesn't make the app available
+on the phone.
