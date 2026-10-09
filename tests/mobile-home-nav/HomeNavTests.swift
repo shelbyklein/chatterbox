@@ -68,6 +68,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
   app.tabBars.buttons["Studios"].tap()
   if app.buttons["Show as Cards"].exists { app.buttons["Show as Cards"].tap() }
+  let reply = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
+  let working = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
+  XCTAssertTrue(reply.waitForExistence(timeout:5) && working.exists)
+  XCTAssertEqual(reply.frame.minX, working.frame.minX, accuracy:2)
+  XCTAssertGreaterThan(working.frame.minY, reply.frame.minY, "Activity entries stay vertically stacked list rows")
+  XCTAssertGreaterThan(reply.frame.width, app.windows.firstMatch.frame.width * 0.8, "Activity uses the full-width list")
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
   XCTAssertFalse(app.images["Latest image in No image"].exists)
   capture("studio-card-thumbnails",app)

@@ -39,3 +39,17 @@ Scope and now decision: confirmed by 'sure go for it'. Linear: the changes share
 ## Delivery
 
 Core `97f7953`, root implementation `68ff7c9` pushed. Release build **1.0 (202610091050)** uploaded successfully; Apple completed processing and its current-build encryption declaration was saved. The Shelby automatic internal group now lists this build as **Testing**: [delivery evidence](assets/testflight-ready.jpg). New build phone installation and user acceptance are not claimed. Mac pin-row change is built and pushed, awaiting install approval; no app or service restart occurred.
+
+
+## Follow-up: Activity remains a list
+The Studio gallery introduced cards for the Activity section. Shelby requests reply and working entries remain list rows on iOS, independent of gallery mode. Current evidence is the compact branch in `MobileNewReplies.swift` and [gallery render](assets/studio-card-thumbnails.png); target is the existing row layout shown in [list render](assets/studio-list.png).
+
+Scope: restore the shared list presentation for Activity; retain collapsibility, three unseen replies, running chats and open-chat actions. Studio gallery cards, Activity timeline tab and stored unread state stay unchanged. No open questions.
+- [x] A1 Remove Activity card variant. Acceptance: Studios Activity rows span width and stack vertically in simulator.
+- [x] A2 Verify Studio navigation and inspect fresh screenshot. Acceptance: targeted home-navigation UI test passes.
+- [x] A3 Commit and push scoped change. TestFlight activation is a separate delivery step.
+Success: Studio gallery still has thumbnails, while Activity is a list with working and unseen reply links. Deliverables: Core UI, test and evidence committed/pushed. Test: `MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testStudioCardThumbnails scripts/test-mobile-home-nav.sh iphone`. Rollback: revert scoped commits; no data change. Work preparation: scope authorized by direct correction; linear for one shared component, current session; exact model/effort unavailable. R1–R13 pass (R12 n/a for source-only delivery). Local checklist only; no GitHub issue mutation.
+
+Follow-up verification: targeted simulator test passed after correcting the test lookup for combined iOS accessibility labels. [Fresh inspected Activity list](assets/activity-list.png) shows full-width rows above gallery cards. Release 202610091257 uploaded and verified Testing in Shelby internal group. Core/root committed and pushed for delivery. Tidy report only: 5 removable, 2 kept; no cleanup applied. Mac pin-row installation succeeded earlier.
+
+Sidequest investigation: Mac breadcrumbs logged unsupported_operation twice at 12:56. Running chatterboxd PID 1764 started October 8 at 16:39, before daemon Sidequest handler commit d0350b4 at October 9 00:50. Installed binary includes sidequest/invalid_sidequest. Idle restart queued through scripts/restart-service.sh, hosted by launchctl job com.shelbyklein.chatterbox.idle-restart; log confirms waiting at 12:58:38. No replies interrupted; retry Sidequest after restart.
