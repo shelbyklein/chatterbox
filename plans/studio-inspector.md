@@ -129,7 +129,7 @@ None blocking. To revisit after seeing it rendered:
 - **Mode:** `linear`. The tasks share `ChatHomeView.swift` and the mac-home test, so parallel lanes would conflict on the same files.
 - **Models:** linear executor Opus 5.5 (`claude-opus-5-5`), high effort.
 - **Handoff:** n/a (linear)
-- **Now or later:** not yet decided
+- **Now or later:** now (Shelby, 2026-10-08)
 - **Readiness:** see below.
 - **Remaining questions:** none blocking.
 

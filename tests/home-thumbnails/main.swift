@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 // Run through scripts/test-home-thumbnails.sh: copies of your chats, nothing resumed.
-// Renders Home's Studios page and checks that threads with images show them on their tiles.
+// Renders the Studios page on one Studio's inspector and checks that threads with images show them.
 let app = NSApplication.shared
 app.setActivationPolicy(.regular)
 typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
@@ -15,7 +15,6 @@ func run() async throws {
     UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
         "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
         "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios",
-        "homeCardScale": Double(ProcessInfo.processInfo.environment["THUMB_SCALE"] ?? "1") ?? 1,
         "themeBackground": ProcessInfo.processInfo.environment["THUMB_THEME"] ?? "standard",
         "sidebarTagFilter": ProcessInfo.processInfo.environment["THUMB_TAGS"] ?? "",
         "sidebarLineSpacing": Double(ProcessInfo.processInfo.environment["THUMB_LINES"] ?? "2") ?? 2,
@@ -23,6 +22,12 @@ func run() async throws {
         "sidebarProjectSort": ProcessInfo.processInfo.environment["THUMB_SORT"] ?? "recent",
         "macSidebarCards": ProcessInfo.processInfo.environment["THUMB_CARDS"] != nil], forName: UserDefaults.argumentDomain)
     let model = AppModel()
+    // Pins are this Mac's preference and aren't copied, so open a Studio's inspector instead
+    // (THUMB_STUDIO names one; else the one with the most chats).
+    let wanted = ProcessInfo.processInfo.environment["THUMB_STUDIO"]
+    if let studio = model.activeStudios.first(where: { $0.name == wanted }) ?? model.activeStudios.max(by: { model.chats(in: $0).count < model.chats(in: $1).count }) {
+        UserDefaults.standard.set(studio.id.uuidString, forKey: "macStudioSelection")
+    }
     let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 1500, height: 900),
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
     let host = NSHostingView(rootView: ContentView().environment(model))
@@ -49,6 +54,7 @@ func run() async throws {
     }
     print("git statuses loaded:", model.sidebarProjects.filter { GitStatusStore.shared.status(for: $0.record.projectFolder) != nil }.count, "of", model.sidebarProjects.count)
     print(shown.isEmpty ? "RESULT no thumbnails" : "RESULT ok")
+    UserDefaults.standard.removeObject(forKey: "macStudioSelection")
     exit(0)
 }
 Task { @MainActor in do { try await run() } catch { print("error", error); exit(1) } }
