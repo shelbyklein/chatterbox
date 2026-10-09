@@ -155,6 +155,7 @@
 		8767304DFCD79431AA3A486C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3EF35DBC46DE0F90A4E40CC8 /* Assets.xcassets */; };
 		88E2F788E3E0BEA4CC762830 /* ModelPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23F411A39522520E8F10339 /* ModelPicker.swift */; };
 		88E800E79DFFB6BFE106BC81 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B972A7FDEA18389B723512 /* AppPreferences.swift */; };
+		8BB5B842A07F95CB9A5D2830 /* MenuBarStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D937A3AEF37A75AFC64BB3 /* MenuBarStatus.swift */; };
 		8C41F2945100C282239256BC /* ChatSession+Sidequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21B415D59CF10CAB07EE68E /* ChatSession+Sidequest.swift */; };
 		8C57920D3F72449EDBFCE727 /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
 		8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */; };
@@ -531,6 +532,7 @@
 		E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ChatterboxWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E5B972A7FDEA18389B723512 /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
 		E65FB7F7B2B0B0DDEAC21AFD /* ChatterboxMobileProductTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ChatterboxMobileProductTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6D937A3AEF37A75AFC64BB3 /* MenuBarStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatus.swift; sourceTree = "<group>"; };
 		E7786246032F89E4E0C70184 /* ChatSession+Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Status.swift"; sourceTree = "<group>"; };
 		E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionModes.swift; sourceTree = "<group>"; };
 		EB27A16AB61425271FAD9777 /* JSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSON.swift; sourceTree = "<group>"; };
@@ -868,6 +870,7 @@
 				276EA46A76921A11440633E3 /* ItemView.swift */,
 				1AECAB552B28248B3461AC00 /* MarkdownText.swift */,
 				3FB49DE70CCD56E2122A67E6 /* MediaViews.swift */,
+				E6D937A3AEF37A75AFC64BB3 /* MenuBarStatus.swift */,
 				94DF99C8BDC4707D8CC25853 /* MobilePushSettings.swift */,
 				D23F411A39522520E8F10339 /* ModelPicker.swift */,
 				7AE34F98053ECFEA403086E4 /* NewProjectSheet.swift */,
@@ -1237,6 +1240,7 @@
 				8F2C622501AF80BFE5C23E4C /* MarkdownText.swift in Sources */,
 				44658C948D45F241891438FB /* MediaKind.swift in Sources */,
 				4D1F421A53DFA98E7368D46D /* MediaViews.swift in Sources */,
+				8BB5B842A07F95CB9A5D2830 /* MenuBarStatus.swift in Sources */,
 				4F31230D3EEFEF05A548AC25 /* MobilePush.swift in Sources */,
 				84E96504773B58CBC0522381 /* MobilePushSettings.swift in Sources */,
 				88E2F788E3E0BEA4CC762830 /* ModelPicker.swift in Sources */,

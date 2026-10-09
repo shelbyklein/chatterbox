@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct ChatterboxApp: App {
     @State private var model = AppModel()
+    @AppStorage("showMenuBarIcon", store: AppPreferences.defaults) private var showsMenuBarIcon = true
 
     var body: some Scene {
         WindowGroup(id: "main") {
@@ -104,5 +105,11 @@ struct ChatterboxApp: App {
             }
         }
 
+        MenuBarExtra(isInserted: $showsMenuBarIcon) {
+            MenuBarPanel(model: model)
+        } label: {
+            MenuBarLabel(model: model)
+        }
+        .menuBarExtraStyle(.window)
     }
 }
