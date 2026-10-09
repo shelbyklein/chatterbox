@@ -9,8 +9,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
   const escapeHTML = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  // Studio colours, for confetti and the explorer (CSS has the same values).
-  const COLOR = { orange: "#ff7a45", blue: "#6ea8ff", pink: "#ff5c93", mint: "#3ed59a", yellow: "#ffd23f" };
+  const COLOR = { orange: "#ff7a45", blue: "#6ea8ff", pink: "#ff5c93", green: "#3fae7a", yellow: "#ffd23f" };
 
   // Run fn once, the first time el is on screen.
   function onVisible(el, fn, threshold = 0.35) {
@@ -23,6 +22,54 @@
     }, { threshold });
     io.observe(el);
   }
+
+  /* The work: small client designs, drawn in CSS so they stay crisp at any size */
+  const ART = {
+    menu: (v) => `
+      <span class="m-brand">Larkspur Coffee</span>
+      <b class="m-title">Holiday Menu</b>
+      <ul>
+        <li><span>Gingerbread latte${v === "new" ? '<i class="m-new">NEW</i>' : ""}</span><em>5.50</em></li>
+        <li><span>Maple oat cortado</span><em>5.00</em></li>
+        <li><span>Cranberry scone</span><em>3.75</em></li>
+        <li><span>Oat milk</span><em>+0.75</em></li>
+      </ul>
+      <span class="m-foot">Open 7 to 3, every day</span>`,
+    label: () => '<span class="l-mark">L</span><b class="l-name">Winter<br>Blend</b><span class="l-sub">Whole bean, 12 oz</span>',
+    post: (v) => `<span class="p-brand">Larkspur Coffee</span><b class="p-big">${v === "alt" ? "Maple cortado season." : "Gingerbread is back."}</b>`,
+    web: (v) => `
+      <div class="w-nav"><i></i>TIDEWATER ARCHERY<span>Lessons &nbsp; Events &nbsp; Coaches</span></div>
+      <div class="w-body">
+        <div>
+          <h5>Coach with us this spring.</h5>
+          <p class="w-lede">Teach beginners on Saturday mornings. We cover your certification.</p>
+          <div class="w-form"><span>Name</span><span>Email</span><span>Certification level</span><b class="w-btn">${v === "apply" ? "Apply to coach" : "Send application"}</b></div>
+        </div>
+        <div class="w-target"></div>
+      </div>`,
+    poster: () => `
+      <span class="x-label">MOTH RECORDS</span>
+      <b class="x-big">SPRING<br>TOUR</b>
+      <ul><li><span>MAR 12</span><b>Portland</b></li><li><span>MAR 14</span><b>Seattle</b></li><li><span>MAR 17</span><b>Boise</b></li><li><span>MAR 20</span><b>Denver</b></li></ul>`,
+    page: (v) => {
+      const title = { 1: "Tournament Handbook", 2: "Scoring", 3: "Equipment" }[v] || "Tournament Handbook";
+      const foot = v || "1";
+      const table = v === "2" ? '<div class="g-table">' + "<i></i>".repeat(12) + "</div>" : "";
+      const widths = [96, 88, 92, 70, 94, 84, 60];
+      return `<span class="g-head">Tidewater Archery</span><h6>${title}</h6>
+        <div class="g-lines">${widths.map((w) => `<i style="width:${w}%"></i>`).join("")}</div>${table}
+        <div class="g-lines">${widths.slice(2).map((w) => `<i style="width:${w}%"></i>`).join("")}</div>
+        <span class="g-foot">${foot}</span>`;
+    },
+  };
+
+  function drawArt(el) {
+    const type = el.dataset.art;
+    if (!ART[type]) return;
+    el.classList.add(`art--${type}`);
+    el.innerHTML = `<div class="art__in">${ART[type](el.dataset.variant)}</div>`;
+  }
+  $$("[data-art]").forEach(drawArt);
 
   /* Scroll reveals */
   const revealer = new IntersectionObserver((entries) => {
@@ -120,169 +167,264 @@
     if (t) burstFrom(t);
   });
 
-  /* Hero: Home keeps changing while you look at it */
-  const board = $("[data-board]");
-  if (board) {
-    const card = (key) => $(`[data-card="${key}"]`, board);
-    const bell = $("[data-bell]", board);
-    const bellCount = $("[data-bell-count]", board);
-    const original = new Map($$("[data-card]", board).map((c) => [c, c.querySelector("footer").innerHTML]));
+  /* Hero: ask for a change, watch it land in the chat */
+  const hero = $("[data-hero]");
+  if (hero) {
+    const field = $(".ax-field", hero);
+    const typed = $("[data-hero-type]", hero);
+    const send = $("[data-hero-send]", hero);
+    const spin = $("[data-hero-spin]", hero);
+    const stepsLabel = $("[data-hero-steps]", hero);
+    const stream = $("[data-hero-stream]", hero);
+    const step = (n) => $(`[data-hero-step="${n}"]`, hero);
+    const reply = stream.textContent;
+    const ask = step(1).textContent;
 
-    const agentOf = (c) => (c.querySelector("footer .mark--openai") ? "openai" : "claude");
-    const agentName = (c) => (agentOf(c) === "openai" ? "Codex" : "Claude");
-    const mark = (c) => `<span class="mark mark--${agentOf(c)}"></span>`;
-
-    function set(c, state) {
-      const foot = c.querySelector("footer");
-      c.classList.toggle("waiting", state === "waiting");
-      if (state === "working") foot.innerHTML = mark(c) + `<span class="spin${agentOf(c) === "openai" ? " spin--codex" : ""}"></span>`;
-      if (state === "new") foot.innerHTML = mark(c) + '<span class="badge badge--new">New reply</span>';
-      if (state === "waiting") foot.innerHTML = mark(c) + `<span class="badge badge--wait">${agentName(c)} has a question</span>`;
-      if (state === "reset") foot.innerHTML = original.get(c);
-      c.classList.remove("flash");
-      void c.offsetWidth;
-      c.classList.add("flash");
+    function newImage() {
+      const fig = document.createElement("div");
+      fig.className = "ax-imgs ax-imgs--one";
+      fig.innerHTML = '<figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="1x1" data-variant="new"></div></div><figcaption>holiday-menu-square-v2 <span><i class="ph ph-copy"></i> Copy image</span></figcaption></figure>';
+      drawArt($("[data-art]", fig));
+      return fig;
     }
-    function ringBell(n) {
-      bellCount.textContent = n;
-      bell.classList.remove("ring");
-      void bell.offsetWidth;
-      bell.classList.add("ring");
-    }
-
-    // Each beat is one thing Home would show you: a finished reply, a question, an answer.
-    const beats = [
-      () => { set(card("handbook"), "new"); ringBell(2); },
-      () => set(card("preorder"), "waiting"),
-      () => { set(card("captions"), "new"); ringBell(3); },
-      () => set(card("preorder"), "working"),
-      () => set(card("signup"), "waiting"),
-      () => set(card("signup"), "working"),
-      () => {
-        ["handbook", "captions", "signup", "preorder"].forEach((k) => set(card(k), "reset"));
-        bellCount.textContent = "1";
-      },
-    ];
 
     if (reduce) {
-      set(card("preorder"), "waiting");
+      [1, 2, 3].forEach((n) => (step(n).hidden = false));
+      step(3).after(newImage());
     } else {
-      let i = 0;
-      let timer = 0;
-      const step = () => {
-        beats[i % beats.length]();
-        i++;
-        timer = setTimeout(step, 2400);
-      };
-      new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting && !timer) timer = setTimeout(step, 1400);
-          if (!e.isIntersecting) { clearTimeout(timer); timer = 0; }
+      onVisible(hero, async () => {
+        await sleep(1600);
+        field.classList.add("typing");
+        for (const ch of ask) {
+          typed.textContent += ch;
+          await sleep(28 + Math.random() * 38);
         }
-      }, { threshold: 0.3 }).observe(board);
+        await sleep(350);
+        send.classList.add("hot");
+        await sleep(200);
+        typed.textContent = "";
+        field.classList.remove("typing");
+        send.classList.remove("hot");
+        step(1).hidden = false;
+        spin.hidden = false;
+        await sleep(500);
+        step(2).hidden = false;
+        stepsLabel.insertAdjacentHTML("afterend", '<span class="spin"></span>');
+        await sleep(1700);
+        $(".spin", step(2))?.remove();
+        stream.textContent = "";
+        step(3).hidden = false;
+        for (const word of reply.split(" ")) {
+          stream.textContent += (stream.textContent ? " " : "") + word;
+          await sleep(45 + Math.random() * 40);
+        }
+        step(3).after(newImage());
+        spin.hidden = true;
+      }, 0.3);
     }
   }
 
-  /* Manifesto: each line lights up as it reaches the middle of the screen */
-  const lines = $$(".manifesto .line");
-  if (reduce) {
-    lines.forEach((l) => l.classList.add("lit"));
-  } else {
-    const lighter = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        e.target.classList.add("lit");
-        lighter.unobserve(e.target);
-      }
-    }, { rootMargin: "0px 0px -38% 0px", threshold: 1 });
-    lines.forEach((l) => lighter.observe(l));
+  /* Chat vs terminal: drag the line */
+  const compare = $("[data-compare]");
+  if (compare) {
+    const range = $("[data-compare-range]", compare);
+    const setPos = (v) => compare.style.setProperty("--pos", `${22 + (Number(v) / 100) * 56}%`);
+    range.addEventListener("input", () => setPos(range.value));
+    range.addEventListener("pointerdown", () => compare.classList.add("dragging"));
+    addEventListener("pointerup", () => compare.classList.remove("dragging"));
+    setPos(range.value);
+
+    // A small nudge, once, so it's obvious the line moves.
+    if (!reduce) {
+      onVisible(compare, () => {
+        const start = performance.now();
+        const frame = (t) => {
+          const k = Math.min(1, (t - start) / 1400);
+          const v = 50 - Math.sin(k * Math.PI) * 14;
+          if (compare.classList.contains("dragging")) return;
+          range.value = v;
+          setPos(v);
+          if (k < 1) requestAnimationFrame(frame);
+        };
+        setTimeout(() => requestAnimationFrame(frame), 500);
+      }, 0.5);
+    }
   }
 
-  /* Studios & Projects explorer */
+  /* Make, open, collect, review: the window follows the step you're reading */
+  const story = $("[data-story]");
+  if (story) {
+    const win = $(".story__win", story);
+    const title = $("[data-story-title]", story);
+    const where = $(".ax-bar .ax-menu", win);
+    const chooser = $("[data-chooser]", story);
+    const CONTEXT = {
+      create: ["Coach signup page", "Tidewater Archery"],
+      preview: ["Coach signup page", "Tidewater Archery"],
+      library: ["Holiday menu boards", "Larkspur Coffee"],
+      review: ["Home", "All Studios"],
+    };
+    let chooserRun = 0;
+
+    async function playChooser() {
+      const me = ++chooserRun;
+      const opt = $(".chooser__opt.is-hit", chooser);
+      chooser.classList.remove("gone");
+      opt.classList.remove("pressed");
+      if (reduce) { chooser.classList.add("gone"); return; }
+      await sleep(1700);
+      if (me !== chooserRun) return;
+      opt.classList.add("pressed");
+      await sleep(500);
+      if (me !== chooserRun) return;
+      chooser.classList.add("gone");
+    }
+
+    function activate(stage) {
+      if (win.dataset.active === stage) return;
+      win.dataset.active = stage;
+      $$(".stage", story).forEach((s) => s.classList.toggle("is-active", s.dataset.stage === stage));
+      const [t, w] = CONTEXT[stage];
+      title.textContent = t;
+      where.innerHTML = `<i class="ph-fill ph-palette"></i> ${escapeHTML(w)} <i class="ph ph-caret-down"></i>`;
+      where.hidden = stage === "review";
+      if (stage === "preview") playChooser();
+    }
+
+    const stageWatcher = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) activate(e.target.dataset.stage);
+    }, { rootMargin: "-45% 0px -45% 0px" });
+    $$(".stage", story).forEach((s) => stageWatcher.observe(s));
+    $(".stage", story).classList.add("is-active");
+    chooser.classList.add("gone");
+
+    // On narrow screens each step carries its own copy of the window.
+    for (const slot of $$("[data-slot]", story)) {
+      const name = slot.dataset.slot;
+      const copy = document.createElement("div");
+      copy.className = "ax-win";
+      copy.setAttribute("aria-hidden", "true");
+      const bar = $(".ax-bar", win).cloneNode(true);
+      $("[data-story-title]", bar).textContent = CONTEXT[name][0];
+      $(".ax-menu", bar).innerHTML = `<i class="ph-fill ph-palette"></i> ${escapeHTML(CONTEXT[name][1])} <i class="ph ph-caret-down"></i>`;
+      $("[data-story-title]", bar).removeAttribute("data-story-title");
+      copy.append(bar, $(`[data-screen="${name}"]`, win).cloneNode(true));
+      slot.append(copy);
+    }
+  }
+
+  /* Agents: a preset pill switches agent, model and effort in one click */
+  const handoff = $("[data-handoff]");
+  if (handoff) {
+    const log = $("[data-handoff-log]", handoff);
+    const placeholder = $("[data-handoff-ph]", handoff);
+    const model = $("[data-handoff-model]", handoff);
+    const pills = $$("[data-switch]", handoff);
+    const AGENTS = {
+      codex: {
+        name: "Codex",
+        model: "Codex · GPT-6.1-Sol · Medium effort",
+        divider: "Switched to Codex. It read the whole chat first.",
+        reply: "Caught up. I’ll split the table and export it again.",
+        colors: [COLOR.green, "#f4f0ea", COLOR.yellow],
+      },
+      claude: {
+        name: "Claude",
+        model: "Claude · Opus 5.5 · High effort",
+        divider: "Back to Claude. Nothing was lost.",
+        reply: "The export worked. The handbook is in the Studio folder.",
+        colors: [COLOR.orange, COLOR.yellow, COLOR.pink],
+      },
+    };
+    let busy = false;
+
+    function add(node) {
+      log.append(node);
+      while (log.children.length > 7) log.firstElementChild.remove();
+    }
+
+    pills.forEach((pill) => pill.addEventListener("click", async () => {
+      const to = pill.dataset.switch;
+      if (busy || handoff.dataset.agent === to) return;
+      busy = true;
+      const a = AGENTS[to];
+      handoff.dataset.agent = to;
+      pills.forEach((p) => p.classList.toggle("is-on", p === pill));
+      placeholder.textContent = `Message ${a.name}`;
+      model.textContent = a.model;
+      burstFrom(pill, 32, a.colors);
+
+      const divider = document.createElement("div");
+      divider.className = "handoff__divider";
+      divider.textContent = a.divider;
+      add(divider);
+
+      await sleep(650);
+      const msg = document.createElement("p");
+      msg.className = "ax-text ax-text--agent enter";
+      msg.innerHTML = `<span class="mark mark--${to === "codex" ? "openai" : "claude"}"></span><span></span>`;
+      msg.lastElementChild.textContent = a.reply;
+      add(msg);
+      busy = false;
+    }));
+  }
+
+  /* Studios & Projects */
   const explorer = $("[data-explorer]");
   if (explorer) {
     const WORKSPACES = {
       larkspur: {
-        kind: "Studio", name: "Larkspur Coffee", color: "orange", folder: "~/Studios/Larkspur Coffee",
-        instructions: "A small-batch roaster with two cafés. Menus print at 24 × 36 in. Prices live in the shared sheet. Keep the tone warm and a little nerdy.",
-        design: "## Color\nRust, oat and plenty of white space.\n\n## Type\nChunky headlines, plain sans for prices.",
-        chats: [["claude", "Holiday menu boards", "new"], ["claude", "Instagram captions", "working"], ["openai", "Bag label artwork", "2h"]],
+        kind: "studio", name: "Larkspur Coffee",
+        instructions: "A small-batch roaster with two cafés. Menus print at 24 × 36 in, and prices live in the shared sheet. Keep the tone warm and a little nerdy.",
       },
       tidewater: {
-        kind: "Studio", name: "Tidewater Archery", color: "blue", folder: "~/Studios/Tidewater Archery",
+        kind: "studio", name: "Tidewater Archery",
         instructions: "A youth and adult archery club. The handbook follows the national rulebook. Coaches get every change by email, so flag anything that touches scoring.",
-        design: "## Color\nNavy and target gold.\n\n## Imagery\nReal club photos. Never stock arrows.",
-        chats: [["claude", "Tournament handbook", "working"], ["openai", "Coach signup page", "1h"], ["claude", "Range map PDF", "5h"]],
       },
       moth: {
-        kind: "Studio", name: "Moth Records", color: "pink", folder: "~/Studios/Moth Records",
+        kind: "studio", name: "Moth Records",
         instructions: "An indie label with six artists and one very busy inbox. Release dates live in the calendar. Never announce a date before the artist does.",
-        design: "## Color\nMoth pink on black.\n\n## Type\nCondensed caps for titles, always.",
-        chats: [["openai", "Pre-order emails", "waiting"], ["claude", "Tour poster sizes", "1d"]],
       },
       site: {
-        kind: "Project", name: "chatterbox-website", color: "mint", folder: "~/code/chatterbox-website",
-        repo: "shelbyklein/chatterbox", branch: "website", status: "PR #42 open",
-        chats: [["claude", "Rework the hero around Studios", "working"], ["claude", "Try a lighter hero", "side"]],
+        kind: "project", name: "larkspur-site", repo: "you/larkspur-site", branch: "main", ahead: "2",
+        note: "Keep the current logo until the rebrand ships.", noteDate: "Oct 6",
       },
       planner: {
-        kind: "Project", name: "garden-planner", color: "mint", folder: "~/code/garden-planner",
-        repo: "you/garden-planner", branch: "main", status: "2 commits to push",
-        chats: [["claude", "Frost dates by zip code", "3d"], ["openai", "Is a raised bed worth it?", "side"]],
+        kind: "project", name: "garden-planner", repo: "you/garden-planner", branch: "frost-dates", ahead: "1",
+        note: "Zone data comes from the USDA file, not the old CSV.", noteDate: "Oct 4",
       },
     };
 
     const panel = $("[data-panel]", explorer);
     const tabs = $$("[data-key]", explorer);
-
-    function chatRow([agent, title, state]) {
-      const who = agent === "openai" ? "Codex" : "Claude";
-      let meta = `<span class="when">${escapeHTML(state)}</span>`;
-      if (state === "working") meta = `<span class="spin${agent === "openai" ? " spin--codex" : ""}"></span>`;
-      if (state === "new") meta = '<span class="badge badge--new">New reply</span>';
-      if (state === "waiting") meta = `<span class="badge badge--wait">${who} has a question</span>`;
-      if (state === "side") meta = '<span class="temp">Sidechat</span>';
-      const cls = state === "side" ? "side" : state === "waiting" ? "waiting" : "";
-      return `<li class="${cls}"><span class="mark mark--${agent}"></span><span>${escapeHTML(title)}</span>${meta}</li>`;
-    }
+    const where = $("[data-where]", explorer);
 
     function render(key) {
       const w = WORKSPACES[key];
-      panel.style.setProperty("--c", COLOR[w.color]);
-      $("[data-kind]", panel).textContent = w.kind;
-      $("[data-name]", panel).textContent = w.name;
-      $("[data-folder]", panel).innerHTML = `<i class="ph ph-folder-simple" aria-hidden="true"></i> ${escapeHTML(w.folder)}`;
+      const studio = w.kind === "studio";
+      $("[data-name]", explorer).textContent = w.name;
+      $$("[data-kind-icon]", explorer).forEach((i) => i.classList.toggle("is-on", i.dataset.kindIcon === w.kind));
+      where.innerHTML = studio
+        ? `<i class="ph-fill ph-palette"></i> ${escapeHTML(w.name)} <i class="ph ph-caret-down"></i>`
+        : `<i class="ph ph-git-branch"></i> ${escapeHTML(w.repo)} · ${escapeHTML(w.branch)} ↑${w.ahead} <i class="ph ph-caret-down"></i>`;
 
-      if (w.kind === "Studio") {
-        $("[data-brief]", panel).innerHTML = `
-          <div class="file">
-            <div class="file__head"><i class="ph ph-scroll" aria-hidden="true"></i> Instructions <small>Every chat follows these</small></div>
-            <div class="file__body">${escapeHTML(w.instructions)}</div>
-          </div>
-          <div class="file">
-            <div class="file__head"><i class="ph ph-palette" aria-hidden="true"></i> design.md <small>Read before visual work</small></div>
-            <div class="file__body file__body--mono">${escapeHTML(w.design)}</div>
+      $("[data-brief]", panel).innerHTML = studio
+        ? `<div class="sheet">
+            <h4>${escapeHTML(w.name)} Instructions</h4>
+            <p>Every chat in this Studio follows these. Say what it’s for, and point to the sites, files, and tools to use.</p>
+            <div class="sheet__box">${escapeHTML(w.instructions)}</div>
+            <div class="sheet__file"><b><i class="ph ph-file-text"></i> design.md</b> Every chat reads this before visual work.</div>
+          </div>`
+        : `<div class="notes">
+            <div class="notes__head"><i class="ph ph-note"></i> Project notes <i class="ph ph-caret-up"></i></div>
+            <div class="notes__item">${escapeHTML(w.note)}<small>${escapeHTML(w.noteDate)}</small></div>
           </div>`;
-      } else {
-        $("[data-brief]", panel).innerHTML = `
-          <div class="repo-chips">
-            <span class="repo-chip"><span class="mark mark--github"></span> ${escapeHTML(w.repo)}</span>
-            <span class="repo-chip"><i class="ph ph-git-branch" aria-hidden="true"></i> ${escapeHTML(w.branch)}</span>
-            <span class="repo-chip repo-chip--pr"><i class="ph ph-git-pull-request" aria-hidden="true"></i> ${escapeHTML(w.status)}</span>
-          </div>
-          <p class="panel__text">One folder, one chat. The toolbar shows the repo, the branch and its pull request, and the repo’s issues open in a side panel.</p>
-          <div class="file">
-            <div class="file__head"><i class="ph ph-arrow-elbow-down-right" aria-hidden="true"></i> Sidechats <small>For tangents</small></div>
-            <div class="file__body">Chase an idea in a temporary Sidechat. It shares the folder but not the transcript, and it archives itself when you end it.</div>
-          </div>`;
-      }
 
-      $("[data-chats]", panel).innerHTML = w.chats.map(chatRow).join("");
-      const prompts = w.kind === "Studio"
+      const prompts = studio
         ? [`Tour ${w.name} and its instructions`, `Find unfinished work in ${w.name}`, `Plan the next ${w.name} job`]
         : [`Tour ${w.name} and its current work`, `Find unfinished work in ${w.name}`, `Plan the next ${w.name} improvement`];
       $("[data-prompts]", panel).innerHTML = prompts
-        .map((p) => `<button type="button" class="prompt" data-color="${w.color}">${escapeHTML(p)}<i class="ph ph-arrow-right" aria-hidden="true"></i></button>`)
+        .map((p) => `<button type="button" class="starter"><i class="ph ph-chat-circle-text"></i>${escapeHTML(p)}</button>`)
         .join("");
 
       panel.classList.remove("swap");
@@ -309,100 +451,41 @@
       select(next);
     });
     panel.addEventListener("click", (e) => {
-      const p = e.target.closest(".prompt");
-      if (p) burstFrom(p, 28, [COLOR[p.dataset.color], "#f4f0ea", COLOR.yellow]);
+      const s = e.target.closest(".starter");
+      if (s) burstFrom(s, 24, [COLOR.orange, COLOR.yellow, "#f4f0ea"]);
     });
 
     render("larkspur");
     panel.classList.remove("swap");
   }
 
-  /* Claude <-> Codex handoff */
-  const handoff = $("[data-handoff]");
-  if (handoff) {
-    const log = $("[data-handoff-log]", handoff);
-    const btn = $("[data-handoff-btn]", handoff);
-    const btnLabel = $("span", btn);
-    const pillMark = $("[data-agent-mark]", handoff);
-    const pillName = $("[data-agent-name]", handoff);
-    const placeholder = $("[data-handoff-ph]", handoff);
-    const lines = {
-      codex: {
-        divider: "Switched to Codex. It read the whole chat first.",
-        reply: "Caught up. I’ll split the table and export it again.",
-        next: "Hand it back to Claude",
-        colors: [COLOR.blue, "#f4f0ea", COLOR.mint],
-      },
-      claude: {
-        divider: "Back to Claude. Nothing was lost.",
-        reply: "The export worked. The handbook is in the Studio folder.",
-        next: "Hand it to Codex",
-        colors: [COLOR.orange, COLOR.yellow, COLOR.pink],
-      },
-    };
-    let busy = false;
-
-    function add(node) {
-      log.append(node);
-      while (log.children.length > 6) log.firstElementChild.remove();
-    }
-
-    btn.addEventListener("click", async () => {
-      if (busy) return;
-      busy = true;
-      const to = handoff.dataset.agent === "claude" ? "codex" : "claude";
-      const copy = lines[to];
-      const markClass = to === "codex" ? "mark--openai" : "mark--claude";
-      const name = to === "codex" ? "Codex" : "Claude";
-
-      handoff.dataset.agent = to;
-      pillMark.className = `mark ${markClass}`;
-      pillName.textContent = name;
-      placeholder.textContent = `Message ${name}`;
-      burstFrom(btn, 36, copy.colors);
-
-      const divider = document.createElement("div");
-      divider.className = "handoff__divider";
-      divider.textContent = copy.divider;
-      add(divider);
-
-      await sleep(650);
-      const msg = document.createElement("div");
-      msg.className = "msg msg--agent enter";
-      msg.innerHTML = `<span class="mark ${markClass}"></span><p></p>`;
-      msg.querySelector("p").textContent = copy.reply;
-      add(msg);
-
-      btnLabel.textContent = copy.next;
-      busy = false;
-    });
-  }
-
-  /* Phone: a notification, then an approval you can actually tap */
+  /* Phone: a notification, then the PDF it points to */
   const phone = $("[data-phone]");
   if (phone) {
-    const approval = $("[data-approval]", phone);
-    const done = $("[data-approved]", phone);
-    onVisible(phone, async () => {
-      await sleep(400);
+    const pages = $("[data-pdf-pages]", phone);
+    const count = $("[data-pdf-count]", phone);
+    const track = document.createElement("div");
+    track.className = "pdf__track";
+    track.append(...pages.children);
+    pages.append(track);
+
+    const open = async () => {
       phone.classList.add("notified");
       await sleep(1500);
-      phone.classList.add("asking");
-    }, 0.45);
-
-    $("[data-allow]", phone).addEventListener("click", (e) => {
-      approval.classList.add("answered");
-      approval.classList.remove("denied");
-      done.innerHTML = '<i class="ph-fill ph-check-circle" aria-hidden="true"></i> Approved. Back to your walk.';
-      burstFrom(e.currentTarget, 70);
-    });
-    $("[data-deny]", phone).addEventListener("click", () => {
-      approval.classList.add("answered", "denied");
-      done.innerHTML = '<i class="ph ph-hand-palm" aria-hidden="true"></i> Denied. Claude will find another way.';
-    });
+      phone.classList.add("tapped");
+      await sleep(250);
+      phone.classList.add("opened");
+      const pageH = track.firstElementChild.getBoundingClientRect().height + 6;
+      for (const [i, label] of [[1, "2 of 24"], [2, "3 of 24"]]) {
+        await sleep(1800);
+        track.style.transform = `translateY(${-pageH * i}px)`;
+        count.textContent = label;
+      }
+    };
+    onVisible(phone, () => setTimeout(open, reduce ? 0 : 400), 0.45);
   }
 
-  /* Make it yours: tone and preset names */
+  /* Make it yours: the tone menu and preset names */
   const tuner = $("[data-tuner]");
   if (tuner) {
     const TONES = {
@@ -410,45 +493,57 @@
       pragmatic: "A test expects the old page count. Updating it and rerunning the suite.",
       neutral: "The failing test checks for the previous page count. I can update it if you’d like.",
     };
-    const toneText = $("[data-tone-text]", tuner);
-    const toneButtons = $$("[data-tone]", tuner);
-    toneButtons.forEach((b) => b.addEventListener("click", async () => {
-      toneButtons.forEach((x) => {
-        x.classList.toggle("is-on", x === b);
-        x.setAttribute("aria-checked", String(x === b));
-      });
-      toneText.classList.add("fading");
+    const btn = $("[data-tone-btn]", tuner);
+    const menu = $("[data-tone-menu]", tuner);
+    const label = $("[data-tone-label]", tuner);
+    const text = $("[data-tone-text]", tuner);
+    const items = $$("[data-tone]", tuner);
+    const hint = $(".tuner__hint", tuner);
+
+    const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+    btn.addEventListener("click", () => {
+      const opening = menu.hidden;
+      menu.hidden = !opening;
+      btn.setAttribute("aria-expanded", String(opening));
+      if (opening) (items.find((i) => i.getAttribute("aria-checked") === "true") || items[0]).focus();
+      if (hint) hint.remove();
+    });
+    document.addEventListener("click", (e) => { if (!e.target.closest(".tone")) close(); });
+    menu.addEventListener("keydown", (e) => {
+      const i = items.indexOf(document.activeElement);
+      if (e.key === "Escape") { close(); btn.focus(); }
+      if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); items[(i + items.length - 1) % items.length].focus(); }
+    });
+    items.forEach((item) => item.addEventListener("click", async () => {
+      items.forEach((x) => x.setAttribute("aria-checked", String(x === item)));
+      label.textContent = item.textContent.trim();
+      close();
+      btn.focus();
+      text.classList.add("fading");
       await sleep(220);
-      toneText.textContent = TONES[b.dataset.tone];
-      toneText.classList.remove("fading");
+      text.textContent = TONES[item.dataset.tone];
+      text.classList.remove("fading");
     }));
 
-    const echo = $("[data-preset-echo]", tuner);
-    const presets = $$("[data-preset]", tuner);
-    const showPresets = () => {
-      echo.innerHTML = presets.map((p) => `<span>${escapeHTML(p.textContent.trim())}</span>`).join("");
-    };
-    showPresets();
-
-    presets.forEach((p) => {
-      const label = $("span", p);
+    $$("[data-preset]", tuner).forEach((p) => {
+      const name = $("span", p);
       let before = "";
       const finish = (keep) => {
         if (!p.classList.contains("editing")) return;
-        const name = label.textContent.replace(/\s+/g, " ").trim().slice(0, 18);
-        label.textContent = keep && name ? name : before;
-        label.contentEditable = "false";
+        const value = name.textContent.replace(/\s+/g, " ").trim().slice(0, 18);
+        name.textContent = keep && value ? value : before;
+        name.contentEditable = "false";
         p.classList.remove("editing");
-        showPresets();
       };
       const start = () => {
         if (p.classList.contains("editing")) return;
-        before = label.textContent;
+        before = name.textContent;
         p.classList.add("editing");
-        label.contentEditable = "true";
-        label.focus();
+        name.contentEditable = "true";
+        name.focus();
         const range = document.createRange();
-        range.selectNodeContents(label);
+        range.selectNodeContents(name);
         const sel = getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
@@ -463,8 +558,7 @@
           start();
         }
       });
-      label.addEventListener("blur", () => finish(true));
-      label.addEventListener("input", showPresets);
+      name.addEventListener("blur", () => finish(true));
     });
   }
 

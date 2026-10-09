@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chatterbox: software that feels like an extension of you</title>
-  <meta name="description" content="Chatterbox is a native Mac app for Claude Code and Codex that keeps your chats organized around your clients and projects, so you always know what's next.">
+  <meta name="description" content="Chatterbox is a native Mac app for Claude Code and Codex. Talk to your agents in a chat instead of a terminal, and see, review and approve their work right in the conversation.">
   <meta name="theme-color" content="#11100f">
   <meta property="og:title" content="Chatterbox: software that feels like an extension of you">
-  <meta property="og:description" content="Your Claude Code and Codex chats, organized around your clients and projects, so you always know what's next.">
+  <meta property="og:description" content="Talk to Claude Code and Codex in a chat, not a terminal. Your work shows up right in the conversation.">
   <meta property="og:image" content="assets/app-icon.png">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/app-icon-256.png">
@@ -27,9 +27,9 @@
         <span>Chatterbox</span>
       </a>
       <nav class="nav__links" aria-label="Sections">
+        <a href="#chat">Chat vs terminal</a>
+        <a href="#work">Your work</a>
         <a href="#studios">Studios</a>
-        <a href="#agents">Agents</a>
-        <a href="#reviews">Reviews</a>
         <a href="#phone">Phone</a>
         <a href="#yours">Make it yours</a>
       </nav>
@@ -49,112 +49,304 @@
       </div>
       <div class="container hero__row">
         <div class="hero__copy">
-          <p class="hero__sub reveal" style="--d:.08s">Chatterbox keeps your Claude Code and Codex chats organized around your clients and projects, so you always know what’s next.</p>
+          <p class="hero__sub reveal" style="--d:.08s">Talk to Claude Code and Codex in a chat instead of a terminal. The work they make shows up right in the conversation.</p>
           <div class="hero__ctas reveal" style="--d:.16s">
             <a class="btn btn--light" href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener" data-confetti>
               <span class="mark mark--github"></span>
               Get it on GitHub
             </a>
-            <a class="btn btn--ghost" href="#studios">
-              See how it’s organized
+            <a class="btn btn--ghost" href="#chat">
+              Chat vs terminal
               <i class="ph ph-arrow-down-right" aria-hidden="true"></i>
             </a>
           </div>
         </div>
 
-        <!-- Home board: every thread as a card, grouped by Studio -->
-        <div class="board reveal" style="--d:.2s" data-board aria-label="An animated preview of Chatterbox Home, showing chats grouped into client Studios. Cards change as replies finish or an agent asks a question.">
-          <div class="board__bar">
+        <!-- The real app layout: toolbar, sidebar, chat -->
+        <div class="ax-win hero__win reveal" style="--d:.2s" data-hero aria-label="Chatterbox showing a chat in the Larkspur Coffee Studio. Claude has made three menu board sizes, which appear as images in the reply. A follow-up message asks for a change, and the new version appears.">
+          <div class="ax-bar">
             <span class="lights"><i></i><i></i><i></i></span>
-            <div class="seg" role="presentation">
-              <span>Projects</span>
-              <span class="is-on">Studios</span>
-              <span>Chats</span>
-              <span>Archive</span>
-            </div>
-            <span class="board__tools">
-              <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
-              <span class="bell" data-bell><i class="ph ph-bell" aria-hidden="true"></i><b data-bell-count>1</b></span>
-              <i class="ph ph-plus" aria-hidden="true"></i>
-            </span>
+            <span class="ax-title">Holiday menu boards</span>
+            <span class="ax-group"><i class="ph ph-folder"></i><i class="ph ph-palette is-on"></i><i class="ph ph-squares-four"></i><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-chat-circle"></i></span>
+            <span class="ax-menu"><i class="ph ph-smiley"></i> Friendly <i class="ph ph-caret-down"></i></span>
+            <span class="ax-menu"><i class="ph-fill ph-palette"></i> Larkspur Coffee <i class="ph ph-caret-down"></i></span>
+            <span class="ax-spacer"></span>
+            <span class="ax-group"><i class="ph ph-chart-bar"></i><i class="ph ph-terminal-window"></i></span>
+            <i class="ph ph-gear ax-icon"></i>
+            <i class="ph ph-plus ax-icon"></i>
           </div>
-          <div class="board__body">
-            <div class="col" style="--c:var(--c-orange)">
-              <div class="col__head"><span class="tab"></span>Larkspur Coffee <em>3</em></div>
-              <article class="card" data-card="menu"><h4>Holiday menu boards</h4><p>Three sizes exported, with the oat milk price fixed.</p><footer><span class="mark mark--claude"></span><span class="badge badge--new">New reply</span></footer></article>
-              <article class="card" data-card="captions"><h4>Instagram captions</h4><p>Twelve options, sorted from cozy to unhinged.</p><footer><span class="mark mark--claude"></span><span class="spin"></span></footer></article>
-              <article class="card" data-card="label"><h4>Bag label artwork</h4><p>Matched the brand guide’s rust and oat.</p><footer><span class="mark mark--openai"></span><span class="when">2h</span></footer></article>
-            </div>
-            <div class="col" style="--c:var(--c-blue)">
-              <div class="col__head"><span class="tab"></span>Tidewater Archery <em>3</em></div>
-              <article class="card" data-card="handbook"><h4>Tournament handbook</h4><p>Updating the scoring rules on page 14.</p><footer><span class="mark mark--claude"></span><span class="spin"></span></footer></article>
-              <article class="card" data-card="signup"><h4>Coach signup page</h4><p>Form is live and the confirmation email reads well.</p><footer><span class="mark mark--openai"></span><span class="when">1h</span></footer></article>
-              <article class="card" data-card="range"><h4>Range map PDF</h4><p>Lanes renumbered, legend moved to the corner.</p><footer><span class="mark mark--claude"></span><span class="when">5h</span></footer></article>
-            </div>
-            <div class="col" style="--c:var(--c-pink)">
-              <div class="col__head"><span class="tab"></span>Moth Records <em>2</em></div>
-              <article class="card" data-card="preorder"><h4>Pre-order emails</h4><p>Drafting the second reminder for the vinyl drop.</p><footer><span class="mark mark--openai"></span><span class="spin spin--codex"></span></footer></article>
-              <article class="card" data-card="poster"><h4>Tour poster sizes</h4><p>A2, tabloid and a square one for socials.</p><footer><span class="mark mark--claude"></span><span class="when">1d</span></footer></article>
-            </div>
-            <div class="col" style="--c:var(--c-mint)">
-              <div class="col__head"><span class="tab"></span>Side projects <em>2</em></div>
-              <article class="card"><h4>Garden planner</h4><p>Frost dates by zip code are in.</p><footer><span class="mark mark--claude"></span><span class="when">3d</span></footer></article>
-              <article class="card"><h4>Recipe scaler</h4><p>Halving eggs now rounds up, as it should.</p><footer><span class="mark mark--openai"></span><span class="when">4d</span></footer></article>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          <div class="ax-main">
+            <aside class="ax-side">
+              <div class="ax-search"><i class="ph ph-magnifying-glass"></i> Search</div>
+              <div class="ax-sec"><i class="ph ph-caret-down"></i> Pins <i class="ph ph-plus ax-sec__add"></i></div>
+              <div class="ax-pins">
+                <span><i class="ph ph-globe"></i> larkspur.coffee</span>
+                <span><i class="ph ph-folder-simple"></i> Brand kit</span>
+              </div>
+              <div class="ax-sec"><i class="ph ph-caret-down"></i> Projects <i class="ph ph-plus ax-sec__add"></i></div>
+              <div class="ax-tags"><span class="tag tag--teal">website</span><span class="tag tag--orange">print</span><span class="tag tag--purple">app</span></div>
+              <div class="ax-cards">
+                <div class="ax-card"><i class="ph-fill ph-folder"></i><b>larkspur-site</b><span class="tag tag--teal">website</span><p>Hours are updated on every page.</p><small>2h</small></div>
+                <div class="ax-card"><i class="ph-fill ph-folder"></i><b>garden-planner</b><span class="tag tag--purple">app</span><p>Frost dates by zip code are in.</p><small>3d</small></div>
+              </div>
+              <div class="ax-sec"><i class="ph ph-caret-down"></i> Studios <i class="ph ph-plus ax-sec__add"></i></div>
+              <div class="ax-studio"><i class="ph ph-caret-down"></i><i class="ph ph-palette"></i> Larkspur Coffee</div>
+              <div class="ax-row is-on"><span class="mark mark--claude"></span> Holiday menu boards <span class="spin" data-hero-spin hidden></span></div>
+              <div class="ax-row"><span class="mark mark--openai"></span> Bag label artwork</div>
+              <div class="ax-studio"><i class="ph ph-caret-right"></i><i class="ph ph-palette"></i> Tidewater Archery</div>
+              <div class="ax-studio"><i class="ph ph-caret-right"></i><i class="ph ph-palette"></i> Moth Records</div>
+            </aside>
 
-    <!-- Manifesto -->
-    <section class="section manifesto" id="why">
-      <div class="container">
-        <p class="manifesto__text">
-          <span class="line">Your clients get <span class="chip chip--orange"><span class="dot"></span>Studios</span>.</span>
-          <span class="line">Your repos get <span class="chip chip--blue"><i class="ph-fill ph-folder" aria-hidden="true"></i>Projects</span>.</span>
-          <span class="line">Your tangents get <span class="chip chip--pink"><i class="ph ph-arrow-elbow-down-right" aria-hidden="true"></i>Sidechats</span>.</span>
-          <span class="line">Your stray thoughts get <span class="chip chip--mint"><i class="ph-fill ph-note-pencil" aria-hidden="true"></i>Notes</span>.</span>
-          <span class="line">And your attention only goes where it’s <span class="chip chip--yellow"><i class="ph-fill ph-hand-waving" aria-hidden="true"></i>needed</span>.</span>
-        </p>
-      </div>
-    </section>
-
-    <!-- Studios & Projects -->
-    <section class="section" id="studios">
-      <div class="container">
-        <h2 class="reveal h2--wide">Projects are for code.<br> Studios are for everything&nbsp;else.</h2>
-        <p class="lede reveal">A Studio keeps a client’s messy work in one folder. Every chat in it follows the same instructions and brand guide, so you only explain things once.</p>
-
-        <div class="explorer reveal" data-explorer>
-          <div class="explorer__rail" role="tablist" aria-label="Studios and Projects">
-            <span class="rail__label">Studios</span>
-            <button type="button" role="tab" class="rail__item is-on" aria-selected="true" data-key="larkspur" style="--c:var(--c-orange)"><span class="tab"></span>Larkspur Coffee</button>
-            <button type="button" role="tab" class="rail__item" aria-selected="false" data-key="tidewater" style="--c:var(--c-blue)"><span class="tab"></span>Tidewater Archery</button>
-            <button type="button" role="tab" class="rail__item" aria-selected="false" data-key="moth" style="--c:var(--c-pink)"><span class="tab"></span>Moth Records</button>
-            <span class="rail__label">Projects</span>
-            <button type="button" role="tab" class="rail__item" aria-selected="false" data-key="site" style="--c:var(--c-mint)"><i class="ph-fill ph-folder" aria-hidden="true"></i>chatterbox-website</button>
-            <button type="button" role="tab" class="rail__item" aria-selected="false" data-key="planner" style="--c:var(--c-mint)"><i class="ph-fill ph-folder" aria-hidden="true"></i>garden-planner</button>
-          </div>
-
-          <div class="explorer__panel" role="tabpanel" data-panel aria-live="polite">
-            <div class="panel__head">
-              <span class="panel__kind" data-kind>Studio</span>
-              <h3 data-name>Larkspur Coffee</h3>
-              <span class="panel__folder" data-folder><i class="ph ph-folder-simple" aria-hidden="true"></i> ~/Studios/Larkspur Coffee</span>
-            </div>
-            <div class="panel__grid">
-              <div class="panel__brief" data-brief></div>
-              <div class="panel__side">
-                <div class="panel__label">Chats</div>
-                <ul class="panel__chats" data-chats></ul>
-                <div class="panel__label">Start something</div>
-                <div class="panel__prompts" data-prompts></div>
+            <div class="ax-chat">
+              <div class="ax-log" data-hero-log>
+                <div class="ax-user ax-user--claude">Make the holiday menu board in three sizes: 24×36, 11×17 and a square one for Instagram.</div>
+                <div class="ax-steps"><i class="ph ph-caret-right"></i><i class="ph ph-list-checks"></i> 6 steps</div>
+                <p class="ax-text">Here they are. I used the rust and oat from <code>design.md</code> and fixed the oat milk price on all three.</p>
+                <div class="ax-imgs">
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="2x3"></div></div><figcaption>holiday-menu-24x36 <span title="Copy image"><i class="ph ph-copy"></i></span></figcaption></figure>
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="11x17"></div></div><figcaption>holiday-menu-11x17 <span title="Copy image"><i class="ph ph-copy"></i></span></figcaption></figure>
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="1x1"></div></div><figcaption>holiday-menu-square <span title="Copy image"><i class="ph ph-copy"></i></span></figcaption></figure>
+                </div>
+                <div class="ax-worked"><i class="ph ph-clock"></i> Worked for 2m 41s <i class="ph ph-copy"></i> Copy</div>
+                <div class="ax-user ax-user--claude" data-hero-step="1" hidden>Can the square one call out the gingerbread latte as new?</div>
+                <div class="ax-steps" data-hero-step="2" hidden><i class="ph ph-caret-right"></i><i class="ph ph-list-checks"></i> <span data-hero-steps>1 step</span></div>
+                <p class="ax-text" data-hero-step="3" hidden><span data-hero-stream>Done. The square one now has a little NEW tag on the gingerbread latte.</span></p>
+              </div>
+              <div class="ax-composer">
+                <i class="ph ph-paperclip"></i>
+                <div class="ax-field ax-field--claude"><span data-hero-type></span><span class="caret" data-hero-caret></span><span class="ax-ph" data-hero-ph>Message Claude</span></div>
+                <i class="ph ph-microphone"></i>
+                <span class="ax-send" data-hero-send><i class="ph ph-arrow-up"></i></span>
+              </div>
+              <div class="ax-meta">
+                <span class="ax-mode"><i class="ph ph-shield-check"></i> Accept edits <i class="ph ph-caret-down"></i></span>
+                <span class="ax-ctx"><span class="ring" style="--p:31"></span> Context 31%</span>
+                <span class="ax-spacer"></span>
+                <span class="ax-pill ax-pill--claude is-on">Opus 5.5</span>
+                <span class="ax-pill ax-pill--codex">GPT-6.1-Sol</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <p class="explorer__note reveal"><i class="ph ph-squares-four" aria-hidden="true"></i> Home shows every thread as a card, sorted into Projects, Studios, Chats and Archive.</p>
+    <!-- Chat vs terminal -->
+    <section class="section" id="chat">
+      <div class="container">
+        <h2 class="reveal">Same agents. Better place to talk to&nbsp;them.</h2>
+        <p class="lede reveal">Claude Code and Codex are brilliant in a terminal, until you need to see what they made. Here’s the same request, both ways.</p>
+
+        <p class="compare__hint reveal"><i class="ph ph-arrows-left-right"></i> Drag the line to compare</p>
+        <div class="compare reveal" data-compare style="--pos:50%">
+          <div class="compare__pane compare__pane--term" aria-hidden="true">
+            <div class="term-bar"><span class="lights"><i></i><i></i><i></i></span><span>~/Studios/Larkspur Coffee</span></div>
+<pre class="term-body"><span class="t-dim">❯</span> claude
+
+<span class="t-you">&gt; Make the holiday menu board in three sizes: 24×36,
+  11×17 and a square one for Instagram.</span>
+
+<span class="t-dot">⏺</span> I’ll read the brand guide first.
+
+<span class="t-dot">⏺</span> <b>Read</b>(design.md)
+  <span class="t-dim">⎿  Read 18 lines</span>
+
+<span class="t-dot">⏺</span> <b>Bash</b>(node scripts/render-menu.js --sizes 24x36,11x17,1x1)
+  <span class="t-dim">⎿  Wrote exports/holiday-menu-24x36.png
+     Wrote exports/holiday-menu-11x17.png
+     Wrote exports/holiday-menu-square.png</span>
+
+<span class="t-dot">⏺</span> Done. All three sizes are in exports/. I used the rust
+  and oat from design.md and fixed the oat milk price.
+
+<span class="t-you">&gt;</span> <span class="t-caret"></span></pre>
+            <span class="compare__label compare__label--left">Terminal</span>
+          </div>
+
+          <div class="compare__pane compare__pane--chat ax-win" aria-hidden="true">
+            <div class="ax-bar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="ax-title">Holiday menu boards</span>
+              <span class="ax-menu"><i class="ph ph-smiley"></i> Friendly <i class="ph ph-caret-down"></i></span>
+              <span class="ax-menu"><i class="ph-fill ph-palette"></i> Larkspur Coffee <i class="ph ph-caret-down"></i></span>
+            </div>
+            <div class="ax-chat">
+              <div class="ax-log">
+                <div class="ax-user ax-user--claude">Make the holiday menu board in three sizes: 24×36, 11×17 and a square one for Instagram.</div>
+                <div class="ax-steps"><i class="ph ph-caret-right"></i><i class="ph ph-list-checks"></i> 3 steps</div>
+                <p class="ax-text">Done. I used the rust and oat from <code>design.md</code> and fixed the oat milk price.</p>
+                <div class="ax-imgs">
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="2x3"></div></div><figcaption>holiday-menu-24x36</figcaption></figure>
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="11x17"></div></div><figcaption>holiday-menu-11x17</figcaption></figure>
+                  <figure class="ax-img"><div class="ax-img__frame"><div class="art" data-art="menu" data-ratio="1x1"></div></div><figcaption>holiday-menu-square</figcaption></figure>
+                </div>
+                <div class="ax-worked"><i class="ph ph-clock"></i> Worked for 2m 41s <i class="ph ph-copy"></i> Copy</div>
+              </div>
+              <div class="ax-composer">
+                <i class="ph ph-paperclip"></i>
+                <div class="ax-field ax-field--claude"><span class="ax-ph">Message Claude</span></div>
+                <span class="ax-send"><i class="ph ph-arrow-up"></i></span>
+              </div>
+            </div>
+            <span class="compare__label compare__label--right">Chatterbox</span>
+          </div>
+
+          <div class="compare__handle" aria-hidden="true"><span><i class="ph ph-caret-left"></i><i class="ph ph-caret-right"></i></span></div>
+          <input class="compare__range" type="range" min="0" max="100" value="50" aria-label="Compare the terminal with Chatterbox. Lower values show more of Chatterbox." data-compare-range>
+        </div>
+
+        <div class="diffs">
+          <div class="diff reveal"><i class="ph ph-image"></i><div><b>You see the work, not a file path.</b><p>Images, web pages and PDFs show up in the reply. Click one to open it beside the chat.</p></div></div>
+          <div class="diff reveal" style="--d:.05s"><i class="ph ph-chat-teardrop-dots"></i><div><b>Type while it works.</b><p>Your next message joins the running turn. No waiting for a prompt to come back.</p></div></div>
+          <div class="diff reveal" style="--d:.1s"><i class="ph ph-list-checks"></i><div><b>The log folds away.</b><p>Ninety-three steps become one line. Open it when you’re curious.</p></div></div>
+          <div class="diff reveal" style="--d:.15s"><i class="ph ph-hand-tap"></i><div><b>Questions come with buttons.</b><p>Approvals and questions arrive as cards you can answer here or from your phone.</p></div></div>
+        </div>
+        <p class="aside-note reveal"><i class="ph ph-terminal-window"></i> Miss the terminal? There’s one docked at the bottom of every chat.</p>
+      </div>
+    </section>
+
+    <!-- Create, preview, collect, review -->
+    <section class="section" id="work">
+      <div class="container">
+        <h2 class="reveal">Make it, see it, sign off on&nbsp;it.</h2>
+        <p class="lede reveal">Chatterbox is built around what your agents make, not the commands they ran to make it.</p>
+
+        <div class="story" data-story>
+          <div class="story__steps">
+            <article class="stage" data-stage="create">
+              <span class="stage__num">Make</span>
+              <h3>Ask for a thing. Get the thing.</h3>
+              <p>When an agent writes a web page or an SVG, it renders live in the reply. Images land as images, ready to copy.</p>
+              <div class="stage__visual" data-slot="create"></div>
+            </article>
+            <article class="stage" data-stage="preview">
+              <span class="stage__num">Open</span>
+              <h3>Open it wherever suits you.</h3>
+              <p>Click a page to open it in a sidebar beside the chat, full screen, in its own window or in your browser.</p>
+              <div class="stage__visual" data-slot="preview"></div>
+            </article>
+            <article class="stage" data-stage="library">
+              <span class="stage__num">Collect</span>
+              <h3>Every image, in one place.</h3>
+              <p>The Image Library gathers everything a chat or Studio has made, with names and dates, so version three is easy to find.</p>
+              <div class="stage__visual" data-slot="library"></div>
+            </article>
+            <article class="stage" data-stage="review">
+              <span class="stage__num">Review</span>
+              <h3>See what needs you.</h3>
+              <p>Home shows every chat as a card with its latest artwork. Filter to Needs you and work through the queue.</p>
+              <div class="stage__visual" data-slot="review"></div>
+            </article>
+          </div>
+
+          <div class="story__stage">
+            <div class="ax-win story__win" data-active="create">
+              <div class="ax-bar">
+                <span class="lights"><i></i><i></i><i></i></span>
+                <span class="ax-title" data-story-title>Coach signup page</span>
+                <span class="ax-menu"><i class="ph-fill ph-palette"></i> Tidewater Archery <i class="ph ph-caret-down"></i></span>
+                <span class="ax-spacer"></span>
+                <i class="ph ph-images ax-icon"></i>
+              </div>
+
+              <!-- Make: a live HTML preview in the reply -->
+              <div class="screen" data-screen="create">
+                <div class="ax-chat">
+                  <div class="ax-log">
+                    <div class="ax-user ax-user--claude">Build the coach signup page. Navy and gold, short form, one big button.</div>
+                    <div class="ax-steps"><i class="ph ph-caret-right"></i><i class="ph ph-list-checks"></i> 9 steps</div>
+                    <p class="ax-text">Here’s the page. The form asks for name, email and certification level, and the button sends it to the coaches inbox.</p>
+                    <div class="ax-live">
+                      <div class="ax-live__bar"><i class="ph ph-file-html"></i> tidewater-coaches.html <span>Live preview</span></div>
+                      <div class="art" data-art="web"></div>
+                    </div>
+                    <div class="ax-worked"><i class="ph ph-clock"></i> Worked for 4m 12s <i class="ph ph-copy"></i> Copy</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Open: the preview chooser, then a sidebar beside the chat -->
+              <div class="screen" data-screen="preview">
+                <div class="split">
+                  <div class="ax-chat">
+                    <div class="ax-log">
+                      <p class="ax-text">Here’s the page. The form asks for name, email and certification level.</p>
+                      <div class="ax-live ax-live--small">
+                        <div class="ax-live__bar"><i class="ph ph-file-html"></i> tidewater-coaches.html</div>
+                        <div class="art" data-art="web"></div>
+                      </div>
+                      <div class="ax-user ax-user--claude">Make the button say “Apply to coach”.</div>
+                      <p class="ax-text">Done. It’s updated in the sidebar.</p>
+                    </div>
+                  </div>
+                  <div class="side-preview">
+                    <div class="side-preview__bar"><i class="ph ph-sidebar-simple"></i> tidewater-coaches.html <i class="ph ph-arrows-out-simple"></i><i class="ph ph-x"></i></div>
+                    <div class="art" data-art="web" data-variant="apply"></div>
+                  </div>
+                </div>
+                <div class="chooser" data-chooser>
+                  <div class="chooser__head"><b>Open preview</b><i class="ph ph-x"></i></div>
+                  <small>tidewater-coaches.html</small>
+                  <div class="chooser__opt is-hit"><i class="ph ph-sidebar-simple"></i><span><b>Sidebar</b>Beside this chat</span><i class="ph ph-caret-right"></i></div>
+                  <div class="chooser__opt"><i class="ph ph-arrows-out-simple"></i><span><b>Full Screen</b>A full-screen preview window</span><i class="ph ph-caret-right"></i></div>
+                  <div class="chooser__opt"><i class="ph ph-browser"></i><span><b>New Chatterbox Window</b>A separate resizable preview</span><i class="ph ph-caret-right"></i></div>
+                  <div class="chooser__opt"><i class="ph ph-globe"></i><span><b>Open in Safari</b>Outside Chatterbox</span><i class="ph ph-caret-right"></i></div>
+                </div>
+              </div>
+
+              <!-- Collect: the Image Library -->
+              <div class="screen" data-screen="library">
+                <div class="library">
+                  <div class="library__head"><b>Images in “Larkspur Coffee”</b><span>8</span><button type="button" tabindex="-1">Done</button></div>
+                  <div class="library__grid">
+                    <figure><div class="library__tile"><div class="art" data-art="menu" data-ratio="1x1" data-variant="new"></div></div><figcaption>holiday-menu-square-v2.png<small>Today at 10:41 AM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="menu" data-ratio="2x3"></div></div><figcaption>holiday-menu-24x36.png<small>Today at 10:38 AM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="label"></div></div><figcaption>winter-blend-label-v3.png<small>Today at 9:12 AM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="post"></div></div><figcaption>gingerbread-is-back.png<small>Yesterday at 4:05 PM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="menu" data-ratio="11x17"></div></div><figcaption>holiday-menu-11x17.png<small>Yesterday at 3:58 PM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="label" data-variant="v2"></div></div><figcaption>winter-blend-label-v2.png<small>Yesterday at 2:30 PM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="post" data-variant="alt"></div></div><figcaption>maple-cortado-story.png<small>Oct 6 at 11:20 AM</small></figcaption></figure>
+                    <figure><div class="library__tile"><div class="art" data-art="label" data-variant="v1"></div></div><figcaption>winter-blend-label-v1.png<small>Oct 6 at 9:47 AM</small></figcaption></figure>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Review: Home, filtered to what needs you -->
+              <div class="screen" data-screen="review">
+                <div class="home">
+                  <div class="home__head"><b>Home</b><span class="home__back"><i class="ph ph-arrow-left"></i> Back to Chat</span></div>
+                  <div class="home__tools">
+                    <div class="ax-search"><i class="ph ph-magnifying-glass"></i> Search threads, projects and Studios</div>
+                    <div class="home__seg"><span>All</span><span class="is-on">Needs you</span><span>Working</span></div>
+                  </div>
+                  <div class="home__grid">
+                    <div class="hcard is-needs">
+                      <div class="hcard__top"><span class="mark mark--claude"></span><span class="hcard__status">Needs you <i></i></span></div>
+                      <b>Coach signup page</b>
+                      <p>Which photo should lead the page?</p>
+                      <div class="hcard__thumb"><div class="art" data-art="web" data-variant="apply"></div></div>
+                      <small>Claude · 6 messages <span>now</span></small>
+                    </div>
+                    <div class="hcard is-needs">
+                      <div class="hcard__top"><span class="mark mark--openai"></span><span class="hcard__status">Needs you <i></i></span></div>
+                      <b>Bag label artwork</b>
+                      <p>Ready to send to the printer?</p>
+                      <div class="hcard__thumb"><div class="art" data-art="label"></div></div>
+                      <small>Codex · 4 messages <span>4m</span></small>
+                    </div>
+                    <div class="hcard is-needs">
+                      <div class="hcard__top"><span class="mark mark--claude"></span><span class="hcard__status">Needs you <i></i></span></div>
+                      <b>Tour poster sizes</b>
+                      <p>Should the Portland date say sold out?</p>
+                      <div class="hcard__thumb"><div class="art" data-art="poster"></div></div>
+                      <small>Claude · 9 messages <span>12m</span></small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -170,40 +362,68 @@
           </ul>
         </div>
 
-        <div class="handoff reveal" data-handoff data-agent="claude">
-          <div class="handoff__head">
-            <span class="agent-pill"><span class="mark mark--claude" data-agent-mark></span><span data-agent-name>Claude</span> <i class="ph ph-caret-down" aria-hidden="true"></i></span>
-            <span class="handoff__where"><span class="tab" style="--c:var(--c-blue)"></span> Tidewater Archery</span>
+        <div class="ax-win handoff reveal" data-handoff data-agent="claude">
+          <div class="ax-bar">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="ax-title">Tournament handbook</span>
+            <span class="ax-menu"><i class="ph-fill ph-palette"></i> Tidewater Archery <i class="ph ph-caret-down"></i></span>
           </div>
-          <div class="handoff__log" data-handoff-log>
-            <div class="msg msg--user">Why won’t the handbook PDF export?</div>
-            <div class="msg msg--agent"><span class="mark mark--claude"></span><p>A table on page 14 runs past the margin. Want me to split it in two?</p></div>
+          <div class="ax-chat">
+            <div class="ax-log handoff__log" data-handoff-log>
+              <div class="ax-user ax-user--claude">Why won’t the handbook PDF export?</div>
+              <p class="ax-text ax-text--agent"><span class="mark mark--claude"></span><span>A table on page 14 runs past the margin. Want me to split it in two?</span></p>
+            </div>
+            <div class="ax-composer">
+              <i class="ph ph-paperclip"></i>
+              <div class="ax-field" data-handoff-field><span class="ax-ph" data-handoff-ph>Message Claude</span></div>
+              <span class="ax-send"><i class="ph ph-arrow-up"></i></span>
+            </div>
+            <div class="ax-meta">
+              <span class="ax-model"><i class="ax-dot"></i> <span data-handoff-model>Claude · Opus 5.5 · High effort</span> <i class="ph ph-caret-down"></i></span>
+              <span class="ax-spacer"></span>
+              <button type="button" class="ax-pill ax-pill--claude is-on" data-switch="claude">Opus 5.5</button>
+              <button type="button" class="ax-pill ax-pill--codex" data-switch="codex">GPT-6.1-Sol</button>
+            </div>
           </div>
-          <div class="handoff__composer">
-            <span data-handoff-ph>Message Claude</span>
-            <span class="send"><i class="ph ph-arrow-up" aria-hidden="true"></i></span>
-          </div>
-          <button class="btn btn--agent handoff__btn" type="button" data-handoff-btn>
-            <i class="ph ph-arrows-left-right" aria-hidden="true"></i>
-            <span>Hand it to Codex</span>
-          </button>
+          <span class="handoff__hint"><i class="ph ph-hand-pointing"></i> Click a preset to switch agents</span>
         </div>
       </div>
     </section>
 
-    <!-- Reviews -->
-    <section class="section" id="reviews">
+    <!-- Studios & Projects -->
+    <section class="section" id="studios">
       <div class="container">
-        <h2 class="reveal">Reviews from inside the app.</h2>
-        <p class="lede reveal">We asked the features what they thought of it. They were very honest.</p>
+        <h2 class="reveal h2--wide">Projects are for code.<br> Studios are for everything&nbsp;else.</h2>
+        <p class="lede reveal">A Studio keeps a client’s messy work in one folder. Every chat in it follows the same instructions and brand guide, so you only explain things once.</p>
 
-        <div class="pinboard">
-          <figure class="note note--yellow reveal" style="--r:-2.5deg"><blockquote>“I turn yellow when an agent needs you. It’s not a mood. It’s a signal.”</blockquote><figcaption><b>The waiting card</b><span>@waiting</span></figcaption></figure>
-          <figure class="note note--orange reveal" style="--r:1.8deg;--d:.05s"><blockquote>“Every chat in Larkspur reads the brand guide first. I have opinions about their rust orange now.”</blockquote><figcaption><b>Claude</b><span>@claude</span></figcaption></figure>
-          <figure class="note note--blue reveal" style="--r:-1.2deg;--d:.1s"><blockquote>“Claude handed me the whole chat mid-thought. Very tidy handwriting.”</blockquote><figcaption><b>Codex</b><span>@codex</span></figcaption></figure>
-          <figure class="note note--pink reveal" style="--r:2.2deg"><blockquote>“I’m temporary and I’ve made peace with that. Your main thread never knew I was here.”</blockquote><figcaption><b>A Sidechat</b><span>@sidechat</span></figcaption></figure>
-          <figure class="note note--mint reveal" style="--r:-1.6deg;--d:.05s"><blockquote>“I keep Larkspur’s chats away from everyone else’s. Professionally.”</blockquote><figcaption><b>A Studio</b><span>@larkspur</span></figcaption></figure>
-          <figure class="note note--gray reveal" style="--r:3deg;--d:.1s"><blockquote>“I wasn’t invited, and I’m choosing to be fine about it.”</blockquote><figcaption><b>Electron</b><span>@electron</span></figcaption></figure>
+        <div class="ax-win studio-win reveal" data-explorer>
+          <div class="ax-bar">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="ax-title" data-name>Larkspur Coffee</span>
+            <span class="ax-group"><i class="ph ph-folder" data-kind-icon="project"></i><i class="ph ph-palette is-on" data-kind-icon="studio"></i><i class="ph ph-squares-four"></i></span>
+            <span class="ax-menu" data-where><i class="ph-fill ph-palette"></i> Larkspur Coffee <i class="ph ph-caret-down"></i></span>
+            <span class="ax-spacer"></span>
+            <i class="ph ph-gear ax-icon"></i>
+          </div>
+          <div class="ax-main">
+            <aside class="ax-side" role="tablist" aria-label="Studios and Projects">
+              <div class="ax-sec"><i class="ph ph-caret-down"></i> Studios <i class="ph ph-plus ax-sec__add"></i></div>
+              <button type="button" role="tab" class="ax-pick is-on" aria-selected="true" data-key="larkspur"><i class="ph ph-palette"></i> Larkspur Coffee</button>
+              <button type="button" role="tab" class="ax-pick" aria-selected="false" data-key="tidewater"><i class="ph ph-palette"></i> Tidewater Archery</button>
+              <button type="button" role="tab" class="ax-pick" aria-selected="false" data-key="moth"><i class="ph ph-palette"></i> Moth Records</button>
+              <div class="ax-sec"><i class="ph ph-caret-down"></i> Projects <i class="ph ph-plus ax-sec__add"></i></div>
+              <button type="button" role="tab" class="ax-pick" aria-selected="false" data-key="site"><i class="ph-fill ph-folder"></i> larkspur-site <span class="tag tag--teal">website</span></button>
+              <button type="button" role="tab" class="ax-pick" aria-selected="false" data-key="planner"><i class="ph-fill ph-folder"></i> garden-planner <span class="tag tag--purple">app</span></button>
+            </aside>
+
+            <div class="studio-pane" role="tabpanel" data-panel aria-live="polite">
+              <div data-brief></div>
+              <div class="starters">
+                <span class="starters__who"><span class="mark mark--claude"></span> Claude</span>
+                <div class="starters__list" data-prompts></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -215,24 +435,25 @@
           <div class="phone__frame">
             <div class="phone__island"></div>
             <div class="phone__screen">
-              <div class="phone__time">9:41</div>
-              <div class="notif" data-notif>
-                <img src="assets/app-icon-256.png" alt="" width="34" height="34">
-                <div>
-                  <b>Chatterbox</b>
-                  <span>Claude needs your OK in Tidewater Archery</span>
+              <div class="lock" data-lock>
+                <div class="phone__time">9:41</div>
+                <div class="notif" data-notif>
+                  <img src="assets/app-icon-256.png" alt="" width="34" height="34">
+                  <div>
+                    <b>Tidewater Archery</b>
+                    <span>Claude: The handbook PDF is ready to review.</span>
+                  </div>
+                  <small>now</small>
                 </div>
-                <small>now</small>
               </div>
-              <div class="approval" data-approval>
-                <div class="approval__head"><span class="mark mark--claude"></span> Claude asks</div>
-                <p>Run this command?</p>
-                <code>npm run export-handbook</code>
-                <div class="approval__btns">
-                  <button type="button" class="approval__deny" data-deny>Deny</button>
-                  <button type="button" class="approval__allow" data-allow>Allow</button>
+              <div class="pdf" data-pdf>
+                <div class="pdf__bar"><span class="pdf__btn">Done</span><b>Review handbook.pdf</b><span class="pdf__icon"><i class="ph ph-arrow-clockwise"></i></span></div>
+                <div class="pdf__pages" data-pdf-pages>
+                  <div class="art" data-art="page" data-variant="1"></div>
+                  <div class="art" data-art="page" data-variant="2"></div>
+                  <div class="art" data-art="page" data-variant="3"></div>
                 </div>
-                <div class="approval__done" data-approved></div>
+                <div class="pdf__foot"><span class="pdf__icon"><i class="ph ph-folder-simple-plus"></i></span><span class="pdf__count" data-pdf-count>1 of 24</span><span class="pdf__icon"><i class="ph ph-export"></i></span></div>
               </div>
             </div>
           </div>
@@ -240,13 +461,30 @@
 
         <div class="phone-sec__copy">
           <h2 class="reveal">Step away. It’ll come find&nbsp;you.</h2>
-          <p class="lede reveal">When an agent needs you, its card turns yellow on your Mac and your iPhone buzzes. Answer from wherever you wandered off to.</p>
+          <p class="lede reveal">When an agent finishes or needs an answer, your iPhone buzzes. Review the work right there, then get back to your walk.</p>
           <ul class="ticks">
-            <li class="reveal"><i class="ph ph-bell-ringing" aria-hidden="true"></i><span>Finished replies wait in a bell until you’re ready to read them.</span></li>
-            <li class="reveal" style="--d:.05s"><i class="ph ph-moon-stars" aria-hidden="true"></i><span>Replies keep running even after you quit the app.</span></li>
-            <li class="reveal" style="--d:.1s"><i class="ph ph-device-mobile" aria-hidden="true"></i><span>Approve, reply and review PDFs from your iPhone or iPad.</span></li>
+            <li class="reveal"><i class="ph ph-bell-ringing" aria-hidden="true"></i><span>Notifications for questions, approvals and finished replies.</span></li>
+            <li class="reveal" style="--d:.05s"><i class="ph ph-file-pdf" aria-hidden="true"></i><span>Review PDFs full screen, and save them for offline.</span></li>
+            <li class="reveal" style="--d:.1s"><i class="ph ph-moon-stars" aria-hidden="true"></i><span>Replies keep running even after you quit the app.</span></li>
             <li class="reveal" style="--d:.15s"><i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i><span>Reach your Mac from anywhere over Tailscale.</span></li>
           </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reviews -->
+    <section class="section" id="reviews">
+      <div class="container">
+        <h2 class="reveal">Reviews from inside the app.</h2>
+        <p class="lede reveal">We asked the features what they thought of it. They were very honest.</p>
+
+        <div class="pinboard">
+          <figure class="note note--yellow reveal" style="--r:-2.5deg"><blockquote>“I light up the card when an agent needs you. It’s not a mood. It’s a signal.”</blockquote><figcaption><b>Needs you</b><span>@needsyou</span></figcaption></figure>
+          <figure class="note note--orange reveal" style="--r:1.8deg;--d:.05s"><blockquote>“Every chat in Larkspur reads the brand guide first. I have opinions about their rust orange now.”</blockquote><figcaption><b>Claude</b><span>@claude</span></figcaption></figure>
+          <figure class="note note--green reveal" style="--r:-1.2deg;--d:.1s"><blockquote>“Claude handed me the whole chat mid-thought. Very tidy handwriting.”</blockquote><figcaption><b>Codex</b><span>@codex</span></figcaption></figure>
+          <figure class="note note--pink reveal" style="--r:2.2deg"><blockquote>“Forty-one menu boards and I remember every one of them. Version three is right there.”</blockquote><figcaption><b>The Image Library</b><span>@images</span></figcaption></figure>
+          <figure class="note note--blue reveal" style="--r:-1.6deg;--d:.05s"><blockquote>“I fold ninety-three steps into one line. You’re welcome.”</blockquote><figcaption><b>The step group</b><span>@steps</span></figcaption></figure>
+          <figure class="note note--gray reveal" style="--r:3deg;--d:.1s"><blockquote>“I wasn’t invited, and I’m choosing to be fine about it.”</blockquote><figcaption><b>Electron</b><span>@electron</span></figcaption></figure>
         </div>
       </div>
     </section>
@@ -257,34 +495,38 @@
         <h2 class="reveal">Make it more you.</h2>
         <p class="lede reveal">Pick the tone your agents talk in. Name your presets whatever makes sense to you. Then, if you want, change the code.</p>
 
-        <div class="tuner reveal" data-tuner>
-          <div class="tuner__controls">
-            <div class="tuner__group">
-              <span class="tuner__label">Tone</span>
-              <div class="tone" role="radiogroup" aria-label="Tone">
-                <button type="button" role="radio" aria-checked="true" class="is-on" data-tone="friendly">Friendly</button>
-                <button type="button" role="radio" aria-checked="false" data-tone="pragmatic">Pragmatic</button>
-                <button type="button" role="radio" aria-checked="false" data-tone="neutral">Neutral</button>
+        <div class="ax-win tuner reveal" data-tuner>
+          <div class="ax-bar">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="ax-title">Tournament handbook</span>
+            <div class="tone">
+              <button type="button" class="ax-menu tone__btn" aria-haspopup="menu" aria-expanded="false" data-tone-btn><i class="ph ph-smiley"></i> <span data-tone-label>Friendly</span> <i class="ph ph-caret-down"></i></button>
+              <div class="tone__menu" role="menu" data-tone-menu hidden>
+                <button type="button" role="menuitemradio" aria-checked="true" data-tone="friendly"><i class="ph ph-check"></i> Friendly</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-tone="pragmatic"><i class="ph ph-check"></i> Pragmatic</button>
+                <button type="button" role="menuitemradio" aria-checked="false" data-tone="neutral"><i class="ph ph-check"></i> Neutral</button>
               </div>
             </div>
-            <div class="tuner__group">
-              <span class="tuner__label">Presets <small>Click one to rename it</small></span>
-              <div class="presets" data-presets>
-                <span class="preset" role="button" tabindex="0" data-preset><span>Arty</span></span>
-                <span class="preset" role="button" tabindex="0" data-preset><span>Fixer</span></span>
-                <span class="preset" role="button" tabindex="0" data-preset><span>Deep think</span></span>
-              </div>
-            </div>
+            <span class="tuner__hint"><i class="ph ph-arrow-left"></i> Try the tone menu</span>
           </div>
-
-          <div class="tuner__preview">
-            <div class="msg msg--user">The handbook build failed again.</div>
-            <div class="msg msg--agent"><span class="mark mark--claude"></span><p data-tone-text>Ah, that one again! A test still expects the old page count. Want me to update it and rerun everything?</p></div>
-            <div class="mini-composer">
-              <span>Message Claude</span>
-              <span class="send"><i class="ph ph-arrow-up" aria-hidden="true"></i></span>
+          <div class="ax-chat">
+            <div class="ax-log tuner__log">
+              <div class="ax-user ax-user--claude">The handbook build failed again.</div>
+              <p class="ax-text ax-text--agent"><span class="mark mark--claude"></span><span data-tone-text>Ah, that one again! A test still expects the old page count. Want me to update it and rerun everything?</span></p>
             </div>
-            <div class="mini-meta" data-preset-echo></div>
+            <div class="ax-composer">
+              <i class="ph ph-paperclip"></i>
+              <div class="ax-field ax-field--claude"><span class="ax-ph">Message Claude</span></div>
+              <span class="ax-send"><i class="ph ph-arrow-up"></i></span>
+            </div>
+            <div class="ax-meta">
+              <span class="ax-mode"><i class="ph ph-shield-check"></i> Accept edits <i class="ph ph-caret-down"></i></span>
+              <span class="ax-spacer"></span>
+              <span class="tuner__rename">Click a preset to rename it <i class="ph ph-arrow-right"></i></span>
+              <span class="ax-pill ax-pill--claude is-on" role="button" tabindex="0" data-preset><span>Arty</span></span>
+              <span class="ax-pill ax-pill--claude" role="button" tabindex="0" data-preset><span>Fixer</span></span>
+              <span class="ax-pill ax-pill--codex" role="button" tabindex="0" data-preset><span>Deep think</span></span>
+            </div>
           </div>
         </div>
 
@@ -316,7 +558,7 @@ xcodebuild -scheme Chatterbox build</code></pre>
           <div class="folder__tabs" aria-hidden="true">
             <span style="--c:var(--c-blue)">Tidewater</span>
             <span style="--c:var(--c-pink)">Moth Records</span>
-            <span style="--c:var(--c-mint)">Side projects</span>
+            <span style="--c:var(--c-green)">garden-planner</span>
           </div>
           <div class="folder__body">
             <span class="folder__tab">Next up</span>
@@ -337,7 +579,7 @@ xcodebuild -scheme Chatterbox build</code></pre>
         <a href="https://github.com/shelbyklein/chatterbox/issues" target="_blank" rel="noopener">Issues</a>
         <a href="https://github.com/shelbyklein/chatterbox/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a>
       </nav>
-      <p class="footer__fine">Claude is a trademark of Anthropic. Codex and the OpenAI logo belong to OpenAI. Chatterbox isn’t affiliated with either. The Studios and chats shown here are made up.</p>
+      <p class="footer__fine">Claude is a trademark of Anthropic. Codex and the OpenAI logo belong to OpenAI. Chatterbox isn’t affiliated with either. The clients, chats and artwork shown here are made up.</p>
     </div>
   </footer>
 
