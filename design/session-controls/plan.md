@@ -119,3 +119,20 @@ User requests visible Copy image on image replies and restricts thumbnails to St
 Readiness R1–R13 pass for this scoped follow-up. Local plan only. Preserve unrelated changes, original image files, gallery navigation, clipboard contents after test, and existing pinned-thread behavior.
 
 Verified T13: Mac/iPhone builds and source check pass. Image-review fixture verified PNG/TIFF clipboard data and restored the user clipboard; inspected [single image copy action](copy-image-reply.png) and [each image in a grid](copy-image-grid.png). First harness compile overlapped the Mac build, which changed SwiftTerm.o and failed; reran after build completion successfully. Card-attention checks pass; inspected [Studio preview versus text-only Project](studio-only-card-thumbnails.png). All mobile-home-nav tests pass, including explicit Project image absence despite supplied thumbnail metadata and Studio image presence; inspected [mobile Projects](mobile-projects-without-thumbnails.png) and Studio screen. Gate thumbnails by view context, including the full Studios overview (ChatHomeView is Studio-only), so globally pinned Studio threads on Projects are text-only. No installation or runtime restart. Tidy remains report-only, no removals.
+
+## Pinned group divider — 2026-10-08
+Pinned cards currently run into the remaining chats without a visible boundary. Add a horizontal rule after the pinned group in both Mac sidebar card and list views, using the existing Divider style. Preserve ordering, pinning, thumbnails and navigation; no iOS or data changes. Source delivery committed/pushed; installation awaits user approval.
+
+Current: [user screenshot](</Users/shelbyklein/Library/Application Support/Chatterbox/Attachments/45E5942B-68A6-4E47-96DC-9E97873B2A70/Pasted image.png>). Target sketch:
+```text
+Pinned
+[pinned card] [pinned card]
+─────────────────────────
+[other card]  [other card]
+```
+
+- [x] T14 Add divider, build Mac and inspect the native ContentView fixture from scripts/test-studio-chat-sidebar.sh. Success: full-width rule below pins, other cards retain normal layout. Commit/push scoped files. No install until approved; rollback by reverting this UI commit.
+
+Work preparation: R1–R13 pass; local plan, linear execution, current session exact model/effort unavailable. No blocking questions. R12 n/a for source-only UI changes. Existing native sidebar render provides verification; no new test needed for this static layout.
+
+Verified: Mac build and source check pass; studio-chat-sidebar suite passes. Inspected [native sidebar divider](pinned-divider.png): full-width rule separates pinned Studio tiles from the remaining card. Installation pending.
