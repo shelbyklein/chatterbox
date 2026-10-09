@@ -119,3 +119,50 @@ User requests visible Copy image on image replies and restricts thumbnails to St
 Readiness R1–R13 pass for this scoped follow-up. Local plan only. Preserve unrelated changes, original image files, gallery navigation, clipboard contents after test, and existing pinned-thread behavior.
 
 Verified T13: Mac/iPhone builds and source check pass. Image-review fixture verified PNG/TIFF clipboard data and restored the user clipboard; inspected [single image copy action](copy-image-reply.png) and [each image in a grid](copy-image-grid.png). First harness compile overlapped the Mac build, which changed SwiftTerm.o and failed; reran after build completion successfully. Card-attention checks pass; inspected [Studio preview versus text-only Project](studio-only-card-thumbnails.png). All mobile-home-nav tests pass, including explicit Project image absence despite supplied thumbnail metadata and Studio image presence; inspected [mobile Projects](mobile-projects-without-thumbnails.png) and Studio screen. Gate thumbnails by view context, including the full Studios overview (ChatHomeView is Studio-only), so globally pinned Studio threads on Projects are text-only. No installation or runtime restart. Tidy remains report-only, no removals.
+
+## Pinned group divider — 2026-10-08
+Pinned cards currently run into the remaining chats without a visible boundary. Add a horizontal rule after the pinned group in both Mac sidebar card and list views, using the existing Divider style. Preserve ordering, pinning, thumbnails and navigation; no iOS or data changes. Source delivery committed/pushed; installation awaits user approval.
+
+Current: [user screenshot](</Users/shelbyklein/Library/Application Support/Chatterbox/Attachments/45E5942B-68A6-4E47-96DC-9E97873B2A70/Pasted image.png>). Target sketch:
+```text
+Pinned
+[pinned card] [pinned card]
+─────────────────────────
+[other card]  [other card]
+```
+
+- [x] T14 Add divider, build Mac and inspect the native ContentView fixture from scripts/test-studio-chat-sidebar.sh. Success: full-width rule below pins, other cards retain normal layout. Commit/push scoped files. No install until approved; rollback by reverting this UI commit.
+
+Work preparation: R1–R13 pass; local plan, linear execution, current session exact model/effort unavailable. No blocking questions. R12 n/a for source-only UI changes. Existing native sidebar render provides verification; no new test needed for this static layout.
+
+Verified: Mac build and source check pass; studio-chat-sidebar suite passes. Inspected [native sidebar divider](pinned-divider.png): full-width rule separates pinned Studio tiles from the remaining card. Installation pending.
+
+## Chat tags — 2026-10-08
+Chats already save tags in ConversationRecord, but only project context menus expose them and chat list rows omit them. Expose the same Tags menu for every chat, show existing TagPills under chat titles, and add the existing tag filter controls to Chats with a separate remembered selection from Projects. Cards already render tags. Preserve project behavior, Studio navigation, metadata persistence, thumbnail scope and pinned ordering. Mac only, no schema or service changes.
+
+Target sketch: `Chats [filter] [+]` → `Pinned / cards / divider / [tag pills] / remaining cards`; right-click chat → `Tags → existing toggles / New Tag`; chat list row → `title / colored tags`.
+- [x] T15 Implement chat tag controls, build Mac, extend the existing sidebar fixture to exercise tag add/remove and render tagged Chats in card/list modes; inspect both renders. Commit/push, installation awaits approval.
+
+Work preparation: local plan, linear current session; exact model/effort unavailable. R1–R13 pass using user sidebar screenshot above and target sketch. No blocking questions. Success: tags survive save/load, appear in both layouts and filter the Chats sidebar without changing Projects' filter. Existing scripts/test-studio-chat-sidebar.sh supplies the native entry point and persistence checks. Rollback revert scoped commits; no stored-data migration.
+
+Verified T15: Mac build/source check pass. Existing sidebar suite passes; case-insensitive toggling removes the existing tag and disk save/load preserves it. Inspected [tagged chat cards](chat-tags-cards.png) and [tagged list row](chat-tags-list.png): Research filter shows the tagged chat, hides untagged reference and pinned chats, and stays selected independently of the Project-only filter. Right-click menus now share Tags for all sessions. Regenerated Xcode project for newly merged upstream Core sources during reconciliation; no changes to those source implementations. Tidy report found three older mobile render folders (81 MB), no deletion. Installation pending.
+
+## Pinned session origin — 2026-10-08
+The pinned group mixes project, Studio and standalone sessions without naming their source. Show a subtle secondary line beneath each pinned title: Project, Studio · its name, or Chat. Use the same label in list rows, cards and compact tiles; ordinary unpinned rows retain their current layout. No data, navigation, tag or thumbnail changes; Mac only.
+
+Current: [user screenshot](</Users/shelbyklein/Library/Application Support/Chatterbox/Attachments/881346BC-6940-4A3D-A6D8-5B919B83172F/CleanShot 2026-10-08 at 11.34.46 PM@2x.png>). Target sketch: `National Event Ribbons` / `Studio · USA Archery` in smaller gray text; `Shelby-PC` / `Chat`; project title / `Project`.
+- [x] T16 Build Mac and run scripts/test-studio-chat-sidebar.sh with pinned examples of all three sources; inspect list/card renders and classification assertions, commit/push. Installation awaits approval.
+
+Work preparation: local plan, linear current session exact model/effort unavailable; R1–R13 pass. No blocking questions, no persisted changes, rollback revert UI commit. Success: all three origins identifiable below pinned titles, Studio name visible or truncatable with full tooltip, existing sidebar navigation and divider retained.
+
+Verified T16: Mac build/source check and existing sidebar suite pass. Inspected [pinned origins in list view](pinned-origin-list.png) and [card view](pinned-origin-cards.png): Project, Chat and named Studio labels appear below their titles; long Studio names truncate in cards with full tooltip. Navigation, tag persistence and divider checks remain passing. Tidy report only, no removal or restart; installation pending.
+
+## Direct Image Library button — 2026-10-08
+User requests Image Library moved out of Session tools to an icon in the right-side session controls, then installation. Add a matching 32-point button beside Session tools and before Notes; preserve the existing gallery-opening action and hide it in the same compact/tile/Dot contexts. Remove the dropdown entry; keep tone, place and repository controls. No data or service changes.
+
+Current: [dropdown screenshot](</Users/shelbyklein/Library/Application Support/Chatterbox/Attachments/EB1317FC-CA59-4834-BA8D-76A5AFB7C26C/CleanShot 2026-10-08 at 11.44.45 PM@2x.png>). Target sketch: `[Tools ▾] [Images] [Notes] [⚡]` at top right.
+- [ ] T17 Build Mac, install via scripts/install.sh, inspect the installed ChatView controls and open Image Library from its new button, verify installed executable/running process, commit/push. User explicitly authorized installation, including pending T16.
+
+Work preparation: R1–R13 pass; local linear current session exact model/effort unavailable; no blocking questions. Verify the actual installed ChatView button/popover rather than adding tests for a static control relocation; gallery behavior remains existing bridge.showImages action. Rollback revert UI commits and reinstall prior build; chat data unchanged. Installation uses repository script only, no service restart.
+
+T17 implementation/build/install verified: Mac build/source check pass, scripts/install.sh completed, installed executable matches the build and app reopened. Inspected native screenshot showing `[Tools] [Images] [Notes] [Quick prompts]` with matching heights, and real pinned labels (Shelby-PC = Chat; National Event Ribbons/OAS Homeschool/Event Logos = Studio · USA Archery). Accessibility exposes Image Library as its own button. Click/popover check remains pending: computer use detected concurrent user navigation to another active chat, so interaction stopped. Existing gallery action reused; no service restart or chat interruption. Commit/push source delivery complete; keep checkbox open for installed click acceptance.

@@ -37,6 +37,11 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  first.record.items.append(DisplayItem(kind:.assistant,text:"[Latest artwork]("+artwork.path+")",phase:.final))
  model.togglePinnedThread(first)
  model.togglePinnedThread(second)
+ model.togglePinnedThread(project)
+ model.togglePinnedThread(standalone)
+ precondition(SessionOriginLabel.text(for: first, in: model) == "Studio · Playcase Studio")
+ precondition(SessionOriginLabel.text(for: project, in: model) == "Project")
+ precondition(SessionOriginLabel.text(for: standalone, in: model) == "Chat")
  let panel=NSPanel(contentRect:NSRect(x:80,y:80,width:1240,height:780),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
  panel.appearance=NSAppearance(named:.darkAqua);panel.orderFrontRegardless()
  panel.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
@@ -56,6 +61,7 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  // A previously saved collapsed Projects preference must not hide the list.
  var preferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
  preferences["sidebarProjectsCollapsed"]=true
+ preferences["macProjectsSidebarCards"]=false
  preferences["sidebarTagFilter"]=""
  UserDefaults.standard.setVolatileDomain(preferences,forName:UserDefaults.argumentDomain)
  model.selectedID=project.id
@@ -64,6 +70,44 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let projectsBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
  view.cacheDisplay(in:view.bounds,to:projectsBitmap)
  try projectsBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/projects-expanded.png"))
+ preferences["macProjectsSidebarCards"]=true
+ UserDefaults.standard.setVolatileDomain(preferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ view.layoutSubtreeIfNeeded()
+ let originCards=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:originCards)
+ try originCards.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/pinned-origin-cards.png"))
+ // Chats use the same persisted tags as projects, with their own sidebar filter.
+ standalone.toggleTag("Research")
+ project.toggleTag("Project only")
+ standalone.toggleTag("research")
+ precondition(standalone.tags.isEmpty)
+ standalone.toggleTag("Research")
+ let decoded=try JSONDecoder().decode(ConversationRecord.self,from:JSONEncoder().encode(standalone.record))
+ precondition(decoded.tags == ["Research"])
+ let untagged=chat("Untagged reference")
+ model.selectedID=standalone.id
+ var chatPreferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
+ chatPreferences["macChatsSidebarCards"]=true
+ chatPreferences["sidebarChatTagFilter"]="Research"
+ chatPreferences["sidebarTagFilter"]="Project only"
+ UserDefaults.standard.setVolatileDomain(chatPreferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ let savedDecoder=JSONDecoder();savedDecoder.dateDecodingStrategy = .iso8601
+ let saved=try savedDecoder.decode(ConversationRecord.self,from:Data(contentsOf:URL(fileURLWithPath:root+"/Conversations/"+standalone.id.uuidString+".json")))
+ precondition(saved.tags == ["Research"])
+ view.layoutSubtreeIfNeeded()
+ let chatsBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:chatsBitmap)
+ try chatsBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/tagged-chat-cards.png"))
+ precondition(model.showingChatsSidebar && untagged.tags.isEmpty)
+ chatPreferences["macChatsSidebarCards"]=false
+ UserDefaults.standard.setVolatileDomain(chatPreferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ view.layoutSubtreeIfNeeded()
+ let chatsListBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:chatsListBitmap)
+ try chatsListBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/tagged-chat-list.png"))
  print("PASS: studio A/B, project/standalone routing, linked shortcut, bell navigation and new-chat membership; native ContentView render: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}};app.run()
