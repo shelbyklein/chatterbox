@@ -46,7 +46,15 @@ reported **EXPORT SUCCEEDED** and **Uploaded package is processing**. The app an
 both use `CURRENT_PROJECT_VERSION`, so subsequent uploads get the script's new build number.
 The archive is in `build/TestFlight/Chatterbox-202610090952.xcarchive` (replaced on the next release).
 
-Still to verify in App Store Connect: processing completion, an internal testing group,
-the account holder added as a tester, and the build assigned to that group. A browser sign-in
-is required to complete those steps; an accepted upload alone doesn't make the app available
-on the phone.
+Processing is complete. The build's encryption declaration was saved for the current app,
+which uses Apple's operating-system networking rather than implementing encryption itself.
+Reassess that declaration when the planned end-to-end encryption work ships.
+
+The **Shelby** internal testing group has automatic distribution enabled and contains build
+**1.0 (202610090952)**, verified **Ready to Test**. Shelby Klein
+(`shelbykleindesign@gmail.com`) is added with status **Invited**. Future script uploads go to
+this group automatically after processing and any required compliance steps.
+
+On the iPhone or iPad, open Apple's invitation email, choose **View in TestFlight**, accept,
+and install **Chatterbox Companion**. Invitation acceptance and phone installation remain
+to be confirmed; App Store Connect currently reports no installs.
