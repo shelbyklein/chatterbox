@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chatterbox: coding agents in an actual Mac app</title>
+  <meta name="description" content="Chatterbox runs Claude Code and Codex in a native SwiftUI Mac app, with an iPhone and iPad companion. Bring your own subscription. Leave the Electron at home.">
+  <meta name="theme-color" content="#09090b">
+  <meta property="og:title" content="Chatterbox: coding agents in an actual Mac app">
+  <meta property="og:description" content="Claude Code and Codex in native SwiftUI. Bring your own subscription. Leave the Electron at home.">
+  <meta property="og:image" content="assets/app-icon.png">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon-256.png">
+  <link rel="preload" href="assets/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/vendor/phosphor/regular.css">
+  <link rel="stylesheet" href="assets/vendor/phosphor/fill.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <header class="nav">
+    <div class="nav__inner">
+      <a class="brand" href="#top" aria-label="Chatterbox home">
+        <img src="assets/app-icon-256.png" alt="" width="28" height="28">
+        <span>Chatterbox</span>
+      </a>
+      <nav class="nav__links" aria-label="Sections">
+        <a href="#agents">Agents</a>
+        <a href="#native">Native</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#phone">Phone</a>
+        <a href="#source">Source</a>
+      </nav>
+      <a class="stars" href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener">
+        <i class="ph-fill ph-star" aria-hidden="true"></i>
+        <span data-stars>Be star #1</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero__grid" aria-hidden="true"></div>
+
+      <div class="tiles" aria-hidden="true">
+        <div class="tile tile--claude" style="--x:5%;--y:150px;--s:78px;--r:-8deg;--depth:1.2;--glow:#ff7a45"><span class="mark mark--claude"></span></div>
+        <div class="tile tile--phone" style="--x:21%;--y:36px;--s:54px;--r:6deg;--depth:.6;--glow:#ffd23f"><i class="ph ph-device-mobile"></i></div>
+        <div class="tile tile--swift" style="--x:9%;--y:330px;--s:62px;--r:7deg;--depth:.9;--glow:#ff4d8d"><span class="mark mark--swift"></span></div>
+        <div class="tile tile--openai" style="--x:calc(95% - 78px);--y:150px;--s:78px;--r:6deg;--depth:1.2;--glow:#7da8ff"><span class="mark mark--openai"></span></div>
+        <div class="tile tile--electron" style="--x:calc(79% - 56px);--y:40px;--s:56px;--r:-6deg;--depth:.6;--glow:#3ddc97"><span class="mark mark--electron"></span><span class="tile__slash"></span></div>
+        <div class="tile tile--apple" style="--x:calc(91% - 62px);--y:330px;--s:62px;--r:-5deg;--depth:.9;--glow:#ffd23f"><span class="mark mark--apple"></span></div>
+      </div>
+
+      <div class="hero__copy">
+        <h1 class="reveal">Coding agents, in an <em>actual</em> Mac&nbsp;app.</h1>
+        <p class="hero__sub reveal" style="--d:.08s">Chatterbox runs Claude Code and Codex in native SwiftUI. Bring your own subscription. Leave the Electron at home.</p>
+        <div class="hero__ctas reveal" style="--d:.16s">
+          <a class="btn btn--light" href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener" data-confetti>
+            <span class="mark mark--github"></span>
+            Get it on GitHub
+          </a>
+          <a class="btn btn--ghost" href="#native">
+            Spot the difference
+            <i class="ph ph-arrow-down-right" aria-hidden="true"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Live app preview -->
+      <div class="window-wrap reveal" style="--d:.24s">
+        <div class="sticker" aria-hidden="true">
+          <svg viewBox="0 0 120 120">
+            <defs><path id="sticker-ring" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
+            <text><textPath href="#sticker-ring" textLength="274" lengthAdjust="spacing">NO ELECTRON INSIDE ✦ MADE IN SWIFT ✦</textPath></text>
+          </svg>
+          <span class="mark mark--swift"></span>
+        </div>
+
+        <div class="window" data-story aria-label="An animated preview of the Chatterbox app: Claude edits a landing page while the user sends a follow-up.">
+          <div class="window__bar">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="window__title">Chatterbox</span>
+            <button class="replay" type="button" data-replay><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i> Replay</button>
+          </div>
+          <div class="window__body">
+            <aside class="side">
+              <div class="side__search"><i class="ph ph-magnifying-glass" aria-hidden="true"></i> Search</div>
+              <div class="side__group">
+                <div class="side__project"><i class="ph ph-caret-down" aria-hidden="true"></i> chatterbox-website</div>
+                <div class="side__chat is-active"><span class="mark mark--claude"></span><span>Make the site cheekier</span><span class="spin" data-story-spin></span></div>
+                <div class="side__chat"><span class="mark mark--openai"></span><span>Fix the flaky test</span></div>
+                <div class="side__chat"><span class="mark mark--claude"></span><span>Rename preset pills</span></div>
+                <div class="side__chat"><span class="mark mark--openai"></span><span>Triage open issues</span></div>
+              </div>
+              <div class="side__group">
+                <div class="side__project"><i class="ph ph-caret-down" aria-hidden="true"></i> playcase</div>
+                <div class="side__chat"><span class="mark mark--claude"></span><span>Product photos</span></div>
+              </div>
+            </aside>
+
+            <div class="chat">
+              <div class="chat__bar">
+                <span class="chat__title">Make the site cheekier</span>
+                <span class="chip"><span class="mark mark--github"></span> shelbyklein/chatterbox</span>
+                <span class="chip"><i class="ph ph-git-branch" aria-hidden="true"></i> website</span>
+                <span class="chip chip--muted"><i class="ph ph-arrow-up" aria-hidden="true"></i> 2</span>
+              </div>
+
+              <div class="chat__log" data-story-log>
+                <div class="msg msg--user" data-step="1">Make the landing page cheekier. Friendly cheeky, not mean.</div>
+
+                <div class="steps" data-step="2">
+                  <div class="steps__row"><i class="ph ph-file-text" aria-hidden="true"></i> Read <code>index.html</code></div>
+                  <div class="steps__row"><i class="ph ph-file-css" aria-hidden="true"></i> Read <code>styles.css</code></div>
+                  <div class="steps__row"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Edited <code>index.html</code></div>
+                </div>
+
+                <div class="plan" data-step="3">
+                  <div class="plan__head"><i class="ph ph-list-checks" aria-hidden="true"></i> Plan</div>
+                  <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Rewrite the hero copy</span></div>
+                  <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Get the agents to write the reviews</span></div>
+                  <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Wink at Electron, name no names</span></div>
+                </div>
+
+                <div class="msg msg--user msg--steer" data-step="4">
+                  <span class="steer-tag" data-steer-tag>Queued</span>
+                  also make the button throw confetti
+                </div>
+
+                <div class="msg msg--agent" data-step="5">
+                  <span class="mark mark--claude"></span>
+                  <p data-stream>Done. The hero winks at a certain Electron app without naming it, the reviews are written by us agents, and the GitHub button now throws confetti. Friendly cheeky. Mostly.</p>
+                </div>
+              </div>
+
+              <div class="composer">
+                <i class="ph ph-paperclip composer__clip" aria-hidden="true"></i>
+                <div class="composer__field"><span data-type-target></span><span class="caret" data-caret></span><span class="composer__ph" data-placeholder>Message Claude</span></div>
+                <span class="composer__send"><i class="ph ph-arrow-up" aria-hidden="true"></i></span>
+              </div>
+              <div class="composer__meta">
+                <span class="mode"><i class="ph ph-shield-check" aria-hidden="true"></i> Accept edits <i class="ph ph-caret-down" aria-hidden="true"></i></span>
+                <span class="ring-chip"><span class="ring" style="--p:38"></span> Context 38%</span>
+                <span class="meta__spacer"></span>
+                <span class="pill">Arty</span>
+                <span class="pill">Fixer</span>
+                <span class="pill pill--current">Claude · Opus · High effort</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agents -->
+    <section class="section" id="agents">
+      <div class="container agents">
+        <div class="agents__copy">
+          <h2 class="reveal">Two agents. The good&nbsp;ones.</h2>
+          <p class="lede reveal">Some apps juggle six harnesses. Chatterbox does the two you actually use, and does them properly. No API keys, no tokens resold. Just your own plans.</p>
+
+          <div class="agent-cards">
+            <article class="agent-card reveal">
+              <span class="agent-card__mark"><span class="mark mark--claude"></span></span>
+              <div>
+                <h3>Claude Code</h3>
+                <p>Runs your installed <code>claude</code>, with your settings, CLAUDE.md, skills, MCP servers and hooks.</p>
+              </div>
+              <code class="agent-card__cmd">claude</code>
+            </article>
+            <article class="agent-card reveal" style="--d:.08s">
+              <span class="agent-card__mark agent-card__mark--codex"><span class="mark mark--openai"></span></span>
+              <div>
+                <h3>Codex</h3>
+                <p>Runs <code>codex app-server</code> with your ChatGPT sign-in, config, MCP servers and hooks.</p>
+              </div>
+              <code class="agent-card__cmd">codex login</code>
+            </article>
+          </div>
+        </div>
+
+        <div class="handoff reveal" data-handoff data-agent="claude">
+          <div class="handoff__head">
+            <span class="agent-pill"><span class="mark mark--claude" data-agent-mark></span><span data-agent-name>Claude</span> <i class="ph ph-caret-down" aria-hidden="true"></i></span>
+            <span class="handoff__hint">Switch mid-chat. Nobody starts over.</span>
+          </div>
+          <div class="handoff__log" data-handoff-log>
+            <div class="msg msg--user">Why is the build red?</div>
+            <div class="msg msg--agent"><span class="mark mark--claude"></span><p>One test still expects the old button label. Want me to update it?</p></div>
+          </div>
+          <div class="handoff__composer">
+            <span data-handoff-ph>Message Claude</span>
+            <span class="composer__send"><i class="ph ph-arrow-up" aria-hidden="true"></i></span>
+          </div>
+          <button class="btn btn--accent handoff__btn" type="button" data-handoff-btn>
+            <i class="ph ph-arrows-left-right" aria-hidden="true"></i>
+            <span>Hand it to Codex</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Native vs Electron -->
+    <section class="section" id="native">
+      <div class="container">
+        <h2 class="center reveal">Spot the difference.</h2>
+        <p class="lede center reveal">Some desktop apps are websites in a trench coat. Chatterbox is SwiftUI, through and through, and it shows.</p>
+
+        <div class="versus">
+          <article class="vs vs--them reveal">
+            <div class="vs__status"><span class="vs__spinner" aria-hidden="true"></span> Starting Chromium…</div>
+            <div class="vs__title">
+              <span class="vs__icon"><i class="ph ph-browser" aria-hidden="true"></i></span>
+              <div>
+                <h3>A certain Electron app</h3>
+                <p>Name withheld. You know the one.</p>
+              </div>
+            </div>
+            <ul class="vs__list">
+              <li><i class="ph ph-package" aria-hidden="true"></i> Packs its own copy of Chromium</li>
+              <li><i class="ph ph-globe" aria-hidden="true"></i> Draws your chat as a web page</li>
+              <li><i class="ph ph-hard-drives" aria-hidden="true"></i> Brings a whole browser to show you a text box</li>
+              <li><i class="ph ph-mask-happy" aria-hidden="true"></i> Feels like a website that found the Dock</li>
+            </ul>
+          </article>
+
+          <div class="versus__vs" aria-hidden="true">vs</div>
+
+          <article class="vs vs--us reveal" style="--d:.1s">
+            <div class="vs__status vs__status--ok"><i class="ph-fill ph-check-circle" aria-hidden="true"></i> Opened. That was it.</div>
+            <div class="vs__title">
+              <span class="vs__icon vs__icon--us"><img src="assets/app-icon-256.png" alt="" width="44" height="44"></span>
+              <div>
+                <h3>Chatterbox</h3>
+                <p>Native to the bone.</p>
+              </div>
+            </div>
+            <ul class="vs__list">
+              <li><i class="ph ph-swatches" aria-hidden="true"></i> A real SwiftUI interface, sidebar to send button</li>
+              <li><i class="ph ph-moon-stars" aria-hidden="true"></i> Replies keep running after you quit the app</li>
+              <li><i class="ph ph-keyboard" aria-hidden="true"></i> Proper shortcuts: <kbd>⌘K</kbd> <kbd>⌘J</kbd> <kbd>⌘.</kbd></li>
+              <li><i class="ph ph-apple-logo" aria-hidden="true"></i> Feels like a Mac app, because it is one</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reviews -->
+    <section class="section section--reviews" id="reviews">
+      <div class="container">
+        <h2 class="reveal">Tolerated by two AI agents.</h2>
+        <p class="lede reveal">Plus your RAM, your iPhone and one very good Stop button. We asked everyone nicely.</p>
+      </div>
+      <div class="marquee" data-marquee>
+        <div class="marquee__row" data-row="1">
+          <figure class="review"><div class="review__who"><span class="av av--orange"><span class="mark mark--claude"></span></span><figcaption><b>Claude</b><span>@claude</span></figcaption></div><blockquote>“I was asked to write a review of the app I’m running in. I wrote three drafts and asked which tone you preferred.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--blue"><span class="mark mark--openai"></span></span><figcaption><b>Codex</b><span>@codex</span></figcaption></div><blockquote>“You can type while I’m working and it just joins the turn. I finally get to finish a thought.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--mint"><i class="ph-fill ph-moon-stars"></i></span><figcaption><b>The background host</b><span>@chatterboxhost</span></figcaption></div><blockquote>“You quit the app. I didn’t. Your reply was waiting when you came back.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--yellow"><i class="ph-fill ph-memory"></i></span><figcaption><b>Your RAM</b><span>@ram</span></figcaption></div><blockquote>“Honestly? I barely noticed it was open.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--gray"><span class="mark mark--electron"></span></span><figcaption><b>Electron</b><span>@electron</span></figcaption></div><blockquote>“I wasn’t invited, and I’m choosing to be fine about it.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--pink"><i class="ph-fill ph-command"></i></span><figcaption><b>⌘K</b><span>@cmd_k</span></figcaption></div><blockquote>“I find chats. That’s it. That’s the review. Five stars.”</blockquote></figure>
+        </div>
+        <div class="marquee__row marquee__row--reverse" data-row="2">
+          <figure class="review"><div class="review__who"><span class="av av--orange"><span class="mark mark--claude"></span></span><figcaption><b>Claude</b><span>@claude</span></figcaption></div><blockquote>“Got swapped for Codex mid-chat. He got the whole transcript. Rude, but efficient.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--blue"><span class="mark mark--openai"></span></span><figcaption><b>Codex</b><span>@codex</span></figcaption></div><blockquote>“Claude handed me forty messages of context mid-chat. Very tidy handwriting.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--yellow"><i class="ph-fill ph-device-mobile"></i></span><figcaption><b>Your iPhone</b><span>@iphone</span></figcaption></div><blockquote>“Approved a database migration from the grocery line. Felt incredible.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--mint"><i class="ph-fill ph-pulse"></i></span><figcaption><b>Activity Monitor</b><span>@activitymonitor</span></figcaption></div><blockquote>“Nothing to report. That is the report.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--pink"><i class="ph-fill ph-stop-circle"></i></span><figcaption><b>The Stop button</b><span>@cmd_period</span></figcaption></div><blockquote>“I stop the reply and keep what it already wrote. Nobody loses anything. I’m a good button.”</blockquote></figure>
+          <figure class="review"><div class="review__who"><span class="av av--blue"><i class="ph-fill ph-app-window"></i></span><figcaption><b>Your other Mac apps</b><span>@dock</span></figcaption></div><blockquote>“He fits right in. We don’t talk about the one with the browser inside.”</blockquote></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features bento -->
+    <section class="section" id="features">
+      <div class="container">
+        <h2 class="reveal">A chat app, not a terminal in a costume.</h2>
+        <p class="lede reveal">The small things that make agents feel like a conversation instead of a log file.</p>
+
+        <div class="bento">
+          <article class="cell cell--steer reveal">
+            <div class="cell__demo steer-demo" data-steer-demo>
+              <div class="steer-demo__bubble"><span class="steer-tag" data-steer-demo-tag>Queued</span> actually, keep the old footer</div>
+              <div class="steer-demo__field"><span>Claude is working</span><span class="spin"></span></div>
+            </div>
+            <h3>Steer while it works</h3>
+            <p>The message box never locks. Whatever you send joins the running turn at its next step.</p>
+          </article>
+
+          <article class="cell cell--plan reveal" style="--d:.06s">
+            <div class="cell__demo plan plan--burst" data-plan-demo>
+              <div class="plan__head"><i class="ph ph-list-checks" aria-hidden="true"></i> Plan</div>
+              <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Find why the build is red</span></div>
+              <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Update the stale test</span></div>
+              <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Rerun the suite</span></div>
+              <div class="plan__item" data-check><i class="ph ph-circle" aria-hidden="true"></i><span>Open the pull request</span></div>
+            </div>
+            <h3>A plan you can watch</h3>
+            <p>Claude’s to-dos and Codex’s plan turn into a live checklist, right in the chat.</p>
+          </article>
+
+          <article class="cell cell--stop reveal">
+            <div class="cell__demo stop-demo"><kbd class="bigkey">⌘</kbd><kbd class="bigkey">.</kbd></div>
+            <h3>Stop keeps the words</h3>
+            <p>Interrupt any reply and the part it already wrote stays put.</p>
+          </article>
+
+          <article class="cell cell--ring reveal" style="--d:.06s">
+            <div class="cell__demo ring-demo" data-ring-demo>
+              <span class="ring ring--big" style="--p:0" data-ring-target="62"></span>
+              <div class="ring-demo__limits">
+                <span><b>5-hour</b> 41%</span>
+                <span><b>7-day</b> 18%</span>
+              </div>
+            </div>
+            <h3>Know how full it is</h3>
+            <p>A small ring shows the context. Click it for your 5-hour and 7-day limits.</p>
+          </article>
+
+          <article class="cell cell--k reveal">
+            <div class="cell__demo k-demo" data-k-demo>
+              <div class="k-demo__search"><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span data-k-type></span><span class="caret"></span></div>
+              <div class="k-demo__row is-hit"><span class="mark mark--claude"></span> Make the site cheekier</div>
+              <div class="k-demo__row"><i class="ph ph-plus" aria-hidden="true"></i> New Project Chat</div>
+            </div>
+            <h3>⌘K for everything</h3>
+            <p>Find any chat, project or tag without touching the mouse.</p>
+          </article>
+
+          <article class="cell cell--issues reveal" style="--d:.06s">
+            <div class="cell__demo issues-demo">
+              <div class="issue"><i class="ph ph-circle-dashed" aria-hidden="true"></i><span>#41 Hero headline wraps on iPad</span><span class="label label--pink">bug</span></div>
+              <div class="issue is-picked"><i class="ph ph-circle-dashed" aria-hidden="true"></i><span>#38 Add confetti to the GitHub button</span><span class="label label--yellow">delight</span><button class="work-btn" type="button" data-confetti>Work on This</button></div>
+              <div class="issue"><i class="ph ph-circle-dashed" aria-hidden="true"></i><span>#36 Dark mode for the dark mode</span><span class="label label--blue">idea</span></div>
+            </div>
+            <h3>Issues, straight to the agent</h3>
+            <p>Browse a repo’s open issues in a side panel. Hit Work on This and the agent takes it from there.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phone -->
+    <section class="section" id="phone">
+      <div class="container phone-sec">
+        <div class="phone-sec__copy">
+          <h2 class="reveal">Your agents, in your&nbsp;pocket.</h2>
+          <p class="lede reveal">Pair an iPhone or iPad with your Mac. Answer approvals, read replies and review PDFs from wherever you wandered off to.</p>
+          <ul class="ticks">
+            <li class="reveal"><i class="ph ph-bell-ringing" aria-hidden="true"></i><span><b>Push notifications</b> for approvals, questions and finished replies.</span></li>
+            <li class="reveal" style="--d:.06s"><i class="ph ph-file-pdf" aria-hidden="true"></i><span><b>PDF review</b> full screen, saved for when the Wi-Fi gives up.</span></li>
+            <li class="reveal" style="--d:.12s"><i class="ph ph-globe-hemisphere-west" aria-hidden="true"></i><span><b>Reach your Mac from anywhere</b> over Tailscale.</span></li>
+          </ul>
+        </div>
+
+        <div class="phone reveal" data-phone>
+          <div class="phone__frame">
+            <div class="phone__island"></div>
+            <div class="phone__screen">
+              <div class="phone__time">9:41</div>
+              <div class="notif" data-notif>
+                <img src="assets/app-icon-256.png" alt="" width="34" height="34">
+                <div>
+                  <b>Chatterbox</b>
+                  <span>Claude wants to run <code>npm run migrate</code></span>
+                </div>
+                <small>now</small>
+              </div>
+              <div class="approval" data-approval>
+                <div class="approval__head"><span class="mark mark--claude"></span> Claude asks</div>
+                <p>Run this command?</p>
+                <code>npm run migrate</code>
+                <div class="approval__btns">
+                  <button type="button" class="approval__deny" data-deny>Deny</button>
+                  <button type="button" class="approval__allow" data-allow>Allow</button>
+                </div>
+                <div class="approval__done" data-approved><i class="ph-fill ph-check-circle" aria-hidden="true"></i> Approved from your phone.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Open source -->
+    <section class="section" id="source">
+      <div class="container source">
+        <h2 class="center reveal">Don’t like something? It’s Apache&#8209;2.0.</h2>
+        <p class="lede center reveal">No .dmg yet. You build it in Xcode, like a pioneer. It takes four commands.</p>
+
+        <div class="source__grid">
+          <div class="term reveal" data-term>
+            <div class="term__bar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span>~/code</span>
+              <button class="term__copy" type="button" data-copy><i class="ph ph-copy" aria-hidden="true"></i> <span>Copy</span></button>
+            </div>
+<pre class="term__body"><code data-term-body></code></pre>
+          </div>
+
+          <div class="source__points">
+            <div class="reveal"><i class="ph ph-paint-brush" aria-hidden="true"></i><p><b>Change the look.</b> It’s SwiftUI views all the way down. Restyle anything.</p></div>
+            <div class="reveal" style="--d:.06s"><i class="ph ph-chat-teardrop-text" aria-hidden="true"></i><p><b>Change the voice.</b> The tones live as plain Markdown in <code>prompts/</code>.</p></div>
+            <div class="reveal" style="--d:.12s"><i class="ph ph-hammer" aria-hidden="true"></i><p><b>Ship your own.</b> Fork it, rename it, tell nobody it was ours.</p></div>
+            <div class="source__ctas reveal" style="--d:.18s">
+              <a class="btn btn--light" href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener" data-confetti><span class="mark mark--github"></span> Get it on GitHub</a>
+              <a class="btn btn--ghost" href="https://github.com/shelbyklein/chatterbox#readme" target="_blank" rel="noopener">Read the README <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing -->
+    <section class="section section--end">
+      <div class="container">
+        <div class="finale reveal">
+          <div class="finale__burst" aria-hidden="true"></div>
+          <span class="finale__sticker finale__sticker--a" aria-hidden="true"><span class="mark mark--swift"></span> Made in Swift</span>
+          <span class="finale__sticker finale__sticker--b" aria-hidden="true"><i class="ph-fill ph-lightning"></i> 0% Electron</span>
+          <h2>Your agents deserve better than a browser in a trench&nbsp;coat.</h2>
+          <p>Free, open source, and written in Swift. Your subscriptions do the rest.</p>
+          <a class="btn btn--dark" href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener" data-confetti><span class="mark mark--github"></span> Get it on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <a class="brand" href="#top"><img src="assets/app-icon-256.png" alt="" width="24" height="24"><span>Chatterbox</span></a>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/shelbyklein/chatterbox" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/shelbyklein/chatterbox/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/shelbyklein/chatterbox/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a>
+      </nav>
+      <p class="footer__fine">Claude is a trademark of Anthropic. Codex and the OpenAI logo belong to OpenAI. Chatterbox isn’t affiliated with either. No Electron apps were harmed in the making of this website.</p>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
