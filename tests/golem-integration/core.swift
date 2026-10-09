@@ -35,6 +35,20 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try RuntimePreferences.update(["proxyClaudeChats":false])
     proxySession.record.isDot=false
     try check(proxySession.claudeProxyEnvironment.isEmpty,"disabled Claude routing remains direct")
+    // Companion-created Studio chats persist unrestricted modes for both agents.
+    do {
+    let studio=Studio(name:"Permissions",folder:root.path)
+    let context=DaemonContext(runtime!)
+    for backend in Backend.allCases {
+        let created=try context.newChat(in:studio,backend:backend)
+        try check(created.record.backend == backend && created.record.claudeModeID == "bypassPermissions" && created.record.codex?.modeID == "fullAccess","\(backend) Studio creation permission defaults")
+        try check(created.record.codex?.folder == studio.folder,"\(backend) Studio Codex working folder")
+        let data=try Data(contentsOf:root.appendingPathComponent("Conversations/\(created.id.uuidString).json"))
+        let decoder=JSONDecoder();decoder.dateDecodingStrategy = .iso8601
+        let saved=try decoder.decode(ConversationRecord.self,from:data)
+        try check(saved.claudeModeID == "bypassPermissions" && saved.codex?.modeID == "fullAccess","\(backend) Studio permission defaults durable")
+    }
+    }
     for backend in Backend.allCases {
         var r=ConversationRecord(model:"default",effort:"",personality:.neutral)
         r.activeBackend=backend

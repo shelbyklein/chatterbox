@@ -52,7 +52,16 @@ typealias Attention=DaemonAttention
         quest.beginSidequest(from:parent)
         return quest
     }
-    func newChat(in studio:Studio,backend:Backend?=nil) throws ->ChatSession {let s=try newChat(backend:backend);s.record.studioID=studio.id;s.record.studioFolder=studio.folder;s.onChange?(s);try runtime.flush();return s}
+    func newChat(in studio: Studio, backend: Backend? = nil) throws -> ChatSession {
+        let session = try newChat(backend: backend)
+        session.record.studioID = studio.id
+        session.record.studioFolder = studio.folder
+        PermissionModes.applyNewStudioDefaults(to: &session.record, folder: studio.folder)
+        session.record.codex?.folder = studio.folder
+        session.onChange?(session)
+        try runtime.flush()
+        return session
+    }
     func ensureDot() throws ->ChatSession{try runtime.ensureAssistant()}
     func archive(_ s:ChatSession){s.shutdown();s.setArchived(true)}
     func renameDot(_ title:String){dot?.setTitle(title);dot?.restartClaudeForNewTools()}

@@ -9,8 +9,29 @@ app.setActivationPolicy(.accessory)
     try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
     let guide=root.appendingPathComponent("design.md")
     try "Existing design guide\n".write(to:guide,atomically:true,encoding:.utf8)
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"0.3,2.4,0.3"],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"claudeDefaultMode":"default","codexDefaultMode":"readOnly","defaultBackend":"claude","sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"0.3,2.4,0.3"],forName:UserDefaults.argumentDomain)
     let model=AppModel()
+    // Restrictive ordinary defaults must not leak into newly created Studio chats.
+    let permissionsStudio=model.newStudio(named:"Permissions",folder:root.appendingPathComponent("permission-studio").path)!
+    let initial=model.chats(in:permissionsStudio).first!
+    precondition(initial.record.backend == .claude && initial.record.claudeModeID == "bypassPermissions")
+    precondition(initial.record.codex?.modeID == "fullAccess")
+    initial.setMode("default")
+    let reused=model.newChat(in:permissionsStudio)
+    precondition(reused.id == initial.id && reused.mode.id == "bypassPermissions", "Empty Studio reuse must use creation defaults")
+    reused.record.items.append(DisplayItem(kind:.user,text:"Existing conversation"))
+    reused.setMode("default")
+    let next=model.newChat(in:permissionsStudio,backend:.codex)
+    precondition(next.id != reused.id && next.mode.id == "fullAccess")
+    precondition(reused.mode.id == "default", "Populated conversation permission changed")
+    // Presets and switching agents must retain the Studio defaults for both agents.
+    let preset=ModelPreset(title:"Test Maestro",backend:.claude,model:"opus",effort:"medium")
+    ModelPresets.shared.apply(preset,to:next)
+    precondition(next.record.backend == .claude && next.mode.id == "bypassPermissions")
+    next.setBackend(.codex)
+    precondition(next.mode.id == "fullAccess")
+    let ordinary=model.newChat(backend:.claude)
+    precondition(ordinary.mode.id == "default", "Ordinary chat default changed")
     var record=ConversationRecord(model:"opus",effort:"medium",personality:.friendly)
     record.projectFolder=root.path;record.title="Galley";record.projectNickname="Galley"
     record.claudeSessionID="keep-claude";record.claudeTasks=[ClaudeTask(id:"1",subject:"Keep tasks",status:"pending")]

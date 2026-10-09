@@ -11,6 +11,7 @@ export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_D
 export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
 mkdir -p "$CHATTERBOX_DATA_DIR"
 ./scripts/runtime-sources.sh > "$task_dir/sources"
+printf '%s\n' ChatterboxDaemon/DaemonContext.swift >> "$task_dir/sources"
 cp tests/golem-integration/core.swift "$task_dir/main.swift"
 check_source_list "$task_dir/sources"
 swiftc -D CHATTERBOX_HEADLESS -whole-module-optimization -Onone \
