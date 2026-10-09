@@ -58,3 +58,12 @@ this group automatically after processing and any required compliance steps.
 On the iPhone or iPad, open Apple's invitation email, choose **View in TestFlight**, accept,
 and install **Chatterbox Companion**. Invitation acceptance and phone installation remain
 to be confirmed; App Store Connect currently reports no installs.
+
+## Studios redesign — October 9, 2026
+
+Build **1.0 (202610091050)** contains the mobile Studio selector, compact combined activity,
+and image-led gallery. Archive and upload succeeded; Apple processing and the current-build
+encryption declaration are complete. The **Shelby** internal group lists the build as
+**Testing**. Update Chatterbox Companion in TestFlight to use it. The prior build's invitation
+was accepted and App Store Connect reports it installed on Shelby's iPhone 17 Pro; installation
+of this new build is not independently confirmed.

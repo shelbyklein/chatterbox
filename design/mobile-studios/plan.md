@@ -20,7 +20,7 @@ Studio page only: new gallery by default, one selected Studio, search spans Stud
 - [x] T0 Mac pinned rows in card mode. Acceptance: existing sidebar render inspected and build passes.
 - [x] T1 Implement Studio page, compact activity, gallery cards. Acceptance: simulator build passes.
 - [x] T2 Extend isolated fixture and navigation tests, inspect screenshots from Studios with/without thumbnails, switch/search/open. Acceptance: `scripts/test-mobile-home-nav.sh iphone` passes, captured renders inspected.
-- [ ] T3 Commit/push Core and root, upload Release via `scripts/testflight.sh`. Acceptance: upload receipt; Apple processing/compliance verification when available. Phone install acceptance remains user-side.
+- [x] T3 Commit/push Core and root, upload Release via `scripts/testflight.sh`. Acceptance: upload receipt; Apple processing/compliance verification when available. Phone install acceptance remains user-side.
 
 Deliverables: Core UI committed/pushed, local plan and screenshot evidence committed/pushed, Release uploaded to existing Shelby automatic internal group. No App Store release.
 Rollback: no stored-data change; revert scoped commits and upload a new build. Existing TestFlight build remains selectable until expiry; keep current upload receipt in docs.
@@ -35,3 +35,7 @@ Scope and now decision: confirmed by 'sure go for it'. Linear: the changes share
 - Final Mac build and `scripts/test-studio-chat-sidebar.sh`: passed. Native fixture screenshot inspected: rows remain rows with card mode selected and selected row remains readable.
 - [Phone gallery](assets/studio-card-thumbnails.png), [search](assets/studio-search.png), [other Studio](assets/studio-switched.png), [list mode](assets/studio-list.png), [Mac pins](assets/pinned-rows.png). Phone fixture uses a gradient thumbnail, not real customer artwork.
 - Mac installation approval requested under AGENTS.md; iOS upload next.
+
+## Delivery
+
+Core `97f7953`, root implementation `68ff7c9` pushed. Release build **1.0 (202610091050)** uploaded successfully; Apple completed processing and its current-build encryption declaration was saved. The Shelby automatic internal group now lists this build as **Testing**: [delivery evidence](assets/testflight-ready.jpg). New build phone installation and user acceptance are not claimed. Mac pin-row change is built and pushed, awaiting install approval; no app or service restart occurred.
