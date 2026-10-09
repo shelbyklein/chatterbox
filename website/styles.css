@@ -278,7 +278,7 @@ p { margin: 0; }
 .ax-menu > i:last-child { font-size: 10px; color: #9a9a9a; }
 .ax-icon { flex: none; padding: 0 4px; color: #b5b5b5; font-size: 16px; }
 .ax-spacer { flex: 1; }
-.ax-main { display: grid; grid-template-columns: 228px minmax(0, 1fr); }
+.ax-main { display: grid; grid-template-columns: 228px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 
 .ax-side {
   display: flex;
@@ -316,7 +316,7 @@ p { margin: 0; }
 .ax-row.is-on { background: #f2f2f2; color: #141414; }
 .ax-row .spin { margin-left: auto; }
 
-.ax-chat { display: flex; flex-direction: column; min-width: 0; background: #1e1e1e; }
+.ax-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #1e1e1e; }
 .ax-log { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; min-height: 0; padding: 20px 28px 10px; overflow: hidden; }
 .ax-log > * { flex: none; }
 .ax-user { align-self: flex-end; max-width: 80%; padding: 8px 13px; border-radius: 16px; font-size: 13.5px; line-height: 1.45; }
