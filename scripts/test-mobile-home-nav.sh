@@ -81,8 +81,10 @@ xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
+test_filter=()
+if [[ -n "${MOBILE_TEST_ONLY:-}" ]]; then test_filter=("-only-testing:$MOBILE_TEST_ONLY"); fi
 xcodebuild -project "$artifacts/MobileHomeNavRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" test || status=$?
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" "${test_filter[@]}" test || status=$?
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"
 exit "${status:-0}"

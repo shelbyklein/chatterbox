@@ -71,6 +71,31 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
   XCTAssertFalse(app.images["Latest image in No image"].exists)
   capture("studio-card-thumbnails",app)
+  let search = app.searchFields.firstMatch
+  XCTAssertTrue(search.exists)
+  search.tap()
+  search.typeText("Crystal")
+  XCTAssertTrue(app.staticTexts["Crystal concept"].waitForExistence(timeout:5), "Search spans Studios")
+  capture("studio-search",app)
+  search.buttons["Clear text"].tap()
+  if app.buttons["Close"].exists { app.buttons["Close"].tap() }
+  else if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
+  XCTAssertTrue(app.buttons["Studio options"].waitForExistence(timeout:5))
+  app.buttons["studio-select-studio-2"].tap()
+  XCTAssertTrue(app.staticTexts["Crystal concept"].waitForExistence(timeout:5))
+  XCTAssertFalse(app.images["Latest image in Coach Archie"].exists)
+  capture("studio-switched",app)
+  app.buttons["studio-select-studio-1"].tap()
+  let coach = app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch
+  XCTAssertTrue(coach.waitForExistence(timeout:5))
+  coach.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10))
+  app.navigationBars.buttons.element(boundBy:0).tap()
+  XCTAssertTrue(app.buttons["studio-select-studio-1"].waitForExistence(timeout:5))
+  app.buttons["Studio options"].tap()
+  app.buttons["Show as List"].tap()
+  XCTAssertTrue(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.waitForExistence(timeout:5))
+  capture("studio-list",app)
   app.tabBars.buttons["Projects"].tap()
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).

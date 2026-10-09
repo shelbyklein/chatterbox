@@ -22,7 +22,8 @@ def summary(name,line,branch=None,waiting=False,dot=False):
 def chats():
  groups=[{'id':'dot','kind':'dot','title':'Golem','chats':[summary('Golem','Ready',dot=True)]},
   {'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]},
-  {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')}]
+  {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')},
+  {'id':'studio-2','kind':'studio','title':'Geekify','chats':[summary('Crystal concept','Purple faceted crystal.')],'studioID':cid('studio2')}]
  now=datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
  activity=[{'id':cid('turn-tracker'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','backend':'claude','endedAt':now}]
  return {'revision':1,'groups':groups,'activity':activity}
