@@ -64,6 +64,37 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let projectsBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
  view.cacheDisplay(in:view.bounds,to:projectsBitmap)
  try projectsBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/projects-expanded.png"))
+ // Chats use the same persisted tags as projects, with their own sidebar filter.
+ standalone.toggleTag("Research")
+ project.toggleTag("Project only")
+ standalone.toggleTag("research")
+ precondition(standalone.tags.isEmpty)
+ standalone.toggleTag("Research")
+ let decoded=try JSONDecoder().decode(ConversationRecord.self,from:JSONEncoder().encode(standalone.record))
+ precondition(decoded.tags == ["Research"])
+ let untagged=chat("Untagged reference")
+ model.selectedID=standalone.id
+ var chatPreferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
+ chatPreferences["macChatsSidebarCards"]=true
+ chatPreferences["sidebarChatTagFilter"]="Research"
+ chatPreferences["sidebarTagFilter"]="Project only"
+ UserDefaults.standard.setVolatileDomain(chatPreferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ let savedDecoder=JSONDecoder();savedDecoder.dateDecodingStrategy = .iso8601
+ let saved=try savedDecoder.decode(ConversationRecord.self,from:Data(contentsOf:URL(fileURLWithPath:root+"/Conversations/"+standalone.id.uuidString+".json")))
+ precondition(saved.tags == ["Research"])
+ view.layoutSubtreeIfNeeded()
+ let chatsBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:chatsBitmap)
+ try chatsBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/tagged-chat-cards.png"))
+ precondition(model.showingChatsSidebar && untagged.tags.isEmpty)
+ chatPreferences["macChatsSidebarCards"]=false
+ UserDefaults.standard.setVolatileDomain(chatPreferences,forName:UserDefaults.argumentDomain)
+ try await Task.sleep(for:.milliseconds(700))
+ view.layoutSubtreeIfNeeded()
+ let chatsListBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
+ view.cacheDisplay(in:view.bounds,to:chatsListBitmap)
+ try chatsListBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/tagged-chat-list.png"))
  print("PASS: studio A/B, project/standalone routing, linked shortcut, bell navigation and new-chat membership; native ContentView render: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}};app.run()

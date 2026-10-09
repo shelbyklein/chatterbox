@@ -136,3 +136,13 @@ Pinned
 Work preparation: R1–R13 pass; local plan, linear execution, current session exact model/effort unavailable. No blocking questions. R12 n/a for source-only UI changes. Existing native sidebar render provides verification; no new test needed for this static layout.
 
 Verified: Mac build and source check pass; studio-chat-sidebar suite passes. Inspected [native sidebar divider](pinned-divider.png): full-width rule separates pinned Studio tiles from the remaining card. Installation pending.
+
+## Chat tags — 2026-10-08
+Chats already save tags in ConversationRecord, but only project context menus expose them and chat list rows omit them. Expose the same Tags menu for every chat, show existing TagPills under chat titles, and add the existing tag filter controls to Chats with a separate remembered selection from Projects. Cards already render tags. Preserve project behavior, Studio navigation, metadata persistence, thumbnail scope and pinned ordering. Mac only, no schema or service changes.
+
+Target sketch: `Chats [filter] [+]` → `Pinned / cards / divider / [tag pills] / remaining cards`; right-click chat → `Tags → existing toggles / New Tag`; chat list row → `title / colored tags`.
+- [x] T15 Implement chat tag controls, build Mac, extend the existing sidebar fixture to exercise tag add/remove and render tagged Chats in card/list modes; inspect both renders. Commit/push, installation awaits approval.
+
+Work preparation: local plan, linear current session; exact model/effort unavailable. R1–R13 pass using user sidebar screenshot above and target sketch. No blocking questions. Success: tags survive save/load, appear in both layouts and filter the Chats sidebar without changing Projects' filter. Existing scripts/test-studio-chat-sidebar.sh supplies the native entry point and persistence checks. Rollback revert scoped commits; no stored-data migration.
+
+Verified T15: Mac build/source check pass. Existing sidebar suite passes; case-insensitive toggling removes the existing tag and disk save/load preserves it. Inspected [tagged chat cards](chat-tags-cards.png) and [tagged list row](chat-tags-list.png): Research filter shows the tagged chat, hides untagged reference and pinned chats, and stays selected independently of the Project-only filter. Right-click menus now share Tags for all sessions. Regenerated Xcode project for newly merged upstream Core sources during reconciliation; no changes to those source implementations. Tidy report found three older mobile render folders (81 MB), no deletion. Installation pending.
