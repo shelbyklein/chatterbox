@@ -1,0 +1,6 @@
+tunnel: 9acaf97c-c37a-459b-8a78-26becc1baffa
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: chatterbox.shelbyklein.com
+    service: http://127.0.0.1:3130
+  - service: http_status:404

@@ -2,6 +2,8 @@
 
 A single static page: `index.html`, `styles.css` and `script.js`, with fonts, icons and the app icon in `assets/`. No build step.
 
+Live at https://chatterbox.shelbyklein.com. Publish changes with `deploy/website/publish.sh` (see `deploy/website/README.md`).
+
 Open `index.html` in a browser, or serve the folder:
 
 ```bash

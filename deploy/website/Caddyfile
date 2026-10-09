@@ -1,0 +1,25 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv/site
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+		-Server
+	}
+	# Fonts, icons and images change rarely; the page, CSS and JS revalidate.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=604800"
+	@pages not path /assets/*
+	header @pages Cache-Control "no-cache"
+	file_server {
+		hide .* README.md
+	}
+}

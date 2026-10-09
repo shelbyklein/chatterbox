@@ -41,6 +41,6 @@
   <text x="970" y="418" fill="#ddd" font-size="13" text-anchor="middle">on your Mac.</text>
   <rect x="860" y="446" width="220" height="40" rx="10" fill="#1c1c1e" stroke="#3a3a3a"/>
   <text x="970" y="471" fill="#0a84ff" font-size="14" text-anchor="middle">Type the code instead</text>
-  <text x="970" y="530" fill="#8e8e93" font-size="11" text-anchor="middle">Home Wi-Fi, chatterbox.shelbyklein.com,</text>
+  <text x="970" y="530" fill="#8e8e93" font-size="11" text-anchor="middle">Home Wi-Fi, chatterbox-mac.shelbyklein.com,</text>
   <text x="970" y="546" fill="#8e8e93" font-size="11" text-anchor="middle">or Tailscale, whichever answers first</text>
 </svg>
