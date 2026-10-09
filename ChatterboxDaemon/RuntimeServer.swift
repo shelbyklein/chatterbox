@@ -301,6 +301,14 @@ import CoreFoundation
         case "archive":try chat(r.body).setArchived(r.body["archived"]?.bool ?? true)
         case "rename":try chat(r.body).setTitle(r.body["title"]?.string ?? "")
         case "delete":guard role=="ui" else{throw RuntimeFailure("permission_denied")};let s=try chat(r.body);try runtime.remove(s.id)
+        case "sidequest":
+            let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+            guard role=="ui",!task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
+            return .string(try DaemonContext(runtime).newSidequest(of:try chat(r.body),task:task).id.uuidString)
+        case "returnSidequest":
+            let s=try chat(r.body)
+            guard let parent=s.record.sidequestOf.flatMap(runtime.session) else{throw RuntimeFailure("chat_not_found")}
+            s.returnSidequest(to:parent)
         case "fork":
             guard role=="ui",let fork=DaemonContext(runtime).fork(try chat(r.body)) else{throw RuntimeFailure("cannot_fork")}
             return .string(fork.id.uuidString)

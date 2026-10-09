@@ -227,6 +227,7 @@ targets:
     - path: Core/Chatterbox/Engine/ChatSession+Remote.swift
     - path: Core/Chatterbox/Engine/ChatSession+Tasks.swift
     - path: Core/Chatterbox/Engine/ChatSession+Issues.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Sidequest.swift
     - path: Core/Chatterbox/Engine/ClaudeCode.swift
     - path: Core/Chatterbox/Engine/CodexAppServer.swift
     - path: Core/Chatterbox/Engine/HostClient.swift

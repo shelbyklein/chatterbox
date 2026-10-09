@@ -32,7 +32,11 @@ Task { @MainActor in
         RuntimeHooks.answered={session,item,suggestion,answers in
             try? runtime.recordAssistantNote(title:answers==suggestion ? "Sent the suggested answer":"Answered a question",detail:item.text,chat:session.id)
         }
-        RuntimeHooks.turnEnded={session in NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false}
+        RuntimeHooks.turnEnded={session in
+            NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
+            // A sidequest's answer goes back once the turn has settled.
+            if let parent=session.record.sidequestOf {DispatchQueue.main.async{session.sidequestTurnEnded(parent:runtime.session(parent))}}
+        }
         print("chatterboxd ready");fflush(stdout)
     } catch {fputs("chatterboxd: \(error.localizedDescription)\n",stderr);exit(1)}
 }
