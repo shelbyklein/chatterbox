@@ -53,3 +53,15 @@ Success: Studio gallery still has thumbnails, while Activity is a list with work
 Follow-up verification: targeted simulator test passed after correcting the test lookup for combined iOS accessibility labels. [Fresh inspected Activity list](assets/activity-list.png) shows full-width rows above gallery cards. Release 202610091257 uploaded and verified Testing in Shelby internal group. Core/root committed and pushed for delivery. Tidy report only: 5 removable, 2 kept; no cleanup applied. Mac pin-row installation succeeded earlier.
 
 Sidequest investigation: Mac breadcrumbs logged unsupported_operation twice at 12:56. Running chatterboxd PID 1764 started October 8 at 16:39, before daemon Sidequest handler commit d0350b4 at October 9 00:50. Installed binary includes sidequest/invalid_sidequest. Idle restart queued through scripts/restart-service.sh, hosted by launchctl job com.shelbyklein.chatterbox.idle-restart; log confirms waiting at 12:58:38. No replies interrupted; retry Sidequest after restart.
+
+
+## Follow-up: Mac navigation icon spacing
+The native navigation group draws each icon and badge in a 32-point image slot, crowding the five controls. Increase all slots evenly to 44 points, keep symbols centered and badges inset from the edge. [Current](assets/toolbar-before.png) · [Spacing sketch](assets/toolbar-spacing-target.svg).
+Scope: image slot geometry only; retain native toolbar selection, tooltips and counters. No data, navigation or notification change. No blocking questions. Success: fresh native toolbar capture shows evenly spaced icons and badges with no clipping; existing toolbar regression passes. Deliverables: scoped Core/root commits pushed, Mac activation awaits installation approval under AGENTS.md. Test: `scripts/test-chat-toolbar.sh`; render actual native toolbar and inspect.
+- [x] B1 Adjust slot geometry. Acceptance: compile and existing toolbar test pass.
+- [x] B2 Inspect native capture and commit/push. Acceptance: screenshot reviewed and linked.
+Work preparation: linear, current session; exact model/effort unavailable; R1–R13 pass, R12 n/a for source-only change. User screenshot/question authorizes correction of this layout within existing UI work; no GitHub mutation.
+
+Toolbar spacing verification: native toolbar regression passed (RESULT all passed). [Fresh inspected native render](assets/toolbar-spacing-render.png) shows wider, evenly spaced navigation controls. Installation remains pending approval.
+
+Notifications: macOS permission and mobilePushEnabled enabled through UI. Replacement key VK5K3LPFKD imported from user-provided Desktop file into existing Keychain entry; APNs accepted production iPhone test and user confirmed receipt. Background service authorizePush still reports Keychain access error. Keychain Access shows chatterboxd and Chatterbox.app already trusted; older running daemon PID 1764 may have a signing-identity mismatch with installed binary. Idle restart remains queued; service delivery must be reverified afterward. No secrets committed or printed.
