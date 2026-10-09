@@ -7,6 +7,10 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
   const sleep = (ms) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+  const escapeHTML = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // Studio colours, for confetti and the explorer (CSS has the same values).
+  const COLOR = { orange: "#ff7a45", blue: "#6ea8ff", pink: "#ff5c93", mint: "#3ed59a", yellow: "#ffd23f" };
 
   // Run fn once, the first time el is on screen.
   function onVisible(el, fn, threshold = 0.35) {
@@ -18,14 +22,6 @@
       }
     }, { threshold });
     io.observe(el);
-  }
-
-  // Call enter/leave as el scrolls in and out (for loops that should pause off screen).
-  function whileVisible(el, enter, leave, threshold = 0.3) {
-    if (!el) return;
-    new IntersectionObserver((entries) => {
-      for (const e of entries) (e.isIntersecting ? enter : leave)();
-    }, { threshold }).observe(el);
   }
 
   /* Scroll reveals */
@@ -51,7 +47,7 @@
   /* Confetti */
   const canvas = $("#confetti");
   const ctx = canvas.getContext("2d");
-  const COLORS = ["#ff7a45", "#ff4d8d", "#ffd23f", "#3ddc97", "#7da8ff", "#f4f4f5"];
+  const PALETTE = Object.values(COLOR).concat("#f4f0ea");
   let bits = [];
   let raf = 0;
   let dpr = 1;
@@ -64,7 +60,7 @@
   sizeCanvas();
   addEventListener("resize", sizeCanvas);
 
-  function burst(x, y, count = 90, palette = COLORS) {
+  function burst(x, y, count = 90, palette = PALETTE) {
     if (reduce) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -124,147 +120,201 @@
     if (t) burstFrom(t);
   });
 
-  /* Floating hero tiles drift a little with the pointer */
-  const hero = $(".hero");
-  const tiles = $$(".tile");
-  if (hero && tiles.length && !reduce && matchMedia("(pointer: fine)").matches) {
-    let px = 0, py = 0, frame = 0;
-    hero.addEventListener("pointermove", (e) => {
-      const r = hero.getBoundingClientRect();
-      px = (e.clientX - r.left) / r.width - 0.5;
-      py = (e.clientY - r.top) / r.height - 0.5;
-      if (!frame) frame = requestAnimationFrame(applyDrift);
-    });
-    hero.addEventListener("pointerleave", () => {
-      px = py = 0;
-      if (!frame) frame = requestAnimationFrame(applyDrift);
-    });
-    function applyDrift() {
-      frame = 0;
-      for (const t of tiles) {
-        const depth = parseFloat(t.style.getPropertyValue("--depth")) || 1;
-        t.style.setProperty("--px", `${(-px * 28 * depth).toFixed(1)}px`);
-        t.style.setProperty("--py", `${(-py * 20 * depth).toFixed(1)}px`);
-      }
+  /* Hero: Home keeps changing while you look at it */
+  const board = $("[data-board]");
+  if (board) {
+    const card = (key) => $(`[data-card="${key}"]`, board);
+    const bell = $("[data-bell]", board);
+    const bellCount = $("[data-bell-count]", board);
+    const original = new Map($$("[data-card]", board).map((c) => [c, c.querySelector("footer").innerHTML]));
+
+    const agentOf = (c) => (c.querySelector("footer .mark--openai") ? "openai" : "claude");
+    const agentName = (c) => (agentOf(c) === "openai" ? "Codex" : "Claude");
+    const mark = (c) => `<span class="mark mark--${agentOf(c)}"></span>`;
+
+    function set(c, state) {
+      const foot = c.querySelector("footer");
+      c.classList.toggle("waiting", state === "waiting");
+      if (state === "working") foot.innerHTML = mark(c) + `<span class="spin${agentOf(c) === "openai" ? " spin--codex" : ""}"></span>`;
+      if (state === "new") foot.innerHTML = mark(c) + '<span class="badge badge--new">New reply</span>';
+      if (state === "waiting") foot.innerHTML = mark(c) + `<span class="badge badge--wait">${agentName(c)} has a question</span>`;
+      if (state === "reset") foot.innerHTML = original.get(c);
+      c.classList.remove("flash");
+      void c.offsetWidth;
+      c.classList.add("flash");
+    }
+    function ringBell(n) {
+      bellCount.textContent = n;
+      bell.classList.remove("ring");
+      void bell.offsetWidth;
+      bell.classList.add("ring");
+    }
+
+    // Each beat is one thing Home would show you: a finished reply, a question, an answer.
+    const beats = [
+      () => { set(card("handbook"), "new"); ringBell(2); },
+      () => set(card("preorder"), "waiting"),
+      () => { set(card("captions"), "new"); ringBell(3); },
+      () => set(card("preorder"), "working"),
+      () => set(card("signup"), "waiting"),
+      () => set(card("signup"), "working"),
+      () => {
+        ["handbook", "captions", "signup", "preorder"].forEach((k) => set(card(k), "reset"));
+        bellCount.textContent = "1";
+      },
+    ];
+
+    if (reduce) {
+      set(card("preorder"), "waiting");
+    } else {
+      let i = 0;
+      let timer = 0;
+      const step = () => {
+        beats[i % beats.length]();
+        i++;
+        timer = setTimeout(step, 2400);
+      };
+      new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !timer) timer = setTimeout(step, 1400);
+          if (!e.isIntersecting) { clearTimeout(timer); timer = 0; }
+        }
+      }, { threshold: 0.3 }).observe(board);
     }
   }
 
-  /* Hero story: Claude works, you steer, it lands */
-  const story = $("[data-story]");
-  if (story) {
-    const steps = $$("[data-step]", story);
-    const rows = $$(".steps__row", story);
-    const checks = $$("[data-check]", story);
-    const tag = $("[data-steer-tag]", story);
-    const stream = $("[data-stream]", story);
-    const field = $(".composer__field", story);
-    const typed = $("[data-type-target]", story);
-    const send = $(".composer__send", story);
-    const spinner = $("[data-story-spin]", story);
-    const replay = $("[data-replay]", story);
-    const reply = stream.textContent.trim();
-    const steerText = "also make the button throw confetti";
-    let run = 0;
+  /* Manifesto: each line lights up as it reaches the middle of the screen */
+  const lines = $$(".manifesto .line");
+  if (reduce) {
+    lines.forEach((l) => l.classList.add("lit"));
+  } else {
+    const lighter = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("lit");
+        lighter.unobserve(e.target);
+      }
+    }, { rootMargin: "0px 0px -38% 0px", threshold: 1 });
+    lines.forEach((l) => lighter.observe(l));
+  }
 
-    const step = (n) => steps.find((s) => s.dataset.step === String(n)).classList.add("on");
-    const check = (item) => {
-      item.classList.add("done");
-      item.querySelector("i").className = "ph-fill ph-check-circle";
+  /* Studios & Projects explorer */
+  const explorer = $("[data-explorer]");
+  if (explorer) {
+    const WORKSPACES = {
+      larkspur: {
+        kind: "Studio", name: "Larkspur Coffee", color: "orange", folder: "~/Studios/Larkspur Coffee",
+        instructions: "A small-batch roaster with two cafés. Menus print at 24 × 36 in. Prices live in the shared sheet. Keep the tone warm and a little nerdy.",
+        design: "## Color\nRust, oat and plenty of white space.\n\n## Type\nChunky headlines, plain sans for prices.",
+        chats: [["claude", "Holiday menu boards", "new"], ["claude", "Instagram captions", "working"], ["openai", "Bag label artwork", "2h"]],
+      },
+      tidewater: {
+        kind: "Studio", name: "Tidewater Archery", color: "blue", folder: "~/Studios/Tidewater Archery",
+        instructions: "A youth and adult archery club. The handbook follows the national rulebook. Coaches get every change by email, so flag anything that touches scoring.",
+        design: "## Color\nNavy and target gold.\n\n## Imagery\nReal club photos. Never stock arrows.",
+        chats: [["claude", "Tournament handbook", "working"], ["openai", "Coach signup page", "1h"], ["claude", "Range map PDF", "5h"]],
+      },
+      moth: {
+        kind: "Studio", name: "Moth Records", color: "pink", folder: "~/Studios/Moth Records",
+        instructions: "An indie label with six artists and one very busy inbox. Release dates live in the calendar. Never announce a date before the artist does.",
+        design: "## Color\nMoth pink on black.\n\n## Type\nCondensed caps for titles, always.",
+        chats: [["openai", "Pre-order emails", "waiting"], ["claude", "Tour poster sizes", "1d"]],
+      },
+      site: {
+        kind: "Project", name: "chatterbox-website", color: "mint", folder: "~/code/chatterbox-website",
+        repo: "shelbyklein/chatterbox", branch: "website", status: "PR #42 open",
+        chats: [["claude", "Rework the hero around Studios", "working"], ["claude", "Try a lighter hero", "side"]],
+      },
+      planner: {
+        kind: "Project", name: "garden-planner", color: "mint", folder: "~/code/garden-planner",
+        repo: "you/garden-planner", branch: "main", status: "2 commits to push",
+        chats: [["claude", "Frost dates by zip code", "3d"], ["openai", "Is a raised bed worth it?", "side"]],
+      },
     };
 
-    function reset() {
-      steps.forEach((s) => s.classList.remove("on"));
-      rows.forEach((r) => r.classList.remove("on"));
-      checks.forEach((c) => {
-        c.classList.remove("done");
-        c.querySelector("i").className = "ph ph-circle";
-      });
-      tag.textContent = "Queued";
-      tag.classList.remove("sent");
-      stream.textContent = "";
-      typed.textContent = "";
-      field.classList.remove("typing");
-      send.classList.remove("hot");
-      spinner.classList.remove("done");
-      replay.classList.remove("show");
+    const panel = $("[data-panel]", explorer);
+    const tabs = $$("[data-key]", explorer);
+
+    function chatRow([agent, title, state]) {
+      const who = agent === "openai" ? "Codex" : "Claude";
+      let meta = `<span class="when">${escapeHTML(state)}</span>`;
+      if (state === "working") meta = `<span class="spin${agent === "openai" ? " spin--codex" : ""}"></span>`;
+      if (state === "new") meta = '<span class="badge badge--new">New reply</span>';
+      if (state === "waiting") meta = `<span class="badge badge--wait">${who} has a question</span>`;
+      if (state === "side") meta = '<span class="temp">Sidechat</span>';
+      const cls = state === "side" ? "side" : state === "waiting" ? "waiting" : "";
+      return `<li class="${cls}"><span class="mark mark--${agent}"></span><span>${escapeHTML(title)}</span>${meta}</li>`;
     }
 
-    function finalState() {
-      steps.forEach((s) => s.classList.add("on"));
-      rows.forEach((r) => r.classList.add("on"));
-      checks.forEach(check);
-      tag.textContent = "Sent while working";
-      tag.classList.add("sent");
-      stream.textContent = reply;
-      spinner.classList.add("done");
-    }
+    function render(key) {
+      const w = WORKSPACES[key];
+      panel.style.setProperty("--c", COLOR[w.color]);
+      $("[data-kind]", panel).textContent = w.kind;
+      $("[data-name]", panel).textContent = w.name;
+      $("[data-folder]", panel).innerHTML = `<i class="ph ph-folder-simple" aria-hidden="true"></i> ${escapeHTML(w.folder)}`;
 
-    async function play() {
-      const me = ++run;
-      const wait = async (ms) => {
-        await sleep(ms);
-        if (me !== run) throw new Error("cancelled");
-      };
-      reset();
-      try {
-        await wait(450);
-        step(1);
-        await wait(700);
-        step(2);
-        for (const r of rows) {
-          await wait(420);
-          r.classList.add("on");
-        }
-        await wait(450);
-        step(3);
-        await wait(650);
-        check(checks[0]);
-
-        // You think of something mid-turn and just send it.
-        await wait(400);
-        field.classList.add("typing");
-        for (const ch of steerText) {
-          typed.textContent += ch;
-          await wait(34 + Math.random() * 40);
-        }
-        await wait(300);
-        send.classList.add("hot");
-        await wait(180);
-        typed.textContent = "";
-        field.classList.remove("typing");
-        send.classList.remove("hot");
-        step(4);
-
-        await wait(900);
-        check(checks[1]);
-        await wait(500);
-        tag.textContent = "Sent while working";
-        tag.classList.add("sent");
-        await wait(700);
-        check(checks[2]);
-
-        await wait(500);
-        step(5);
-        const words = reply.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          stream.textContent += (i ? " " : "") + words[i];
-          await wait(38 + Math.random() * 50);
-        }
-        spinner.classList.add("done");
-        await wait(600);
-        replay.classList.add("show");
-      } catch {
-        /* a replay started; the new run owns the window now */
+      if (w.kind === "Studio") {
+        $("[data-brief]", panel).innerHTML = `
+          <div class="file">
+            <div class="file__head"><i class="ph ph-scroll" aria-hidden="true"></i> Instructions <small>Every chat follows these</small></div>
+            <div class="file__body">${escapeHTML(w.instructions)}</div>
+          </div>
+          <div class="file">
+            <div class="file__head"><i class="ph ph-palette" aria-hidden="true"></i> design.md <small>Read before visual work</small></div>
+            <div class="file__body file__body--mono">${escapeHTML(w.design)}</div>
+          </div>`;
+      } else {
+        $("[data-brief]", panel).innerHTML = `
+          <div class="repo-chips">
+            <span class="repo-chip"><span class="mark mark--github"></span> ${escapeHTML(w.repo)}</span>
+            <span class="repo-chip"><i class="ph ph-git-branch" aria-hidden="true"></i> ${escapeHTML(w.branch)}</span>
+            <span class="repo-chip repo-chip--pr"><i class="ph ph-git-pull-request" aria-hidden="true"></i> ${escapeHTML(w.status)}</span>
+          </div>
+          <p class="panel__text">One folder, one chat. The toolbar shows the repo, the branch and its pull request, and the repo’s issues open in a side panel.</p>
+          <div class="file">
+            <div class="file__head"><i class="ph ph-arrow-elbow-down-right" aria-hidden="true"></i> Sidechats <small>For tangents</small></div>
+            <div class="file__body">Chase an idea in a temporary Sidechat. It shares the folder but not the transcript, and it archives itself when you end it.</div>
+          </div>`;
       }
+
+      $("[data-chats]", panel).innerHTML = w.chats.map(chatRow).join("");
+      const prompts = w.kind === "Studio"
+        ? [`Tour ${w.name} and its instructions`, `Find unfinished work in ${w.name}`, `Plan the next ${w.name} job`]
+        : [`Tour ${w.name} and its current work`, `Find unfinished work in ${w.name}`, `Plan the next ${w.name} improvement`];
+      $("[data-prompts]", panel).innerHTML = prompts
+        .map((p) => `<button type="button" class="prompt" data-color="${w.color}">${escapeHTML(p)}<i class="ph ph-arrow-right" aria-hidden="true"></i></button>`)
+        .join("");
+
+      panel.classList.remove("swap");
+      void panel.offsetWidth;
+      panel.classList.add("swap");
     }
 
-    if (reduce) {
-      finalState();
-    } else {
-      reset();
-      onVisible(story, play, 0.25);
-      replay.addEventListener("click", play);
+    function select(tab) {
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.classList.toggle("is-on", on);
+        t.setAttribute("aria-selected", String(on));
+      });
+      render(tab.dataset.key);
     }
+
+    tabs.forEach((t) => t.addEventListener("click", () => select(t)));
+    explorer.addEventListener("keydown", (e) => {
+      if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft"].includes(e.key) || !e.target.matches("[data-key]")) return;
+      e.preventDefault();
+      const i = tabs.indexOf(e.target);
+      const next = tabs[(i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      next.focus();
+      select(next);
+    });
+    panel.addEventListener("click", (e) => {
+      const p = e.target.closest(".prompt");
+      if (p) burstFrom(p, 28, [COLOR[p.dataset.color], "#f4f0ea", COLOR.yellow]);
+    });
+
+    render("larkspur");
+    panel.classList.remove("swap");
   }
 
   /* Claude <-> Codex handoff */
@@ -279,15 +329,15 @@
     const lines = {
       codex: {
         divider: "Switched to Codex. It read the whole chat first.",
-        reply: "Caught up. I’ll update the test and rerun the suite.",
+        reply: "Caught up. I’ll split the table and export it again.",
         next: "Hand it back to Claude",
-        colors: ["#7da8ff", "#f4f4f5", "#3ddc97"],
+        colors: [COLOR.blue, "#f4f0ea", COLOR.mint],
       },
       claude: {
         divider: "Back to Claude. Nothing was lost.",
-        reply: "Thanks, Codex. Tests are green, so I’ll open the pull request.",
+        reply: "The export worked. The handbook is in the Studio folder.",
         next: "Hand it to Codex",
-        colors: ["#ff7a45", "#ffd23f", "#ff4d8d"],
+        colors: [COLOR.orange, COLOR.yellow, COLOR.pink],
       },
     };
     let busy = false;
@@ -328,51 +378,6 @@
     });
   }
 
-  /* Bento: steering states loop while on screen */
-  const steerDemo = $("[data-steer-demo]");
-  if (steerDemo) {
-    const steerTag = $("[data-steer-demo-tag]", steerDemo);
-    let timer = 0;
-    const cycle = () => {
-      const sent = steerTag.classList.toggle("sent");
-      steerTag.textContent = sent ? "Sent while working" : "Queued";
-      timer = setTimeout(cycle, sent ? 2600 : 1600);
-    };
-    if (reduce) {
-      steerTag.classList.add("sent");
-      steerTag.textContent = "Sent while working";
-    } else {
-      whileVisible(steerDemo, () => { if (!timer) timer = setTimeout(cycle, 1200); }, () => { clearTimeout(timer); timer = 0; });
-    }
-  }
-
-  /* Bento: the plan ticks itself off */
-  const planDemo = $("[data-plan-demo]");
-  onVisible(planDemo, async () => {
-    for (const item of $$("[data-check]", planDemo)) {
-      await sleep(700);
-      item.classList.add("done");
-      item.querySelector("i").className = "ph-fill ph-check-circle";
-    }
-  }, 0.5);
-
-  /* Bento: context ring fills */
-  const ringDemo = $("[data-ring-demo]");
-  onVisible(ringDemo, () => {
-    const ring = $("[data-ring-target]", ringDemo);
-    ring.style.setProperty("--p", ring.dataset.ringTarget);
-  }, 0.5);
-
-  /* Bento: Cmd-K types a search */
-  const kDemo = $("[data-k-demo]");
-  onVisible(kDemo, async () => {
-    const out = $("[data-k-type]", kDemo);
-    for (const ch of "cheek") {
-      await sleep(140);
-      out.textContent += ch;
-    }
-  }, 0.5);
-
   /* Phone: a notification, then an approval you can actually tap */
   const phone = $("[data-phone]");
   if (phone) {
@@ -388,55 +393,89 @@
     $("[data-allow]", phone).addEventListener("click", (e) => {
       approval.classList.add("answered");
       approval.classList.remove("denied");
-      done.innerHTML = '<i class="ph-fill ph-check-circle" aria-hidden="true"></i> Approved from your phone.';
+      done.innerHTML = '<i class="ph-fill ph-check-circle" aria-hidden="true"></i> Approved. Back to your walk.';
       burstFrom(e.currentTarget, 70);
     });
     $("[data-deny]", phone).addEventListener("click", () => {
       approval.classList.add("answered", "denied");
-      done.innerHTML = '<i class="ph ph-hand-palm" aria-hidden="true"></i> Denied. Claude will think of another way.';
+      done.innerHTML = '<i class="ph ph-hand-palm" aria-hidden="true"></i> Denied. Claude will find another way.';
     });
   }
 
-  /* Terminal types the build */
-  const term = $("[data-term]");
-  if (term) {
-    const body = $("[data-term-body]", term);
-    const commands = [
-      ["~/code", "git clone --recursive https://github.com/shelbyklein/chatterbox"],
-      ["~/code", "cd chatterbox"],
-      ["~/code/chatterbox", "xcodegen generate"],
-      ["~/code/chatterbox", "xcodebuild -scheme Chatterbox build"],
-    ];
-    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
-    const comment = '<span class="t-dim"># needs Xcode, plus xcodegen (brew install xcodegen)</span>\n';
-    const prompt = (dir) => `<span class="t-prompt">${dir} $</span> `;
-    const success = '<span class="t-ok">** BUILD SUCCEEDED **</span>';
+  /* Make it yours: tone and preset names */
+  const tuner = $("[data-tuner]");
+  if (tuner) {
+    const TONES = {
+      friendly: "Ah, that one again! A test still expects the old page count. Want me to update it and rerun everything?",
+      pragmatic: "A test expects the old page count. Updating it and rerunning the suite.",
+      neutral: "The failing test checks for the previous page count. I can update it if you’d like.",
+    };
+    const toneText = $("[data-tone-text]", tuner);
+    const toneButtons = $$("[data-tone]", tuner);
+    toneButtons.forEach((b) => b.addEventListener("click", async () => {
+      toneButtons.forEach((x) => {
+        x.classList.toggle("is-on", x === b);
+        x.setAttribute("aria-checked", String(x === b));
+      });
+      toneText.classList.add("fading");
+      await sleep(220);
+      toneText.textContent = TONES[b.dataset.tone];
+      toneText.classList.remove("fading");
+    }));
 
-    if (reduce) {
-      body.innerHTML = comment + commands.map(([d, c]) => prompt(d) + esc(c)).join("\n") + "\n" + success;
-    } else {
-      body.innerHTML = '<span class="t-caret"></span>';
-      onVisible(term, async () => {
-        let html = comment;
-        for (const [dir, cmd] of commands) {
-          html += prompt(dir);
-          for (let i = 1; i <= cmd.length; i++) {
-            body.innerHTML = html + esc(cmd.slice(0, i)) + '<span class="t-caret"></span>';
-            await sleep(cmd.length > 30 ? 14 : 38);
-          }
-          html += esc(cmd) + "\n";
-          body.innerHTML = html + '<span class="t-caret"></span>';
-          await sleep(380);
+    const echo = $("[data-preset-echo]", tuner);
+    const presets = $$("[data-preset]", tuner);
+    const showPresets = () => {
+      echo.innerHTML = presets.map((p) => `<span>${escapeHTML(p.textContent.trim())}</span>`).join("");
+    };
+    showPresets();
+
+    presets.forEach((p) => {
+      const label = $("span", p);
+      let before = "";
+      const finish = (keep) => {
+        if (!p.classList.contains("editing")) return;
+        const name = label.textContent.replace(/\s+/g, " ").trim().slice(0, 18);
+        label.textContent = keep && name ? name : before;
+        label.contentEditable = "false";
+        p.classList.remove("editing");
+        showPresets();
+      };
+      const start = () => {
+        if (p.classList.contains("editing")) return;
+        before = label.textContent;
+        p.classList.add("editing");
+        label.contentEditable = "true";
+        label.focus();
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      };
+      p.addEventListener("click", start);
+      p.addEventListener("keydown", (e) => {
+        if (p.classList.contains("editing")) {
+          if (e.key === "Enter") { e.preventDefault(); finish(true); p.focus(); }
+          if (e.key === "Escape") { finish(false); p.focus(); }
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          start();
         }
-        body.innerHTML = html + success + "\n" + prompt("~/code/chatterbox") + '<span class="t-caret"></span>';
-      }, 0.4);
-    }
+      });
+      label.addEventListener("blur", () => finish(true));
+      label.addEventListener("input", showPresets);
+    });
+  }
 
-    const copyBtn = $("[data-copy]", term);
+  /* Copy the build commands */
+  const copyBtn = $("[data-copy]");
+  if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
       const label = $("span", copyBtn);
+      const text = $(".code pre code").textContent.split("\n").filter((l) => l && !l.startsWith("#")).join("\n");
       try {
-        await navigator.clipboard.writeText(commands.map(([, c]) => c).join("\n"));
+        await navigator.clipboard.writeText(text);
         label.textContent = "Copied";
         copyBtn.classList.add("copied");
       } catch {
@@ -447,14 +486,5 @@
         copyBtn.classList.remove("copied");
       }, 1800);
     });
-  }
-
-  /* Reviews: duplicate each row once so the marquee loops seamlessly */
-  for (const row of $$(".marquee__row")) {
-    for (const card of [...row.children]) {
-      const clone = card.cloneNode(true);
-      clone.setAttribute("aria-hidden", "true");
-      row.append(clone);
-    }
   }
 })();
