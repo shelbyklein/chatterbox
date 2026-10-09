@@ -33,6 +33,18 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
 
     let record=ChatSession.sidequestRecord(of:parent,anchor:parent,number:1,backend:.codex,task:"Check the build passes")
     try check(record.activeBackend == .codex && record.codex != nil,"sidequest runs on the other agent, with Codex settings")
+    try check(record.codex?.mode == "ask" && record.codex?.canEdit == true,"a Codex sidequest may write in its folder")
+    try check(record.pendingHandoff?.contains("change nothing unless the task asks") == true,"its instructions say when to stay read-only")
+    var claudeParent=ConversationRecord(model:"default",effort:"",personality:.neutral)
+    claudeParent.activeBackend = .codex
+    claudeParent.codex=CodexSettings(folder:root.path,canEdit:false,mode:"fullAccess")
+    claudeParent.claudeMode="plan"
+    let codexChat=ChatSession(record:claudeParent)
+    let toClaude=ChatSession.sidequestRecord(of:codexChat,anchor:codexChat,number:1,backend:.claude,task:"Check this")
+    try check(toClaude.claudeModeID == "acceptEdits","a Claude sidequest may write in its folder")
+    try check(toClaude.pendingHandoff?.contains("treat it as a review") == true,"Codex-to-Claude defaults to a review")
+    var trusted=claudeParent;trusted.claudeMode="bypassPermissions"
+    try check(ChatSession.sidequestRecord(of:ChatSession(record:trusted),anchor:codexChat,number:1,backend:.claude,task:"x").claudeModeID == "bypassPermissions","settings that allow more stay")
     try check(record.sidechatOf == parent.id && record.sidequestOf == parent.id,"sidequest sits under its chat and returns to it")
     try check(record.pendingHandoff?.contains("Plan the header layout") == true && record.pendingHandoff?.contains("<sidequest>") == true,"sidequest is caught up on the whole chat")
     let parentReplies=parent.items.filter {$0.kind == .assistant}.count
