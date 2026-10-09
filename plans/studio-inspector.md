@@ -134,3 +134,21 @@ None blocking. To revisit after seeing it rendered:
 - **Remaining questions:** none blocking.
 
 Readiness: pass · 2026-10-08 · R1–R11, R13 pass · R12 applies to the install only (no data or schema change), rollback documented
+Implementation: SI1–SI8 complete 2026-10-09; SI9 awaiting go-ahead.
+
+## Progress (2026-10-09)
+
+- [x] SI1–SI8 done. SI9 (install) waits for Shelby's go-ahead.
+- **Code:** Core `de536e6` on branch `studio-inspector`, rebased onto Core `main` `c105360` and pushed. Chatterbox `studio-view` merges `origin/main` and pins Core `de536e6`. Mac Debug build passes, and `scripts/check-sources.sh` passes.
+- **New files:** `Core/Chatterbox/Views/StudioOverview.swift` holds the page, status helper, inspector and cards. `ChatHomeView.swift` keeps `HomeThreads` (now with a shared `matches`) and `ThreadThumbnails`, which gains `refreshLarge` at 1600px. `ContentView.swift` extracts the thread menu into `threadMenu(_:)`, shared by the sidebar and the new cards and rows.
+- **Suites, all passing on the merged code:**
+  - `scripts/test-mac-home.sh` (Studios half rewritten). It covers every SI1, SI3–SI6 acceptance check with native clicks, plus the SI2 check (large preview ≥1000px from a 2000px source, tile ≤160px).
+  - `scripts/test-sidebar-pins.sh`, `scripts/test-studio-chat-sidebar.sh`
+  - `scripts/test-home-thumbnails.sh`: against copies of the real chats, it now opens the busiest Studio's inspector; 7 of 16 Studio sessions loaded images.
+- **Rendered (SI7), inspected:** `assets/studio-inspector/rendered/`, covering Pinned wide/narrow (dark and light), the inspector wide/narrow, the Needs-you filter, empty Pinned, and the real USA Archery inspector (`real-usa-archery-inspector.png`). Two fixes came from inspection: the age moved out of the wrapped note, and inspector thumbnails now clip to their frame. Sessions without images show a short "No image yet" placeholder instead of an empty stage.
+- **Notes:**
+  - The mac-home suite was already failing before this work, on the stale `macSidebarCards` key and Home tabs that no longer exist. Those checks were updated to current behavior.
+  - The SI2 large-preview check lives in the mac-home suite rather than `test-home-thumbnails.sh`, which runs against real data.
+  - The card right-click menu is the same `threadMenu` view, but opening it natively wasn't driven, because a native context menu blocks the test run loop. Check it in the installed app.
+  - The page has no back/forward history, so that part of SI6 doesn't apply.
+  - `onTapGesture` didn't fire for native clicks, so cards and rows are plain Buttons. One click inspects, and the second click of a double-click opens the chat.
