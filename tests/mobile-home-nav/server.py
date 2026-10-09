@@ -1,4 +1,4 @@
-import http.server,json,os,uuid,zlib,struct
+import http.server,json,os,uuid,zlib,struct,datetime
 # Isolated fixture: Golem, six projects (one a worktree, one waiting on you) and a Studio.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
 def cid(n):return str(uuid.uuid5(uuid.NAMESPACE_URL,'home:'+n))
@@ -9,18 +9,23 @@ PROJECTS=[('Chatterbox','Shipped the Next Steps plugin and the new message box.'
  ('PlayCase Magnets','Finished the product photos for the store.',None,False),
  ('Galley','Phase 3 is ready for review: the typography engine.',None,False),
  ('Tracker Trapper','Checked the menu-bar progress after the update.',None,False)]
+# Working now, for the Activity box (with Tracker Trapper's reply as new).
+RUNNING=['Galley','Coach Archie']
 def summary(name,line,branch=None,waiting=False,dot=False):
  s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
  if name in ['Coach Archie','Chatterbox']:
   s['thumbnail']={'id':cid('thumbnail'),'name':'proof.png','mediaType':'image/png','isImage':True,'revision':'1'}
   if name=='Coach Archie':s['project']=None
  if branch:s['worktreeBranch']=branch
+ if name in RUNNING:s['isRunning']=True
  return s
 def chats():
  groups=[{'id':'dot','kind':'dot','title':'Golem','chats':[summary('Golem','Ready',dot=True)]},
   {'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]},
   {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')}]
- return {'revision':1,'groups':groups}
+ now=datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+ activity=[{'id':cid('turn-tracker'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','backend':'claude','endedAt':now}]
+ return {'revision':1,'groups':groups,'activity':activity}
 def detail(id):
  s=next(c for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id.lower())
  items=[{'id':cid(id+'u'),'kind':'user','text':'Hello','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},

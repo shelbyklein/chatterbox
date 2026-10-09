@@ -30,6 +30,7 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
   XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
+  XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
   capture("1-chats-list",app)
   // Cards, two to a row.
   app.buttons["Show as Cards"].tap()
@@ -39,6 +40,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2, "two cards share a row")
   XCTAssertLessThan(first.frame.maxX, second.frame.minX, "side by side")
   XCTAssertFalse(app.images["Latest image in Chatterbox"].exists, "Projects never show thumbnails")
+  XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].exists, "Activity shows in card view too")
   capture("3-cards", app)
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()
