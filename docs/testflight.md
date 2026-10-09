@@ -13,17 +13,19 @@ already sends to the right one for each device.
      (testers see the app's own name, Chatterbox, on the Home Screen)
    - Bundle ID: `com.shelbyklein.Chatterbox.mobile`
    - SKU: `chatterbox-mobile`
-2. **Make an API key.** App Store Connect → Users and Access → Integrations → App Store Connect
+2. **Sign in to Xcode** (Xcode → Settings → Accounts) with the account holder's Apple ID. The
+   script then signs and uploads with that sign-in, and steps 3 and 4 can be skipped.
+3. **Or make an API key** (for uploading without the Xcode sign-in). App Store Connect → Users and Access → Integrations → App Store Connect
    API → Team Keys → + . Role: App Manager. Download the `.p8` (it can only be downloaded once)
    and note its Key ID and the Issuer ID shown above the list.
-3. **Put the key on the Mac:**
+4. **Put the key on the Mac:**
 
        mkdir -p ~/.appstoreconnect/private_keys
        mv ~/Downloads/AuthKey_<KEY_ID>.p8 ~/.appstoreconnect/private_keys/
        chmod 600 ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8
        printf 'KEY_ID=%s\nISSUER_ID=%s\n' <KEY_ID> <ISSUER_ID> > ~/.appstoreconnect/config
 
-4. **Install TestFlight** on the iPhone and iPad from the App Store.
+5. **Install TestFlight** on the iPhone and iPad from the App Store.
 
 ## Each release
 

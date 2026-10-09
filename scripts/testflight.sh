@@ -2,21 +2,28 @@
 # Archives the iPhone app and uploads it to TestFlight, so it installs from the TestFlight app
 # instead of over a cable from Xcode.
 #
-# One-time setup (see docs/testflight.md):
-#   ~/.appstoreconnect/config                 KEY_ID=… and ISSUER_ID=… (an App Store Connect API key)
+# One-time setup (see docs/testflight.md): the app record in App Store Connect, and either the
+# Apple ID signed in to Xcode or an App Store Connect API key:
+#   ~/.appstoreconnect/config                 KEY_ID=… and ISSUER_ID=…
 #   ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8
-# Signing is automatic: the key lets Xcode make the distribution certificate and profile.
+# Signing is automatic: Xcode makes the distribution certificate and profile.
 # Each upload gets a new build number (the date and time); the newest archive is kept in
 # build/TestFlight, older ones are removed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Signs and uploads with an App Store Connect API key when one is set up, otherwise with the
+# Apple ID signed in to Xcode (Xcode → Settings → Accounts).
 config="$HOME/.appstoreconnect/config"
-[[ -f "$config" ]] || { echo "No App Store Connect key yet: see docs/testflight.md" >&2; exit 1; }
-# shellcheck disable=SC1090
-source "$config"
-key="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
-[[ -f "$key" ]] || { echo "Missing $key" >&2; exit 1; }
-auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+auth=(-allowProvisioningUpdates)
+if [[ -f "$config" ]]; then
+  # shellcheck disable=SC1090
+  source "$config"
+  key="$HOME/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8"
+  [[ -f "$key" ]] || { echo "Missing $key" >&2; exit 1; }
+  auth+=(-authenticationKeyPath "$key" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+else
+  echo "No API key set up; using the Apple ID signed in to Xcode."
+fi
 
 build=$(date +%Y%m%d%H%M)
 out=build/TestFlight
