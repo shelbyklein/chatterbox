@@ -17,17 +17,33 @@ set -uo pipefail
 sup="$HOME/Library/Application Support/Chatterbox"
 report="$sup/Diagnostics/service-restart.txt"
 lock="$sup/Diagnostics/service-restart.pid"
+queue_label="com.shelbyklein.chatterbox.restart-service"
+mkdir -p "$sup/Diagnostics" || exit 1
 
 if [[ "${RESTART_SERVICE_DETACHED:-}" != 1 ]]; then
-  # Replace an earlier queued restart, then carry on in the background.
+  # launchd owns the worker: nohup alone can still be reaped with an agent's shell.
+  # Replace only this restart job; an old PID file may now refer to another process.
+  launchctl remove "$queue_label" 2>/dev/null || true
   if [[ -f "$lock" ]] && old=$(cat "$lock") && kill -0 "$old" 2>/dev/null; then
-    pkill -P "$old" 2>/dev/null; kill "$old" 2>/dev/null && echo "Replaced the restart queued earlier (pid $old)."
+    if ps -p "$old" -o command= | grep -Fq 'scripts/restart-service.sh'; then
+      pkill -P "$old" 2>/dev/null; kill "$old" 2>/dev/null && echo "Replaced the restart queued earlier (pid $old)."
+    fi
   fi
-  RESTART_SERVICE_DETACHED=1 nohup "$0" "$@" >/dev/null 2>&1 &
-  echo $! > "$lock"
+  worker="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  job="$sup/Diagnostics/service-restart.plist"
+  /usr/bin/python3 - "$job" "$queue_label" "$worker" "$@" <<'PY' || exit 1
+import plistlib,sys
+with open(sys.argv[1], 'wb') as f:
+    plistlib.dump({'Label':sys.argv[2], 'ProgramArguments':['/bin/bash',*sys.argv[3:]],
+                  'EnvironmentVariables':{'RESTART_SERVICE_DETACHED':'1'},
+                  'RunAtLoad':True, 'KeepAlive':False, 'ProcessType':'Background'}, f)
+PY
+  # Unlike `submit`, this is one-shot even if it times out or fails.
+  launchctl bootstrap "gui/$(id -u)" "$job" || exit 1
   echo "Queued; the result goes to $report"
   exit 0
 fi
+echo $$ > "$lock"
 
 now=0 app=0 codex=0 delay=0
 while [[ $# -gt 0 ]]; do

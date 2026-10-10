@@ -128,7 +128,9 @@ project folder. iPhone and iPad interaction tests, backend regressions and signe
 The saved archive is `build/TestFlight/Chatterbox-202610101921.xcarchive`.
 
 The compatible Mac app/service files are installed; the service's default idle restart is
-queued. The upload is **not complete**: command-line export again returned `Failed to Use
+queued through a verified one-shot launchd worker. The restart script was corrected so the
+worker survives the agent's shell exiting, and an older queued worker is replaced. The
+upload is **not complete**: command-line export again returned `Failed to Use
 Accounts`, and the Mac was locked when attempting the previously successful Organizer route.
 After the Mac is unlocked, open this existing archive in Xcode Organizer and distribute to
 App Store Connect. Do not rebuild or ask for delivery approval again. Confirm processing,
