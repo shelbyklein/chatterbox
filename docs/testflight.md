@@ -35,6 +35,11 @@ Xcode's first-upload flow on October 9, 2026; don't create another record.
 
     ./scripts/testflight.sh
 
+Routine delivery of requested, verified changes to the existing internal group has Shelby's
+standing approval (October 10, 2026); see `AGENTS.md`. Do not ask again before a routine Mac
+install, idle service restart or internal TestFlight update. Keep build, upload, Apple
+processing, tester availability and actual device installation distinct in reports.
+
 After Apple processes the build (usually 5–15 minutes), it shows in App Store Connect →
 TestFlight. Add yourself once as an internal tester there (Internal Testing → +), and every
 later build arrives in the TestFlight app automatically. Internal builds expire after 90 days.
@@ -114,3 +119,18 @@ internal group lists **1.0 (202610101529)** as **Testing**:
 TestFlight and update **Chatterbox Companion**. Phone installation of this build is not
 independently confirmed. The Mac app/service still needs installation and idle restart
 before mobile Delete works; Rename, Archive and local Dismiss use existing behavior.
+
+## Chat promotion — October 10, 2026
+
+Build **1.0 (202610101921)** adds **Move to Studio** and **Make Project** to ordinary chats'
+long-press and open-chat menus, including existing/new Studios and browsing/creating a Mac
+project folder. iPhone and iPad interaction tests, backend regressions and signed builds pass.
+The saved archive is `build/TestFlight/Chatterbox-202610101921.xcarchive`.
+
+The compatible Mac app/service files are installed; the service's default idle restart is
+queued. The upload is **not complete**: command-line export again returned `Failed to Use
+Accounts`, and the Mac was locked when attempting the previously successful Organizer route.
+After the Mac is unlocked, open this existing archive in Xcode Organizer and distribute to
+App Store Connect. Do not rebuild or ask for delivery approval again. Confirm processing,
+the current-build encryption declaration, and the Shelby group's **Testing** status before
+calling it available in TestFlight.

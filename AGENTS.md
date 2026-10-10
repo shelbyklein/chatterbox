@@ -26,8 +26,15 @@ once, and Chatterbox runs the chats they work in, so leftovers and blind restart
   already queued, and reports to `~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt`.
   Restarts that interrupt replies need the user's go-ahead.
 - **Install only with `scripts/ship.sh` or `scripts/install.sh`.** Never `open` the app from an
-  agent shell: it would inherit the service's `CHATTERBOX_*` variables. Installing restarts the
-  app the user is chatting in, so ask first.
+  agent shell: it would inherit the service's `CHATTERBOX_*` variables.
+- **Routine delivery has standing approval (Shelby, October 10, 2026).** After requested work
+  is verified, install/reopen the Mac app, queue any needed service restart with the default
+  idle-wait behavior, and upload/distribute the iOS build to the existing internal TestFlight
+  group without asking again. Give a brief heads-up before the Mac app reopens and report
+  installation, queued/restarted service status, and TestFlight availability separately.
+  This does not authorize interrupting active replies, stopping agent hosts, expanding tester
+  access, or publishing to the App Store; those still need explicit approval. A later request
+  to hold installation or delivery takes precedence.
 - **New source files need the project regenerated.** After adding a file to `Core/` or any
   target, run `xcodegen generate` and commit `Chatterbox.xcodeproj`. `ship.sh` runs
   `scripts/check-sources.sh`, which stops when the project is out of date or a hand-written
