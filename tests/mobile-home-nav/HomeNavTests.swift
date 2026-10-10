@@ -237,6 +237,77 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.alerts["Rename Chat"].waitForExistence(timeout:3))
   app.alerts.buttons["Cancel"].tap()
  }
+ @MainActor func testPromoteChats() async throws {
+  continueAfterFailure=false
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  func start() async throws {
+   app.terminate();try await fixture("reset");app.launch()
+   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15));tab("Chats",app).tap()
+   XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForExistence(timeout:15))
+  }
+  func action(_ label:String) {
+   app.buttons["chat-"+uuid("Loose chat")].press(forDuration:1)
+   app.buttons[label].tap()
+   XCTAssertTrue(app.buttons["promotion-save"].waitForExistence(timeout:5))
+  }
+  func replace(_ field:XCUIElement,_ value:String) {
+   field.tap();field.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:(field.value as? String ?? "").count));field.typeText(value)
+  }
+  try await start();action("Move to Studio…")
+  app.buttons["Cancel"].tap()
+  let noMutations=try await fixture("mutations",method:"GET") as! [String]
+  XCTAssertEqual(noMutations.count,0)
+  action("Move to Studio…")
+  app.buttons["promotion-studio"].tap();app.buttons["USA Archery"].tap()
+  XCTAssertTrue(app.switches["Keep current working folder"].exists)
+  capture("promotion-existing-studio",app)
+  app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Loose chat."].waitForExistence(timeout:8))
+  var promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
+  XCTAssertEqual(promoted["Loose chat"]?["kind"] as? String,"studio")
+  XCTAssertEqual(promoted["Loose chat"]?["keepFolder"] as? Bool,true)
+  tab("Studios",app).tap()
+  XCTAssertTrue(app.staticTexts["Loose chat"].waitForExistence(timeout:8))
+
+  try await start();action("Move to Studio…")
+  replace(app.textFields["promotion-name"],"Design Lab")
+  capture("promotion-new-studio",app)
+  try await fixture("fail",body:["value":true]);app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.staticTexts["Fixture promotion failed. Try again."].waitForExistence(timeout:6))
+  try await fixture("fail",body:["value":false]);app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Loose chat."].waitForExistence(timeout:8))
+  promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
+  XCTAssertEqual(promoted["Loose chat"]?["name"] as? String,"Design Lab")
+
+  try await start()
+  app.buttons["chat-"+uuid("Loose chat")].tap()
+  XCTAssertTrue(app.buttons["Chat Menu"].waitForExistence(timeout:5));app.buttons["Chat Menu"].tap()
+  app.buttons["Make Project…"].tap()
+  XCTAssertTrue(app.buttons["Browse Mac Folders"].waitForExistence(timeout:5));app.buttons["Browse Mac Folders"].tap()
+  XCTAssertTrue(app.buttons["Use Folder"].waitForExistence(timeout:5))
+  app.collectionViews.buttons["Projects"].tap()
+  XCTAssertTrue(app.staticTexts["/Users/fixture/Projects"].waitForExistence(timeout:5))
+  capture("promotion-folder-browser",app);app.buttons["Use Folder"].tap()
+  // SwiftUI exposes the entire row as a Switch; tap the control at its trailing edge.
+  app.switches["Create a new subfolder"].coordinate(withNormalizedOffset:CGVector(dx:0.92,dy:0.5)).tap()
+  XCTAssertTrue(app.textFields["promotion-name"].waitForExistence(timeout:5))
+  replace(app.textFields["promotion-name"],"Phone Project")
+  capture("promotion-new-project",app);app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Loose chat."].waitForExistence(timeout:8))
+  promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
+  XCTAssertEqual(promoted["Loose chat"]?["folder"] as? String,"/Users/fixture/Projects")
+  XCTAssertEqual(promoted["Loose chat"]?["newFolderName"] as? String,"Phone Project")
+  tab("Projects",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForExistence(timeout:8))
+
+  try await start();action("Make Project…")
+  replace(app.textFields["promotion-folder"],"/Users/fixture/Existing")
+  app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Loose chat."].waitForExistence(timeout:8))
+  promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
+  XCTAssertNil(promoted["Loose chat"]?["newFolderName"])
+ }
  @MainActor func tab(_ name:String,_ app:XCUIApplication) -> XCUIElement {
   let phone=app.tabBars.buttons[name]
   if phone.exists { return phone }
@@ -263,7 +334,7 @@ final class HomeNavTests: XCTestCase {
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
-   "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF"][name]!
+   "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340"][name]!
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)

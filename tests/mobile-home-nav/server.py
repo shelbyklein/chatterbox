@@ -18,12 +18,13 @@ STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat()
 FAIL=False
 MUTATIONS=[]
 RENAMES={}
+PROMOTIONS={}
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 def reset():
- global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES
+ global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
- STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={}
+ STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={}
 
 def summary(name,line,branch=None,waiting=False,dot=False):
  s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
@@ -32,6 +33,8 @@ def summary(name,line,branch=None,waiting=False,dot=False):
   if name=='Coach Archie':s['project']=None
  if name in ['No image','Crystal concept','Loose chat']:s['project']=None
  if name in RENAMES:s['title']=RENAMES[name]
+ s['canPromote']=name=='Loose chat' and name not in PROMOTIONS
+ if name in PROMOTIONS and PROMOTIONS[name]['kind']=='project':s['project']='Promoted project'
  if branch:s['worktreeBranch']=branch
  if name in RUNNING:s['isRunning']=True;s['turnStartedAt']=STARTED
  return s
@@ -44,6 +47,13 @@ def chats():
   {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')},
   {'id':'chats','kind':'chats','title':'Chats','chats':[summary('Loose chat','An ordinary chat.')]},
   {'id':'studio-2','kind':'studio','title':'Geekify','chats':[summary('Crystal concept','Purple faceted crystal.')],'studioID':cid('studio2')}]
+ for name,p in PROMOTIONS.items():
+  source=next(c for g in groups for c in g['chats'] if c['id']==cid(name))
+  for g in groups:g['chats']=[c for c in g['chats'] if c['id']!=cid(name)]
+  if p['kind']=='project':groups[1]['chats'].append(source)
+  elif p.get('studioID'):
+   next(g for g in groups if g.get('studioID','').lower()==p['studioID'].lower())['chats'].append(source)
+  else:groups.append({'id':'new-studio','kind':'studio','title':p['name'],'studioID':cid('new-studio'),'chats':[source]})
  for g in groups:g['chats']=[c for c in g['chats'] if c['id'].lower() not in REMOVED]
  return {'revision':1,'groups':groups,'activity':ACTIVITY}
 
@@ -76,6 +86,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/start':
    if body['name'] not in RUNNING:RUNNING.append(body['name'])
    STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();return self.reply({'ok':True})
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/promote'):
+   if FAIL:return self.reply({'error':'Fixture promotion failed. Try again.'},409)
+   PROMOTIONS['Loose chat']=body;MUTATIONS.append('promote');return self.reply(detail(cid('Loose chat')))
   if self.path.startswith('/v1/chats/') and self.path.endswith('/rename'):
    if FAIL:return self.reply({'error':'Fixture rename failed. Try again.'},503)
    id=self.path.split('/')[3].lower()
@@ -95,6 +108,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
   self.send_error(404)
  def do_GET(self):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
+  if self.path=='/test/promotions':return self.reply(PROMOTIONS)
+  if self.path.startswith('/v1/project-folders'):
+   from urllib.parse import urlparse,parse_qs
+   path=parse_qs(urlparse(self.path).query).get('path',['/Users/fixture'])[0]
+   return self.reply({'path':path,'parent':'/Users/fixture' if path!='/Users/fixture' else '/Users','folders':[{'path':'/Users/fixture/Projects','name':'Projects'}] if path=='/Users/fixture' else []})
+  if self.path.endswith('/organization'):
+   return self.reply({'currentFolder':'/Users/fixture','studios':[{'id':cid('studio'),'name':'USA Archery','folder':'/Users/fixture/Studios/USA Archery'},{'id':cid('studio2'),'name':'Geekify','folder':'/Users/fixture/Studios/Geekify'}]})
   if '/thumbnail/' in self.path:
    b=thumbnail();self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if self.path=='/v1/chats':return self.reply(chats())

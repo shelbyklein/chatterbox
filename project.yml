@@ -263,6 +263,7 @@ targets:
     - path: Core/ChatterboxRuntime/ChatSession+Media.swift
     - path: Core/ChatterboxRuntime/AssistantConfiguration.swift
     - path: Core/ChatterboxRuntime/ConversationRuntime.swift
+    - path: Core/ChatterboxRuntime/ChatPromotion.swift
     - path: Core/ChatterboxRuntime/RuntimePreferences.swift
     - path: Core/ChatterboxRuntime/RuntimePeer.swift
     - path: Core/ChatterboxRuntime/RuntimeClient.swift
