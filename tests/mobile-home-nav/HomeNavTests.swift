@@ -31,6 +31,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
   XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
   XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
+  let activityReply = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
+  let activityWorking = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
+  XCTAssertTrue(activityWorking.exists && activityReply.exists)
+  XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in list mode")
   capture("1-chats-list",app)
   // Cards, two to a row.
   app.buttons["Show as Cards"].tap()
@@ -41,6 +45,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertLessThan(first.frame.maxX, second.frame.minX, "side by side")
   XCTAssertFalse(app.images["Latest image in Chatterbox"].exists, "Projects never show thumbnails")
   XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].exists, "Activity shows in card view too")
+  XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in card mode")
   capture("3-cards", app)
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()
@@ -72,7 +77,7 @@ final class HomeNavTests: XCTestCase {
   let working = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
   XCTAssertTrue(reply.waitForExistence(timeout:5) && working.exists)
   XCTAssertEqual(reply.frame.minX, working.frame.minX, accuracy:2)
-  XCTAssertGreaterThan(working.frame.minY, reply.frame.minY, "Activity entries stay vertically stacked list rows")
+  XCTAssertLessThan(working.frame.maxY, reply.frame.minY, "Working sessions appear above unread replies in the Activity list")
   XCTAssertGreaterThan(reply.frame.width, app.windows.firstMatch.frame.width * 0.8, "Activity uses the full-width list")
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
   XCTAssertFalse(app.images["Latest image in No image"].exists)
