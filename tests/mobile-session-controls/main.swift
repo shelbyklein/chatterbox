@@ -42,6 +42,31 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  precondition(concurrent.status==409 && calls==1)
  let final=await first.value;let replay=await ledger.respondAsync(device:device,request:pending){calls+=1;return .json(["ok":true])}
  precondition(final.status==200 && replay.body==final.body && calls==1)
+ // Deletion is paired Chatterbox-only, preserves project files, and replays safely.
+ let folder=URL(fileURLWithPath:root).appendingPathComponent("project")
+ try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+ let source=folder.appendingPathComponent("keep.txt");try Data("source stays".utf8).write(to:source)
+ var deletable=record;deletable.id=UUID();deletable.projectFolder=folder.path
+ let target=model.insertSession(deletable)
+ target.isRunning=true
+ precondition(CompanionMapper.summary(target).turnStartedAt != nil)
+ target.isRunning=false
+ precondition(CompanionMapper.summary(target).turnStartedAt == nil)
+ func deletion(_ headers:[String:String]) -> HTTPRequest {
+  HTTPRequest(method:"DELETE",path:"/v1/chats/\(target.id)",query:[:],headers:headers,body:Data())
+ }
+ precondition(server.respond(to:deletion([:]),local:false).status==401)
+ precondition(server.respond(to:deletion([Companion.tokenHeader.lowercased():token,"x-chatterbox-product":"golem"]),local:false).status==403)
+ let agentToken=try String(contentsOf:CompanionServer.agentTokenFile,encoding:.utf8)
+ precondition(server.respond(to:deletion([Companion.tokenHeader.lowercased():agentToken]),local:true).status==403)
+ precondition(model.sessions.contains{$0.id==target.id})
+ headers[CompanionRetry.operationHeader.lowercased()]=UUID().uuidString
+ let removal=deletion(headers),removed=server.respond(to:removal,local:false)
+ precondition(removed.status==200 && !model.sessions.contains{$0.id==target.id})
+ precondition(FileManager.default.fileExists(atPath:source.path))
+ let removedRetry=server.respond(to:removal,local:false)
+ precondition(removedRetry.status==200 && removedRetry.body==removed.body)
+ print("PASS: paired delete, unauthorized/agent/product rejection, turn identity, retained project files and idempotent retry")
  print("PASS: paired restart, agent/product rejection, unknown chat, history/draft preservation, cached replay and concurrent retry executes once")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}};app.run()

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300">
+<rect width="800" height="300" fill="#101010"/><g font-family="sans-serif" fill="white">
+<text x="24" y="32" font-size="20">Activity: swipe right</text>
+<rect x="24" y="56" width="752" height="76" rx="12" fill="#252525"/>
+<rect x="24" y="56" width="92" height="76" fill="#365e83"/><rect x="116" y="56" width="92" height="76" fill="#6d4d13"/><rect x="208" y="56" width="92" height="76" fill="#ac252f"/>
+<g font-size="16" text-anchor="middle"><text x="70" y="100">Dismiss</text><text x="162" y="100">Archive</text><text x="254" y="100">Delete</text></g>
+<text x="324" y="100" font-size="19">Working: Galley →</text>
+<text x="24" y="175" font-size="17">Short swipe: reveal actions. Delete asks for confirmation.</text>
+<text x="24" y="214" font-size="17">Full swipe: dismiss this activity; keep the chat and any running work.</text>
+<text x="24" y="253" font-size="17">A later turn or completion appears again.</text></g></svg>

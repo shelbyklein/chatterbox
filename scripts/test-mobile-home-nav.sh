@@ -2,7 +2,7 @@
 source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 # Edge swipes between Golem and Chats, Back still working, and the list/cards toggle, against
-# an isolated mock companion server (tests/mobile-home-nav/server.py). iPhone only.
+# an isolated mock companion server (tests/mobile-home-nav/server.py).
 cd "$(dirname "$0")/.."
 case "${1:-iphone}" in
   iphone) device_type=com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro ;;
@@ -72,7 +72,11 @@ y+='''    settings:
 '''
 (out/'project.yml').write_text(y)
 with (out/'Regression-Info.plist').open('wb') as f:
-    plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
+    info={'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}}
+    real=plistlib.load((root/'ChatterboxMobile/Info.plist').open('rb'))
+    for key in ('UISupportedInterfaceOrientations','UISupportedInterfaceOrientations~ipad'):
+        info[key]=real[key]
+    plistlib.dump(info,f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
 simulator=$(xcrun simctl create 'Chatterbox home nav regression' "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
@@ -81,8 +85,11 @@ xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
+# Comma-separated identifiers allow focused phone/tablet runs. Always keep a filter
+# so macOS Bash 3's nounset handling cannot reject an empty array.
+IFS=',' read -r -a test_ids <<< "${MOBILE_TEST_ONLY:-HomeNavTests/HomeNavTests}"
 test_filter=()
-if [[ -n "${MOBILE_TEST_ONLY:-}" ]]; then test_filter=("-only-testing:$MOBILE_TEST_ONLY"); fi
+for test_id in "${test_ids[@]}"; do test_filter+=("-only-testing:$test_id"); done
 xcodebuild -project "$artifacts/MobileHomeNavRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
   -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" "${test_filter[@]}" test || status=$?
