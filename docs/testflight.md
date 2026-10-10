@@ -90,9 +90,9 @@ Six iPhone UI tests and three iPad portrait UI tests passed, along with companio
 regressions and signed builds. Landscape visual acceptance remains unverified because the
 simulator reported rotation while its app window stayed portrait.
 
-The Release archive succeeded, but **upload failed** with `Failed to Use Accounts` and
-invalid Xcode credentials (`missing Xcode-Username`). The build is **not in TestFlight**.
-After refreshing Xcode → Settings → Accounts, retry the saved archive instead of rebuilding:
+The initial Release archive succeeded, but its first upload failed with `Failed to Use Accounts`
+and invalid Xcode credentials (`missing Xcode-Username`). To retry a saved archive without
+rebuilding:
 
 ```sh
 xcodebuild -exportArchive \
@@ -101,6 +101,16 @@ xcodebuild -exportArchive \
   -exportPath build/TestFlight/export -allowProvisioningUpdates
 ```
 
-Then verify Apple processing, the current-build encryption declaration, and the Shelby
-internal group's Testing status. The Mac app/service still needs installation and idle
-restart before mobile Delete works; Rename, Archive and local Dismiss use existing behavior.
+After sign-in was refreshed, the command-line export still reported `Failed to Use Accounts`,
+even though Xcode showed the correct account and team. Opening the saved `.xcarchive` in
+Finder and choosing **Distribute App → App Store Connect** in Xcode Organizer succeeded
+without rebuilding. Xcode confirmed **Chatterbox 1.0 (202610101529) uploaded** on October 10
+at 7:00 PM. If this account mismatch recurs, use Organizer before asking for another sign-in.
+Do not upload a second time after Organizer reports success.
+
+Apple processing and the current-build encryption declaration are complete. The **Shelby**
+internal group lists **1.0 (202610101529)** as **Testing**:
+[delivery evidence](../design/mobile-studios/assets/activity-rename-testflight.jpg). Open
+TestFlight and update **Chatterbox Companion**. Phone installation of this build is not
+independently confirmed. The Mac app/service still needs installation and idle restart
+before mobile Delete works; Rename, Archive and local Dismiss use existing behavior.

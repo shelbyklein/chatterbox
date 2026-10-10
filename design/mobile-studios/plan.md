@@ -88,7 +88,8 @@ Success: partial swipe reveals all actions in list and gallery layouts; full swi
 - [x] S1 Add persistent activity dismissal and native row actions. Acceptance: working and completed entries dismiss independently, newer completions/runs return, main chats and unread status remain intact.
 - [x] S2 Add authenticated mobile delete route and confirmation/error flows. Acceptance: unpaired/agent/Golem requests cannot delete; retry is idempotent; archive/delete act only after intentional taps/confirmation.
 - [x] S3 Exercise phone/tablet gestures, partial/full swipes, list/gallery, persistence, errors and chat actions. Acceptance: focused UI and companion tests pass; inspect and retain screenshots.
-- [ ] S4 Commit/push, build/upload iOS through established TestFlight delivery, report activation accurately. Mac install/service activation needs current user approval after concrete build/test evidence.
+- [x] S4 Commit/push, build/upload iOS through established TestFlight delivery, report activation accurately.
+- [ ] S5 Activate the Mac companion Delete endpoint after installation approval; use the idle restart script. Builds and tests already pass; no active replies may be interrupted without authorization.
 
 Added scope from Shelby during implementation: expose Rename through press-and-hold on ordinary chat rows/cards, Studio rows/cards, and Activity entries. Keep the existing open-chat menu's Rename and the existing authenticated rename API. S1 includes entry points and rename dialog with validation/error feedback; S3 includes rename/cancel/persistence navigation coverage. No extra backend change is required for Rename. Readiness remains R1–R13 pass; implementation requested now.
 
@@ -111,3 +112,6 @@ Landscape limitation: the simulator reported changing device orientation but its
 
 
 Delivery: Core `d36d192` and root `d04f9b7` are pushed. Release archive **1.0 (202610101529)** succeeded at `build/TestFlight/Chatterbox-202610101529.xcarchive`. Export/upload failed with **Failed to Use Accounts**; Xcode reports invalid cached account credentials, missing Xcode-Username. This build is not in TestFlight. App Store Connect browser access is still signed in, but native Xcode inspection could not acquire a window. Preserve the archive and `build/TestFlight/ExportOptions.plist` and retry export after Xcode account sign-in is refreshed, without rebuilding. Mac app and service were not restarted; the new Delete endpoint awaits installation and idle service activation. Tidy report: 17 removable, no cleanup applied. S4 remains pending delivery/activation.
+
+
+Swipe/rename TestFlight delivery completed October 10: command-line retry still failed to find App Store Connect access despite the correct Xcode account and team. Opening the retained archive in Finder and using Xcode Organizer → Distribute App → App Store Connect uploaded **1.0 (202610101529)** successfully without rebuilding. Apple processing and its current-build encryption declaration are complete; the **Shelby** internal group shows **Testing**. [Inspected delivery evidence](assets/activity-rename-testflight.jpg). Phone installation is not claimed. Mac app/service activation remains pending as S5; neither was restarted. The command-line account mismatch remains unresolved, with Organizer a verified delivery fallback.
