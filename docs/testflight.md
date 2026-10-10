@@ -116,9 +116,10 @@ Do not upload a second time after Organizer reports success.
 Apple processing and the current-build encryption declaration are complete. The **Shelby**
 internal group lists **1.0 (202610101529)** as **Testing**:
 [delivery evidence](../design/mobile-studios/assets/activity-rename-testflight.jpg). Open
-TestFlight and update **Chatterbox Companion**. Phone installation of this build is not
-independently confirmed. The Mac app/service still needs installation and idle restart
-before mobile Delete works; Rename, Archive and local Dismiss use existing behavior.
+TestFlight and update **Chatterbox Companion**. The Shelby tester page subsequently confirmed
+this build installed on the iPhone 17 Pro. The compatible Mac app/service files are now
+installed; mobile Delete awaits the queued idle service restart described below. Rename,
+Archive and local Dismiss use existing behavior.
 
 ## Chat promotion — October 10, 2026
 
@@ -127,12 +128,16 @@ long-press and open-chat menus, including existing/new Studios and browsing/crea
 project folder. iPhone and iPad interaction tests, backend regressions and signed builds pass.
 The saved archive is `build/TestFlight/Chatterbox-202610101921.xcarchive`.
 
-The compatible Mac app/service files are installed; the service's default idle restart is
-queued through a verified one-shot launchd worker. The restart script was corrected so the
-worker survives the agent's shell exiting, and an older queued worker is replaced. The
-upload is **not complete**: command-line export again returned `Failed to Use
-Accounts`, and the Mac was locked when attempting the previously successful Organizer route.
-After the Mac is unlocked, open this existing archive in Xcode Organizer and distribute to
-App Store Connect. Do not rebuild or ask for delivery approval again. Confirm processing,
-the current-build encryption declaration, and the Shelby group's **Testing** status before
-calling it available in TestFlight.
+The build is **available in TestFlight**. After the Mac was unlocked, Xcode Organizer uploaded
+the existing archive at 7:36 PM without rebuilding. Apple processing and the build's encryption
+declaration are complete, and the **Shelby** internal group lists **1.0 (202610101921)** as
+**Testing**: [delivery evidence](../design/mobile-chat-promotion/assets/promotion-testflight.jpg).
+Update **Chatterbox Companion** in TestFlight; installation of this newest build on the phone
+has not been independently confirmed. Command-line export still returned `Failed to Use
+Accounts`; Organizer remains the verified upload route for this account.
+
+The compatible Mac app/service files are installed. The default idle restart remains queued
+through one launchd worker, verified alive after the upload. It waits for two active replies,
+including this conversation. The new promotion menus stay hidden until that restart loads
+the compatible service. No active replies were interrupted. The restart script now survives
+the agent shell exiting and replaces an older queued worker rather than stacking jobs.
