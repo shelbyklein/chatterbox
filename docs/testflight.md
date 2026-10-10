@@ -67,3 +67,14 @@ encryption declaration are complete. The **Shelby** internal group lists the bui
 **Testing**. Update Chatterbox Companion in TestFlight to use it. The prior build's invitation
 was accepted and App Store Connect reports it installed on Shelby's iPhone 17 Pro; installation
 of this new build is not independently confirmed.
+
+## Working sessions first — October 10, 2026
+
+Build **1.0 (202610101240)** puts working sessions above the three newest unread replies in
+the shared mobile Activity list. The full home-navigation simulator suite passed (3 tests).
+The initial upload was blocked by expired Xcode account credentials; after sign-in was
+refreshed, the existing archive exported and uploaded successfully without rebuilding.
+Apple processing and the current-build encryption declaration are complete, and the
+**Shelby** internal group lists the build as **Testing**. [Delivery evidence](../design/mobile-studios/assets/activity-working-first-testflight.png).
+Open TestFlight and update **Chatterbox Companion**; phone installation of this build is
+not independently confirmed.
