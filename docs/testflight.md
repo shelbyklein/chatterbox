@@ -78,3 +78,29 @@ Apple processing and the current-build encryption declaration are complete, and 
 **Shelby** internal group lists the build as **Testing**. [Delivery evidence](../design/mobile-studios/assets/activity-working-first-testflight.png).
 Open TestFlight and update **Chatterbox Companion**; phone installation of this build is
 not independently confirmed.
+
+
+## Chat rename and Activity actions — October 10, 2026
+
+Build **1.0 (202610101529)** adds press-and-hold Rename to chat rows/cards and Activity,
+and right-swipe Dismiss/Archive/Delete to home Activity. A full swipe only dismisses the
+Activity entry. Delete confirms and requires the new Mac companion endpoint.
+
+Six iPhone UI tests and three iPad portrait UI tests passed, along with companion/daemon
+regressions and signed builds. Landscape visual acceptance remains unverified because the
+simulator reported rotation while its app window stayed portrait.
+
+The Release archive succeeded, but **upload failed** with `Failed to Use Accounts` and
+invalid Xcode credentials (`missing Xcode-Username`). The build is **not in TestFlight**.
+After refreshing Xcode → Settings → Accounts, retry the saved archive instead of rebuilding:
+
+```sh
+xcodebuild -exportArchive \
+  -archivePath build/TestFlight/Chatterbox-202610101529.xcarchive \
+  -exportOptionsPlist build/TestFlight/ExportOptions.plist \
+  -exportPath build/TestFlight/export -allowProvisioningUpdates
+```
+
+Then verify Apple processing, the current-build encryption declaration, and the Shelby
+internal group's Testing status. The Mac app/service still needs installation and idle
+restart before mobile Delete works; Rename, Archive and local Dismiss use existing behavior.
