@@ -16,11 +16,11 @@ struct Entry:View {
 @MainActor func run() async throws {
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-current-model."))
- let preset=ModelPreset(title:"GPT model",backend:.codex,model:"gpt-6-astra",effort:"medium",nickname:"Arty")
+ let preset=ModelPreset(title:"Arty",backend:.codex,model:"gpt-6-astra",effort:"medium")
  let presets=try JSONEncoder().encode([preset,
-  ModelPreset(title:"Sonnet",backend:.claude,model:"sonnet",effort:"medium",nickname:"Smarty"),
-  ModelPreset(title:"Luna",backend:.codex,model:"gpt-6-luna",effort:"low",nickname:"Maestro"),
-  ModelPreset(title:"Haiku",backend:.claude,model:"haiku",effort:"medium",nickname:"Brainy")])
+  ModelPreset(title:"Smarty",backend:.claude,model:"sonnet",effort:"medium"),
+  ModelPreset(title:"Maestro",backend:.codex,model:"gpt-6-luna",effort:"low"),
+  ModelPreset(title:"Brainy",backend:.claude,model:"haiku",effort:"medium")])
  UserDefaults.standard.setVolatileDomain(["modelPresets":presets,"dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"themeBackground":"black"],forName:UserDefaults.argumentDomain)
  let model=AppModel()
  var record=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
@@ -35,7 +35,7 @@ struct Entry:View {
   try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent(name+".png"))
  }
  panel.contentView=NSHostingView(rootView:Entry(session:session,summary:preset.displayName,driver:driver).environment(model))
- try await Task.sleep(for:.seconds(1));try save(panel.contentView!,"nickname")
+ try await Task.sleep(for:.seconds(1));try save(panel.contentView!,"preset-name")
  let before=session.record.codex
  func control(_ node: Any, _ label: String, depth: Int = 0) -> (any NSAccessibilityProtocol)? {
   guard depth < 20, let element=node as? any NSAccessibilityProtocol else { return nil }
@@ -97,7 +97,7 @@ struct Entry:View {
   side.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
   try await Task.sleep(for:.milliseconds(700));try save(side.contentView!,chats ? "chats-list" : "projects-cards")
  }
- print("PASS: one nickname/model pill renders; actual picker opens and preserves settings; separate default Cards/List sidebars rendered. Evidence: \(root)")
+ print("PASS: one named model pill renders; actual picker opens and preserves settings; separate default Cards/List sidebars rendered. Evidence: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)} }
 app.run()
