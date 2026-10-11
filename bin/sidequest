@@ -41,7 +41,7 @@ class Service:
             reply = json.loads(line)
             if reply.get("id") == rid:
                 if reply.get("error"):
-                    fail({"invalid_sidequest": "say what the sidequest should do.",
+                    fail({"invalid_sidequest": "the background service didn't take it: say what the sidequest should do, or restart the service if it predates agent sidequests (scripts/restart-service.sh).",
                           "chat_not_found": "that chat isn't open in Chatterbox.",
                           "permission_denied": "a sidequest can only start from a chat that's working right now.",
                           "integration_disabled": "agent access to Chatterbox is turned off in its settings."}
@@ -55,9 +55,34 @@ def folders(record):
     return {os.path.realpath(f) for f in found if f}
 
 
+def claude_sessions():
+    """Session ids of the Claude Code processes this command runs under (its ancestors)."""
+    import subprocess
+    found, pid = [], os.getppid()
+    for _ in range(12):
+        if pid <= 1:
+            break
+        out = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+        if not out:
+            break
+        ppid, _, command = out.partition(" ")
+        words = command.split()
+        for flag in ("--resume", "--session-id"):
+            if flag in words and words.index(flag) + 1 < len(words):
+                found.append(words[words.index(flag) + 1])
+        pid = int(ppid)
+    return found
+
+
 def current_chat(service):
     if os.environ.get("CHATTERBOX_CHAT_ID"):
         return os.environ["CHATTERBOX_CHAT_ID"]
+    chats = [c["record"] for c in service.request("list", {}) or []]
+    # A Claude chat started before CHATTERBOX_CHAT_ID: its process names its session.
+    for session in claude_sessions():
+        match = [r for r in chats if r.get("claudeSessionID") == session]
+        if len(match) == 1:
+            return match[0]["id"]
     here = os.path.realpath(os.getcwd())
     working = [c["record"] for c in service.request("list", {}) or [] if c.get("running")]
     matches = [r for r in working if here in folders(r) and not r.get("isDot")]
