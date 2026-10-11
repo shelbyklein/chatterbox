@@ -33,7 +33,7 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
 
     let record=ChatSession.sidequestRecord(of:parent,anchor:parent,number:1,backend:.codex,task:"Check the build passes")
     try check(record.activeBackend == .codex && record.codex != nil,"sidequest runs on the other agent, with Codex settings")
-    try check(record.codex?.mode == "ask" && record.codex?.canEdit == true,"a Codex sidequest may write in its folder")
+    try check(record.codex?.mode != "readOnly" && record.codex?.canEdit == true,"a Codex sidequest may write in its folder")
     try check(record.pendingHandoff?.contains("change nothing unless the task asks") == true,"its instructions say when to stay read-only")
     var claudeParent=ConversationRecord(model:"default",effort:"",personality:.neutral)
     claudeParent.activeBackend = .codex

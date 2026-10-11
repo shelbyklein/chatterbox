@@ -303,8 +303,11 @@ import CoreFoundation
         case "delete":guard role=="ui" else{throw RuntimeFailure("permission_denied")};let s=try chat(r.body);try runtime.remove(s.id)
         case "sidequest":
             let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
-            guard role=="ui",!task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
-            return .string(try DaemonContext(runtime).newSidequest(of:try chat(r.body),task:task).id.uuidString)
+            guard !task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
+            let parent=try chat(r.body)
+            // An agent may start one only from a chat that's mid-reply (its own), never Golem's.
+            guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isDot && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
+            return .string(try DaemonContext(runtime).newSidequest(of:parent,task:task).id.uuidString)
         case "returnSidequest":
             let s=try chat(r.body)
             guard let parent=s.record.sidequestOf.flatMap(runtime.session) else{throw RuntimeFailure("chat_not_found")}
