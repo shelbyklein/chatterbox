@@ -63,7 +63,9 @@ def detail(id):
  items=[{'id':cid(id+'u'),'kind':'user','text':'Hello','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
  if s.get('isDot'):items.append({'id':cid('email'),'kind':'notice','text':'Email for you \u00b7 Shelby Klein, \u201cFW: One pager for NASP Coaches\u201d (shelbykleindesign@gmail.com): Callie forwarded copy changes for the NASP one pager. Suggested: Apply the updated 80% discount copy.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
- return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0}
+ presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
+ options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':presets}
+ return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
 def thumbnail():
  def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  w,h=240,160

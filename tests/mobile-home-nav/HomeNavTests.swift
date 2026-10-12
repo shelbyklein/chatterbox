@@ -61,6 +61,13 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
   XCTAssertTrue(app.buttons["Sidequest to Codex: Render four ribbon options, working"].waitForExistence(timeout: 5), "the chat lists its sidequest")
   capture("2-sidequest-strip", app)
+  app.buttons["Chat Menu"].tap()
+  XCTAssertTrue(app.buttons["Chat Settings"].waitForExistence(timeout: 5)); app.buttons["Chat Settings"].tap()
+  let opus = app.buttons["Opus preset, Claude · Opus 5.5 · Medium"], sol = app.buttons["Sol preset, Codex · GPT-6.1-Sol · Low"], maestro = app.buttons["Maestro preset, Codex · GPT-6-Luna"]
+  XCTAssertTrue(opus.waitForExistence(timeout: 5))
+  XCTAssertEqual(sol.frame.minY, maestro.frame.minY, accuracy: 2, "four presets share one row")
+  capture("2b-chat-settings", app)
+  app.navigationBars["Chat Settings"].buttons["Done"].tap()
   // The strip yields while a chat is open: a left-edge swipe here mustn't jump to Golem.
   // (A synthesized drag can't trigger iOS's own Back swipe; see the calibration test.)
   edgeSwipe(app, fromLeft: true)
