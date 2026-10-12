@@ -37,11 +37,13 @@ final class HomeNavTests: XCTestCase {
   tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
   XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
-  XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
+  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
   let activityReply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
   let activityWorking = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
   XCTAssertTrue(activityWorking.exists && activityReply.exists)
   XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in list mode")
+  XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest isn't listed on its own")
+  XCTAssertTrue(app.staticTexts["Codex: Render four ribbon options"].exists, "its chat's row names it")
   capture("1-chats-list",app)
   // Cards, two to a row.
   app.buttons["Show as Cards"].tap()
@@ -51,12 +53,14 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2, "two cards share a row")
   XCTAssertLessThan(first.frame.maxX, second.frame.minX, "side by side")
   XCTAssertFalse(app.images["Latest image in Chatterbox"].exists, "Projects never show thumbnails")
-  XCTAssertTrue(app.buttons["Activity, 1 new replies, 2 working"].exists, "Activity shows in card view too")
+  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].exists, "Activity shows in card view too")
   XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in card mode")
   capture("3-cards", app)
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
+  XCTAssertTrue(app.buttons["Sidequest to Codex: Render four ribbon options, working"].waitForExistence(timeout: 5), "the chat lists its sidequest")
+  capture("2-sidequest-strip", app)
   // The strip yields while a chat is open: a left-edge swipe here mustn't jump to Golem.
   // (A synthesized drag can't trigger iOS's own Back swipe; see the calibration test.)
   edgeSwipe(app, fromLeft: true)

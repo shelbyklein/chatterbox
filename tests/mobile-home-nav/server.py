@@ -42,8 +42,9 @@ def chats():
  global READS,ACTIVITY
  READS+=1
  if READS==2:ACTIVITY.append(completed('Tracker Trapper'))
+ quest=summary('Sidequest · Render ribbons','Generating image 2 of 4');quest.update({'project':None,'backend':'codex','isRunning':True,'sidechatOf':cid('SDHQ'),'sidequestOf':cid('SDHQ'),'sidequestTask':'Render four ribbon options','sidequestReturned':False})
  groups=[{'id':'dot','kind':'dot','title':'Golem','chats':[summary('Golem','Ready',dot=True)]},
-  {'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]},
+  {'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]+[quest]},
   {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')},
   {'id':'chats','kind':'chats','title':'Chats','chats':[summary('Loose chat','An ordinary chat.')]},
   {'id':'studio-2','kind':'studio','title':'Geekify','chats':[summary('Crystal concept','Purple faceted crystal.')],'studioID':cid('studio2')}]
