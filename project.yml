@@ -128,6 +128,8 @@ targets:
           CFBundleURLSchemes:
           - chatterbox
         ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
+        # Standard HTTPS only: answers TestFlight's export-compliance question, so builds reach testers.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
         - UIInterfaceOrientationPortrait
