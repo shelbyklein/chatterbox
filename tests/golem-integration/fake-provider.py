@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic stdio provider fixture. No accounts, files or network access."""
+"""Deterministic stdio provider fixture. No accounts or network; request logs stay in the test data directory."""
 import json,sys,uuid,os,time
 if 'exec' in sys.argv:
  from pathlib import Path

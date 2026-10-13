@@ -183,7 +183,6 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try check(!unsubscribeRequests.contains { $0["method"]?.string == "thread/unsubscribe" && $0["threadId"]?.string == activeThread },
               "no unsubscribe sent for active thread")
     // Restart metadata must preserve the distinction between loaded and subscribed.
-    CodexAppServer.shared.saveResumeState()
     let resumeJSON = try JSON.parse(Data(contentsOf: HostPaths.directory.appendingPathComponent("codex-resume.json")))
     try check(resumeJSON["unsubscribedThreads"]?.array?.contains(.string(idleThread)) == true, "unsubscribe persisted for service reattachment")
     idleChat.send("resume idle thread")
