@@ -38,6 +38,11 @@ func digest(_ path:String) -> String {
     model = "gpt-6.1-sol"
     [mcp_servers.inspo]
     url = "https://inspomcp.dev/api/mcp"
+    [mcp_servers.helper]
+    command = "./Helper.app/run"
+    args = ["mcp"]
+    cwd = "."
+    enabled = false
     [mcp_servers.noun-project]
     command = "/usr/bin/node"
     args = ["dist/index.js"]
@@ -55,6 +60,8 @@ func digest(_ path:String) -> String {
     }
     try #"{"plugins":{"stripe@official":[{"installPath":"HOME/.claude/plugins/cache/stripe"}],"cloudflare@official":[{"installPath":"HOME/.claude/plugins/cache/cloudflare"}]}}"#.replacingOccurrences(of:"HOME",with:home).write(toFile:home+"/.claude/plugins/installed_plugins.json",atomically:true,encoding:.utf8)
     try #"{"enabledPlugins":{"stripe@official":true,"cloudflare@official":false}}"#.write(toFile:home+"/.claude/settings.json",atomically:true,encoding:.utf8)
+    try fm.createDirectory(atPath:home+"/.codex/helper/Helper.app",withIntermediateDirectories:true)
+    fm.createFile(atPath:home+"/.codex/helper/Helper.app/run",contents:Data("#!/bin/sh\n".utf8),attributes:[.posixPermissions:0o755])
     let before=digest(home)+digest(project)
 
     // T3: discovery
@@ -70,6 +77,8 @@ func digest(_ path:String) -> String {
     try check(item(.server,"plugin:stripe:api")?.offKey == ToolKey.server("plugin_stripe_api") && item(.skill,"stripe:stripe-skill") != nil,"a switched-on plugin's servers and skills are found")
     try check(!found.contains { $0.name.contains("cloudflare") },"a plugin that's switched off isn't listed")
     try check(item(.server,"graft")?.importable?.env == ["MODE":"dev"],"import copies plain env and leaves keys for Secrets")
+    let helper=item(.server,"helper")?.importable
+    try check(helper?.command==home+"/.codex/helper/Helper.app/run" && helper?.cwd==home+"/.codex/helper","a server with relative paths imports with absolute ones")
     ToolDiscovery.noteClaudeServers(["inspo","claude.ai Gmail","claude.ai Google Calendar"])
     try check(ToolDiscovery.connectors().map(\.name).contains("Gmail"),"claude.ai connectors a chat loaded are listed")
 
