@@ -20,8 +20,29 @@ hosted_work() {
 }
 
 safe_stop() {
-  local found
-  found=$(hosted_work "$1")
+  local found idle_host_frozen=0
+  # Explicitly authorized host handoff: only an empty ChatterboxHost may be stopped.
+  # Never bypass the protection while it still owns any child process.
+  if [[ "${2:-}" == --idle-host ]]; then
+    if ! ps -o comm= -p "$1" | grep -Eq '/ChatterboxHost$'; then
+      printf 'Not stopping %s: not a ChatterboxHost.\n' "$1" >&2; return 1
+    fi
+    if pgrep -P "$1" >/dev/null 2>&1; then
+      printf 'Not stopping %s: agent processes remain.\n' "$1" >&2; return 1
+    fi
+    # Freeze the empty host for the final child check, so it cannot spawn between
+    # that check and termination. If a child raced the first check, resume and refuse.
+    kill -STOP "$1" 2>/dev/null || return 1
+    idle_host_frozen=1
+    if pgrep -P "$1" >/dev/null 2>&1; then
+      kill -CONT "$1" 2>/dev/null || true
+      printf 'Not stopping %s: an agent started during the idle check.\n' "$1" >&2
+      return 1
+    fi
+    found=""
+  else
+    found=$(hosted_work "$1")
+  fi
   if [[ -n "$found" ]]; then
     printf 'Not stopping %s: it is running chat work:\n%s\n' "$1" "$found" >&2
     return 1
@@ -29,6 +50,7 @@ safe_stop() {
   local pids
   pids=$(_safe_tree "$1")
   kill $pids 2>/dev/null || true
+  (( idle_host_frozen )) && kill -CONT "$1" 2>/dev/null || true
   sleep 0.5
   kill -9 $pids 2>/dev/null || true
 }
