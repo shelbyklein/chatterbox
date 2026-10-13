@@ -175,6 +175,7 @@
 		940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
 		9421CB1B01955A819ECB3133 /* RuntimePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */; };
 		945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */; };
+		9486F73628244C79568BD0DA /* StudioImageGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72EF6B0240E09E5CCA7C359E /* StudioImageGrid.swift */; };
 		94E4D8C8F174C49A974369B5 /* ChatSession+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7786246032F89E4E0C70184 /* ChatSession+Status.swift */; };
 		94F87B32A43F2A3AF38A310D /* MobileTranscriptCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F7CFA4DFCADDED57AED96B5 /* MobileTranscriptCache.swift */; };
 		9536F388552A61C4CF760D40 /* GolemCueTones.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFF4D1F637C725173CBAECBE /* GolemCueTones.swift */; };
@@ -458,6 +459,7 @@
 		6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptImages.swift; sourceTree = "<group>"; };
 		6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatColumnWidths.swift; sourceTree = "<group>"; };
 		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
+		72EF6B0240E09E5CCA7C359E /* StudioImageGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioImageGrid.swift; sourceTree = "<group>"; };
 		7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionSettingsView.swift; sourceTree = "<group>"; };
 		77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAppearance.swift; sourceTree = "<group>"; };
 		77EB75509370857E3265A65B /* PluginsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsSettingsView.swift; sourceTree = "<group>"; };
@@ -900,6 +902,7 @@
 				2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */,
 				505EA4AEFE9AD144D1946F33 /* SettingsView.swift */,
 				2B655CB0300FF39415543F26 /* SidequestViews.swift */,
+				72EF6B0240E09E5CCA7C359E /* StudioImageGrid.swift */,
 				1E0A3400587A22E3D749EF5D /* StudioInstructionsSheet.swift */,
 				D944B8AFFEB2AA62F5B2CB73 /* StudioOverview.swift */,
 				5208DFA263BFAB665CD5F16F /* TerminalPanel.swift */,
@@ -1294,6 +1297,7 @@
 				8F724B17226FA34C28BFCECD /* SpeechSegments.swift in Sources */,
 				B309C2DF59B192AD411D109B /* StarterPrompts.swift in Sources */,
 				1854052A2BEEFBDFEA6E149C /* Studio.swift in Sources */,
+				9486F73628244C79568BD0DA /* StudioImageGrid.swift in Sources */,
 				453FCA51C187EE207D6D2540 /* StudioInstructionsSheet.swift in Sources */,
 				53E5385F34F56B97DE7DFC11 /* StudioOverview.swift in Sources */,
 				6BB7A853F269907F28A02EDD /* Studios.swift in Sources */,
