@@ -64,6 +64,25 @@ flowchart LR
   E --> X[Codex thread config: mcp_servers.*, enabled=false, skills]
 ```
 
+## T1 findings (2026-10-13, Claude Code 2.1.296, Codex 0.162.1)
+
+Measured with a fixture MCP server (`/tmp/chatterbox-tools-spike`). Claude was measured from its `init` message, and with one real call for the skill block. Codex was measured from `mcpServerStatus/list` on a thread started with overrides.
+
+| Need | Claude Code | Codex |
+|---|---|---|
+| Add a server | `--mcp-config <file>` adds to the outside servers ✔ | thread `config.mcp_servers.<name> = {command,args,env}` or `{url}` ✔ |
+| Turn off an outside server | `--disallowedTools=mcp__<name>` removes its tools ✔ (its process still starts) | `mcp_servers.<name>.enabled = false` ✔ (inspo 15 → 0 tools) |
+| Only Chatterbox's servers | `--strict-mcp-config` ✔ | n/a (switch each off) |
+| Turn off one tool | `--disallowedTools=mcp__<server>__<tool>` | `mcp_servers.<name>.disabled_tools = [..]` ✔ (15 → 14) |
+| Account connectors | claude.ai connectors are servers `claude.ai <Name>`, tools `mcp__claude_ai_<Name>__*`; off with `--disallowedTools=mcp__claude_ai_<Name>`. This is the same mechanism as above, but it can't be observed here: connectors don't load while the proxy's API key is set. | All ChatGPT apps are one built-in server, `codex_apps` (387 tools). Only all on or all off per thread: `features.apps = false` ✔. Per-app `apps.<id>.enabled` and `codex_apps.disabled_tools` had no effect. |
+| Turn off a skill | `--disallowedTools=Skill(<name>)` blocks it ✔ ("Skill execution blocked by permission rules"); it's still listed | thread `config.skills.config = [{name, enabled:false}]` (the same shape `config.toml` uses); `skills/list` is per folder, so it can't be checked per thread. Verify in T9. |
+| Add a skill folder | `--plugin-dir <generated plugin>` with `skills/<name>/SKILL.md` ✔ (shows as `chatterbox-tools:<name>`) | thread `config.skills.config = [{path, enabled:true}]`; or `skills/extraRoots/set` (per process). Verify in T9. |
+
+Consequences for the design:
+- **Codex connectors:** one "ChatGPT apps" row (all on or all off). Per-connector rows are Claude-only.
+- **`--disallowedTools`** must always be passed as `--disallowedTools=<value>`, one per value. The flag takes several values, and a bare one swallows the arguments after it.
+- **Seen connectors:** Claude's `init` lists the claude.ai connectors it loaded; Chatterbox records them so the Connectors section can show them. Codex's `app/list` lists its apps.
+
 ## Settled decisions
 
 - **Levels:** three (Chatterbox-wide, Studios as one shared set, each project). They stack, and lower levels can turn off inherited items.
