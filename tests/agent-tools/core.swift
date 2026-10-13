@@ -27,6 +27,13 @@ func digest(_ path:String) -> String {
     try "---\nname: impeccable\n---\n".write(toFile:home+"/.claude/skills/impeccable/SKILL.md",atomically:true,encoding:.utf8)
     try #"{"mcpServers":{"inspo":{"type":"http","url":"https://inspomcp.dev/api/mcp"},"graft":{"command":"node","args":["graft.mjs","mcp"],"env":{"GRAFT_TOKEN":"x","MODE":"dev"}}}}"#.write(toFile:home+"/.claude.json",atomically:true,encoding:.utf8)
     try fm.createDirectory(atPath:home+"/.codex",withIntermediateDirectories:true)
+    try fm.createDirectory(atPath:home+"/.agents/skills/shared-skill",withIntermediateDirectories:true)
+    try "---\nname: shared-skill\n---\n".write(toFile:home+"/.agents/skills/shared-skill/SKILL.md",atomically:true,encoding:.utf8)
+    try fm.createSymbolicLink(atPath:home+"/.claude/skills/shared-skill",withDestinationPath:home+"/.agents/skills/shared-skill")
+    for (dir,text) in [(home+"/.claude/skills/drifted","claude"),(home+"/.agents/skills/drifted","codex")] {
+        try fm.createDirectory(atPath:dir,withIntermediateDirectories:true)
+        try "---\nname: drifted\n---\n\(text)\n".write(toFile:dir+"/SKILL.md",atomically:true,encoding:.utf8)
+    }
     try """
     model = "gpt-6.1-sol"
     [mcp_servers.inspo]
@@ -57,6 +64,8 @@ func digest(_ path:String) -> String {
     try check(item(.server,"graft")?.source == .claude && item(.server,"wordpress")?.source == .project,"Claude's and the project's own servers are found")
     try check(item(.server,"noun-project")?.enabledThere == false,"Codex servers it has switched off are marked off")
     try check(item(.skill,"impeccable") != nil && item(.skill,"wp-check")?.source == .project,"Claude's and the project's skills are found")
+    try check(found.filter{$0.kind == .skill && $0.name=="shared-skill"}.map(\.agents)==[[.claude,.codex]],"a skill both agents load from one folder is one row for both")
+    try check(found.filter{$0.kind == .skill && $0.name=="drifted"}.count==2 && item(.skill,"drifted")?.drift==true,"copies that differ are both listed and marked")
     try check(item(.connector,"ChatGPT apps")?.offKey == ToolKey.codexApps,"Codex's apps are one connector row")
     try check(item(.server,"plugin:stripe:api")?.offKey == ToolKey.server("plugin_stripe_api") && item(.skill,"stripe:stripe-skill") != nil,"a switched-on plugin's servers and skills are found")
     try check(!found.contains { $0.name.contains("cloudflare") },"a plugin that's switched off isn't listed")
@@ -101,6 +110,8 @@ func digest(_ path:String) -> String {
     try check(mode==0o600,"that file is readable only by this user")
     let rules=ChatSession.claudeDisallowedTools(ep)
     try check(rules.contains("mcp__linear") && rules.contains("mcp__claude_ai_Gmail") && rules.contains("Skill(impeccable)"),"what's off becomes tool rules (server, connector, skill)")
+    var shared=ep;shared.skillFolders.append(home+"/.agents/skills/shared-skill");shared.skillFolderAgents[home+"/.agents/skills/shared-skill"]=[.codex]
+    try check(shared.skillFolders(for:.claude).count==1 && shared.skillFolders(for:.codex).count==2,"a skill shared with one agent goes only to that agent")
     let plugin=projectChat.claudeToolsPluginDir(ep)!
     try check(fm.fileExists(atPath:plugin+"/skills/wp-check/SKILL.md") && fm.fileExists(atPath:plugin+"/.claude-plugin/plugin.json"),"added skill folders become a plugin")
     let args=ClaudeCodeProcess.arguments(.init(cwd:root,model:"opus",effort:"",permissionMode:"default",appendSystemPrompt:"x",toolsMCPConfig:file,disallowedTools:rules,pluginDirs:[plugin]))
