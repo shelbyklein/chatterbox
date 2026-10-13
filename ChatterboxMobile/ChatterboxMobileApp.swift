@@ -63,12 +63,15 @@ struct ChatterboxTabs: View {
         .onChange(of: MobilePushNotifications.shared.pendingChat) { _, id in
             guard let id else { return }
             let kind = store.chatList?.groups.first { $0.chats.contains { $0.id == id } }?.kind
-            tab = (ChatListView.Page.allCases.first { $0.kind == kind } ?? .chats).rawValue
+            // All lists every chat already; otherwise go to the chat's own tab.
+            if tab != ChatListView.Page.all.rawValue {
+                tab = (ChatListView.Page.allCases.first { $0 != .all && $0.kind == kind } ?? .chats).rawValue
+            }
         }
     }
 
     private func waiting(on page: ChatListView.Page) -> Int {
-        (store.chatList?.groups ?? []).filter { $0.kind == page.kind }.flatMap(\.chats).filter(\.isWaitingOnYou).count
+        (store.chatList?.groups ?? []).filter { page.includes($0.kind) }.flatMap(\.chats).filter(\.isWaitingOnYou).count
     }
 }
 
