@@ -113,9 +113,13 @@ final class ComposerTests: XCTestCase {
   @MainActor func testActivityTimeline() async throws {
     _ = try await control("reset")
     let app=XCUIApplication()
-    app.launchArguments=["-drafts","{}","-mobileChatListPage","activity"]
+    app.launchArguments=["-drafts","{}"]
     app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"19645"]
     app.launch()
+    // Activity lives in the ⋯ menu.
+    XCTAssertTrue(app.buttons["Connection"].firstMatch.waitForExistence(timeout:15))
+    app.buttons["Connection"].firstMatch.tap()
+    XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout:5)); app.buttons["Activity"].tap()
     let entries=app.buttons.matching(identifier:"Regression Project, turn ended")
     XCTAssertTrue(entries.firstMatch.waitForExistence(timeout:15))
     XCTAssertEqual(entries.count,2)
