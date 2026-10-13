@@ -1,6 +1,7 @@
 import http.server,json,os,uuid,zlib,struct,datetime
 # Isolated fixture: Golem, six projects (one a worktree, one waiting on you) and a Studio.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
+NEWCHAT=[];CREATED=[]
 def cid(n):return str(uuid.uuid5(uuid.NAMESPACE_URL,'home:'+n))
 DOT=cid('golem')
 PROJECTS=[('Chatterbox','Shipped the Next Steps plugin and the new message box.',None,False),
@@ -103,6 +104,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    id=self.path.split('/')[3].lower();result=detail(id);result['isArchived']=True
    REMOVED.add(id);MUTATIONS.append('archive');return self.reply(result)
   if self.path=='/v1/pair':return self.reply({'token':'fixture','macName':'Regression Mac','addresses':['127.0.0.1']})
+  if self.path=='/v1/chats':
+   CREATED.append(body);return self.reply(detail(cid('SDHQ')))
   self.send_error(404)
  def do_DELETE(self):
   if self.path.startswith('/v1/chats/'):
@@ -121,6 +124,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if '/thumbnail/' in self.path:
    b=thumbnail();self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if self.path=='/v1/chats':return self.reply(chats())
+  if self.path=='/test/created':return self.reply(CREATED)
+  if self.path.startswith('/v1/new-chat-options'):
+   import urllib.parse
+   q=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+   NEWCHAT.append(q)
+   o=detail(cid('SDHQ'))['options']
+   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'','systemImage':'eye','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   if q.get('effort'):o['effort']=q['effort']
+   return self.reply(o)
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path=='/v1/avatar':return self.reply({'files':[]})
   if self.path.startswith('/v1/chats/'):

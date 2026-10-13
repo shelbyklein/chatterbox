@@ -342,6 +342,26 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
   return try JSONSerialization.jsonObject(with:data)
  }
+ @MainActor func testNewChatPicksSettingsFirst() async throws {
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
+  app.buttons["New Chat"].firstMatch.tap()
+  XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
+  XCTAssertTrue(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].waitForExistence(timeout:5), "it shows the presets")
+  XCTAssertTrue(app.staticTexts["Effort"].firstMatch.exists, "and the effort")
+  app.segmentedControls.buttons["Codex"].firstMatch.tap()
+  XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "switching agent loads that agent's permissions")
+  capture("new-chat-sheet",app)
+  app.buttons["new-chat-start"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")
+  let url=URL(string:"http://127.0.0.1:47411/test/created")!
+  let (data,_)=try await URLSession.shared.data(from:url)
+  let created=try JSONSerialization.jsonObject(with:data) as! [[String:Any]]
+  XCTAssertEqual(created.last?["backend"] as? String,"codex")
+  XCTAssertEqual((created.last?["settings"] as? [String:Any])?["mode"] as? String,"fullAccess","the chat starts with what was picked")
+ }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",

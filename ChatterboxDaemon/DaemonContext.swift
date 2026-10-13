@@ -35,6 +35,7 @@ typealias Attention=DaemonAttention
     func newChat(backend:Backend?=nil) throws ->ChatSession {
         var r=ConversationRecord(model:AppPreferences.defaults.string(forKey:"defaultModel") ?? "default",effort:AppPreferences.defaults.string(forKey:"defaultEffort") ?? "",personality:.friendly)
         r.activeBackend=backend ?? Backend(rawValue:AppPreferences.defaults.string(forKey:"defaultBackend") ?? "") ?? .claude
+        r.claudeMode=PermissionModes.defaultClaude
         if r.backend == .codex {r.codex=CodexSettings(folder:RuntimePaths.data.path,canEdit:false,mode:PermissionModes.defaultCodex)}
         return try runtime.insert(r)
     }
