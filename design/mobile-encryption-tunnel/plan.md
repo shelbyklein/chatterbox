@@ -4,10 +4,12 @@ Issues: [#6 Encrypt and authenticate the mobile connection](https://github.com/s
 
 ## Summary
 
+> **Hostname moved (2026-10-09):** `chatterbox.shelbyklein.com` now serves the public website (`deploy/website/`), so this tunnel uses `chatterbox-mac.shelbyklein.com`. When creating the DNS route, pass a config naming this tunnel: with the default `~/.cloudflared/config.yml`, `cloudflared tunnel route dns` points the record at `agentos` instead.
+
 The Chatterbox and Golem iPhone apps talk to the Mac over plain HTTP. On home Wi-Fi, anyone on the
 network could read the pairing code, the reusable login token, chats, uploads and the commands that
 drive agents. This plan encrypts and authenticates that connection end to end (issue #6), pairing by
-scanning a QR code. It then adds a Cloudflare tunnel at `chatterbox.shelbyklein.com` behind
+scanning a QR code. It then adds a Cloudflare tunnel at `chatterbox-mac.shelbyklein.com` behind
 Cloudflare Access, so the phone reaches the Mac from anywhere without Tailscale. Tailscale stays as an
 optional fallback.
 
@@ -52,7 +54,7 @@ flowchart LR
     A[Chatterbox / Golem app] -->|seal request| E1[Envelope: X25519 + ChaCha20-Poly1305]
   end
   E1 -->|home Wi-Fi: http, ciphertext only| S
-  E1 -->|anywhere: https + Access service token| CF[Cloudflare Access\nchatterbox.shelbyklein.com]
+  E1 -->|anywhere: https + Access service token| CF[Cloudflare Access\nchatterbox-mac.shelbyklein.com]
   CF -->|tunnel 'chatterbox'| CD[cloudflared on the Mac] -->|127.0.0.1:47321, envelope routes only| S
   E1 -.->|optional fallback| TS[Tailscale 100.x] -.-> S
   subgraph Mac
@@ -73,7 +75,7 @@ flowchart LR
   the pinned Mac key can't produce a valid response, so the phone stops before sending anything else.
 - **The tunnel.** Its own named tunnel `chatterbox`, with its own config file (the Mac's default
   `~/.cloudflared/config.yml` points at the `agentos` tunnel and stays untouched), run by a launch
-  agent. Ingress `chatterbox.shelbyklein.com → http://127.0.0.1:47321`, never the agents' port
+  agent. Ingress `chatterbox-mac.shelbyklein.com → http://127.0.0.1:47321`, never the agents' port
   47320. Cloudflare Access allows only requests carrying the service token. The Mac answers loopback
   connections only on the envelope routes.
 - **Phone routes:** home Wi-Fi (Bonjour or saved address), then the tunnel, then Tailscale if it's on.
@@ -89,7 +91,7 @@ flowchart LR
 | Encryption | End to end, keys from pairing; Cloudflare sees only ciphertext |
 | Tunnel lock | Cloudflare Access service token |
 | Tailscale | Kept as a fallback route |
-| Hostname | `chatterbox.shelbyklein.com` |
+| Hostname | `chatterbox-mac.shelbyklein.com` |
 | Pairing | Scan a QR code; typed long code as a fallback |
 | Golem iPhone app | Included: the shared phone code is in Core; the Golem chat adopts it in its app |
 | Existing pairings | Re-pair once by scanning the QR code (a token sent in plaintext can't safely bootstrap keys) |
@@ -103,8 +105,8 @@ flowchart LR
    gets no device token or request body, and the phone shows "This isn't your Mac." Verified in the
    envelope test harness.
 3. **Away from home without Tailscale.** iPhone on cellular, Tailscale off: chat list loads, a message
-   sends and a reply arrives via `chatterbox.shelbyklein.com`. Verified on the installed app.
-4. **The internet can't get in.** `curl` to `chatterbox.shelbyklein.com` without the service token is
+   sends and a reply arrives via `chatterbox-mac.shelbyklein.com`. Verified on the installed app.
+4. **The internet can't get in.** `curl` to `chatterbox-mac.shelbyklein.com` without the service token is
    refused at Cloudflare (403/redirect) and nothing appears in the Mac's companion log; with the token
    but a plaintext request, the Mac refuses it. Verified by commands.
 5. **Migration works.** After updating, each existing device re-pairs with one QR scan. With "Require
@@ -135,8 +137,8 @@ flowchart LR
 | T4 | Chatterbox iPhone app: QR scanner pairing (camera permission), pinned Mac key, every request sealed, downloads/uploads chunked | Simulator: pairs from a QR image, loads chats, sends, downloads a PDF; impersonating server refused (criterion 2) |
 | T5 | Golem app hand-off: message the Golem Development chat with the Core API and migration steps | Golem chat confirms adoption, or the plan records it as pending |
 | T6 | Verify #6 on Wi-Fi | **Gate: Shelby installs the Mac and iPhone builds.** Then the capture script passes (criterion 1) and migration works (criterion 5) |
-| T7 | Tunnel: create `chatterbox`, own config, DNS `chatterbox.shelbyklein.com`, launch agent; save config to `deploy/chatterbox-tunnel/` | **Gate: Shelby's OK to publish the hostname.** `cloudflared tunnel info chatterbox` shows connections; DNS points at this tunnel's ID, not `agentos` |
-| T8 | Access | **Gate: Shelby creates the Access app (Self-hosted, `chatterbox.shelbyklein.com`, Service Auth policy) and a service token, and enters it in Mac Settings.** `curl` without the token is refused (criterion 4) |
+| T7 | Tunnel: create `chatterbox`, own config, DNS `chatterbox-mac.shelbyklein.com`, launch agent; save config to `deploy/chatterbox-tunnel/` | **Gate: Shelby's OK to publish the hostname.** `cloudflared tunnel info chatterbox` shows connections; DNS points at this tunnel's ID, not `agentos` |
+| T8 | Access | **Gate: Shelby creates the Access app (Self-hosted, `chatterbox-mac.shelbyklein.com`, Service Auth policy) and a service token, and enters it in Mac Settings.** `curl` without the token is refused (criterion 4) |
 | T9 | Phone routes: Wi-Fi → tunnel (Access headers) → Tailscale; token delivered over the sealed channel | Simulator with the LAN address unreachable uses the tunnel; installed iPhone on cellular works (criterion 3) |
 | T10 | Docs, cleanup, close-out | `docs/remote-access.md` committed; tidy clean; **Gate: Shelby's OK to close #6** |
 
@@ -185,7 +187,7 @@ working (legacy) until re-paired or "Require encryption" is turned on.
 ## Work preparation
 
 - Scope: confirmed in chat on 2026-10-07 (encryption end to end; Access service token; Tailscale kept
-  as fallback; `chatterbox.shelbyklein.com`; QR pairing; Golem app included, coordinated).
+  as fallback; `chatterbox-mac.shelbyklein.com`; QR pairing; Golem app included, coordinated).
 - Mode: `linear`. The work is one security-critical chain through shared files (CompanionAPI,
   CompanionServer, MobileStore), so parallel lanes would conflict and split review of the crypto.
 - Models: executor `claude-opus-5-5` (this session), medium effort.
