@@ -75,6 +75,21 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     quest.returnSidequest(to:parent)
     try check(parent.items.filter {$0.sidequest == quest.id && $0.kind == .user}.count == returnedCount+1,"Send Back sends the newest reply")
     try await wait("parent settles") {!parent.isRunning}
+    // An automation run: a sidequest of the project chat on its own agent, model and effort,
+    // which reports back and archives itself.
+    var automation=ProjectAutomation(projectFolder:"/tmp/none",title:"Link check",template:.custom,instructions:"Look for broken links.")
+    automation.backend="codex";automation.model="gpt-fixture";automation.effort="low"
+    let runRecord=ChatSession.automationRunRecord(automation,of:parent,number:2,manual:true)
+    try check(runRecord.activeBackend == .codex && runRecord.automationID == automation.id,"an automation run is a sidequest on its own agent")
+    try check(runRecord.pendingHandoff?.contains("scheduled run of the automation") == true && runRecord.pendingHandoff?.contains("Plan the header layout") != true,"it's told what it is, not handed the chat")
+    let run=try runtime.insert(runRecord)
+    run.startAutomationRun(automation,from:parent)
+    try check(run.record.codex?.model == "gpt-fixture" && run.record.codex?.effort == "low","it uses the automation's model and effort")
+    try check(parent.items.last?.text.contains("Automation \u{201C}Link check\u{201D} is running as a sidequest") == true,"the project chat says it's running")
+    try await wait("automation reports back") {parent.items.contains {$0.sidequest == run.id && $0.kind == .user && $0.detail == "Automation \u{00B7} Link check reported back"}}
+    try check(run.record.archivedAt != nil,"the run archives itself once it reports")
+    try check(parent.items.last {$0.sidequest == run.id && $0.kind == .user}?.text.contains("<sidequest_result>") == true,"its report reaches the project chat")
+    try await wait("parent settles after the report") {!parent.isRunning}
     for s in runtime.sessions {s.shutdown()}
     try runtime.flush()
     print("PASS sidequest round trip")

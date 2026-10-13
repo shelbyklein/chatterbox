@@ -45,6 +45,14 @@ typealias Attention=DaemonAttention
         let number=sessions.filter{$0.record.sidechatOf==anchor.id}.count+1
         return try runtime.insert(ChatSession.sidechatRecord(of:parent,anchor:anchor,number:number))
     }
+    /// An automation's run: a sidequest of its project's chat (see ChatSession+Sidequest).
+    func newAutomationRun(_ automation:ProjectAutomation,of project:ChatSession,manual:Bool) throws ->ChatSession {
+        let number=sessions.filter{$0.record.sidechatOf==project.id}.count+1
+        let quest=try runtime.insert(ChatSession.automationRunRecord(automation,of:project,number:number,manual:manual))
+        quest.startAutomationRun(automation,from:project)
+        return quest
+    }
+
     /// A sidequest from `parent` to the other agent, built as the app builds them.
     func newSidequest(of parent:ChatSession,task:String) throws ->ChatSession {
         let anchor=parent.record.sidechatOf.flatMap{id in sessions.first{$0.id==id}} ?? parent
