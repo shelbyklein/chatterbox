@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Deterministic stdio provider fixture. No accounts, files or network access."""
-import json,sys,uuid
+import json,sys,uuid,os,time
 if 'exec' in sys.argv:
  from pathlib import Path
  output=sys.argv[sys.argv.index('-o')+1]
  Path(output).write_text(json.dumps({'emails':[{'account':'fixture@example.invalid','from':'Fixture Sender','subject':'Fixture appointment','why':'A fixture needs a decision.','action':'Review the appointment.','link':'','id':'fixture-mail-1'}]}))
  sys.exit(0)
 codex='app-server' in sys.argv
-thread='fixture-thread';turn='fixture-turn';pending=None
+thread='fixture-thread';turn='fixture-turn';pending=None;fail_unsubscribe=False
 
 def emit(obj):print(json.dumps(obj),flush=True)
 def result():
@@ -22,8 +22,24 @@ for line in sys.stdin:
  try:m=json.loads(line)
  except ValueError:continue
  if codex:
-  op=m.get('method');rid=m.get('id');p=m.get('params',{})
-  if op in ('thread/start','thread/resume','thread/fork'):emit({'id':rid,'result':{'thread':{'id':thread}}})
+  op=m.get('method');rid=m.get('id');p=m.get('params') or {}
+  log=os.path.join(os.environ['CHATTERBOX_DATA_DIR'],'codex-requests.jsonl')
+  with open(log,'a') as f:f.write(json.dumps({'method':op,'threadId':p.get('threadId')})+'\n')
+  if p.get('threadId'):thread=p['threadId']
+  if op in ('thread/start','thread/resume','thread/fork'):
+   if op in ('thread/start','thread/fork'):thread='fixture-'+str(uuid.uuid4())
+   emit({'id':rid,'result':{'thread':{'id':thread}}})
+  elif op=='thread/unsubscribe':
+   time.sleep(0.15)
+   if fail_unsubscribe:
+    emit({'id':rid,'error':{'code':-32000,'message':'Fixture unsubscribe failure'}});fail_unsubscribe=False
+   else:emit({'id':rid,'result':{'status':'unsubscribed'}})
+  elif op=='fixture/failUnsubscribe':fail_unsubscribe=True;emit({'id':rid,'result':{}})
+  elif op=='thread/read':time.sleep(0.15);emit({'id':rid,'result':{}})
+  elif op=='fixture/closeThread':
+   emit({'id':rid,'result':{}})
+   emit({'method':'thread/status/changed','params':{'threadId':thread,'status':{'type':'notLoaded'}}})
+   emit({'method':'thread/closed','params':{'threadId':thread}})
   elif op=='model/list':emit({'id':rid,'result':{'data':[],'nextCursor':None}})
   elif op=='turn/start':
    turn='turn-'+str(uuid.uuid4());emit({'id':rid,'result':{'turn':{'id':turn}}})

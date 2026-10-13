@@ -147,6 +147,83 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
         try check(reattached.items.count <= beforeRestart+1,"\(backend) active replay without duplicate user row")
         try runtime!.updateDraft(reattached,text:"unsent",attachments:[])
     }
+    // Idle threads release independently while the shared server continues another turn.
+    var idleRecord = ConversationRecord(model: "default", effort: "", personality: .neutral)
+    idleRecord.activeBackend = .codex
+    idleRecord.codex = CodexSettings(folder: root.path, canEdit: false, mode: "readOnly")
+    let idleChat = try runtime!.insert(idleRecord)
+    var activeRecord = ConversationRecord(model: "default", effort: "", personality: .neutral)
+    activeRecord.activeBackend = .codex
+    activeRecord.codex = CodexSettings(folder: root.path, canEdit: false, mode: "readOnly")
+    let activeChat = try runtime!.insert(activeRecord)
+    idleChat.send("idle thread hello")
+    try await wait("idle thread initialized") { !idleChat.isRunning && idleChat.record.codex?.threadId != nil }
+    activeChat.send("hold")
+    try await wait("second thread running") { activeChat.isRunning && activeChat.codexTurnID != nil }
+    let idleThread = idleChat.record.codex!.threadId!
+    let activeThread = activeChat.record.codex!.threadId!
+    let sharedHost = CodexAppServer.shared.hostID
+    let idleRowCount = idleChat.items.count
+    idleChat.draft = "keep this draft"
+    let threadIdleStart = Date()
+    runtime!.releaseIdleAgents(now: threadIdleStart)
+    runtime!.releaseIdleAgents(now: threadIdleStart.addingTimeInterval(121))
+    try await wait("idle thread unsubscribed") { CodexAppServer.shared.unsubscribedThreads.contains(idleThread) }
+    try check(activeChat.isRunning && CodexAppServer.shared.hostID == sharedHost,
+              "per-thread cleanup preserves active reply and shared process")
+    try check(CodexAppServer.shared.isThreadSubscribed(activeThread), "active thread remains subscribed")
+    try check(idleChat.items.count == idleRowCount && idleChat.draft == "keep this draft", "unsubscribe preserves idle transcript and draft")
+    let requestsURL = root.appendingPathComponent("codex-requests.jsonl")
+    func requests() throws -> [JSON] {
+        try String(contentsOf: requestsURL, encoding: .utf8).split(separator: "\n").map { try JSON.parse(Data($0.utf8)) }
+    }
+    let unsubscribeRequests = try requests()
+    try check(unsubscribeRequests.contains { $0["method"]?.string == "thread/unsubscribe" && $0["threadId"]?.string == idleThread },
+              "idle thread unsubscribe sent to provider")
+    try check(!unsubscribeRequests.contains { $0["method"]?.string == "thread/unsubscribe" && $0["threadId"]?.string == activeThread },
+              "no unsubscribe sent for active thread")
+    // Restart metadata must preserve the distinction between loaded and subscribed.
+    CodexAppServer.shared.saveResumeState()
+    let resumeJSON = try JSON.parse(Data(contentsOf: HostPaths.directory.appendingPathComponent("codex-resume.json")))
+    try check(resumeJSON["unsubscribedThreads"]?.array?.contains(.string(idleThread)) == true, "unsubscribe persisted for service reattachment")
+    idleChat.send("resume idle thread")
+    try await wait("idle thread resumed") { !idleChat.isRunning && idleChat.items.count > idleRowCount }
+    try check(idleChat.record.codex?.threadId == idleThread && CodexAppServer.shared.isThreadSubscribed(idleThread), "returning message resumes original thread")
+    let resumeRequests = try requests()
+    let unsubscribeIndex = resumeRequests.lastIndex { $0["method"]?.string == "thread/unsubscribe" && $0["threadId"]?.string == idleThread }!
+    let resumeIndex = resumeRequests.lastIndex { $0["method"]?.string == "thread/resume" && $0["threadId"]?.string == idleThread }!
+    try check(resumeIndex > unsubscribeIndex, "resubscribe occurs after unsubscribe")
+    try check(CodexAppServer.shared.hostID == sharedHost && activeChat.isRunning, "resumed idle chat does not restart or stop other chat")
+    let threadRead = Task { @MainActor in try await CodexAppServer.shared.request("thread/read", ["threadId": .string(idleThread)]) }
+    try await Task.sleep(for: .milliseconds(30))
+    try check(!CodexAppServer.shared.canUnsubscribeThread(idleThread), "pending per-thread RPC blocks unsubscribe")
+    _ = try await threadRead.value
+    let inFlightUnsubscribe = Task { @MainActor in await CodexAppServer.shared.unsubscribeIdleThread(idleThread) }
+    try await Task.sleep(for: .milliseconds(30))
+    let beforeRacedMessage = idleChat.items.count
+    idleChat.send("message during unsubscribe")
+    try await wait("message during unsubscribe resumed") { !idleChat.isRunning && idleChat.items.count > beforeRacedMessage }
+    await inFlightUnsubscribe.value
+    try check(CodexAppServer.shared.isThreadSubscribed(idleThread) && activeChat.isRunning,
+              "returning message wins unsubscribe race without interrupting other thread")
+    let racedRequests = try requests()
+    let racedUnsubscribe = racedRequests.lastIndex { $0["method"]?.string == "thread/unsubscribe" && $0["threadId"]?.string == idleThread }!
+    let racedResume = racedRequests.lastIndex { $0["method"]?.string == "thread/resume" && $0["threadId"]?.string == idleThread }!
+    let racedTurn = racedRequests.lastIndex { $0["method"]?.string == "turn/start" && $0["threadId"]?.string == idleThread }!
+    try check(racedUnsubscribe < racedResume && racedResume < racedTurn,
+              "in-flight unsubscribe completes before resume and new turn")
+    _ = try await CodexAppServer.shared.request("fixture/failUnsubscribe", [:])
+    await CodexAppServer.shared.unsubscribeIdleThread(idleThread)
+    try check(!CodexAppServer.shared.isThreadSubscribed(idleThread), "unconfirmed unsubscribe requires resumption before next turn")
+    let beforeFailureResume = idleChat.items.count
+    idleChat.send("recover unsubscribe failure")
+    try await wait("failed unsubscribe recovery") { !idleChat.isRunning && idleChat.items.count > beforeFailureResume }
+    try check(idleChat.record.codex?.threadId == idleThread && CodexAppServer.shared.isThreadSubscribed(idleThread), "unsubscribe failure preserves history and next-message usability")
+    _ = try await CodexAppServer.shared.request("fixture/closeThread", ["threadId": .string(idleThread)])
+    try await wait("closed thread removed") { !CodexAppServer.shared.loadedThreads.contains(idleThread) }
+    try check(!CodexAppServer.shared.loadedThreads.contains(idleThread), "server thread closure clears loaded bookkeeping")
+    activeChat.interrupt()
+    try await wait("active thread stopped") { !activeChat.isRunning }
     // A retired agent's helpers must not remain after its parent exits.
     let helperPIDFile = root.appendingPathComponent("helper.pid")
     let helperGroupID = "idle-helper-group"
