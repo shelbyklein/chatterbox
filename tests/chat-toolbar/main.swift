@@ -86,13 +86,13 @@ func run() async throws {
 
     try await show(a)
     check(WindowToolbar.made.count == 1, "one toolbar for the window (\(WindowToolbar.made.map(\.debugState)))")
-    check(window.toolbar?.centeredItemIdentifiers.contains(NSToolbarItem.Identifier("chatterbox.pins")) == true, "global pins use the centered toolbar slot")
+    check(window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "chatterbox.pins" } == false, "no pins in the toolbar")
     let first = items()
     let titleWidth = item("title")?.view?.frame.width ?? 0
     // AppKit adds four points of field padding to the constrained 200-point label.
     check((200...205).contains(titleWidth), "fixed title width reserves navigation space (\(titleWidth))")
     func checkGlobalBar(_ page: String) {
-        check(["pins", "views", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
+        check(["views", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
         check(abs((item("title")?.view?.frame.width ?? 0) - titleWidth) < 1, "title space unchanged on \(page)")
     }
     check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
