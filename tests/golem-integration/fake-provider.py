@@ -41,7 +41,7 @@ for line in sys.stdin:
  else:
   if m.get('type')=='user':
    text=' '.join(x.get('text','') for x in m['message']['content'])
-   emit(m)
+   emit(dict(m, isReplay=True))
    if text.endswith('question'):
     pending=True;emit({'type':'control_request','request_id':'fixture-q','request':{'subtype':'can_use_tool','tool_name':'AskUserQuestion','input':{'questions':[{'header':'Choice','question':'Pick one','options':[{'label':'A','description':'A'}],'multiSelect':False}]}}})
    elif text.endswith('approval'):

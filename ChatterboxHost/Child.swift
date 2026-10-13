@@ -115,7 +115,9 @@ final class Child {
         defer { posix_spawnattr_destroy(&attrs) }
         // Only stdio is inherited, so a child never holds another child's pipes open. The host
         // ignores SIGPIPE and SIGHUP; the agents get the usual defaults back.
-        posix_spawnattr_setflags(&attrs, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
+        posix_spawnattr_setflags(&attrs, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP))
+        // Each agent owns a group so retiring it also releases its inherited tool helpers.
+        posix_spawnattr_setpgroup(&attrs, 0)
         var defaults = sigset_t()
         sigemptyset(&defaults)
         sigaddset(&defaults, SIGPIPE)
@@ -182,10 +184,12 @@ final class Child {
     func kill() {
         guard isRunning, pid > 0 else { return }
         closeStdin()
-        Darwin.kill(pid, SIGTERM)
-        let pid = self.pid
-        queue.asyncAfter(deadline: .now() + 3) { [weak self] in
-            if self?.isRunning == true { Darwin.kill(pid, SIGKILL) }
+        // This group was created by spawn; never signal the host's own group.
+        let group = pid
+        Darwin.kill(-group, SIGTERM)
+        queue.asyncAfter(deadline: .now() + 3) {
+            // Helpers may still be alive after their parent has already exited.
+            Darwin.kill(-group, SIGKILL)
         }
     }
 

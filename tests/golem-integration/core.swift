@@ -58,8 +58,55 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
         s.send("hello")
         try await wait("\(backend) reply") { !s.isRunning && s.items.contains {$0.kind == .assistant} }
         try check(s.items.filter {$0.kind == .assistant}.count==1,"\(backend) ordinary reply")
+        // Attached agents must cool down without losing provider history or the transcript.
+        try await Task.sleep(for: .milliseconds(100))
+        let providerID = backend == .claude ? s.record.claudeSessionID : s.record.codex?.threadId
+        let oldHostID = backend == .claude ? s.claudeProcess?.hostID : CodexAppServer.shared.hostID
+        let rowsBeforeIdle = s.items.count
+        s.draft = "idle draft"
+        let idleStart = Date()
+        runtime!.releaseIdleAgents(now: idleStart)
+        runtime!.releaseIdleAgents(now: idleStart.addingTimeInterval(119))
+        try check(backend == .claude ? s.claudeProcess != nil : CodexAppServer.shared.isRunning,
+                  "\(backend) warm process retained before timeout")
+        s.record.backgroundTasks = [BackgroundTask(id: "protected", kind: .shell, title: "Background work", detached: true)]
+        runtime!.releaseIdleAgents(now: idleStart.addingTimeInterval(130))
+        try check(backend == .claude ? s.claudeProcess != nil : CodexAppServer.shared.isRunning,
+                  "\(backend) background work protects idle process")
+        s.record.backgroundTasks = []
+        s.record.items.append(DisplayItem(kind: .approval, approvalState: .pending))
+        try check(!s.canReleaseIdleAgent, "\(backend) pending approval blocks retirement after reply")
+        s.record.items.removeLast()
+        s.record.items.append(DisplayItem(kind: .user, text: "queued", queued: true))
+        try check(!s.canReleaseIdleAgent, "\(backend) queued message blocks retirement")
+        s.record.items.removeLast()
+        if backend == .claude {
+            s.record.remoteControl = true
+            try check(!s.canReleaseIdleAgent, "remote-control session blocks retirement before URL arrives")
+            s.record.remoteControl = false
+        }
+        runtime!.releaseIdleAgents(now: idleStart.addingTimeInterval(131))
+        runtime!.releaseIdleAgents(now: idleStart.addingTimeInterval(252))
+        try check(backend == .claude ? s.claudeProcess == nil : !CodexAppServer.shared.isRunning,
+                  "\(backend) attached idle process released")
+        try check(s.items.count == rowsBeforeIdle && s.draft == "idle draft",
+                  "\(backend) idle release preserves transcript and draft")
+        try check(providerID == (backend == .claude ? s.record.claudeSessionID : s.record.codex?.threadId),
+                  "\(backend) idle release preserves provider history ID")
+        s.send("continue after idle")
+        try await wait("resumed idle provider") { !s.isRunning && s.items.count > rowsBeforeIdle }
+        try check(oldHostID != (backend == .claude ? s.claudeProcess?.hostID : CodexAppServer.shared.hostID),
+                  "\(backend) next message starts a fresh process")
+        try check(providerID == (backend == .claude ? s.record.claudeSessionID : s.record.codex?.threadId),
+                  "\(backend) fresh process resumes same provider history")
         s.send("question")
         try await wait("question") {s.items.contains {$0.kind == .questions && $0.approvalState == .pending}}
+        let protectedHost = backend == .claude ? s.claudeProcess?.hostID : CodexAppServer.shared.hostID
+        let approvalTime = Date()
+        runtime!.releaseIdleAgents(now: approvalTime)
+        runtime!.releaseIdleAgents(now: approvalTime.addingTimeInterval(1000))
+        try check(protectedHost == (backend == .claude ? s.claudeProcess?.hostID : CodexAppServer.shared.hostID),
+                  "\(backend) active question survives idle sweeps")
         let q=s.items.last {$0.kind == .questions}!
         s.answerQuestions(q.id,answers:[q.questions!.first!.id:["A"]])
         try await wait("answered") {!s.isRunning}
@@ -100,6 +147,18 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
         try check(reattached.items.count <= beforeRestart+1,"\(backend) active replay without duplicate user row")
         try runtime!.updateDraft(reattached,text:"unsent",attachments:[])
     }
+    // A retired agent's helpers must not remain after its parent exits.
+    let helperPIDFile = root.appendingPathComponent("helper.pid")
+    let helperGroupID = "idle-helper-group"
+    try HostClient.shared.spawn(id: helperGroupID, executable: "/bin/sh",
+        arguments: ["-c", "trap '' TERM; sleep 1000 & echo $! > \(helperPIDFile.path); wait"],
+        cwd: root.path, environment: BinaryLocator.environment, kind: nil)
+    try await wait("helper started") { FileManager.default.fileExists(atPath: helperPIDFile.path) }
+    let helperPID = Int32(try String(contentsOf: helperPIDFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))!
+    try check(kill(helperPID, 0) == 0, "agent helper is running before retirement")
+    HostClient.shared.kill(id: helperGroupID, forget: true)
+    try await wait("retired agent helper gone") { kill(helperPID, 0) != 0 }
+    try check(kill(helperPID, 0) != 0, "agent retirement removes stubborn tool helper")
     let request="dedupe"
     let first=try runtime!.execute(id:request,operation:"insert",fingerprint:"same") {let s=try runtime!.insert(ConversationRecord(model:"default",effort:"",personality:.neutral));return .string(s.id.uuidString)}
     let second=try runtime!.execute(id:request,operation:"insert",fingerprint:"same") {throw RuntimeFailure("Repeated side effect")}
