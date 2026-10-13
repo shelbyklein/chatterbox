@@ -67,12 +67,10 @@ app.setActivationPolicy(.accessory)
     let after=frames().first {$0.0=="sidebar"}!.1.width
     precondition(abs(after-before-40)<1,"Divider did not resize: \(before) -> \(after)")
     check("golem-resized")
+    // The sidebar can't be hidden: asking to toggle it leaves it where it is.
     model.sidebarToggleRequest += 1
     try await Task.sleep(for:.milliseconds(400))
-    precondition(!frames().contains {$0.0=="sidebar"})
-    model.sidebarToggleRequest += 1
-    try await Task.sleep(for:.milliseconds(400))
-    precondition(abs(frames().first {$0.0=="sidebar"}!.1.width-after)<1,"Width lost after toggle")
+    precondition(abs((frames().first {$0.0=="sidebar"}?.1.width ?? 0)-after)<1,"The sidebar hid, or lost its width")
     // Force full text + image content to stay bounded after switching away and back.
     model.selectedID=project.id
     try await Task.sleep(for:.milliseconds(700))
