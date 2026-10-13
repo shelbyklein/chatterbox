@@ -198,6 +198,7 @@
 		A03815C0CB8A5C06540E0C4D /* GolemServiceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A28F90DAD3DAE7387375DB /* GolemServiceClient.swift */; };
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
+		A547827BF4E5714D97FD6872 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */; };
 		A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */; };
 		AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
 		AADBF54F8E853A8B26468FCD /* UtterancePause.swift in Sources */ = {isa = PBXBuildFile; fileRef = C520C60380E1A12AF90AF044 /* UtterancePause.swift */; };
@@ -447,6 +448,7 @@
 		5941C429D29DB4AF6D3E6812 /* RuntimePreferenceProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePreferenceProjection.swift; sourceTree = "<group>"; };
 		59D2A3DE96AF0E796C221742 /* Studio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Studio.swift; sourceTree = "<group>"; };
 		5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileHTMLPreview.swift; sourceTree = "<group>"; };
+		5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsSettingsView.swift; sourceTree = "<group>"; };
 		5F02305CEDD843C4F7102555 /* ChatCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCommands.swift; sourceTree = "<group>"; };
 		5F7CFA4DFCADDED57AED96B5 /* MobileTranscriptCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileTranscriptCache.swift; sourceTree = "<group>"; };
 		5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxWidget.swift; sourceTree = "<group>"; };
@@ -918,6 +920,7 @@
 				1E0A3400587A22E3D749EF5D /* StudioInstructionsSheet.swift */,
 				D944B8AFFEB2AA62F5B2CB73 /* StudioOverview.swift */,
 				5208DFA263BFAB665CD5F16F /* TerminalPanel.swift */,
+				5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */,
 				6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */,
 				DB5E034B9A673C82F162376B /* TranscriptPaging.swift */,
 				3D53ED2E09F1C71594BBEDC9 /* UsageMeter.swift */,
@@ -1318,6 +1321,7 @@
 				42FB9B8E2AB226A7F5059D60 /* ToolDiscovery.swift in Sources */,
 				190C894FD9DC89AFBABE46DF /* ToolScopes.swift in Sources */,
 				940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */,
+				A547827BF4E5714D97FD6872 /* ToolsSettingsView.swift in Sources */,
 				16BD2136B14DB11D43FB1F58 /* TranscriptImages.swift in Sources */,
 				B1EA337411B3D6C236F4829B /* TranscriptPaging.swift in Sources */,
 				F21C81EE917C3DB8A4CFD123 /* Usage.swift in Sources */,
