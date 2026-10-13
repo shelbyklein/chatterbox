@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="760" viewBox="0 0 1240 760" font-family="-apple-system, Helvetica, Arial, sans-serif">
+  <rect width="1240" height="760" fill="#1b1b1b"/>
+  <!-- Settings → Tools -->
+  <text x="30" y="34" fill="#9a9a9a" font-size="13">Settings → Tools (target)</text>
+  <rect x="30" y="46" width="760" height="680" rx="12" fill="#232323" stroke="#3a3a3a"/>
+  <rect x="30" y="46" width="170" height="680" rx="12" fill="#262626"/>
+  <text x="48" y="80" fill="#9a9a9a" font-size="11">Connections</text>
+  <text x="48" y="104" fill="#ddd" font-size="13">Secrets</text>
+  <rect x="40" y="114" width="150" height="26" rx="6" fill="#3a3a3a"/>
+  <text x="48" y="132" fill="#fff" font-size="13">Tools</text>
+  <text x="48" y="160" fill="#ddd" font-size="13">Plugins</text>
+  <text x="48" y="186" fill="#ddd" font-size="13">iPhone</text>
+  <!-- scope picker -->
+  <text x="222" y="84" fill="#fff" font-size="20" font-weight="600">Tools</text>
+  <rect x="222" y="98" width="230" height="26" rx="7" fill="#2f2f2f"/>
+  <rect x="224" y="100" width="112" height="22" rx="6" fill="#0a84ff"/>
+  <text x="250" y="116" fill="#fff" font-size="12">Chatterbox</text>
+  <text x="368" y="116" fill="#ddd" font-size="12">Studios</text>
+  <text x="470" y="116" fill="#8e8e93" font-size="11">Projects: right-click a project → Tools…</text>
+  <!-- MCP servers -->
+  <text x="222" y="156" fill="#ddd" font-size="13" font-weight="600">MCP servers</text>
+  <text x="680" y="156" fill="#0a84ff" font-size="12">+ Add Server</text>
+  <rect x="222" y="166" width="550" height="44" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="186" fill="#fff" font-size="13">inspo</text><text x="238" y="202" fill="#8e8e93" font-size="11">https://inspomcp.dev/api/mcp · Claude · Codex</text>
+  <rect x="560" y="178" width="70" height="18" rx="9" fill="#2b4a6b"/><text x="570" y="191" fill="#9cc8ff" font-size="10">Chatterbox</text>
+  <rect x="722" y="178" width="34" height="20" rx="10" fill="#30d158"/><circle cx="746" cy="188" r="8" fill="#fff"/>
+  <rect x="222" y="214" width="550" height="44" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="234" fill="#fff" font-size="13">noun-project</text><text x="238" y="250" fill="#8e8e93" font-size="11">node …/noun-project-mcp · Codex · key: NOUN_PROJECT_API_KEY</text>
+  <rect x="560" y="226" width="64" height="18" rx="9" fill="#3a3a3a"/><text x="570" y="239" fill="#ccc" font-size="10">From Codex</text>
+  <text x="640" y="239" fill="#0a84ff" font-size="11">Import</text>
+  <rect x="722" y="226" width="34" height="20" rx="10" fill="#555"/><circle cx="732" cy="236" r="8" fill="#fff"/>
+  <rect x="222" y="262" width="550" height="44" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="282" fill="#fff" font-size="13">graft_development</text><text x="238" y="298" fill="#8e8e93" font-size="11">node scripts/graft.mjs mcp · Claude · Codex</text>
+  <rect x="560" y="274" width="76" height="18" rx="9" fill="#3a3a3a"/><text x="568" y="287" fill="#ccc" font-size="10">From Claude</text>
+  <text x="646" y="287" fill="#0a84ff" font-size="11">Import</text>
+  <rect x="722" y="274" width="34" height="20" rx="10" fill="#30d158"/><circle cx="746" cy="284" r="8" fill="#fff"/>
+  <!-- Connectors -->
+  <text x="222" y="338" fill="#ddd" font-size="13" font-weight="600">Connectors</text>
+  <rect x="222" y="348" width="550" height="40" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="373" fill="#fff" font-size="13">Gmail</text><text x="300" y="373" fill="#8e8e93" font-size="11">claude.ai account connector · allow or block</text>
+  <rect x="722" y="358" width="34" height="20" rx="10" fill="#30d158"/><circle cx="746" cy="368" r="8" fill="#fff"/>
+  <rect x="222" y="392" width="550" height="40" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="417" fill="#fff" font-size="13">Linear</text><text x="300" y="417" fill="#8e8e93" font-size="11">remote MCP · https://mcp.linear.app/sse · sign-in</text>
+  <rect x="722" y="402" width="34" height="20" rx="10" fill="#30d158"/><circle cx="746" cy="412" r="8" fill="#fff"/>
+  <!-- Skills -->
+  <text x="222" y="464" fill="#ddd" font-size="13" font-weight="600">Skills</text>
+  <text x="664" y="464" fill="#0a84ff" font-size="12">+ Add Skill Folder</text>
+  <rect x="222" y="474" width="550" height="40" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="499" fill="#fff" font-size="13">dev-sync</text><text x="320" y="499" fill="#8e8e93" font-size="11">~/.claude/skills · Claude</text>
+  <rect x="722" y="484" width="34" height="20" rx="10" fill="#30d158"/><circle cx="746" cy="494" r="8" fill="#fff"/>
+  <rect x="222" y="518" width="550" height="40" rx="8" fill="#2d2d2d"/>
+  <text x="238" y="543" fill="#fff" font-size="13">impeccable</text><text x="320" y="543" fill="#8e8e93" font-size="11">~/.claude/skills · Claude</text>
+  <rect x="722" y="528" width="34" height="20" rx="10" fill="#555"/><circle cx="732" cy="538" r="8" fill="#fff"/>
+  <text x="222" y="600" fill="#8e8e93" font-size="11">On here applies to every chat. Studios and each project can turn an item off for themselves.</text>
+  <text x="222" y="618" fill="#8e8e93" font-size="11">"From Claude/Codex" items come from your own config files; Chatterbox never edits them.</text>
+
+  <!-- Project Tools sheet -->
+  <text x="820" y="34" fill="#9a9a9a" font-size="13">Right-click a project → Tools… (target)</text>
+  <rect x="820" y="46" width="390" height="400" rx="12" fill="#232323" stroke="#3a3a3a"/>
+  <text x="840" y="80" fill="#fff" font-size="17" font-weight="600">Tools · SDHQ</text>
+  <text x="840" y="108" fill="#ddd" font-size="12" font-weight="600">This project's own</text>
+  <rect x="840" y="116" width="350" height="36" rx="8" fill="#2d2d2d"/>
+  <text x="854" y="139" fill="#fff" font-size="12">wordpress-mcp</text><text x="960" y="139" fill="#8e8e93" font-size="11">Claude · Codex</text>
+  <rect x="1146" y="124" width="32" height="18" rx="9" fill="#30d158"/><circle cx="1168" cy="133" r="7" fill="#fff"/>
+  <text x="840" y="182" fill="#ddd" font-size="12" font-weight="600">From Chatterbox-wide</text>
+  <rect x="840" y="190" width="350" height="36" rx="8" fill="#2d2d2d"/>
+  <text x="854" y="213" fill="#fff" font-size="12">inspo</text><text x="960" y="213" fill="#8e8e93" font-size="11">on everywhere</text>
+  <rect x="1146" y="198" width="32" height="18" rx="9" fill="#30d158"/><circle cx="1168" cy="207" r="7" fill="#fff"/>
+  <rect x="840" y="230" width="350" height="36" rx="8" fill="#2d2d2d"/>
+  <text x="854" y="253" fill="#fff" font-size="12">Gmail</text><text x="960" y="253" fill="#ff9f0a" font-size="11">off for this project</text>
+  <rect x="1146" y="238" width="32" height="18" rx="9" fill="#555"/><circle cx="1156" cy="247" r="7" fill="#fff"/>
+  <text x="840" y="300" fill="#8e8e93" font-size="11">Applies to the project chat, its worktrees,</text>
+  <text x="840" y="316" fill="#8e8e93" font-size="11">Sidechats, sidequests and automation runs.</text>
+  <rect x="1090" y="404" width="100" height="26" rx="7" fill="#3a3a3a"/><text x="1124" y="422" fill="#fff" font-size="12">Done</text>
+
+  <!-- Session tools popover -->
+  <text x="820" y="476" fill="#9a9a9a" font-size="13">A chat's Session tools → Tools (target)</text>
+  <rect x="820" y="488" width="390" height="238" rx="12" fill="#232323" stroke="#3a3a3a"/>
+  <text x="840" y="518" fill="#fff" font-size="14" font-weight="600">Tools in this chat</text>
+  <text x="840" y="544" fill="#ddd" font-size="12">● inspo · ● graft_development · ● wordpress-mcp</text>
+  <text x="840" y="564" fill="#8e8e93" font-size="12">○ Gmail (off for SDHQ)</text>
+  <text x="840" y="590" fill="#ddd" font-size="12">Skills: 9 on · 1 off</text>
+  <text x="840" y="624" fill="#0a84ff" font-size="12">Edit for SDHQ…    Edit Chatterbox-wide…</text>
+  <text x="840" y="660" fill="#8e8e93" font-size="11">Changes apply when the chat next starts its agent</text>
+  <text x="840" y="676" fill="#8e8e93" font-size="11">(idle Claude chats restart right away, as with Secrets).</text>
+</svg>
