@@ -3,7 +3,8 @@ import AppKit
 import SwiftUI
 // A long chat opens with only its newest rows and loads earlier ones as you scroll up to them;
 // and a chat's "waiting on you" check follows questions and approvals as they're answered,
-// added, or moved by a row inserted before them.
+// added, or moved by a row inserted before them; and a chat's thumbnail stays when the part
+// of the chat the app holds has no image in it.
 let app=NSApplication.shared
 app.setActivationPolicy(.accessory)
 var failures=0
@@ -29,6 +30,23 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     check(w.isWaitingOnYou,"a replaced last row is seen")
     w.record.items=[]
     check(!w.isWaitingOnYou,"a cleared chat isn't waiting")
+
+    // A thumbnail is remembered past the rows that held it.
+    let png=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!).appendingPathComponent("shot.png")
+    let rep=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:4,pixelsHigh:4,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+    try rep.representation(using:.png,properties:[:])!.write(to:png)
+    var pictured=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+    pictured.title="Pictured"
+    var withImage=DisplayItem(kind:.user,text:"Here")
+    withImage.attachments=[Attachment(name:"shot.png",path:png.path,mediaType:"image/png",kind:.image)]
+    pictured.items=[withImage]
+    let p=model.insertSession(pictured)
+    check(p.latestThumbnailURL()?.path==png.path,"the image is found")
+    p.record.items=[DisplayItem(kind:.assistant,text:"Only the newest rows, no image")]
+    check(p.latestThumbnailURL()?.path==png.path,"the thumbnail stays when the held rows have no image")
+    try FileManager.default.removeItem(at:png)
+    p.record.items.append(DisplayItem(kind:.user,text:"Later"))
+    check(p.latestThumbnailURL()==nil,"a deleted image's thumbnail goes")
 
     // History loads on scroll-up.
     var long=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
