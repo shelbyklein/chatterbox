@@ -22,7 +22,21 @@ app.setActivationPolicy(.accessory)
     let view=window.contentView!;view.layoutSubtreeIfNeeded()
     let rep=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:rep)
     try rep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("panel.png"))
-    print("PASS automations panel renders with its model pickers. Evidence: \(root)")
+    let summary=AutomationModelPicker.summary(wordpress,projectBackend:.codex)
+    guard summary.hasPrefix("Claude") && summary.hasSuffix("High") else { print("FAIL model summary: \(summary)"); exit(1) }
+    var plain=wordpress;plain.backend=nil;plain.effort=nil;plain.preset=nil
+    guard AutomationModelPicker.summary(plain,projectBackend:.codex).hasPrefix("Codex") else { print("FAIL unset automation follows the project's agent"); exit(1) }
+    // The Automations page: each automation shows who does the work, with a button to change it.
+    let page=NSWindow(contentRect:NSRect(x:80,y:80,width:900,height:420),styleMask:[.titled],backing:.buffered,defer:false)
+    page.appearance=NSAppearance(named:.darkAqua)
+    page.contentView=NSHostingView(rootView:AutomationsCenter().environment(model).environment(\.colorScheme,.dark))
+    page.orderFrontRegardless()
+    try await Task.sleep(for:.seconds(1.5))
+    let pv=page.contentView!;pv.layoutSubtreeIfNeeded()
+    let prep=pv.bitmapImageRepForCachingDisplay(in:pv.bounds)!;pv.cacheDisplay(in:pv.bounds,to:prep)
+    try prep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("page.png"))
+    page.orderOut(nil)
+    print("PASS automations panel renders with its model pickers; the Automations page shows each one's model (\(summary)). Evidence: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)} catch {print(error);exit(1)} }
 app.run()
