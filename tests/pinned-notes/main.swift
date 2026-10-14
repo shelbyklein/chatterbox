@@ -40,24 +40,17 @@ app.setActivationPolicy(.accessory)
   try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent(name+".png"))
  }
  panel.contentView=NSHostingView(rootView:ChatView(session:session).environment(model).environment(\.colorScheme,.dark))
- try await Task.sleep(for:.milliseconds(650));try save("collapsed-gutter")
- // Click the actual gutter icon in the full ChatView, using local window events.
- let hosting=panel.contentView!
- let point=hosting.convert(NSPoint(x:32,y:hosting.isFlipped ? 32 : hosting.bounds.height-32),to:nil)
- for kind in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-  let event=NSEvent.mouseEvent(with:kind,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:1)!
-  panel.sendEvent(event)
- }
- try await Task.sleep(for:.milliseconds(450));try save("expanded-gutter")
+ // Notes are always open in the chat's top-right column, under its buttons.
+ try await Task.sleep(for:.milliseconds(650));try save("notes-open")
  session.isRunning=true;other.isRunning=true
  panel.contentView=NSHostingView(rootView:HStack(spacing:20){
-  ChatNotes(scope:scope,project:true,expanded:true).frame(width:280)
+  ChatNotes(scope:scope,project:true).frame(width:280)
   ThreadCard(session:session){}.frame(width:250)
   ThreadCard(session:other){}.frame(width:250)
  }.padding(20).frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading).background(Color.black).environment(model).environment(\.colorScheme,.dark))
  try await Task.sleep(for:.milliseconds(650));try save("notes-and-spinners")
  session.isRunning=false;other.isRunning=false
- print("PASS: scoped persistence, draft restore, order, blank rejection, deletion and unchanged transcripts. Native gutter click/render and provider spinners: \(root)")
+ print("PASS: scoped persistence, draft restore, order, blank rejection, deletion and unchanged transcripts. Notes open in the chat and provider spinners: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}}
 app.run()
