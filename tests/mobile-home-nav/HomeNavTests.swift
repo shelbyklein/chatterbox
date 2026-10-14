@@ -16,8 +16,8 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
-  XCTAssertTrue(tab("All",app).waitForExistence(timeout:15), "All comes first in the bottom bar")
-  XCTAssertLessThan(tab("All",app).frame.minX, tab("Projects",app).frame.minX)
+  XCTAssertTrue(tab("All",app).waitForExistence(timeout:15), "All is in the bottom bar")
+  XCTAssertGreaterThan(tab("All",app).frame.minX, tab("Chats",app).frame.minX, "All comes last, after Chats")
   tab("All",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:10), "All lists projects")
   XCTAssertTrue(app.descendants(matching:.any)["Coach Archie"].exists || app.staticTexts["Coach Archie"].exists, "and Studio sessions, together")
