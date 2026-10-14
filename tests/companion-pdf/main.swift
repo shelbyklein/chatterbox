@@ -63,6 +63,25 @@ app.setActivationPolicy(.prohibited)
  let thumbImage=CGImageSourceCreateImageAtIndex(thumbSource,0,nil)!
  precondition(thumbImage.width == 320 && thumbImage.height == 240)
  let thumbUnauthorized=try await request(thumbPath,authenticated:false);precondition(thumbUnauthorized.1==401)
+ // Images for the chat at the phone's size: a large render comes resized (JPEG without
+ // transparency), the original without ?max, and an image already small comes as it is.
+ func pixelSize(_ data:Data)->(Int,Int) { let i=CGImageSourceCreateImageAtIndex(CGImageSourceCreateWithData(data as CFData,nil)!,0,nil)!; return (i.width,i.height) }
+ let render=URL(fileURLWithPath:root).appendingPathComponent("hero-render.jpg")
+ let big=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:3000,pixelsHigh:2000,bitsPerSample:8,samplesPerPixel:3,hasAlpha:false,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+ try big.representation(using:.jpeg,properties:[.compressionFactor:0.9])!.write(to:render)
+ let reply=DisplayItem(kind:.assistant,text:"Here it is: [render](<\(render.path)>)",phase:.final)
+ chat.appendItem(reply)
+ let mappedReply=CompanionMapper.item(reply,folder:root)
+ guard let renderFile=mappedReply.attachments.first(where:{$0.isImage && $0.name=="hero-render.jpg"}) else { print("FAIL: the render travels with the reply: \(mappedReply.attachments.map(\.name)) refs \(PathLinks.referencedFiles(in:reply.text,folder:root)) text \(reply.text)");exit(1) }
+ precondition(renderFile.revision != nil,"a pointed-to image carries a revision")
+ let renderPath="/v1/chats/\(chat.id.uuidString)/files/\(renderFile.id.uuidString)"
+ let sized=try await request(renderPath+"?max=1200");precondition(sized.1==200)
+ precondition(pixelSize(sized.0)==(1200,800),"resized to 1200 on its longer side: \(pixelSize(sized.0))")
+ let full=try await request(renderPath);let renderBytes=try Data(contentsOf:render);precondition(full.1==200 && full.0==renderBytes,"the original without ?max")
+ precondition(sized.0.count < full.0.count,"the chat-size copy is smaller")
+ let small=try await request("/v1/chats/\(chat.id.uuidString)/files/\(image.id.uuidString)?max=1200")
+ precondition(small.1==200 && small.0==pixels,"an image already small comes as it is")
+ print("PASS: chat-size images (\(sized.0.count / 1024) KB instead of \(full.0.count / 1024) KB), originals, and small images as they are")
  let other=model.newChat(backend:.claude)
  let cross=try await request("/v1/chats/\(other.id.uuidString)/files/\(id.uuidString)");precondition(cross.1==404)
  let crossThumb=try await request("/v1/chats/\(other.id.uuidString)/thumbnail/\(thumbnail.id.uuidString)");precondition(crossThumb.1==404)
