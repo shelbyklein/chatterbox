@@ -1,0 +1,62 @@
+@testable import Chatterbox
+import AppKit
+import SwiftUI
+// A long chat opens with only its newest rows and loads earlier ones as you scroll up to them;
+// and a chat's "waiting on you" check follows questions and approvals as they're answered,
+// added, or moved by a row inserted before them.
+let app=NSApplication.shared
+app.setActivationPolicy(.accessory)
+var failures=0
+func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !ok { failures+=1 } }
+@MainActor func run() async throws {
+    let model=AppModel()
+    // Waiting-on-you follows its rows.
+    var waiting=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+    waiting.title="Waiting"
+    waiting.items=(0..<50).map { DisplayItem(kind: $0 % 2 == 0 ? .user : .assistant, text:"Row \($0)") }
+    let w=model.insertSession(waiting)
+    check(!w.isWaitingOnYou,"no request, not waiting")
+    let question=DisplayItem(kind:.questions,text:"Choose",approvalState:.pending)
+    w.record.items.append(question)
+    check(w.isWaitingOnYou && w.pendingRequests.map(\.id)==[question.id],"a new question waits")
+    w.record.items.insert(DisplayItem(kind:.user,text:"Inserted"),at:3)
+    check(w.pendingRequests.map(\.id)==[question.id],"a row inserted earlier doesn't lose the question")
+    let index=w.record.items.firstIndex { $0.id==question.id }!
+    w.record.items[index].approvalState = .approved
+    check(!w.isWaitingOnYou,"an answered question stops waiting")
+    w.record.items.removeLast()
+    w.record.items.append(DisplayItem(kind:.approval,text:"Approve",approvalState:.pending))
+    check(w.isWaitingOnYou,"a replaced last row is seen")
+    w.record.items=[]
+    check(!w.isWaitingOnYou,"a cleared chat isn't waiting")
+
+    // History loads on scroll-up.
+    var long=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+    long.title="Long chat"
+    long.items=(0..<400).map { i in
+        i % 2 == 0 ? DisplayItem(kind:.user,text:"Question \(i)") : DisplayItem(kind:.assistant,text:"Answer \(i): "+String(repeating:"Some words in a paragraph. ",count:6))
+    }
+    let session=model.insertSession(long)
+    let window=NSWindow(contentRect:NSRect(x:40,y:60,width:900,height:800),styleMask:[.titled],backing:.buffered,defer:false);window.isReleasedWhenClosed=false
+    let host=NSHostingView(rootView:ChatView(session:session).environment(model))
+    window.contentView=host;window.orderFrontRegardless()
+    func all(_ v:NSView)->[NSScrollView]{ (v as? NSScrollView).map{[$0]} ?? [] + v.subviews.flatMap(all) }
+    // The transcript: the scroll view with the tallest content.
+    func find(_ v:NSView)->NSScrollView?{ all(v).max { ($0.documentView?.frame.height ?? 0) < ($1.documentView?.frame.height ?? 0) } }
+    try await Task.sleep(for:.seconds(1.5))
+    guard let scroll=find(host) else { check(false,"transcript scroll view found"); exit(1) }
+    let opened=scroll.documentView!.frame.height
+    try await Task.sleep(for:.seconds(1))
+    check(abs(scroll.documentView!.frame.height-opened)<1,"history doesn't grow on its own after opening (\(Int(opened)) pt)")
+    let atBottom=scroll.contentView.bounds.maxY >= scroll.documentView!.frame.height-2
+    check(atBottom,"opens at the newest message (visible \(Int(scroll.contentView.bounds.minY))–\(Int(scroll.contentView.bounds.maxY)) of \(Int(scroll.documentView!.frame.height)), flipped \(scroll.documentView!.isFlipped), insets \(scroll.contentInsets))")
+    scroll.contentView.scroll(to:.zero);scroll.reflectScrolledClipView(scroll.contentView)
+    try await Task.sleep(for:.seconds(1.5))
+    let grown=scroll.documentView!.frame.height
+    check(grown>opened+500,"scrolling up loads earlier rows (\(Int(opened)) → \(Int(grown)) pt)")
+    window.orderOut(nil)
+    print(failures==0 ? "PASS history on scroll-up" : "FAIL \(failures) checks")
+    exit(failures==0 ? 0 : 1)
+}
+Task { @MainActor in do {try await run()} catch {print(error);exit(1)} }
+app.run()
