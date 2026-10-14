@@ -42,6 +42,10 @@ app.setActivationPolicy(.accessory)
  panel.contentView=NSHostingView(rootView:ChatView(session:session).environment(model).environment(\.colorScheme,.dark))
  // Notes are always open in the chat's top-right column, under its buttons.
  try await Task.sleep(for:.milliseconds(650));try save("notes-open")
+ // The box for a new note closes and opens as needed; the notes stay.
+ UserDefaults.standard.set(false,forKey:"notesComposerOpen")
+ try await Task.sleep(for:.milliseconds(450));try save("note-box-closed")
+ UserDefaults.standard.removeObject(forKey:"notesComposerOpen")
  session.isRunning=true;other.isRunning=true
  panel.contentView=NSHostingView(rootView:HStack(spacing:20){
   ChatNotes(scope:scope,project:true).frame(width:280)
