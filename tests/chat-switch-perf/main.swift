@@ -90,6 +90,26 @@ func run() async throws {
         all += s.dropFirst()
         print("  \(session.items.count) items  first \(ms(s[0]))  switch \(ms(median(Array(s.dropFirst()))))  then blocked \(ms(median(Array(st.dropFirst())))))  \(session.title.prefix(40))")
     }
+    // Back and forth between two chats.
+    var back: [Double] = [], backStalls: [Double] = []
+    for round in 0..<8 {
+        let session = heavy[round % 2]
+        let t = now()
+        model.selectedID = session.id
+        host.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        if round >= 2 { back.append(now() - t) }
+        var last = now(), stalled = 0.0
+        let deadline = last + 1.0
+        while now() < deadline {
+            try await Task.sleep(for: .milliseconds(2))
+            let tick = now()
+            if tick - last > 0.016 { stalled += tick - last }
+            last = tick
+        }
+        if round >= 2 { backStalls.append(stalled) }
+    }
+    print("\nBack and forth between two chats: switch \(ms(median(back)))  then blocked \(ms(median(backStalls)))")
     if cursorMode != nil { print("cursor sets \(cursorSets), skipped \(cursorSkips)") }
     print(String(format: "\nRESULT median switch %.1f ms, worst %.1f ms", median(all) * 1000, all.max()! * 1000))
 }
