@@ -90,6 +90,13 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try check(run.record.archivedAt != nil,"the run archives itself once it reports")
     try check(parent.items.last {$0.sidequest == run.id && $0.kind == .user}?.text.contains("<sidequest_result>") == true,"its report reaches the project chat")
     try await wait("parent settles after the report") {!parent.isRunning}
+    // An automation run from before runs were sidequests (a plain Sidechat) becomes one.
+    var old=ChatSession.sidechatRecord(of:parent,anchor:parent,number:3)
+    old.title="Automation \u{00B7} Old run";old.automationID=automation.id
+    try check(old.adoptAsSidequestIfAutomationRun() && old.sidequestOf == parent.id && old.sidequestTask == "Automation \u{00B7} Old run","an older automation run becomes a sidequest")
+    try check(!old.adoptAsSidequestIfAutomationRun(),"converting is done once")
+    var plain=ChatSession.sidechatRecord(of:parent,anchor:parent,number:4)
+    try check(!plain.adoptAsSidequestIfAutomationRun() && plain.sidequestOf == nil,"a plain Sidechat stays one")
     for s in runtime.sessions {s.shutdown()}
     try runtime.flush()
     print("PASS sidequest round trip")
