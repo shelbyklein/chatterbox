@@ -92,7 +92,7 @@ func run() async throws {
     // AppKit adds four points of field padding to the constrained 200-point label.
     check((200...205).contains(titleWidth), "fixed title width reserves navigation space (\(titleWidth))")
     func checkGlobalBar(_ page: String) {
-        check(["views", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
+        check(["views", "automations", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
         check(abs((item("title")?.view?.frame.width ?? 0) - titleWidth) < 1, "title space unchanged on \(page)")
     }
     check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
@@ -145,7 +145,7 @@ func run() async throws {
     check(Attention.shared.viewCounts(in: model) == counts, "opening completion clears its view count")
     try await Task.sleep(for: .milliseconds(600))
     if let group = item("views") as? NSToolbarItemGroup {
-        check(group.subitems[0].toolTip?.contains("sessions need you") == true && group.subitems[1].toolTip?.contains("sessions need you") == true && group.subitems[4].toolTip?.contains("sessions need you") == true, "all three view buttons expose waiting counts")
+        check(group.subitems[0].toolTip?.contains("sessions need you") == true && group.subitems[1].toolTip?.contains("sessions need you") == true && group.subitems[2].toolTip?.contains("sessions need you") == true, "all three view buttons expose waiting counts")
     }
     save(window, "11-view-badges", out)
     for session in [badgeProject, badgeStudio, badgeChat, finishedChat] { session.record.archivedAt = Date() }
@@ -194,31 +194,32 @@ func run() async throws {
     check(!hidden("terminal") && window.title == a.title && items() == first, "back from Home: chat items, title and same items")
     model.showingHome = true
     if let group = item("views") as? NSToolbarItemGroup, let action = group.action {
-        check(group.subitems.count == 5, "five navigation views share the group")
-        group.selectedIndex = 3
-        NSApp.sendAction(action, to: group.target, from: group)
-        check(model.showingAutomations, "Automations opens from toolbar")
+        check(group.subitems.count == 4 && group.subitems.map(\.label) == ["Projects", "Studios", "Chats", "Command Center"], "four navigation views share the group, in order")
+        if let automations = item("automations"), let open = automations.action {
+            NSApp.sendAction(open, to: automations.target, from: automations)
+        } else { check(false, "Automations has its own button") }
+        check(model.showingAutomations && !(0..<4).contains(where: group.isSelected(at:)), "Automations opens from its own toolbar button (automations=\(model.showingAutomations) index=\(group.selectedIndex) selected=\((0..<4).map(group.isSelected(at:))))")
         try await Task.sleep(for: .milliseconds(600))
         checkGlobalBar("Automations")
         check(item("terminal")?.isEnabled == false, "Automations Terminal is disabled")
         save(window, "7-automations", out)
         let count = model.sessions.count
-        group.selectedIndex = 4
+        group.selectedIndex = 2
         NSApp.sendAction(action, to: group.target, from: group)
         try await Task.sleep(for: .milliseconds(500))
         checkGlobalBar("Chats")
-        check(model.showingChatsSidebar && !model.showingAutomations && model.sessions.count == count, "Chats navigation shows standalone sidebar without creating a session")
+        check(model.showingChatsSidebar && !model.showingAutomations && model.sessions.count == count, "Chats navigation shows standalone sidebar without creating a session (chats=\(model.showingChatsSidebar) automations=\(model.showingAutomations) count=\(model.sessions.count)/\(count) selected=\(model.selected?.title ?? "nil") folder=\(model.selected?.record.projectFolder ?? "nil") studio=\(model.studioSidebarID?.uuidString ?? "nil") home=\(model.showingHome))")
         if let plus = item("newChat"), let action = plus.action {
             NSApp.sendAction(action, to: plus.target, from: plus)
             try await Task.sleep(for: .milliseconds(800))
             check(model.showingChatsSidebar && model.selected?.record.projectFolder == nil && model.selected?.items.isEmpty == true, "trailing + opens a standalone chat")
-            check(group.selectedIndex == 4, "New Chat keeps Chats navigation selected")
+            check(group.isSelected(at: 2) && !group.isSelected(at: 0), "New Chat keeps Chats navigation selected")
         } else { check(false, "New Chat + has an action") }
         group.selectedIndex = 0
         NSApp.sendAction(group.action!, to: group.target, from: group)
         check(!model.showingChatsSidebar, "folder navigation returns to Projects")
         checkGlobalBar("Projects")
-        group.selectedIndex = 2
+        group.selectedIndex = 3
         NSApp.sendAction(group.action!, to: group.target, from: group)
         try await Task.sleep(for: .milliseconds(800))
         checkGlobalBar("Command Center")
