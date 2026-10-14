@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 // A Studio session open in the chat view: the Studios down the left, the Studio's sessions,
-// then the chat, and the same with Images showing. Evidence: chat.png, images.png.
+// then the chat, and the same with Images showing. Evidence: chat.png, images.png, cards.png.
 let app=NSApplication.shared
 app.setActivationPolicy(.accessory)
 @MainActor func png(_ url:URL,_ color:NSColor) throws {
@@ -43,6 +43,11 @@ app.setActivationPolicy(.accessory)
     try await Task.sleep(for:.seconds(1.2))
     try shot(window,"images.png",root)
     UserDefaults.standard.removeObject(forKey:"studioChatShowsImages")
+    // The sessions as cards: each one's newest image across the top, filling its frame.
+    UserDefaults.standard.set(true,forKey:"macStudioSidebarCards")
+    try await Task.sleep(for:.seconds(1.5))
+    try shot(window,"cards.png",root)
+    UserDefaults.standard.removeObject(forKey:"macStudioSidebarCards")
     print("PASS two-level Studio sidebar and Chat/Images render. Evidence: \(root.path)")
 }
 Task { @MainActor in do {try await run();exit(0)} catch {print(error);exit(1)} }
