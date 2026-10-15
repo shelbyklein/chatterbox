@@ -31,6 +31,27 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     w.record.items=[]
     check(!w.isWaitingOnYou,"a cleared chat isn't waiting")
 
+    // A message sent through the service shows at once, until the service's row replaces it.
+    var sent=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic);sent.title="Sent"
+    let q=model.insertSession(sent)
+    var commands:[String]=[]
+    q.remoteCommand={ op,_ in commands.append(op) }
+    q.send("  Make the logo bigger  ")
+    check(commands==["send"] && q.items.last?.text=="Make the logo bigger" && q.items.last?.kind == .user,"a sent message shows at once")
+    q.send("Make the logo bigger")
+    check(q.items.filter { $0.text=="Make the logo bigger" }.count==2,"the same text sent twice shows twice")
+    var fromService=q.record;fromService.items=[]           // a refresh from before the service added them
+    q.record=fromService;q.keepSentEchoes()
+    check(q.items.filter { $0.text=="Make the logo bigger" }.count==2,"an earlier refresh doesn't drop them")
+    fromService.items=[DisplayItem(kind:.user,text:"Make the logo bigger")]
+    q.record=fromService;q.keepSentEchoes()
+    check(q.items.filter { $0.text=="Make the logo bigger" }.count==2 && q.sentEchoes.count==1,"the service's first row replaces the first, the second still shows")
+    fromService.items.append(DisplayItem(kind:.user,text:"Make the logo bigger"))
+    q.record=fromService;q.keepSentEchoes()
+    check(q.items.count==2 && q.sentEchoes.isEmpty,"both replaced, none doubled")
+    q.send("!ls")
+    check(q.items.count==2,"a ! command isn't shown as a message")
+
     // A thumbnail is remembered past the rows that held it.
     let png=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!).appendingPathComponent("shot.png")
     let rep=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:4,pixelsHigh:4,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
