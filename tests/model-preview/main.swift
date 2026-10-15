@@ -6,8 +6,6 @@ import SwiftUI
 // model covers part of the preview.
 let app=NSApplication.shared
 app.setActivationPolicy(.regular)
-// No App Nap: it can hold this test's timers while its windows sit behind others.
-let awake=ProcessInfo.processInfo.beginActivity(options:[.userInitiated,.latencyCritical],reason:"Rendering model previews")
 typealias CaptureFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
 let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage"), to: CaptureFn.self)
 var failures=0
@@ -45,7 +43,6 @@ func coverage(_ rep:NSBitmapImageRep)->Double {
                 try? FileManager.default.copyItem(at:source.deletingLastPathComponent().appendingPathComponent(path),to:to)
             } }
         }
-        print("… \(ext): showing \(source.lastPathComponent)");fflush(stdout)
         guard let kind=MediaKind.of(url) else { check(false,"\(ext) is a 3D model");continue }
         check(kind == (ext == "usdz" ? .usdz : .model3D),"\(ext) is a 3D model")
         let window=NSWindow(contentRect:NSRect(x:60,y:60,width:700,height:420),styleMask:[.titled],backing:.buffered,defer:false)
@@ -53,25 +50,24 @@ func coverage(_ rep:NSBitmapImageRep)->Double {
         window.appearance=NSAppearance(named:.darkAqua)
         window.contentView=NSHostingView(rootView:MediaPreview(url:url,kind:kind).padding(20).frame(width:700,height:420).background(Color.black).environment(\.colorScheme,.dark))
         window.makeKeyAndOrderFront(nil);app.activate(ignoringOtherApps:true)
-        FileHandle.standardError.write(Data("… \(ext) window up\n".utf8))
         // The page loads three.js from its CDN, then parses the model: up to 40 seconds.
-        var rep=NSBitmapImageRep()
+        var rep:NSBitmapImageRep?
         var share=0.0
-        for attempt in 0..<20 {
+        for _ in 0..<20 {
             try await Task.sleep(for:.seconds(2))
-            FileHandle.standardError.write(Data("… \(ext) attempt \(attempt)\n".utf8))
             guard let image=capture(.null,8,UInt32(window.windowNumber),1|8)?.takeRetainedValue() else { continue }
-            rep=NSBitmapImageRep(cgImage:image);share=coverage(rep)
-            FileHandle.standardError.write(Data("… \(ext) covers \(share)\n".utf8))
+            let captured=NSBitmapImageRep(cgImage:image);rep=captured;share=coverage(captured)
             if share>0.08 { break }
         }
-        try rep.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("\(ext).png"))
-        try rep.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("\(ext).png"))
+        try rep?.representation(using:.png,properties:[:])?.write(to:root.appendingPathComponent("\(ext).png"))
+        try rep?.representation(using:.png,properties:[:])?.write(to:root.appendingPathComponent("\(ext).png"))
         check(share>0.08,"\(ext) renders a model (covers \(Int(share*100))% of the middle)")
         window.orderOut(nil)
     }
     print(failures==0 ? "PASS model previews. Evidence: \(root.path)" : "FAIL \(failures) checks. Evidence: \(root.path)")
     exit(failures==0 ? 0 : 1)
 }
+// Never hang: give up after 4 minutes.
+Thread.detachNewThread { Thread.sleep(forTimeInterval: 240); print("FAIL timed out"); fflush(stdout); exit(2) }
 Task { @MainActor in do {try await run()} catch {print(error);exit(1)} }
 app.run()
