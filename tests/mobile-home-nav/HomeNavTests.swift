@@ -4,6 +4,11 @@ final class HomeNavTests: XCTestCase {
  func selected(_ app: XCUIApplication) -> String {
   app.tabBars.buttons.allElementsBoundByIndex.first { $0.isSelected }?.label ?? "?"
  }
+ /// The Studios tab opens on every Studio; this opens one (if its card is showing).
+ func openStudio(_ id: String, _ app: XCUIApplication) {
+  let card = app.buttons["studio-select-" + id]
+  if card.waitForExistence(timeout: 3) { card.tap() }
+ }
  /// A swipe that starts at the screen's very edge, at mid-height.
  func edgeSwipe(_ app: XCUIApplication, fromLeft: Bool) {
   let start = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: fromLeft ? 0.01 : 0.99, dy: 0.5))
@@ -98,6 +103,11 @@ final class HomeNavTests: XCTestCase {
   tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
   tab("Studios",app).tap()
+  // Every Studio first, each a card; its sessions once you open it.
+  XCTAssertTrue(app.buttons["studio-select-studio-1"].waitForExistence(timeout:10) && app.buttons["studio-select-studio-2"].exists, "the Studios tab shows every Studio")
+  XCTAssertFalse(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.exists, "no Studio's sessions until one is opened")
+  capture("studios-index",app)
+  openStudio("studio-1",app)
   if app.buttons["Show as Cards"].exists { app.buttons["Show as Cards"].tap() }
   let reply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
   let working = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
@@ -118,17 +128,19 @@ final class HomeNavTests: XCTestCase {
   if app.buttons["Close"].exists { app.buttons["Close"].tap() }
   else if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
   XCTAssertTrue(app.buttons["Studio options"].waitForExistence(timeout:5))
-  app.buttons["studio-select-studio-2"].tap()
+  app.buttons["studios-index"].tap()
+  openStudio("studio-2",app)
   XCTAssertTrue(app.staticTexts["Crystal concept"].waitForExistence(timeout:5))
   XCTAssertFalse(app.images["Latest image in Coach Archie"].exists)
   capture("studio-switched",app)
-  app.buttons["studio-select-studio-1"].tap()
+  app.buttons["studios-index"].tap()
+  openStudio("studio-1",app)
   let coach = app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch
   XCTAssertTrue(coach.waitForExistence(timeout:5))
   coach.tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10))
   app.navigationBars.buttons.element(boundBy:0).tap()
-  XCTAssertTrue(app.buttons["studio-select-studio-1"].waitForExistence(timeout:5))
+  XCTAssertTrue(app.buttons["studios-index"].waitForExistence(timeout:5), "back from a session, still in its Studio")
   app.buttons["Studio options"].tap()
   app.buttons["Show as List"].tap()
   XCTAssertTrue(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.waitForExistence(timeout:5))
@@ -244,7 +256,7 @@ final class HomeNavTests: XCTestCase {
   capture("activity-rename",app)
   app.alerts.buttons["Rename"].tap()
   XCTAssertTrue(activity("Working: Renamed Coach",app).waitForExistence(timeout:8))
-  tab("Studios",app).tap()
+  tab("Studios",app).tap();openStudio("studio-1",app)
   XCTAssertTrue(app.staticTexts["Renamed Coach"].waitForExistence(timeout:5))
   tab("Chats",app).tap()
   let loose=app.buttons.matching(NSPredicate(format:"label CONTAINS %@","Loose chat")).firstMatch
@@ -288,7 +300,7 @@ final class HomeNavTests: XCTestCase {
   var promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
   XCTAssertEqual(promoted["Loose chat"]?["kind"] as? String,"studio")
   XCTAssertEqual(promoted["Loose chat"]?["keepFolder"] as? Bool,true)
-  tab("Studios",app).tap()
+  tab("Studios",app).tap();openStudio("studio-1",app)
   XCTAssertTrue(app.staticTexts["Loose chat"].waitForExistence(timeout:8))
 
   try await start();action("Move to Studio…")
