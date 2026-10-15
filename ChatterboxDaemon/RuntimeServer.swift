@@ -25,7 +25,7 @@ import CoreFoundation
             for id in self.subscribed {self.peers[id]?.send(RuntimeReply(event:event))}
             if let chat=event.chatID.flatMap(self.runtime.session),!chat.isDot {
                 if ["approval.waiting","question.waiting"].contains(event.kind){
-                    MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.approvalState == .pending})?.text ?? "This chat needs you",chat:chat.id,kind:"needs",identity:"event-\(event.sequence)")
+                    MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.approvalState == .pending})?.text ?? "This session needs you",chat:chat.id,kind:"needs",identity:"event-\(event.sequence)")
                 }else if event.kind=="turn.finished" {
                     MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.kind == .assistant && $0.phase == .final})?.text ?? "Reply finished",chat:chat.id,kind:"replies",identity:"event-\(event.sequence)")
                 }

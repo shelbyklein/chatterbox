@@ -158,7 +158,8 @@ app.setActivationPolicy(.accessory)
     for _ in 0..<40 where ThreadThumbnails.shared.largeImages[magazine.id]==nil { try await Task.sleep(for:.milliseconds(100)) }
     let large=ThreadThumbnails.shared.largeImages[magazine.id]!.size, small=ThreadThumbnails.shared.images[magazine.id]!.size
     precondition(max(large.width,large.height)>=1000,"Large preview too small: \(large)")
-    precondition(max(small.width,small.height)<=160,"Tile thumbnail grew: \(small)")
+    // Tiles decode at 480 px, sharp across a full-width card, still far from the large previews.
+    precondition(max(small.width,small.height)<=480,"Tile thumbnail grew: \(small)")
 
     // SI3/SI4: the page opens on Pinned, showing only pinned Studio sessions, grouped.
     for thread in [magazine,ribbons,crystal,studioChat] { model.togglePinnedThread(thread) }
