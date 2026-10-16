@@ -63,10 +63,20 @@ def detail(id):
  s=next(c for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id.lower())
  items=[{'id':cid(id+'u'),'kind':'user','text':'Hello','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
+ # A reply with a 3D model (an STL) to preview.
+ if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
  if s.get('isDot'):items.append({'id':cid('email'),'kind':'notice','text':'Email for you \u00b7 Shelby Klein, \u201cFW: One pager for NASP Coaches\u201d (shelbykleindesign@gmail.com): Callie forwarded copy changes for the NASP one pager. Suggested: Apply the updated 80% discount copy.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
  options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':presets}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
+def stl():
+ # A binary STL pyramid on a square base.
+ import struct
+ a,b,c,d,top=(-1,-1,0),(1,-1,0),(1,1,0),(-1,1,0),(0,0,1.6)
+ faces=[(a,c,b),(a,d,c),(a,b,top),(b,c,top),(c,d,top),(d,a,top)]
+ out=bytearray(80)+struct.pack('<I',len(faces))
+ for f in faces: out+=struct.pack('<3f',0,0,0)+b''.join(struct.pack('<3f',*v) for v in f)+b'\0\0'
+ return bytes(out)
 def thumbnail():
  def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
  w,h=240,160
@@ -121,6 +131,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    return self.reply({'path':path,'parent':'/Users/fixture' if path!='/Users/fixture' else '/Users','folders':[{'path':'/Users/fixture/Projects','name':'Projects'}] if path=='/Users/fixture' else []})
   if self.path.endswith('/organization'):
    return self.reply({'currentFolder':'/Users/fixture','studios':[{'id':cid('studio'),'name':'USA Archery','folder':'/Users/fixture/Studios/USA Archery'},{'id':cid('studio2'),'name':'Geekify','folder':'/Users/fixture/Studios/Geekify'}]})
+  if '/files/'+cid('model-file') in self.path.lower():
+   b=stl();self.send_response(200);self.send_header('Content-Type','application/octet-stream');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if '/thumbnail/' in self.path:
    b=thumbnail();self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if self.path=='/v1/chats':return self.reply(chats())

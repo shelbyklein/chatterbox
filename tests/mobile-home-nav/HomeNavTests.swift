@@ -133,6 +133,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Crystal concept"].waitForExistence(timeout:5))
   XCTAssertFalse(app.images["Latest image in Coach Archie"].exists)
   capture("studio-switched",app)
+  // A 3D model in a reply previews (Crystal concept's reply has an STL).
+  app.staticTexts["Crystal concept"].tap()
+  XCTAssertTrue(app.staticTexts["The crystal stand is ready."].waitForExistence(timeout:10))
+  sleep(12)
+  capture("model-preview",app)
+  app.navigationBars.buttons.element(boundBy:0).tap()
   app.buttons["studios-index"].tap()
   openStudio("studio-1",app)
   let coach = app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch
