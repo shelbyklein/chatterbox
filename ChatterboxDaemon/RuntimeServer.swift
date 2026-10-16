@@ -300,6 +300,9 @@ import CoreFoundation
             try s.suggestAnswers(id,answers:answers.decode([String:[String]].self),reason:r.body["reason"]?.string ?? "",by:r.body["by"]?.string ?? "Golem")
         case "archive":try chat(r.body).setArchived(r.body["archived"]?.bool ?? true)
         case "rename":try chat(r.body).setTitle(r.body["title"]?.string ?? "")
+        case "setBrief":
+            guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+            try chat(r.body).setBrief(r.body["brief"]?.string ?? "")
         case "delete":guard role=="ui" else{throw RuntimeFailure("permission_denied")};let s=try chat(r.body);try runtime.remove(s.id)
         case "sidequest":
             let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)

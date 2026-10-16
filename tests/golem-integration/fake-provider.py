@@ -10,6 +10,13 @@ codex='app-server' in sys.argv
 thread='fixture-thread';turn='fixture-turn';pending=None;fail_unsubscribe=False
 
 def emit(obj):print(json.dumps(obj),flush=True)
+def note(name,value):
+ # What the agent was given, for tests that check instructions and messages.
+ with open(os.path.join(os.environ.get('CHATTERBOX_DATA_DIR','/tmp'),name),'a') as f:f.write(json.dumps(value)+'\n')
+def mcp_call():
+ # A message ending "mcp" uses a tool from an "indesign" MCP server first.
+ if codex:emit({'method':'item/started','params':{'threadId':thread,'item':{'id':str(uuid.uuid4()),'type':'mcpToolCall','server':'indesign','tool':'set_text'}}})
+ else:emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'tool_use','id':'tu-'+str(uuid.uuid4()),'name':'mcp__indesign__set_text','input':{}}]}})
 def result():
  if codex:
   emit({'method':'item/started','params':{'threadId':thread,'item':{'id':str(uuid.uuid4()),'type':'agentMessage','text':'Fixture reply.'}}})
@@ -17,7 +24,9 @@ def result():
  else:
   emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':'Fixture reply.'}]}})
   emit({'type':'result','subtype':'success','is_error':False,'result':'Fixture reply.'})
-if not codex:emit({'type':'system','subtype':'init','session_id':'fixture-session','slash_commands':[]})
+if not codex:
+ if '--append-system-prompt' in sys.argv:note('claude-system.jsonl',sys.argv[sys.argv.index('--append-system-prompt')+1])
+ emit({'type':'system','subtype':'init','session_id':'fixture-session','slash_commands':[]})
 for line in sys.stdin:
  try:m=json.loads(line)
  except ValueError:continue
@@ -27,6 +36,7 @@ for line in sys.stdin:
   with open(log,'a') as f:f.write(json.dumps({'method':op,'threadId':p.get('threadId')})+'\n')
   if p.get('threadId'):thread=p['threadId']
   if op in ('thread/start','thread/resume','thread/fork'):
+   note('codex-system.jsonl',{'method':op,'instructions':((p.get('config') or {}).get('developer_instructions') or p.get('developerInstructions') or '')})
    if op in ('thread/start','thread/fork'):thread='fixture-'+str(uuid.uuid4())
    emit({'id':rid,'result':{'thread':{'id':thread}}})
   elif op=='thread/unsubscribe':
@@ -44,6 +54,8 @@ for line in sys.stdin:
   elif op=='turn/start':
    turn='turn-'+str(uuid.uuid4());emit({'id':rid,'result':{'turn':{'id':turn}}})
    text=' '.join(x.get('text','') for x in p.get('input',[]))
+   note('codex-input.jsonl',text)
+   if text.endswith('mcp'):mcp_call()
    if text.endswith('question'):
     pending=True;emit({'id':'fixture-question','method':'item/tool/requestUserInput','params':{'threadId':thread,'questions':[{'id':'q','header':'Choice','question':'Pick one','options':[{'label':'A','description':'A'}]}]}})
    elif text.endswith('approval'):
@@ -58,6 +70,8 @@ for line in sys.stdin:
   if m.get('type')=='user':
    text=' '.join(x.get('text','') for x in m['message']['content'])
    emit(dict(m, isReplay=True))
+   note('claude-input.jsonl',text)
+   if text.endswith('mcp'):mcp_call()
    if text.endswith('question'):
     pending=True;emit({'type':'control_request','request_id':'fixture-q','request':{'subtype':'can_use_tool','tool_name':'AskUserQuestion','input':{'questions':[{'header':'Choice','question':'Pick one','options':[{'label':'A','description':'A'}],'multiSelect':False}]}}})
    elif text.endswith('approval'):
