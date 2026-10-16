@@ -138,6 +138,18 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["The crystal stand is ready."].waitForExistence(timeout:10))
   sleep(12)
   capture("model-preview",app)
+  // The session's Brief, from its menu.
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(app.buttons["Brief…"].waitForExistence(timeout:5));app.buttons["Brief…"].tap()
+  let briefText=app.textViews["brief-text"]
+  XCTAssertTrue(briefText.waitForExistence(timeout:5));briefText.tap();briefText.typeText("Keep the crystal facets sharp.")
+  capture("brief-editor",app)
+  app.navigationBars["Session Brief"].buttons["Save"].tap()
+  let briefs=try await fixture("briefs",method:"GET") as? [String:String]
+  XCTAssertEqual(briefs?["Crystal concept"],"Keep the crystal facets sharp.","the Brief reaches the Mac")
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(app.buttons["Edit Brief…"].waitForExistence(timeout:5),"a set Brief shows as Edit Brief")
+  app.buttons["Edit Brief…"].tap();app.navigationBars["Session Brief"].buttons["Cancel"].tap()
   app.navigationBars.buttons.element(boundBy:0).tap()
   app.buttons["studios-index"].tap()
   openStudio("studio-1",app)

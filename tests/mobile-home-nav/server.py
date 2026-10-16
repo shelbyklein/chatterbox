@@ -23,9 +23,9 @@ PROMOTIONS={}
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 def reset():
- global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS
+ global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
- STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={}
+ STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={}
 
 def summary(name,line,branch=None,waiting=False,dot=False):
  s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
@@ -34,6 +34,7 @@ def summary(name,line,branch=None,waiting=False,dot=False):
   if name=='Coach Archie':s['project']=None
  if name in ['No image','Crystal concept','Loose chat']:s['project']=None
  if name in RENAMES:s['title']=RENAMES[name]
+ if BRIEFS.get(name):s['brief']=BRIEFS[name]
  s['canPromote']=name=='Loose chat' and name not in PROMOTIONS
  if name in PROMOTIONS and PROMOTIONS[name]['kind']=='project':s['project']='Promoted project'
  if branch:s['worktreeBranch']=branch
@@ -103,6 +104,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path.startswith('/v1/chats/') and self.path.endswith('/promote'):
    if FAIL:return self.reply({'error':'Fixture promotion failed. Try again.'},409)
    PROMOTIONS['Loose chat']=body;MUTATIONS.append('promote');return self.reply(detail(cid('Loose chat')))
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/brief'):
+   id=self.path.split('/')[3].lower()
+   name=next(c['title'] for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id)
+   BRIEFS[name]=body['brief'];MUTATIONS.append('brief');return self.reply(detail(id))
   if self.path.startswith('/v1/chats/') and self.path.endswith('/rename'):
    if FAIL:return self.reply({'error':'Fixture rename failed. Try again.'},503)
    id=self.path.split('/')[3].lower()
@@ -125,6 +130,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
+  if self.path=='/test/briefs':return self.reply(BRIEFS)
   if self.path.startswith('/v1/project-folders'):
    from urllib.parse import urlparse,parse_qs
    path=parse_qs(urlparse(self.path).query).get('path',['/Users/fixture'])[0]
