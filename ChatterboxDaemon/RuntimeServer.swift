@@ -32,7 +32,7 @@ import CoreFoundation
             }
         }
     }
-    func stop(){source?.cancel();source=nil;if listenFD>=0{Darwin.close(listenFD);listenFD = -1};for p in peers.values{p.stop()};peers.removeAll();unlink(socketURL.path);try? runtime.flush()}
+    func stop(){source?.cancel();source=nil;if listenFD>=0{Darwin.close(listenFD);listenFD = -1};for p in peers.values{p.stop()};peers.removeAll();unlink(socketURL.path);try? runtime.flush();runtime.waitForSaves()}
     private func accept(){
         while true {
             let fd=Darwin.accept(listenFD,nil,nil);if fd<0{return}

@@ -25,7 +25,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         return chat
     }
     func post(_ chat:ChatSession,_ body:Companion.PromotionRequest,_ extra:[String:String]=[:]) throws -> HTTPResponse {
-        server.respond(to:request("/v1/chats/\(chat.id)/promote","POST",try Companion.encoder.encode(body),headers.merging(extra){_,b in b}),local:false)
+        // Sorted keys: the same request encodes to the same bytes, as a phone's retry resends.
+        let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
+        return server.respond(to:request("/v1/chats/\(chat.id)/promote","POST",try encoder.encode(body),headers.merging(extra){_,b in b}),local:false)
     }
     func saved(_ chat:ChatSession) throws -> ConversationRecord {
         try Companion.decoder.decode(ConversationRecord.self,from:Data(contentsOf:root.appendingPathComponent("Conversations/\(chat.id).json")))
