@@ -93,6 +93,18 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     try await Task.sleep(for:.seconds(1.5))
     let grown=scroll.documentView!.frame.height
     check(grown>opened+500,"scrolling up loads earlier rows (\(Int(opened)) → \(Int(grown)) pt)")
+    // At the newest message, the agent starting (typing dots) keeps the bottom in view.
+    let doc=scroll.documentView!
+    scroll.contentView.scroll(to:NSPoint(x:0,y:max(0,doc.frame.height-scroll.contentView.bounds.height)));scroll.reflectScrolledClipView(scroll.contentView)
+    try await Task.sleep(for:.seconds(1))
+    // As sending does: the message, then the agent starting.
+    session.record.items.append(DisplayItem(kind:.user,text:"One more thing"))
+    try await Task.sleep(for:.seconds(1))
+    session.isRunning=true
+    try await Task.sleep(for:.seconds(1.5))
+    let gap=doc.frame.height-scroll.contentView.bounds.maxY
+    check(gap<4,"the typing dots stay in view when the agent starts (\(Int(gap)) pt below)")
+    session.isRunning=false
     window.orderOut(nil)
     print(failures==0 ? "PASS history on scroll-up" : "FAIL \(failures) checks")
     exit(failures==0 ? 0 : 1)
