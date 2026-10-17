@@ -106,7 +106,13 @@ func run() async throws {
     toolsBridge.attach(a, owner: UUID(), issuesPanel: toolsPanel, showImages: {}, toggleTerminal: {}, chooseProject: {})
     let toolsWindow = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 560, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
     toolsWindow.appearance = NSAppearance(named: .darkAqua)
-    toolsWindow.contentView = NSHostingView(rootView: SessionToolsPanel(bridge: toolsBridge).padding(20).environment(model).environment(\.colorScheme, .dark))
+    // The session's controls, each its own icon down the side.
+    toolsWindow.contentView = NSHostingView(rootView: VStack(alignment: .trailing, spacing: 8) {
+        ToneMenu(session: a, iconOnly: true)
+        PlaceSlot(bridge: toolsBridge, iconOnly: true)
+        RepoButton(bridge: toolsBridge)
+        ToolsButton(session: a)
+    }.padding(20).frame(maxWidth: .infinity, alignment: .trailing).environment(model).environment(\.colorScheme, .dark))
     toolsWindow.orderFrontRegardless()
     try await Task.sleep(for: .milliseconds(400))
     save(toolsWindow, "13-session-tools-panel", out)
