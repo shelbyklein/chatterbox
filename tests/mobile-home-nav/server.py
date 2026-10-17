@@ -131,6 +131,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path=='/test/briefs':return self.reply(BRIEFS)
+  if self.path.startswith('/v1/usage'):
+   return self.reply({'claude':[{'label':'5-hour','fraction':0.42,'resetsAt':'2099-01-01T00:00:00Z'},{'label':'7-day','fraction':0.81,'resetsAt':'2099-01-03T00:00:00Z'}],
+                      'codex':[{'label':'5-hour','fraction':0.12,'resetsAt':'2099-01-01T00:00:00Z'}],
+                      'proxyAccounts':[{'provider':'claude','name':'shelby@example.com','status':'Available','windows':[{'label':'Weekly','fraction':0.65}]}],
+                      'proxyChecked':'2026-10-16T12:00:00Z'})
   if self.path.startswith('/v1/project-folders'):
    from urllib.parse import urlparse,parse_qs
    path=parse_qs(urlparse(self.path).query).get('path',['/Users/fixture'])[0]

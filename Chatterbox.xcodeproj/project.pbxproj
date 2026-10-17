@@ -10,6 +10,7 @@
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
 		0609F1395D8951229D36707A /* SpeechSegments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4871296498953CBED355908D /* SpeechSegments.swift */; };
 		08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590872692259FADBC73667E /* DocumentViewer.swift */; };
+		088AB733159394D33015A471 /* MobileUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674F51BEFACA28D2BA78382A /* MobileUsageView.swift */; };
 		0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
 		0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 199795CA97CD07D743A50C57 /* ChatterboxMCP */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0A64724F5E82293ED71B97B7 /* BackgroundTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C34CF3713DD45D9DE202B1 /* BackgroundTasks.swift */; };
@@ -143,6 +144,7 @@
 		7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */; };
 		757230ABE064F535ABB98E03 /* PathLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACD3896247941A01A6F39FB /* PathLinks.swift */; };
 		7674615B45429144E4FA38F6 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A125487FAFCF644CD583045D /* Prompts.swift */; };
+		77621AD5A91712017B99E80A /* ProxyQuota.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */; };
 		7904D08F33166A1CD2A1A29F /* MobileSidequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1358FF8D7EC801AC99C84139 /* MobileSidequests.swift */; };
 		7949AF037EC20688BA18CE32 /* BackgroundTasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C34CF3713DD45D9DE202B1 /* BackgroundTasks.swift */; };
 		79DDF93B6F21EDF8607D6C70 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = B7C2F6CDBBBD02165F2F21E2 /* SwiftTerm */; };
@@ -459,6 +461,7 @@
 		64471F2635F8902B8ABA0F12 /* SessionImageGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionImageGrid.swift; sourceTree = "<group>"; };
 		667AC120BEF5177C4AB1C659 /* MobileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileStore.swift; sourceTree = "<group>"; };
 		66E5A2ED4CB638E3E92864B6 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		674F51BEFACA28D2BA78382A /* MobileUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileUsageView.swift; sourceTree = "<group>"; };
 		67B6115C97D436D69FEDDE1D /* Child.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Child.swift; sourceTree = "<group>"; };
 		684370C40CDFEB2C4E7F70BE /* ElevenLabsSpeechSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsSpeechSettings.swift; sourceTree = "<group>"; };
 		69BFFE37B80756592FFA1C4E /* CodexRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexRoute.swift; sourceTree = "<group>"; };
@@ -713,6 +716,7 @@
 				1358FF8D7EC801AC99C84139 /* MobileSidequests.swift */,
 				667AC120BEF5177C4AB1C659 /* MobileStore.swift */,
 				5F7CFA4DFCADDED57AED96B5 /* MobileTranscriptCache.swift */,
+				674F51BEFACA28D2BA78382A /* MobileUsageView.swift */,
 				A09288A3CF85309BDD4A2156 /* MobileWidgetSync.swift */,
 				69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */,
 				B6987D2087FA491665C4A101 /* SketchView.swift */,
@@ -1398,6 +1402,7 @@
 				7904D08F33166A1CD2A1A29F /* MobileSidequests.swift in Sources */,
 				240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */,
 				94F87B32A43F2A3AF38A310D /* MobileTranscriptCache.swift in Sources */,
+				088AB733159394D33015A471 /* MobileUsageView.swift in Sources */,
 				E7E97C400408C81738252805 /* MobileWidgetSync.swift in Sources */,
 				3676EB8F6588D30D5BB9A400 /* PathLinks.swift in Sources */,
 				1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */,
@@ -1470,6 +1475,7 @@
 				28DDC8A2DD7364FFD02158BC /* Pins.swift in Sources */,
 				7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */,
 				7674615B45429144E4FA38F6 /* Prompts.swift in Sources */,
+				77621AD5A91712017B99E80A /* ProxyQuota.swift in Sources */,
 				EC5E7AF05EE1C19F438032F2 /* RuntimeClient.swift in Sources */,
 				E5009C6A623772CB59FBC42D /* RuntimePaths.swift in Sources */,
 				A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */,

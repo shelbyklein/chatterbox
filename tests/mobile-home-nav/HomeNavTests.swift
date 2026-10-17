@@ -382,6 +382,20 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
   return try JSONSerialization.jsonObject(with:data)
  }
+ /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
+ @MainActor func testUsage() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
+  app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Usage"].waitForExistence(timeout:5));app.buttons["Usage"].tap()
+  XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"Claude's 7-day window")
+  XCTAssertTrue(app.staticTexts["12% used"].exists && app.staticTexts["65% left"].exists,"Codex and the proxy account")
+  capture("usage",app)
+  app.buttons["Done"].tap()
+ }
  @MainActor func testNewChatPicksSettingsFirst() async throws {
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
