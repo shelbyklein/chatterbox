@@ -405,7 +405,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
   XCTAssertTrue(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].waitForExistence(timeout:5), "it shows the presets")
   XCTAssertTrue(app.staticTexts["Effort"].firstMatch.exists, "and the effort")
-  app.segmentedControls.buttons["Codex"].firstMatch.tap()
+  // The name comes first; the agent switch is further down the sheet.
+  let name=app.textFields["new-chat-name"]
+  XCTAssertTrue(name.waitForExistence(timeout:5),"it asks for a name first");name.tap();name.typeText("Logo ideas\n")
+  let codex=app.segmentedControls.buttons["Codex"].firstMatch
+  for _ in 0..<4 where !codex.isHittable { app.swipeUp() }
+  codex.tap()
   XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "switching agent loads that agent's permissions")
   capture("new-chat-sheet",app)
   app.buttons["new-chat-start"].tap()
@@ -415,6 +420,7 @@ final class HomeNavTests: XCTestCase {
   let created=try JSONSerialization.jsonObject(with:data) as! [[String:Any]]
   XCTAssertEqual(created.last?["backend"] as? String,"codex")
   XCTAssertEqual((created.last?["settings"] as? [String:Any])?["mode"] as? String,"fullAccess","the chat starts with what was picked")
+  XCTAssertEqual(created.last?["title"] as? String,"Logo ideas","and the name given")
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {

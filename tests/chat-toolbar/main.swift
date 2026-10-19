@@ -218,7 +218,14 @@ func run() async throws {
         if let plus = item("newChat"), let action = plus.action {
             NSApp.sendAction(action, to: plus.target, from: plus)
             try await Task.sleep(for: .milliseconds(800))
-            check(model.showingChatsSidebar && model.selected?.record.projectFolder == nil && model.selected?.items.isEmpty == true, "trailing + opens a standalone chat")
+            // It asks for a name first; the name given is the session's.
+            check(model.namingNewSession != nil && model.namingNewSession?.studio == nil, "trailing + asks for the new session's name")
+            save(window, "15-name-new-session", out)
+            if let request = model.namingNewSession { model.startNewSession(request, name: "Logo ideas"); model.namingNewSession = nil }
+            try await Task.sleep(for: .milliseconds(500))
+            check(model.showingChatsSidebar && model.selected?.record.projectFolder == nil && model.selected?.items.isEmpty == true && model.selected?.title == "Logo ideas", "and opens a standalone session with that name")
+            let unnamed = model.startNewSession(.init(studio: nil, backend: nil), name: "  ")
+            check(unnamed.title == "New chat", "an empty name leaves it to be named from the first message")
             check(group.isSelected(at: 2) && !group.isSelected(at: 0), "New Chat keeps Chats navigation selected")
         } else { check(false, "New Chat + has an action") }
         group.selectedIndex = 0

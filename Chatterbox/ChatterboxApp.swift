@@ -26,11 +26,11 @@ struct ChatterboxApp: App {
                     .keyboardShortcut("d", modifiers: [.control, .option, .command])
             }
             CommandGroup(replacing: .newItem) {
-                Button("New Chat") { model.newChat() }
+                Button("New Chat") { model.askNewChat() }
                     .keyboardShortcut("n")
-                Button("New Claude Chat") { model.newChat(backend: .claude) }
+                Button("New Claude Chat") { model.askNewChat(backend: .claude) }
                     .keyboardShortcut("n", modifiers: [.command, .option])
-                Button("New Codex Chat") { model.newChat(backend: .codex) }
+                Button("New Codex Chat") { model.askNewChat(backend: .codex) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Divider()
                 Button("New Project\u{2026}") { model.showingNewProject = true }
