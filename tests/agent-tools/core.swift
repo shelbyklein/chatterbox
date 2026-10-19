@@ -62,6 +62,8 @@ func digest(_ path:String) -> String {
     try #"{"enabledPlugins":{"stripe@official":true,"cloudflare@official":false}}"#.write(toFile:home+"/.claude/settings.json",atomically:true,encoding:.utf8)
     try fm.createDirectory(atPath:home+"/.codex/helper/Helper.app",withIntermediateDirectories:true)
     fm.createFile(atPath:home+"/.codex/helper/Helper.app/run",contents:Data("#!/bin/sh\n".utf8),attributes:[.posixPermissions:0o755])
+    try fm.createDirectory(atPath:project+"/.codex",withIntermediateDirectories:true)
+    try "[mcp_servers.sdhq-db]\ncommand = \"db-mcp\"\n".write(toFile:project+"/.codex/config.toml",atomically:true,encoding:.utf8)
     let before=digest(home)+digest(project)
 
     // T3: discovery
@@ -137,6 +139,19 @@ func digest(_ path:String) -> String {
     let key1=studioChat.codexConfigurationKey
     var sets=ToolScopes.load();sets["studios"]?.off.removeAll{$0==ToolKey.codexApps};try ToolScopes.save(sets)
     try check(studioChat.codexConfigurationKey != key1,"a change reloads the Codex thread")
+    try check(item(.server,"sdhq-db")?.source == .project && ToolDiscovery.codexServerNames(projectFolder:project).contains("sdhq-db"),"a project's .codex/config.toml servers are found, and can be switched off")
+
+    // T6: the toolbar's Tools popover
+    func state(_ list:[ToolDiscovery.LoadedServer],_ name:String)->ToolDiscovery.LoadedServer.State?{list.first{$0.name==name}?.state}
+    let claudeLoads=ToolDiscovery.loadedServers(.claude,projectFolder:project,tools:ep)
+    try check([state(claudeLoads,"inspo"),state(claudeLoads,"graft"),state(claudeLoads,"wordpress"),state(claudeLoads,"plugin:stripe:api")].allSatisfy{$0 == .on},"a Claude chat lists ~/.claude.json's, the project's and plugins' servers")
+    try check(state(claudeLoads,"wp") == .addedInChatterbox && state(claudeLoads,"sdhq-db")==nil,"plus what Chatterbox adds, and not Codex's")
+    let codexLoads=ToolDiscovery.loadedServers(.codex,projectFolder:project,tools:es)
+    try check(state(codexLoads,"inspo") == .offInChatterbox && state(codexLoads,"noun-project") == .offInConfig,"a Codex chat marks what Chatterbox or its config switched off")
+    try check(state(codexLoads,"sdhq-db") == .on && state(codexLoads,"figma") == .addedInChatterbox,"and lists the project's and Chatterbox's servers")
+    try check(ChatSession.claudeToolSearch([:]) && ChatSession.claudeToolSearch(["ANTHROPIC_BASE_URL":"https://api.anthropic.com"]),"tool search is on by default")
+    try check(!ChatSession.claudeToolSearch(["ANTHROPIC_BASE_URL":"http://127.0.0.1:8317"]),"and off on another base URL")
+    try check(ChatSession.claudeToolSearch(["ANTHROPIC_BASE_URL":"http://127.0.0.1:8317","ENABLE_TOOL_SEARCH":"true"]) && !ChatSession.claudeToolSearch(["ENABLE_TOOL_SEARCH":"false"]),"unless ENABLE_TOOL_SEARCH says otherwise")
 
     try check(digest(home)+digest(project)==before,"the agents' own config files are untouched")
     for s in runtime.sessions {s.shutdown()};try runtime.flush()
