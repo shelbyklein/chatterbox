@@ -33,10 +33,61 @@ app.setActivationPolicy(.accessory)
     model.showView(.studios); precondition(at(flyers),"still Flyers")
     model.showingHome=true; model.rememberStudiosOverview()
     model.showView(.projects); precondition(at(alpha),"Projects returns to alpha")
-    model.showView(.studios); precondition(model.showingHome,"Studios returns to its overview when that's where it was left")
+    model.showView(.studios); precondition(!model.showingHome && model.studioSidebarID == studio.id,"Studios opens a session with its sidebar even after visiting the overview")
     model.archive(chatA)
     model.showView(.chats); precondition(at(chatB),"a view whose session is gone falls back to its newest")
-    print("PASS each view returns to the session it was last in")
+    // A project Sidechat has no projectFolder of its own. Restoring it must not
+    // switch the section highlight and sidebar back to standalone Chats.
+    var r=ConversationRecord(model:"opus",effort:"",personality:.friendly)
+    r.title="Project Sidechat";r.sidechatProjectFolder=alpha.record.projectFolder
+    r.items=[DisplayItem(kind:.user,text:"sidechat")]
+    let sidechat=model.insertSession(r)
+    model.selectedID=sidechat.id
+    precondition(!model.showingChatsSidebar,"selecting a project Sidechat keeps Projects")
+    model.showView(.chats)
+    model.showView(.projects)
+    precondition(at(sidechat) && !model.showingChatsSidebar,"Projects restores its Sidechat without jumping to Chats")
+    let reveal=model.sidebarRevealRequest
+    model.showView(.projects)
+    precondition(at(sidechat) && model.sidebarRevealRequest == reveal+1,"repeated section clicks reveal the sidebar")
+    // Exercise the native segmented toolbar action, rather than just showView.
+    let window=NSWindow(contentRect:NSRect(x:0,y:0,width:1000,height:700),styleMask:[.titled,.resizable],backing:.buffered,defer:false)
+    let toolbar=WindowToolbar(model:model,bridge:ChatToolbarBridge())
+    toolbar.install(in:window)
+    let group=window.toolbar!.items.compactMap { $0 as? NSToolbarItemGroup }.first!
+    func click(_ index:Int) {
+        group.setSelected(!group.isSelected(at:index),at:index)
+        _=toolbar.perform(NSSelectorFromString("pickView:"),with:group)
+    }
+    click(2)
+    precondition(model.showingChatsSidebar,"native Chats button opens Chats")
+    click(0)
+    precondition(at(sidechat) && !model.showingChatsSidebar,"native Projects button restores the project Sidechat")
+    let before=model.sidebarRevealRequest
+    click(0)
+    precondition(at(sidechat) && model.sidebarRevealRequest == before+1,"native Projects repeat click reveals instead of toggling")
+    for session in model.activeSessions where !session.isDot { session.setArchived(true) }
+    model.showView(.projects)
+    precondition(model.selectedID == nil && !model.showingHome && !model.showingChatsSidebar && !model.showingStudiosSidebar,"empty Projects clears the old session")
+    model.showView(.chats)
+    precondition(model.selectedID == nil && model.showingChatsSidebar,"empty Chats retains its sidebar")
+    model.showView(.studios)
+    precondition(model.selectedID == nil && !model.showingHome && model.showingStudiosSidebar,"empty Studios retains its sidebar")
+    // Render the actual narrow column container: section clicks reveal, never hide,
+    // its sidebar overlay. No live chat or provider is opened by this fixture.
+    window.setContentSize(NSSize(width:600,height:650))
+    window.contentView=NSHostingView(rootView:ChatColumns(sidebar:AnyView(Text("Sidebar")),chat:AnyView(Text("Blank session"))).environment(model))
+    func hasSidebar(_ view:NSView)->Bool {
+        if let probe=view as? ColumnProbe.Probe, probe.role == "sidebar-overlay" { return true }
+        return view.subviews.contains(where:hasSidebar)
+    }
+    model.showView(.projects)
+    try await Task.sleep(for:.milliseconds(300))
+    precondition(hasSidebar(window.contentView!),"narrow section entry exposes the sidebar")
+    model.showView(.projects)
+    try await Task.sleep(for:.milliseconds(300))
+    precondition(hasSidebar(window.contentView!),"repeated section click keeps the narrow sidebar open")
+    print("PASS view memory, native section buttons, project Sidechats, empty sections, and narrow sidebar rendering")
 }
 Task { @MainActor in do {try await run();exit(0)} catch {print(error);exit(1)} }
 app.run()
