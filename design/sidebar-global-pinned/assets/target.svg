@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="590" viewBox="0 0 360 590">
+<rect width="360" height="590" fill="#101010"/><g font-family="Arial" font-size="13" fill="#aaa">
+<rect x="12" y="12" width="236" height="34" rx="9" fill="#242424"/><text x="24" y="34">⌕  Search</text>
+<rect x="258" y="17" width="88" height="24" rx="5" fill="#292929"/><rect x="302" y="17" width="44" height="24" rx="5" fill="#147dff"/><text x="270" y="34">☷</text><text x="319" y="34" fill="white">⊞</text>
+<text x="14" y="74">⌄ Activity</text><text x="267" y="74">2 working</text><text x="18" y="100" fill="#ddd">◌  SDHQ</text><text x="18" y="125" fill="#ddd">◌  playcase.gg</text>
+<path d="M12 141H348" stroke="#333"/><text x="14" y="168">⚑  Pinned</text><text x="18" y="196" fill="#ddd">Tool Audit</text><text x="18" y="215" font-size="11">Chat</text><text x="18" y="248" fill="#ddd">National Event Ribbons</text><text x="18" y="267" font-size="11">Studio · USA Archery</text><path d="M12 284H348" stroke="#333"/>
+<text x="14" y="314">Projects</text><text x="319" y="314">+</text><text x="16" y="343" font-size="11" fill="#2ba5ff">3D Printing     app     server     USA Archery</text>
+<rect x="12" y="360" width="164" height="205" rx="12" fill="#242424"/><rect x="184" y="360" width="164" height="205" rx="12" fill="#242424"/><text x="25" y="395" fill="white">SDHQ</text><text x="197" y="395" fill="white">playcase.gg</text>
+</g></svg>

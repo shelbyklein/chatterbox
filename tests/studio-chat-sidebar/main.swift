@@ -108,6 +108,35 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let chatsListBitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!
  view.cacheDisplay(in:view.bounds,to:chatsListBitmap)
  try chatsListBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/tagged-chat-list.png"))
+ // Global pins are a separate region, independent of the page and its tag filter.
+ setenv("CHATTERBOX_TEST_SIDEBAR_ONLY", "520", 1)
+ second.isRunning=true;Attention.shared.update(second,model:model)
+ panel.setContentSize(NSSize(width:520,height:780))
+ panel.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
+ panel.makeKeyAndOrderFront(nil)
+ func captureSidebar(_ name:String) throws {
+  let host=panel.contentView!;host.layoutSubtreeIfNeeded()
+  let bitmap=host.bitmapImageRepForCachingDisplay(in:host.bounds)!
+  host.cacheDisplay(in:host.bounds,to:bitmap)
+  try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/"+name+".png"))
+ }
+ model.selectedID=first.id
+ try await Task.sleep(for:.milliseconds(700))
+ try captureSidebar("global-pins-studio")
+ model.selectedID=project.id
+ try await Task.sleep(for:.milliseconds(700))
+ try captureSidebar("global-pins-projects")
+ model.selectedID=standalone.id
+ try await Task.sleep(for:.milliseconds(700))
+ try captureSidebar("global-pins-chats")
+ model.selectedID=project.id
+ setenv("CHATTERBOX_TEST_SIDEBAR_ONLY", "280", 1)
+ panel.setContentSize(NSSize(width:280,height:650))
+ panel.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
+ try await Task.sleep(for:.milliseconds(700))
+ try captureSidebar("global-pins-narrow")
+ second.isRunning=false
+ unsetenv("CHATTERBOX_TEST_SIDEBAR_ONLY")
  print("PASS: studio A/B, project/standalone routing, linked shortcut, bell navigation and new-chat membership; native ContentView render: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)}};app.run()
