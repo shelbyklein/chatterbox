@@ -173,7 +173,7 @@ app.setActivationPolicy(.accessory)
     precondition(MacHomeDebug.cards[logos.id]==nil,"Unpinned session appeared on Pinned")
     precondition(MacHomeDebug.entries["pinned"] != nil && MacHomeDebug.entries[usa.id.uuidString] != nil,"Left column entries missing")
     let column=MacHomeDebug.column, activity=MacHomeDebug.activity
-    precondition(activity.minX>=column.minX-1 && activity.maxX<=column.maxX+1 && abs(activity.maxY-column.maxY)<4,"Activity is not at the bottom of the Studios column")
+    precondition(activity.minX>=column.minX-1 && activity.maxX<=column.maxX+1 && activity.minY<column.minY+40,"Activity is not at the top of the Studios column")
     for frame in MacHomeDebug.cards.values { precondition(frame.minX>=column.maxX && frame.maxX<=globalOrigin.x+1500,"Card overlaps the column or clips") }
 
     // SI6: a card click opens its Studio's inspector on that session; the choice persists.
@@ -235,7 +235,7 @@ app.setActivationPolicy(.accessory)
     try await render(AnyView(ContentView()),1500,950,"studios-pinned-empty")
     precondition(MacHomeDebug.cards.isEmpty && MacHomeDebug.pinnedGroups.isEmpty)
     precondition(parent.draft=="Draft stays here")
-    print("PASS: Studios page — status priority/notes/image dates, large previews, Pinned grouping and empty state, Activity at the column's foot, native card/row/entry/filter/Open Chat/double-click navigation, saved selection and missing-Studio fallback, wide and narrow layouts. Proof: \(root.path)")
+    print("PASS: Studios page — status priority/notes/image dates, large previews, Pinned grouping and empty state, Activity at the column's top, native card/row/entry/filter/Open Chat/double-click navigation, saved selection and missing-Studio fallback, wide and narrow layouts. Proof: \(root.path)")
     panel.orderOut(nil)
 }
 Task { @MainActor in
