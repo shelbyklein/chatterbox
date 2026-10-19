@@ -69,7 +69,7 @@ import CoreFoundation
                 guard ["agent","golem","ui","golem-ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
                 guard !["ui","golem-ui"].contains(role) || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
                 roles[peer.id]=role
-                peer.send(RuntimeReply(id:r.id,result:["version":1,"role":.string(role),"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]));return
+                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
@@ -169,7 +169,7 @@ import CoreFoundation
                 let cursor=r.body["after"]?.int ?? 0;let replay=runtime.events(after:cursor)
                 subscribed.insert(peer.id)
                 result=["resync":.bool(replay.resync),"sequence":.number(Double(runtime.state.sequence)),"events":try .value(replay.events)]
-            case "list":result=try .value(runtime.snapshots())
+            case "list":result=try .value(runtime.snapshots(workingOnly:r.body["workingOnly"]?.bool == true))
             case "get":
                 let s=try chat(r.body)
                 var record=s.record

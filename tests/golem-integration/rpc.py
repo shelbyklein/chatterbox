@@ -67,6 +67,20 @@ try:
     ordinary_record=ui.call('get',{'chatID':chat})['result']['record']
     ordinary_record=dict(ordinary_record,id=str(uuid.uuid4()),isDot=False,items=[])
     ordinary=ui.call('create',{'record':ordinary_record})['result']
+    # Startup must fetch working chats independently, without idle/archived transcripts.
+    assert ui.call('hello', {'role':'ui'})['result']['priorityList'] is True
+    assert ui.call('list', {'workingOnly':True})['result']==[]
+    assert 'result' in ui.call('send', {'chatID':ordinary,'text':'hold'})
+    deadline=time.monotonic()+5
+    while True:
+        working=ui.call('list', {'workingOnly':True})['result']
+        if any(c['record']['id']==ordinary and c['running'] for c in working): break
+        assert time.monotonic()<deadline, working
+        time.sleep(.05)
+    assert all(c['running'] for c in working)
+    assert not any(c['record']['id']==chat for c in working)
+    assert len(ui.call('list')['result'])==2, 'priority fetch changed full-list contents'
+    assert 'result' in ui.call('stop', {'chatID':ordinary})
     # Main-thread features must retain ownership and identity through the daemon.
     metadata=dict(ordinary_record,studioWorkingFolder=str(root/'kept-folder'),convertedProjectFolder=str(root/'original-project'),sidechatProjectFolder=str(root/'original-project'))
     assert 'result' in ui.call('metadata',{'record':metadata})

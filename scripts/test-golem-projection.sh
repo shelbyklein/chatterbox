@@ -17,6 +17,14 @@ products=build/DerivedData/Build/Products/Debug
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift > "$task_dir/sources"
 cp tests/golem-integration/projection.swift "$task_dir/main.swift"
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -whole-module-optimization -Onone -o "$task_dir/projection" @"$task_dir/sources" "$task_dir/main.swift"
+# A stale journal must request a snapshot, without delivering old progress to the UI.
+mkdir -p "$CHATTERBOX_DATA_DIR"
+/usr/bin/python3 - <<'PYSEED'
+import json, os
+from pathlib import Path
+state=dict(schema=1,sequence=5000,events=[dict(sequence=5000,revision=0,kind='test.stale',date='2026-10-01T00:00:00Z')],commands={},revisions={},draftByChat={},integrationEnabled=True)
+(Path(os.environ['CHATTERBOX_DATA_DIR'])/'runtime-state.json').write_text(json.dumps(state))
+PYSEED
 build/runtime/chatterboxd > "$task_dir/daemon.log" 2>&1 &
 daemon_pid=$!
 mkdir -p "$CHATTERBOX_DATA_DIR/Dot/Avatar"

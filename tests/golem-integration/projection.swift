@@ -11,8 +11,18 @@ app.setActivationPolicy(.accessory)
 }
 @MainActor func run() async throws {
     UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotEmailWatch":false,"notifyNeeds":false,"notifyFinished":false,"companionEnabled":false],forName:UserDefaults.argumentDomain)
+    let probe=RuntimeClient()
+    var replayedStaleEvent=false
+    probe.onEvent={ if $0.kind == "test.stale" { replayedStaleEvent=true } }
+    probe.start()
+    try await wait("expired journal connection"){probe.connected}
+    guard !replayedStaleEvent else { throw RuntimeFailure("Expired history replayed before snapshot") }
+    print("PASS expired startup history does not launch redundant refreshes")
+    probe.stop()
     let model=AppModel()
     try await wait("UI connected to daemon"){RuntimeClient.shared.connected}
+    try await wait("initial list finishes loading"){model.sessionLoadStatus == nil}
+    guard RuntimeClient.shared.supportsPriorityList else { throw RuntimeFailure("Priority startup capability missing") }
     let chat=model.newChat(backend:.claude)
     try await wait("creation projected"){chat.remoteCommand != nil && model.sessions.contains{$0.id==chat.id}}
     chat.send("hello")
