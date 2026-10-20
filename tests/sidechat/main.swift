@@ -30,6 +30,9 @@ app.setActivationPolicy(.accessory)
     guard let side=model.selected, side.id != parent.id, side.record.sidechatOf==parent.id else {throw NSError(domain:"Native Sidechat button failed",code:1)}
     precondition(try! encoder.encode(parent.record)==original && parent.draft=="Original draft" && parent.isRunning)
     precondition(side.items.isEmpty && side.draft.isEmpty && side.record.codex?.threadId==nil && side.record.claudeSessionID==nil && side.record.codex?.forkFrom==nil)
+    precondition(side.record.parentContext?.sourceID==parent.id && side.record.parentContext?.text.contains("Parent history stays here")==true)
+    precondition(side.record.pendingHandoff?.contains("<parent_context>")==true && !side.isRunning,"Context is ready without an agent turn")
+    precondition(side.record.navigationMetadata().parentContext==nil,"Sidebar metadata must not copy handoff text")
     precondition(side.workingFolder==parent.workingFolder && side.record.codex?.route=="direct" && side.record.codex?.effort=="high" && side.mode==parent.mode && side.record.codex?.fastMode==true)
     precondition(side.record.worktreeOf==nil && side.record.projectFolder==nil && side.record.sidechatProjectFolder==root.path)
     precondition(!model.sidebarChats.contains {$0.id==side.id} && model.sidechats(of:parent).contains {$0.id==side.id})
@@ -42,6 +45,24 @@ app.setActivationPolicy(.accessory)
     precondition(!model.chats(in:studio).contains {$0.id==studioSide.id})
     let again=model.newSidechat(of:side)
     precondition(again.record.sidechatOf==parent.id)
+    precondition(again.record.parentContext?.sourceID==side.id && again.record.pendingHandoff?.contains("Parent history stays here")==true,"An empty child's inherited context reaches its child")
+    // The compact context row is fully clickable, and inspecting it never starts a turn.
+    window.setContentSize(NSSize(width:560,height:80))
+    window.contentView=NSHostingView(rootView:ParentContextBanner(context:side.record.parentContext!).frame(width:560,height:80))
+    try await Task.sleep(for:.milliseconds(250))
+    for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+        window.sendEvent(NSEvent.mouseEvent(with:type,location:NSPoint(x:200,y:40),modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:3,clickCount:1,pressure:1)!)
+    }
+    try await Task.sleep(for:.milliseconds(300))
+    let popover=NSApplication.shared.windows.first {$0 !== window && $0.isVisible && $0.frame.width >= 500 && $0.frame.height >= 400}
+    precondition(popover != nil,"Context click must open the handoff")
+    let handoffView=popover!.contentView!;handoffView.layoutSubtreeIfNeeded()
+    let handoffRep=handoffView.bitmapImageRepForCachingDisplay(in:handoffView.bounds)!
+    handoffView.cacheDisplay(in:handoffView.bounds,to:handoffRep)
+    try handoffRep.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("context-handoff.png"))
+    precondition(side.items.isEmpty && !side.isRunning && side.record.pendingHandoff != nil)
+    popover!.close()
+    window.setContentSize(NSSize(width:280,height:80))
     var questRecord=ChatSession.sidequestRecord(of:parent,anchor:parent,number:4,backend:.claude,task:"Review the changes")
     questRecord.pendingHandoff=nil
     let quest=model.insertSession(questRecord)
@@ -90,11 +111,12 @@ app.setActivationPolicy(.accessory)
     let decoder=JSONDecoder();decoder.dateDecodingStrategy = .iso8601
     let records=try FileManager.default.contentsOfDirectory(at:root.appendingPathComponent("Conversations"),includingPropertiesForKeys:nil).filter { $0.pathExtension == "json" }.map { try decoder.decode(ConversationRecord.self,from:Data(contentsOf:$0)) }
     precondition(records.contains {$0.id==side.id && $0.sidechatOf==parent.id})
+    precondition(records.first {$0.id==side.id}?.parentContext?.text==side.record.parentContext?.text,"Saved context survives persistence")
     precondition(records.contains {$0.id==again.id && $0.archivedAt != nil})
     model.archive(parent)
     precondition(model.sidebarChats.contains {$0.id==side.id},"Archived parent hid Sidechat")
     precondition(!model.showsInsideParentCard(side) && !model.showsInsideParentCard(quest),"archiving the parent restores standalone child cards")
-    print("PASS native icon create; fresh sessions/same folder/settings; unchanged parent; compact sidechat and sidequest grouping; child row click; unique mobile list; persistence/archive; orphan card visibility")
+    print("PASS native icon create; inspectable inherited handoff without a turn; fresh sessions/same folder/settings; unchanged parent; compact sidechat and sidequest grouping; child row click; unique mobile list; persistence/archive; orphan card visibility")
     print("Proof: \(root.appendingPathComponent("sidebar.png").path)")
     window.orderOut(nil)
 }

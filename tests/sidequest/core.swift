@@ -54,6 +54,9 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try check(quest.items.first {$0.kind == .user}?.text == "Check the build passes","the task is the sidequest's first message")
     try await wait("handoff sent") {quest.record.pendingHandoff == nil}
     try check(true,"the handoff went with the task")
+    let codexInputs=root.appendingPathComponent("codex-input.jsonl")
+    try await wait("sidequest provider input") {(try? String(contentsOf:codexInputs,encoding:.utf8).contains("Plan the header layout")) == true}
+    try check(quest.record.parentContext?.sourceID==parent.id,"sidequest context remains inspectable after delivery")
 
     try await wait("sidequest answer returns") {
         parent.items.contains {$0.kind == .user && $0.sidequest == quest.id && $0.automatic == true}
@@ -82,6 +85,7 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     let runRecord=ChatSession.automationRunRecord(automation,of:parent,number:2,manual:true)
     try check(runRecord.activeBackend == .codex && runRecord.automationID == automation.id,"an automation run is a sidequest on its own agent")
     try check(runRecord.pendingHandoff?.contains("scheduled run of the automation") == true && runRecord.pendingHandoff?.contains("Plan the header layout") != true,"it's told what it is, not handed the chat")
+    try check(runRecord.parentContext == nil,"automation runs do not copy a conversation handoff")
     let run=try runtime.insert(runRecord)
     run.startAutomationRun(automation,from:parent)
     try check(run.record.codex?.model == "gpt-fixture" && run.record.codex?.effort == "low","it uses the automation's model and effort")
@@ -97,6 +101,37 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try check(!old.adoptAsSidequestIfAutomationRun(),"converting is done once")
     var plain=ChatSession.sidechatRecord(of:parent,anchor:parent,number:4)
     try check(!plain.adoptAsSidequestIfAutomationRun() && plain.sidequestOf == nil,"a plain Sidechat stays one")
+
+    // Mac creation can send only a partial projection; insertion uses the service's parent.
+    var sourceRecord=ConversationRecord(model:"default",effort:"",personality:.neutral)
+    sourceRecord.title="Handoff source";sourceRecord.brief="Keep the existing editable source files"
+    sourceRecord.items=[DisplayItem(kind:.user,text:"UNIQUE_SOURCE_CONTEXT",attachments:[Attachment(name:"proof.png",path:"/tmp/proof.png",mediaType:"image/png",kind:.image)])]
+    sourceRecord.items += (0..<80).map { _ in DisplayItem(kind:.notice,text:"Navigation-only noise") }
+    let source=try runtime.insert(sourceRecord)
+    var partial=source.record;partial.items=[]
+    let clientParent=ChatSession(record:partial)
+    let childRecord=ChatSession.sidechatRecord(of:clientParent,anchor:clientParent,number:1)
+    try check(childRecord.parentContext?.text.contains("UNIQUE_SOURCE_CONTEXT") != true,"fixture really has an incomplete client projection")
+    let child=try runtime.insert(childRecord)
+    try check(child.record.parentContext?.text.contains("UNIQUE_SOURCE_CONTEXT")==true && child.record.pendingHandoff?.contains("/tmp/proof.png")==true,"service supplies parent context and attachment paths before the first prompt")
+    try check(child.record.pendingHandoff?.contains("Keep the existing editable source files")==true && child.items.isEmpty && !child.isRunning,"brief is ready without starting a provider")
+    child.send("Use the supplied context")
+    try await wait("sidechat Claude reply") {!child.isRunning && child.items.contains {$0.kind == .assistant}}
+    let claudeInput=try String(contentsOf:root.appendingPathComponent("claude-input.jsonl"),encoding:.utf8)
+    try check(claudeInput.contains("<parent_context>") && claudeInput.contains("UNIQUE_SOURCE_CONTEXT"),"Claude receives the creation-time handoff with the task")
+    child.setBackend(.codex);child.send("Now review it")
+    try await wait("sidechat Codex reply") {!child.isRunning && child.record.pendingHandoff == nil}
+    let inputs=try String(contentsOf:codexInputs,encoding:.utf8).split(separator:"\n")
+    try check(inputs.last?.contains("UNIQUE_SOURCE_CONTEXT")==true,"switching providers also hands over inherited context")
+    child.send("Continue the review")
+    try await wait("sidechat follow-up") {!child.isRunning && child.items.last?.kind == .assistant}
+    let latest=try String(contentsOf:codexInputs,encoding:.utf8).split(separator:"\n").last!
+    try check(!latest.contains("<parent_context>"),"the same provider does not receive the handoff on every turn")
+    try check(child.record.parentContext != nil,"inspection remains available after provider consumption")
+    // Large parents stay bounded, and old records remain readable.
+    source.record.items=(0..<100).map { DisplayItem(kind:.user,text:String(repeating:"x",count:7_000)+" recent-\($0)") }
+    let bounded=ChatSession.sidechatRecord(of:source,anchor:source,number:2)
+    try check((bounded.parentContext?.text.count ?? Int.max)<40_000 && bounded.pendingHandoff?.contains("recent-99")==true && bounded.pendingHandoff?.contains("earlier messages omitted")==true,"large parents produce a bounded recent excerpt")
     for s in runtime.sessions {s.shutdown()}
     try runtime.flush()
     print("PASS sidequest round trip")
