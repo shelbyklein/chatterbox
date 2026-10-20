@@ -19,7 +19,7 @@ app.setActivationPolicy(.accessory)
     let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
     let original=try encoder.encode(parent.record)
     let window=NSPanel(contentRect:NSRect(x:40,y:90,width:280,height:80),styleMask:[.titled,.closable],backing:.buffered,defer:false)
-    window.contentView=NSHostingView(rootView:NewSidechatControl(parent:parent).environment(model).padding().frame(width:280,height:80))
+    window.contentView=NSHostingView(rootView:NewSidechatControl(parent:parent,iconOnly:true).environment(model).padding().frame(width:280,height:80))
     window.orderFrontRegardless()
     try await Task.sleep(for:.milliseconds(250))
     for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
@@ -42,6 +42,30 @@ app.setActivationPolicy(.accessory)
     precondition(!model.chats(in:studio).contains {$0.id==studioSide.id})
     let again=model.newSidechat(of:side)
     precondition(again.record.sidechatOf==parent.id)
+    var questRecord=ChatSession.sidequestRecord(of:parent,anchor:parent,number:4,backend:.claude,task:"Review the changes")
+    questRecord.pendingHandoff=nil
+    let quest=model.insertSession(questRecord)
+    precondition(model.showsInsideParentCard(side) && model.showsInsideParentCard(again) && model.showsInsideParentCard(quest),"children must not occupy separate cards")
+    precondition(Set(model.childChats(of:parent).map(\.id))==Set([side.id,again.id,quest.id]),"both child kinds belong inside the parent card")
+    precondition(model.showsInsideParentCard(studioSide) && model.childChats(of:studioParent).contains { $0.id==studioSide.id },"Studio sidechats share the same grouping")
+    // A child's whole row opens the existing session and leaves the parent intact.
+    model.selectedID=parent.id
+    window.contentView=NSHostingView(rootView:ChildChatCardRow(chat:side).environment(model).frame(width:280,height:80))
+    try await Task.sleep(for:.milliseconds(250))
+    for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+        window.sendEvent(NSEvent.mouseEvent(with:type,location:NSPoint(x:230,y:40),modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:2,clickCount:1,pressure:1)!)
+    }
+    precondition(model.selectedID==side.id,"child row opens its existing session")
+    precondition(try! encoder.encode(parent.record)==original && parent.draft=="Original draft" && parent.isRunning)
+    side.isRunning=true
+    window.setContentSize(NSSize(width:320,height:380))
+    window.appearance=NSAppearance(named:.darkAqua)
+    window.contentView=NSHostingView(rootView:ThreadCard(session:parent) {model.selectedID=parent.id}.environment(model).environment(\.colorScheme,.dark).frame(width:280).padding(20).frame(height:380).background(Color(white:0.06)))
+    try await Task.sleep(for:.milliseconds(500))
+    let cardView=window.contentView!;cardView.layoutSubtreeIfNeeded()
+    let cardRep=cardView.bitmapImageRepForCachingDisplay(in:cardView.bounds)!;cardView.cacheDisplay(in:cardView.bounds,to:cardRep)
+    try cardRep.representation(using:.png,properties:[:])!.write(to:root.appendingPathComponent("child-card.png"))
+    side.isRunning=false
     let ids=CompanionMapper.chatList(model).groups.flatMap(\.chats).map(\.id)
     precondition(Set(ids).count==ids.count)
     for chat in [side,other,studioSide,again] {precondition(ids.contains(chat.id),"Empty sidechat missing on mobile")}
@@ -69,7 +93,8 @@ app.setActivationPolicy(.accessory)
     precondition(records.contains {$0.id==again.id && $0.archivedAt != nil})
     model.archive(parent)
     precondition(model.sidebarChats.contains {$0.id==side.id},"Archived parent hid Sidechat")
-    print("PASS native create; fresh sessions/same folder/settings; no parent changes; nesting; unique mobile list; old JSON; empty persistence/archive; orphan visibility")
+    precondition(!model.showsInsideParentCard(side) && !model.showsInsideParentCard(quest),"archiving the parent restores standalone child cards")
+    print("PASS native icon create; fresh sessions/same folder/settings; unchanged parent; compact sidechat and sidequest grouping; child row click; unique mobile list; persistence/archive; orphan card visibility")
     print("Proof: \(root.appendingPathComponent("sidebar.png").path)")
     window.orderOut(nil)
 }

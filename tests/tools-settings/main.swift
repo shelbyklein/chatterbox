@@ -35,6 +35,37 @@ app.setActivationPolicy(.accessory)
         ToolScope.project(folder).key:ToolSet(servers:[ToolServer(name:"wordpress",kind:.command,command:"wp-mcp",args:["--site","sdhq"])],off:[ToolKey.connector("Gmail")]),
     ])
     let model=AppModel()
+    // Exercise the actual button, including the loading-to-results transition. Rendering
+    // SessionToolsSummary by itself never exercises NSPopover's animated window resize.
+    @MainActor func openTools(_ backend:Backend,_ name:String) async throws {
+        var record=ConversationRecord(model:"default",effort:"",personality:.neutral)
+        record.projectFolder=folder;record.activeBackend=backend
+        let session=model.insertSession(record)
+        let window=NSWindow(contentRect:NSRect(x:80,y:80,width:400,height:500),styleMask:[.titled],backing:.buffered,defer:false)
+        window.isReleasedWhenClosed=false;window.appearance=NSAppearance(named:.darkAqua)
+        window.contentView=NSHostingView(rootView:ToolsButton(session:session).environment(model).frame(width:400,height:500))
+        window.makeKeyAndOrderFront(nil)
+        try await Task.sleep(for:.milliseconds(250))
+        let point=window.contentView!.convert(NSPoint(x:200,y:250),to:nil)
+        print("Opening Tools: \(name)");fflush(stdout)
+        for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+            window.sendEvent(NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,
+                windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!)
+        }
+        try await Task.sleep(for:.milliseconds(40))
+        guard let popover=NSApp.windows.first(where:{$0.isVisible && $0 != window}) else {preconditionFailure("Tools click must present its popover")}
+        let first=popover.frame.size
+        try await Task.sleep(for:.milliseconds(700))
+        precondition(abs(popover.frame.height-first.height)<1 && abs(popover.frame.width-first.width)<1,"Tools must not resize after discovery")
+        precondition(popover.frame.height>=360 && popover.frame.height<410,"Tools keeps a bounded, fixed window instead of resizing to its contents (\(popover.frame))")
+        if let view=popover.contentView {
+            let rep=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:rep)
+            try rep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/"+name+".png"))
+        }
+        print("PASS actual Tools popover \(name), stable \(first)");fflush(stdout)
+        popover.orderOut(nil);window.orderOut(nil)
+    }
+    for backend in [Backend.claude,.codex] {try await openTools(backend,"button-"+backend.rawValue)}
     try await shot(ToolsSettingsView().environment(model),NSSize(width:760,height:900),"chatterbox.png",root)
     try await shot(ProjectToolsSheet(folder:folder,name:"SDHQ").environment(model),NSSize(width:680,height:900),"project.png",root)
     // The toolbar's Tools popover for a Claude and a Codex chat in the project.
@@ -54,7 +85,21 @@ app.setActivationPolicy(.accessory)
     _=model.insertSession(site)
     model.studios=[Studio(name:"Brand",folder:root+"/studio",instructions:"Use the brand kit in Figma.")]
     try await shot(InstructionsSettingsView().environment(model),NSSize(width:760,height:1100),"instructions.png",root)
-    print("PASS tools settings render. Evidence: \(root)")
+    // A large result stays inside the same window; an empty result does too.
+    let many=(0..<60).map { "[mcp_servers.server-\($0)]\ncommand = \"test-server\"\n" }.joined(separator:"\n")
+    try many.write(toFile:home+"/.codex/config.toml",atomically:true,encoding:.utf8)
+    try await openTools(.codex,"button-many")
+    try "".write(toFile:home+"/.codex/config.toml",atomically:true,encoding:.utf8)
+    try ToolScopes.save([:])
+    try await openTools(.codex,"button-empty")
+    // Clean exits replace the previous-run marker, even if one already exists.
+    let diagnostics=URL(fileURLWithPath:root+"/Diagnostics")
+    try Data("old marker".utf8).write(to:diagnostics.appendingPathComponent("last-run.json"))
+    Diagnostics.shared.stop()
+    let saved=try JSONSerialization.jsonObject(with:Data(contentsOf:diagnostics.appendingPathComponent("last-run.json"))) as! [String:Any]
+    precondition(saved["pid"] as? Int == Int(ProcessInfo.processInfo.processIdentifier),"the latest run replaces the stale marker")
+    precondition(!fm.fileExists(atPath:diagnostics.appendingPathComponent("running.json").path),"a clean exit clears the running marker")
+    print("PASS tools settings render, real popovers and crash markers. Evidence: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)} catch {print(error);exit(1)} }
 app.run()
