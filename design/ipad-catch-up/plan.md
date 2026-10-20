@@ -39,8 +39,8 @@ Tracking: `local:design/ipad-catch-up/plan.md`. One executor owns all tasks in d
 - [x] P4 Expose initial/cached load feedback; coalesce overlapping list refreshes and preserve cached data on failure.
 - [x] P5 Exercise iPad portrait/landscape, split navigation, Studio thumbnails, Usage, names, rename and promotion; check phone regressions where shared behavior changes.
 - [x] P6 Commit/push scoped Core and app changes; source check, signed universal device build.
-- [ ] P7 Install to the reachable iPad without erasing data; upload and verify existing internal TestFlight availability.
-- [ ] P8 Save proof, record exact delivery status, run tidy report (no unapproved deletion).
+- [x] P7 Install to the reachable iPad without erasing data; upload and verify existing internal TestFlight availability.
+- [x] P8 Save proof, record exact delivery status, run tidy report (no unapproved deletion).
 
 Verification: `scripts/test-mobile-home-nav.sh ipad` with focused tablet tests, existing relevant management/Usage/new-session tests; focused iPhone Activity/Studio regression; `scripts/check-sources.sh`; universal signed iOS device build; live devicectl installed-version query; Apple processing and beta-state query. Use canonical build directories and isolated test data. Do not interrupt other replies or restart unrelated services.
 
@@ -59,3 +59,13 @@ Readiness: pass · 2026-10-19. R1 summary, R2 observed problem, R3 baseline and 
 - Proof images use isolated sample chats, thumbnails and usage values; they contain no live conversation data.
 
 - iPhone 17 Pro, iOS 26.2: Activity dismissal/swipe actions (43.3 s), delayed first-load/cached relaunch (19.2 s), Studio thumbnails/navigation/brief (71.9 s) all passed. Core implementation committed as `1f32175`.
+
+- Tidy report: no leftover test processes, test simulators or restart workers. Eleven removable diagnostic/cache directories were reported (895 MB of simulator result folders, plus 24 MB of older Golem DerivedData); no broad cleanup was applied. The temporary Simulator GUI was stopped through `safe_stop`, and the existing default simulator was returned to its initial shutdown state.
+
+## Delivered
+
+Implementation: app `b554310`, Core `1f32175`, both pushed to main. Universal release **1.0 (202610192211)** archived and uploaded successfully; the app and embedded widget both support iPhone/iPad (device families 1,2). Apple reports VALID / IN_BETA_TESTING, not expired, and the new build is explicitly listed in the existing **Shelby** internal group with automatic access. No tester/group changes.
+
+The same-number signed development build is installed on Shelby's iPad mini (A17 Pro), verified by a fresh devicectl installed-app query. Launch was denied because the device is locked; open Chatterbox after unlocking. No erase or pairing reset was performed. No Mac install or service restart is needed for these mobile-only changes. [Exact delivery evidence](delivery.json).
+
+Final validation: four iPad and three iPhone focused UI tests passed, source consistency passed, signed Debug and Release archive/upload succeeded. The landscape verification limit above remains explicit; no landscape screenshot or device visual acceptance is claimed. Saved proof screenshots are simulator fixtures.

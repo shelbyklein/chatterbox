@@ -141,3 +141,24 @@ through one launchd worker, verified alive after the upload. It waits for two ac
 including this conversation. The new promotion menus stay hidden until that restart loads
 the compatible service. No active replies were interrupted. The restart script now survives
 the agent shell exiting and replaces an older queued worker rather than stacking jobs.
+
+
+## iPad catch-up — October 19, 2026
+
+Universal build **1.0 (202610192211)** brings the iPad to the current shared mobile app:
+Usage, optional session names, rename, chat promotion, folded next steps, Studio thumbnails,
+Activity actions, widgets and push registration. Tablet navigation now uses a 320–460 point
+sidebar, adaptive cards and a compact toolbar. Activity sidequests identify their parent
+and task; first launch and cached refresh explain loading, and overlapping list requests coalesce.
+
+Four focused iPad and three iPhone UI tests passed. Source consistency, signed device builds
+and the Release archive passed. Landscape remains visually unverified: simulator orientation
+requests were acknowledged while captured screens stayed portrait, matching the earlier
+October 10 limitation. [Studio split-view proof, sample data](../design/ipad-catch-up/ipad-studio.png).
+
+Apple processing is complete: **VALID / IN_BETA_TESTING**, and the build is explicitly listed
+in the existing **Shelby** internal group. The same-number development build is installed on
+Shelby's iPad mini (A17 Pro), confirmed by an installed-app query. Remote launch was blocked
+because the iPad is locked; open Chatterbox after unlocking. Phone installation of this build
+has not been independently confirmed. No Mac service restart is required.
+[Delivery evidence](../design/ipad-catch-up/delivery.json).

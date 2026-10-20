@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-10-20T02:15:07.794940+00:00",
+  "version": "1.0",
+  "build": "202610192211",
+  "source": {
+    "app": "b554310",
+    "core": "1f32175"
+  },
+  "iPad": {
+    "model": "iPad mini (A17 Pro)",
+    "installedBuild": "202610192211",
+    "installation": "confirmed by devicectl app query",
+    "launch": "blocked because device is locked"
+  },
+  "testFlight": {
+    "processingState": "VALID",
+    "internalBuildState": "IN_BETA_TESTING",
+    "expired": false,
+    "group": "Shelby",
+    "internalGroup": true,
+    "automaticAccess": true,
+    "buildListedInGroup": true
+  },
+  "checks": {
+    "iPadTestsPassed": 4,
+    "iPhoneTestsPassed": 3,
+    "landscape": "not verified; simulator rotation remained portrait"
+  }
+}
