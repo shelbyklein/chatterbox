@@ -1,7 +1,8 @@
 @testable import Chatterbox
 import AppKit
 import SwiftUI
-// A long chat opens with only its newest rows and loads earlier ones as you scroll up to them;
+import ScreenCaptureKit
+// A long chat opens with only its newest rows and loads earlier ones only on a click;
 // and a chat's "waiting on you" check follows questions and approvals as they're answered,
 // added, or moved by a row inserted before them; and a chat's thumbnail stays when the part
 // of the chat the app holds has no image in it.
@@ -69,7 +70,7 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     p.record.items.append(DisplayItem(kind:.user,text:"Later"))
     check(p.latestThumbnailURL()==nil,"a deleted image's thumbnail goes")
 
-    // History loads on scroll-up.
+    // Reaching the top waits for an explicit click, even with a full legacy transcript.
     var long=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
     long.title="Long chat"
     long.items=(0..<400).map { i in
@@ -92,7 +93,28 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     scroll.contentView.scroll(to:.zero);scroll.reflectScrolledClipView(scroll.contentView)
     try await Task.sleep(for:.seconds(1.5))
     let grown=scroll.documentView!.frame.height
-    check(grown>opened+500,"scrolling up loads earlier rows (\(Int(opened)) → \(Int(grown)) pt)")
+    check(abs(grown-opened)<1,"scrolling to the top doesn't load older rows (\(Int(opened)) → \(Int(grown)) pt)")
+    // A direct native click also covers the full-width button's hit region. Bare
+    // NSHostingView fixtures do not consistently publish SwiftUI's AX children.
+    let point = scroll.documentView!.convert(NSPoint(x:scroll.documentView!.bounds.midX,y:34),to:nil)
+    for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+        let event = NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,
+            windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+        window.sendEvent(event)
+    }
+    try await Task.sleep(for:.seconds(1))
+    let expanded = scroll.documentView!.frame.height
+    check(expanded>opened+500 && expanded<opened*2.5,"one click reveals one small chunk (\(Int(opened)) → \(Int(expanded)) pt)")
+    check(abs(scroll.contentView.bounds.minY-(expanded-opened))<80,"loading earlier keeps the previously top message in view")
+    scroll.contentView.scroll(to:.zero);scroll.reflectScrolledClipView(scroll.contentView)
+    try await Task.sleep(for:.seconds(1))
+    check(abs(scroll.documentView!.frame.height-expanded)<1,"reaching the top again waits for another click")
+    if #available(macOS 14.4, *), let path = ProcessInfo.processInfo.environment["HISTORY_CAPTURE"] {
+        let target = try await SCShareableContent.currentProcess.windows.first { $0.windowID == CGWindowID(window.windowNumber) }!
+        let config = SCStreamConfiguration(); config.width = 900; config.height = 800; config.ignoreShadowsSingleWindow = true
+        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: config)
+        try NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:path))
+    }
     // At the newest message, the agent starting (typing dots) keeps the bottom in view.
     let doc=scroll.documentView!
     scroll.contentView.scroll(to:NSPoint(x:0,y:max(0,doc.frame.height-scroll.contentView.bounds.height)));scroll.reflectScrolledClipView(scroll.contentView)
@@ -106,7 +128,7 @@ func check(_ ok:Bool,_ what:String) { print((ok ? "PASS " : "FAIL ")+what); if !
     check(gap<4,"the typing dots stay in view when the agent starts (\(Int(gap)) pt below)")
     session.isRunning=false
     window.orderOut(nil)
-    print(failures==0 ? "PASS history on scroll-up" : "FAIL \(failures) checks")
+    print(failures==0 ? "PASS explicit history loading" : "FAIL \(failures) checks")
     exit(failures==0 ? 0 : 1)
 }
 Task { @MainActor in do {try await run()} catch {print(error);exit(1)} }

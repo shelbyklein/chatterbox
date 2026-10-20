@@ -13,7 +13,7 @@ flowchart LR
   Cache[Cached navigation summaries] --> UI[Sidebar and main cards]
   Service[Background service] -->|Working summaries first, then remaining summaries| UI
   UI -->|Open chat| Recent[Bounded recent transcript]
-  Recent -->|Scroll or Show earlier| Page[Older page]
+  Recent -->|Click Load earlier messages| Page[Older chunk]
   UI -->|Background events| Summary[Refresh affected summary only]
 ```
 
@@ -54,3 +54,13 @@ Run scripts/test-chatterbox-daemon.sh and a focused scripts/test-lazy-session-lo
 - scripts/ship.sh passed, installed and reopened the Mac app, and verified its executable matches the build. The installed service executable also matches the build.
 - scripts/restart-service.sh queued the default idle-safe restart at 12:15:50 EDT on October 20. The live service was healthy but still advertised the old capabilities when checked; the summary path activates after this restart, then reconnects automatically. No active reply or agent host was stopped.
 - This changes Mac navigation and transcript loading. The service remains the authoritative owner of conversation history; no storage migration or mobile release is included.
+
+## Explicit history follow-up, October 20
+
+Shelby asked to keep very little text visible and explicitly request each earlier chunk. Scope: Mac transcript only, linear execution in this session; no blocking questions or GitHub issue changes. Keep twelve recent display rows on entry, reveal up to twelve more per click, and remove automatic loading when the top enters view (including the older-macOS delayed expansion). Fetch forty stored items for entry and each ordinary older request instead of eighty and two hundred respectively. Grouped tools can occupy fewer display rows. Find, message-pin jumps and All Images/Files remain explicit full-history requests; stored/provider history is preserved.
+
+- [x] Remove scroll-triggered history expansion; keep the reading position stable on explicit local and remote prepends.
+- [x] Verify scrolling to the top twice does not expand history, one click reveals a small chunk, entry/older network requests stay bounded, switching returns to the small tail, and typing dots remain visible.
+- [ ] Build, commit/push scoped changes, install/reopen the Mac app, inspect the rendered button and run the tidy report. No service restart or iOS release is needed for this client-only follow-up.
+
+Verification: scripts/test-history-on-scroll.sh passes all 23 checks, including a native click that grows the transcript from 765 to 1,452 points while preserving the previously top message. scripts/test-lazy-session-loading.sh passes the projection suite plus real UI clicks against an isolated daemon: entering the top does nothing, cached rows reveal before another request, and one later click fetches exactly forty older items. Mac Debug build, source synchronization and diff checks pass. Inspected proof: ../design/lazy-session-loading/manual-history.png. Tidy report completed without deletions.
