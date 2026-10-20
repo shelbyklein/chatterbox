@@ -34,6 +34,8 @@ targets:
     - path: bin
       type: folder
       buildPhase: resources
+    - path: scripts/restart-service.sh
+      buildPhase: resources
     dependencies:
     - target: ChatterboxHost
       embed: true

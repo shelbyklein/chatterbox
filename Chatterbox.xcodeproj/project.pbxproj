@@ -85,6 +85,7 @@
 		3E2D20C60750AB355102FFE9 /* ChatHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9B9BA5000628B0F42E2188 /* ChatHomeView.swift */; };
 		3EC752B70B18B16A4E818CDC /* ChatSession+Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */; };
 		3EE9FADECC78423EBD493888 /* ChatSettingsCog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9F2CF5EC415AC3F8FF1EB9 /* ChatSettingsCog.swift */; };
+		3F2C950BB41A6CF1ADA1668B /* restart-service.sh in Resources */ = {isa = PBXBuildFile; fileRef = 419CCDA3AD4809FD770F09DE /* restart-service.sh */; };
 		3F9ACF6416461B4A49E77584 /* MobileMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0882B1086EDE675468281 /* MobileMedia.swift */; };
 		4005AC8EBB1D653AFBFF631B /* ChatSession+Claude.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */; };
 		40F22648E6D7DC9D88380151 /* ItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 276EA46A76921A11440633E3 /* ItemView.swift */; };
@@ -136,6 +137,7 @@
 		6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */; };
 		6F1087DA6F2516846B351A03 /* ToolDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82893560A013653C8EA4F850 /* ToolDiscovery.swift */; };
 		70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C78CCD40D63AF4DE7EF42C /* HTMLPreview.swift */; };
+		71DCAEB20A266D8ED76B6D9A /* BackgroundServiceRestart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036774A4584171FAB2B8EC39 /* BackgroundServiceRestart.swift */; };
 		727A362E83382B75592BA2B8 /* AssistantConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325E96EC802C7975CFC0E53E /* AssistantConfiguration.swift */; };
 		72BE225D2DC2DA67DEEB5CD8 /* ChatPins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE5B9593D09D0EE54B45984 /* ChatPins.swift */; };
 		73645E513DB79C5847930EC2 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */; };
@@ -373,6 +375,7 @@
 		00772506A1F5031126B3A36E /* ChatFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFind.swift; sourceTree = "<group>"; };
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
 		0363FE3EC140EFFD83FD9DE4 /* GolemAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemAppearance.swift; sourceTree = "<group>"; };
+		036774A4584171FAB2B8EC39 /* BackgroundServiceRestart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundServiceRestart.swift; sourceTree = "<group>"; };
 		04DCE8E8F6231043BF2FC669 /* GolemMiniBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemMiniBackdrop.swift; sourceTree = "<group>"; };
 		0508B744152680991C2150CE /* DotActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotActivity.swift; sourceTree = "<group>"; };
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -427,6 +430,7 @@
 		3EF35DBC46DE0F90A4E40CC8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3FB49DE70CCD56E2122A67E6 /* MediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViews.swift; sourceTree = "<group>"; };
 		406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePushNotifications.swift; sourceTree = "<group>"; };
+		419CCDA3AD4809FD770F09DE /* restart-service.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "restart-service.sh"; sourceTree = "<group>"; };
 		439370872F6E041E6DB407AF /* Dot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dot.swift; sourceTree = "<group>"; };
 		439E46ECC9B546664D7C82AC /* MobileActivityHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileActivityHistory.swift; sourceTree = "<group>"; };
 		43A28F90DAD3DAE7387375DB /* GolemServiceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemServiceClient.swift; sourceTree = "<group>"; };
@@ -645,6 +649,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		2E861FEF45909460E65AA2BC /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				419CCDA3AD4809FD770F09DE /* restart-service.sh */,
+			);
+			path = scripts;
+			sourceTree = "<group>";
+		};
 		2F9592D1030ED1DCAA887DA5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -675,6 +687,7 @@
 			isa = PBXGroup;
 			children = (
 				DBCA3F2B7277E38C199221AE /* Attachments.swift */,
+				036774A4584171FAB2B8EC39 /* BackgroundServiceRestart.swift */,
 				8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */,
 				EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */,
 				EB27A16AB61425271FAD9777 /* JSON.swift */,
@@ -815,6 +828,7 @@
 				1824A168C645EF6FDBB77F10 /* ChatterboxRuntime */,
 				ACE27DE7E8D2BCC8B6839207 /* ChatterboxWidget */,
 				D24426DC8DC18F52B4BF66F0 /* golem-integration */,
+				2E861FEF45909460E65AA2BC /* scripts */,
 				C6B12A3603C9CF94D6D9FD59 /* Shared */,
 				23F87C5E2E945F111C863034 /* Frameworks */,
 				2F9592D1030ED1DCAA887DA5 /* Products */,
@@ -1164,6 +1178,7 @@
 				8767304DFCD79431AA3A486C /* Assets.xcassets in Resources */,
 				38747DB4FA4BD1380422F7ED /* bin in Resources */,
 				42E0AA7989519D1AC9812E73 /* prompts in Resources */,
+				3F2C950BB41A6CF1ADA1668B /* restart-service.sh in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1200,6 +1215,7 @@
 				185FE4741650353C7DB76AFB /* Attention.swift in Sources */,
 				EB8E9F83549CA91E457A34D2 /* AutomationsSheet.swift in Sources */,
 				A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */,
+				71DCAEB20A266D8ED76B6D9A /* BackgroundServiceRestart.swift in Sources */,
 				7949AF037EC20688BA18CE32 /* BackgroundTasks.swift in Sources */,
 				7C7B993E45FFCD02FDE64010 /* BackgroundWorkBar.swift in Sources */,
 				B8D903B35D82ECB4C76BF4CD /* ChatColumnWidths.swift in Sources */,
