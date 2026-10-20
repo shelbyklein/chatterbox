@@ -61,6 +61,8 @@ Shelby asked to keep very little text visible and explicitly request each earlie
 
 - [x] Remove scroll-triggered history expansion; keep the reading position stable on explicit local and remote prepends.
 - [x] Verify scrolling to the top twice does not expand history, one click reveals a small chunk, entry/older network requests stay bounded, switching returns to the small tail, and typing dots remain visible.
-- [ ] Build, commit/push scoped changes, install/reopen the Mac app, inspect the rendered button and run the tidy report. No service restart or iOS release is needed for this client-only follow-up.
+- [x] Build, commit/push scoped changes, install/reopen the Mac app, inspect the rendered button and run the tidy report. No service restart or iOS release is needed for this client-only follow-up.
 
 Verification: scripts/test-history-on-scroll.sh passes all 23 checks, including a native click that grows the transcript from 765 to 1,452 points while preserving the previously top message. scripts/test-lazy-session-loading.sh passes the projection suite plus real UI clicks against an isolated daemon: entering the top does nothing, cached rows reveal before another request, and one later click fetches exactly forty older items. Mac Debug build, source synchronization and diff checks pass. Inspected proof: ../design/lazy-session-loading/manual-history.png. Tidy report completed without deletions.
+
+Delivery: Core 8456e3f and app 990d3f0 are pushed. scripts/ship.sh installed/reopened the Mac app and confirmed the executable matches the build. Inspected the installed Building Chatterbox session: the recent transcript, working indicator and Load earlier messages button are present, with older history left behind the button. Both focused suites passed (23 and 47 checks); no background service or agent process was restarted.
