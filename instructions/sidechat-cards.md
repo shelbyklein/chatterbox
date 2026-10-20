@@ -32,8 +32,10 @@ Mode: linear, because the model helpers, cards, and entry control share a small 
 
 - [x] S1 Model/card: hide live children as standalone cards and render both types under parent. Test child grouping, quest preservation, click navigation, and archived-parent fallback in `scripts/test-sidechat.sh`.
 - [x] S2 Entry: add an icon-only New Sidechat control in ChatView. Native-click it in the same fixture; verify a fresh child opens and the parent's history/draft/running state remain intact.
-- [ ] S3 Delivery: inspect rendered card proof and the actual installed right-side icon; run Mac build, scoped commit/push, install/reopen under standing approval, and run tidy report. No daemon restart is needed for these Mac UI changes.
+- [x] S3 Delivery: inspect rendered card proof and the actual installed right-side icon; run Mac build, scoped commit/push, install/reopen under standing approval, and run tidy report. No daemon restart is needed for these Mac UI changes.
 
 No blocking questions. Tools crash diagnosis is tracked separately; do not describe an unconfirmed cause as fixed.
 
 Validation: `scripts/test-sidechat.sh` passed native icon creation, unchanged parent history/draft/running state, child grouping/navigation, and archived-parent fallback. Log: `build/sidechat-cards-test.log`. Mac build and `scripts/check-sources.sh` passed; installed verification remains below S3.
+
+Installed verification (October 20): the Sunward card contains Sidechat 2 as a compact child row, with the matching New Sidechat icon in the right-hand tools. Invoking the child row opened the existing Sidechat 2 · Sunward conversation. Inspected native screenshot: `build/verification/sidechat-cards-installed.png`. Root implementation commit: `242a588`; Core: `69e18df`.

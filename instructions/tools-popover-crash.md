@@ -44,6 +44,8 @@ Mode: linear, a small coupled Mac UI fix. Executor: current session; exact model
 
 - [x] T1 Reproduce the crash under a debugger; captured the animated popover resize path above.
 - [x] T2 Fix stable sizing and restore diagnostics. `scripts/test-tools-settings.sh` exercises the actual button, fixed size for Claude/Codex/empty/60-server results, and replacement of existing last-run metadata.
-- [ ] T3 Verify and deliver. Inspect rendered panel and real installed Tools entry, run Mac build/source checks, commit and push scoped changes, install/reopen with standing approval, verify monitoring marker and repeated Tools opens, then run tidy report.
+- [x] T3 Verify and deliver. Inspect rendered panel and real installed Tools entry, run Mac build/source checks, commit and push scoped changes, install/reopen with standing approval, verify monitoring marker and repeated Tools opens, then run tidy report.
 
 Validation: `scripts/test-tools-settings.sh` passed all actual button openings (Claude, Codex, 60-server list, empty results). Every window stayed 346 × 386 pt including popover chrome. Crash marker replacement passed. Log: `build/tools-popover-after.log`. Mac build and source check passed; installation verification remains below T3.
+
+Installed verification (October 20): reopened the actual Tools panel repeatedly in a Claude project and a Codex Studio sidechat; both stayed responsive. The monitored UI PID matches `/Applications/Chatterbox.app/Contents/MacOS/Chatterbox`. Inspected native screenshot: `build/verification/tools-popover-installed.png`. Root implementation commit: `242a588`; Core: `69e18df`. No daemon restart was needed. Tidy report completed; historical removals were left untouched.
