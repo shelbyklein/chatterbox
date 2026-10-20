@@ -1,6 +1,77 @@
 import XCTest
 final class HomeNavTests: XCTestCase {
  override func setUp() { super.setUp(); continueAfterFailure = false }
+ /// Real tablet navigation, rather than phone-only Back gestures and full-screen widths.
+ @MainActor func testIPadCatchUp() async throws {
+  guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("iPad split view") }
+  try await fixture("reset")
+  XCUIDevice.shared.orientation = .portrait
+  defer { XCUIDevice.shared.orientation = .portrait }
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let quest = activity("Working: SDHQ · Sidequest",app)
+  XCTAssertTrue(quest.waitForExistence(timeout:10), "Activity identifies the sidequest's parent")
+  XCTAssertTrue(quest.value as? String == "Render four ribbon options, Working")
+  let project = app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+  let reply = app.staticTexts["Hi! This is SDHQ."]
+  XCTAssertTrue(reply.waitForExistence(timeout:10))
+  XCTAssertLessThan(project.frame.maxX, reply.frame.minX, "iPad keeps its sidebar beside the conversation")
+  capture("ipad-portrait-conversation",app)
+  tab("Studios",app).tap(); openStudio("studio-1",app)
+  let coach = app.buttons["chat-F982B462-68F5-509B-8E10-9946C3F0A1B1"]
+  for _ in 0..<4 where !coach.isHittable { app.scrollViews.firstMatch.swipeUp() }
+  XCTAssertTrue(coach.isHittable)
+  XCTAssertGreaterThan(coach.frame.width,160,"Cards stay readable in the sidebar")
+  XCTAssertTrue(app.images["Latest image in Coach Archie"].exists)
+  coach.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10))
+  capture("ipad-studio",app)
+  // Rename and promotion use the same session controls as the phone, inside the split detail.
+  tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  for _ in 0..<3 where !loose.isHittable { app.collectionViews.firstMatch.swipeUp() }
+  XCTAssertTrue(loose.isHittable); loose.tap()
+  XCTAssertTrue(app.buttons["Session Menu"].waitForExistence(timeout:5)); app.buttons["Session Menu"].tap()
+  app.buttons["Rename"].tap()
+  let name=app.alerts["Rename Session"].textFields.firstMatch
+  XCTAssertTrue(name.waitForExistence(timeout:5)); name.tap()
+  name.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:(name.value as? String ?? "").count)+"Tablet ideas")
+  app.alerts.buttons["Rename"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Tablet ideas."].waitForExistence(timeout:8))
+  let renamed=try await fixture("renames",method:"GET") as? [String:String]
+  XCTAssertEqual(renamed?["Loose chat"],"Tablet ideas")
+  app.buttons["Session Menu"].tap(); app.buttons["Move to Studio…"].tap()
+  XCTAssertTrue(app.textFields["promotion-name"].waitForExistence(timeout:5))
+  capture("ipad-promotion",app)
+  app.buttons["promotion-save"].tap()
+  XCTAssertTrue(app.buttons["promotion-save"].waitForNonExistence(timeout:8))
+  let promoted=try await fixture("promotions",method:"GET") as? [String:[String:Any]]
+  XCTAssertEqual(promoted?["Loose chat"]?["kind"] as? String,"studio")
+ }
+
+ @MainActor func testListRefreshFeedback() async throws {
+  try await fixture("reset")
+  try await fixture("list-delay",body:["seconds":5])
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411", "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
+  app.launch()
+  let loading=app.descendants(matching:.any)["session-load-status"].firstMatch
+  XCTAssertTrue(loading.waitForExistence(timeout:5),"A slow first response has a visible explanation")
+  capture("ipad-first-load",app)
+  XCTAssertTrue(loading.waitForNonExistence(timeout:12))
+  tab("Projects",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].exists)
+  app.terminate()
+  try await fixture("list-delay",body:["seconds":5])
+  app.launch()
+  XCTAssertTrue(loading.waitForExistence(timeout:5))
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].exists,"Saved sessions remain usable before the response")
+  capture("ipad-cached-refresh",app)
+  XCTAssertTrue(loading.waitForNonExistence(timeout:12))
+ }
  func selected(_ app: XCUIApplication) -> String {
   app.tabBars.buttons.allElementsBoundByIndex.first { $0.isSelected }?.label ?? "?"
  }
@@ -397,9 +468,11 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Done"].tap()
  }
  @MainActor func testNewChatPicksSettingsFirst() async throws {
+  try await fixture("reset")
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
   app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
   app.buttons["New Chat"].firstMatch.tap()
   XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")

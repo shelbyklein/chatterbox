@@ -1,4 +1,4 @@
-import http.server,json,os,uuid,zlib,struct,datetime
+import http.server,json,os,uuid,zlib,struct,datetime,time
 # Isolated fixture: Golem, six projects (one a worktree, one waiting on you) and a Studio.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
 NEWCHAT=[];CREATED=[]
@@ -20,12 +20,13 @@ FAIL=False
 MUTATIONS=[]
 RENAMES={}
 PROMOTIONS={}
+LIST_DELAY=0
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 def reset():
- global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS
+ global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS,LIST_DELAY
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
- STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={}
+ STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={};LIST_DELAY=0
 
 def summary(name,line,branch=None,waiting=False,dot=False):
  s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
@@ -90,9 +91,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED
+  global FAIL,STARTED,LIST_DELAY
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
+  if self.path=='/test/list-delay':
+   LIST_DELAY=body.get('seconds',0);return self.reply({'ok':True})
   if self.path=='/test/fail':FAIL=body['value'];return self.reply({'ok':True})
   if self.path=='/test/complete':
    name=body['name']
@@ -131,6 +134,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path=='/test/briefs':return self.reply(BRIEFS)
+  if self.path=='/test/renames':return self.reply(RENAMES)
   if self.path.startswith('/v1/usage'):
    return self.reply({'claude':[{'label':'5-hour','fraction':0.42,'resetsAt':'2099-01-01T00:00:00Z'},{'label':'7-day','fraction':0.81,'resetsAt':'2099-01-03T00:00:00Z'}],
                       'codex':[{'label':'5-hour','fraction':0.12,'resetsAt':'2099-01-01T00:00:00Z'}],
@@ -146,7 +150,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    b=stl();self.send_response(200);self.send_header('Content-Type','application/octet-stream');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if '/thumbnail/' in self.path:
    b=thumbnail();self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
-  if self.path=='/v1/chats':return self.reply(chats())
+  if self.path=='/v1/chats':
+   time.sleep(LIST_DELAY);return self.reply(chats())
   if self.path=='/test/created':return self.reply(CREATED)
   if self.path.startswith('/v1/new-chat-options'):
    import urllib.parse
