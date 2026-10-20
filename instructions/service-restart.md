@@ -36,8 +36,8 @@ flowchart LR
 3. Queue, restart, success, failure, and stale-worker states are readable after reopening Settings; exercise isolated report/lock fixtures.
 
 - [x] T1 Implement the launcher/status reader and bundle the existing script; pass isolated behavioral tests.
-- [ ] T2 Add the native Settings section and regenerate the project; Mac build and installed UI check pass.
-- [ ] T3 Commit/push scoped changes, install/reopen, capture the control, and run tidy as a report. No service restart is needed just to add the button.
+- [x] T2 Add the native Settings section and regenerate the project; Mac build and installed UI check pass.
+- [x] T3 Commit/push scoped changes, install/reopen, capture the control, and run tidy as a report. No service restart is needed just to add the button.
 
 ## Boundaries, rollback, and tests
 
@@ -46,3 +46,10 @@ Mac only; no immediate restart option, provider-host termination, mobile release
 ## Verification
 
 All 14 isolated behavioral checks pass: no-flag launcher (including a path containing spaces), duplicate-click prevention, queue/restart/success/failure states, reopening Settings, stale workers, timeout, isolated-build guard, missing helper, and launcher errors. The Mac Debug build passes and its bundled script matches scripts/restart-service.sh byte for byte. Installed UI inspection and delivery follow.
+
+## Delivery and installed verification
+
+- Core 82a81f0 and app 5ab4fb4 are pushed. scripts/ship.sh installed/reopened the app and verified its executable; the installed restart helper matches the shared script.
+- Inspected the installed Settings → Diagnostics control. It recovered the previous successful restart at 12:16 and displayed the connection correctly. Clicking the actual button at 12:23:18 queued the bundled script without flags; the button disabled and status changed to “Waiting for active replies to finish.” [Installed proof](../design/service-restart/installed.png).
+- Confirmed the live worker command is /bin/bash /Applications/Chatterbox.app/Contents/Resources/restart-service.sh. The test restart is queued until replies finish; no active agent or reply was stopped.
+- Tidy report completed with no deletions. No mobile release or additional service implementation change is required.
