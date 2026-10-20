@@ -69,7 +69,7 @@ import CoreFoundation
                 guard ["agent","golem","ui","golem-ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
                 guard !["ui","golem-ui"].contains(role) || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
                 roles[peer.id]=role
-                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]));return
+                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if role=="golem-ui" {
@@ -169,12 +169,20 @@ import CoreFoundation
                 let cursor=r.body["after"]?.int ?? 0;let replay=runtime.events(after:cursor)
                 subscribed.insert(peer.id)
                 result=["resync":.bool(replay.resync),"sequence":.number(Double(runtime.state.sequence)),"events":try .value(replay.events)]
-            case "list":result=try .value(runtime.snapshots(workingOnly:r.body["workingOnly"]?.bool == true))
+            case "list":result=try .value(runtime.snapshots(workingOnly:r.body["workingOnly"]?.bool == true, summaryOnly:r.body["summaryOnly"]?.bool == true))
             case "get":
                 let s=try chat(r.body)
+                if r.body["summaryOnly"]?.bool == true { result = try .value(runtime.navigationSnapshot(s)); break }
                 var record=s.record
-                if let limit=r.body["limit"]?.int {record.items=Array(record.items.suffix(max(40,min(500,limit))))}
-                result=try .value(RuntimeChatState(record:record,running:s.isRunning,revision:runtime.state.revisions[s.id.uuidString] ?? 0,draft:RuntimeDraft(text:s.draft,attachments:s.draftAttachments),totalCount:s.items.count))
+                if r.body["limit"] != nil { record.claudeHost = nil; record.codexHost = nil }
+                var end = s.items.count
+                if let before = r.body["before"]?.string {
+                    guard let id = UUID(uuidString: before), let index = s.items.firstIndex(where: { $0.id == id }) else { throw RuntimeFailure("history_cursor_not_found") }
+                    end = index
+                }
+                let start = r.body["limit"]?.int.map { max(0, end - max(40,min(500,$0))) } ?? 0
+                record.items = Array(s.items[start..<end])
+                result=try .value(RuntimeChatState(record:record,running:s.isRunning,revision:runtime.state.revisions[s.id.uuidString] ?? 0,draft:RuntimeDraft(text:s.draft,attachments:s.draftAttachments),totalCount:s.items.count,pendingItems:s.pendingRequests,summary:runtime.navigationSnapshot(s).summary,historyStart:start))
             case "restartThread":
                 let s = try chat(r.body)
                 let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
