@@ -29,7 +29,7 @@ flowchart LR
 - [x] T1 Add compatible summary-list capability and bounded transcript paging; old clients retain their existing list/get behavior. Check serialization and paging in daemon/fixture tests.
 - [x] T2 Project summaries, restore navigation cache, and hydrate only visible transcripts. Preserve notifications, previews, cards, context-menu actions, selection and draft behavior. Check isolated UI projection, reconnect and event races.
 - [x] T3 Wire earlier/history requests and loading feedback; verify the rendered selected-chat entry point and paging without fetching unrelated history.
-- [ ] T4 Run regression checks, commit and push scoped Core/root changes, install/reopen Mac, queue idle-safe service restart, and report measured results plus activation status.
+- [x] T4 Run regression checks, commit and push scoped Core/root changes, install/reopen Mac, queue idle-safe service restart, and report measured results plus activation status.
 
 ## Boundaries and rollback
 
@@ -46,4 +46,11 @@ Run scripts/test-chatterbox-daemon.sh and a focused scripts/test-lazy-session-lo
 - Selected-chat render inspected: recent transcript and a pending question outside its loaded tail both visible; sidebar populated from summaries. Proof: ../design/lazy-session-loading/selected-chat.png.
 - Final focused run passed all 42 checks, including working/completion Activity, rename/eviction, archive, Studio-new-chat, cached startup, and old-protocol transition checks. Debug fixture startup was 0.13 seconds; list payloads were 8,017,851 bytes (legacy) versus 16,452 bytes (summaries). This is not an installed-app timing claim.
 - Final Mac Debug build and source/diff checks pass. Activity previews, menu-bar recents and Golem waiting cards also use navigation summaries. The rendered selected-chat proof was inspected again.
-- Tidy report completed without deletions; unrelated older artifacts remain for a separate cleanup. Installation and idle-safe activation are the remaining delivery steps.
+- Tidy report completed without deletions; unrelated older artifacts remain for a separate cleanup.
+
+## Delivery
+
+- Core e447278 and app/service d61c312 are committed and pushed to their respective main branches.
+- scripts/ship.sh passed, installed and reopened the Mac app, and verified its executable matches the build. The installed service executable also matches the build.
+- scripts/restart-service.sh queued the default idle-safe restart at 12:15:50 EDT on October 20. The live service was healthy but still advertised the old capabilities when checked; the summary path activates after this restart, then reconnects automatically. No active reply or agent host was stopped.
+- This changes Mac navigation and transcript loading. The service remains the authoritative owner of conversation history; no storage migration or mobile release is included.
