@@ -162,3 +162,21 @@ Shelby's iPad mini (A17 Pro), confirmed by an installed-app query. Remote launch
 because the iPad is locked; open Chatterbox after unlocking. Phone installation of this build
 has not been independently confirmed. No Mac service restart is required.
 [Delivery evidence](../design/ipad-catch-up/delivery.json).
+
+## Sending without a scroll jump — October 21, 2026
+
+Build **1.0 (202610210809)** keeps the newest text visible as the keyboard and message box
+resize, coalesces follow requests, and preserves deliberate reading while a send is accepted.
+Chats already cached or prefetched are marked loaded when opened, so the first subsequent
+update no longer forces a first-load scroll. Jump to Newest resumes following.
+
+Three focused UI tests passed on both iPhone and iPad, including a tall draft, a delayed send
+with a reader drag, and streaming/jump behavior. Source consistency and the signed universal
+Release archive passed. Inspected simulator proofs:
+[iPhone send](../design/mobile-send-scroll/iphone-sent.png),
+[iPad send](../design/mobile-send-scroll/ipad-sent.png).
+
+Upload and Apple processing are complete: **VALID / IN_BETA_TESTING**, and the build is explicitly
+listed in the existing **Shelby** internal group. Update **Chatterbox Companion** in TestFlight.
+Device installation has not been verified. No Mac service restart is required.
+[Delivery evidence](../design/mobile-send-scroll/delivery.json).
