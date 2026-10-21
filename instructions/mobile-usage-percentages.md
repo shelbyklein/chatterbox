@@ -23,8 +23,8 @@ flowchart LR
 ## Tasks
 
 - [x] U1 Add an explicitly named percentage-to-fraction serializer and use it for proxy windows. Acceptance: provider parsing through shared JSON encode/decode produces exact expected percentages, reset dates and unknowns, including values below 1% remaining.
-- [ ] U2 Run regressions, source check and full build; commit/push, install and queue service restart. Acceptance: `scripts/ship.sh` confirms installed executable parity; report queued versus activated status accurately.
-- [ ] U3 Record results and run tidy in report mode. Acceptance: verification and remaining activation status documented, no unrelated cleanup.
+- [x] U2 Run regressions, source check and full build; commit/push, install and queue service restart. Acceptance: `scripts/ship.sh` confirms installed executable parity; report queued versus activated status accurately.
+- [x] U3 Record results and run tidy in report mode. Acceptance: verification and remaining activation status documented, no unrelated cleanup.
 
 No new quota estimation, account routing, provider authentication, refresh policy, usage aggregation, UI layout or historical data changes. Live proxy data also contains genuine unavailable-account responses (HTTP 401), which must remain visible rather than be invented as zero/full quota. Latest agent-reported limits remain a separate existing source; broader freshness work requires evidence of a separate defect.
 
@@ -36,3 +36,6 @@ Rollback: revert the scoped commits, reinstall with `scripts/install.sh` and que
 - `scripts/test-proxy-quota.sh`: pass (`build/mobile-usage-test.log`). For Claude and Codex, provider parsing through API JSON encode/decode verifies 0%, 28%, 65%, 37%, 93%, 100%, 0.5% and unknown remaining. Existing iOS display math gives the expected percentage, reset timestamps round-trip, and direct limit fractions remain unchanged. Existing quota parser cases also pass.
 - `scripts/check-sources.sh`: pass. No new target source files or project regeneration needed.
 - Full Mac app/service build: pass (`build/mobile-usage-mac-build.log`).
+- Core `f8b826a` and root `02ec1db` committed and pushed. `scripts/ship.sh` confirms the Mac app installed/reopened and its executable matches the build (`build/mobile-usage-ship.log`).
+- Service restart queued at 01:58 on October 21; the report confirms it is waiting for every active reply to finish. The phone receives corrected percentages only after this restart; activation is pending. No interruption requested or performed. The existing iOS binary already interprets the corrected contract, so no TestFlight upload.
+- `scripts/tidy.sh` completed in report mode (`build/mobile-usage-tidy.txt`): 170 older removable items reported, left untouched. No new per-run app bundles, test services or simulators created.
