@@ -45,8 +45,8 @@ flowchart LR
 
 - [x] S1 Correct storage selection and add safe reload/explicit Keychain authorization. Acceptance: regression covers canonical/isolated folders, persistence, reload, scope and redaction without reading production values.
 - [x] S2 Connect signed-UI-only status/authorization to Secrets settings and next-message provider refresh. Acceptance: unsigned/agent roles are denied; status contains IDs and booleans only; successful authorization retains the key only in memory.
-- [ ] S3 Run regression, source check and Mac build, then commit/push and install. Acceptance: installed executable matches build; inspected Settings screenshot shows real status or honestly reports the older service awaiting restart.
-- [ ] S4 Queue idle-safe activation, record results and run tidy in report mode. Acceptance: no active replies interrupted, no unrelated cleanup or credential changes.
+- [x] S3 Run regression, source check and Mac build, then commit/push and install. Acceptance: installed executable matches build; inspected Settings screenshot shows real status or honestly reports the older service awaiting restart.
+- [x] S4 Queue idle-safe activation, record results and run tidy in report mode. Acceptance: no active replies interrupted, no unrelated cleanup or credential changes.
 
 Exclusions: RunCloud API operations, server/site changes, key replacement, scope widening, automatic Keychain ACL edits, shell-based Keychain workarounds, new plaintext production storage and unrelated cleanup. No existing secret data is migrated or rewritten by reload. Never print a value, put it in a transcript, or persist it in an RPC receipt.
 
@@ -60,4 +60,9 @@ Rollback: revert scoped Core/root commits, reinstall using `scripts/install.sh`,
 - `scripts/test-secrets.sh --wire`: pass, `build/secret-background-wire.log`. Real built daemon in an isolated store rejects unsigned UI, agent/Golem availability and authorization requests; approved test UI receives only entry IDs/booleans; missing keys and removed entries update correctly; no credential or these read operations enter persisted command receipts. Temporary fixture executable removed using shared guarded cleanup.
 - `scripts/check-sources.sh`: pass, `build/secret-background-sources.log`. No target files added, so no project regeneration required.
 - Full Mac app/service build: pass, `build/secret-background-mac-build.log`. Existing Keychain API deprecation and unrelated project warnings remain; no compile errors.
-- Installed UI rendering, production activation and native Keychain approval remain pending. No production values printed, extracted to files or sent through RPC; no scopes changed.
+- Core `4ec6115` and root `901f862` committed/pushed; `scripts/ship.sh` installed/reopened the Mac app and confirmed executable parity (`build/secret-background-ship.log`). Installed service binary also matches the build. No iOS binary changes or TestFlight upload needed.
+- Real installed Settings → Secrets inspected via computer use. It retains the saved Runcloud entry and all-sessions scope, and honestly reports that the old service cannot check availability yet. Screenshot below records this pending state; it does not prove native authorization or RunCloud API success.
+- Default idle-safe restart queued at 03:15 on October 21. The restart report says it is waiting for every reply to finish. Production activation, the new availability/authorization rows and any required native Keychain approval remain pending. No production values printed, extracted to files or sent through RPC; no scopes changed.
+- `scripts/tidy.sh` report completed (`build/secret-background-tidy.txt`): 170 older removable items and this task's queued restart; no cleanup applied. No fixture service or extra app bundle left running.
+
+![Installed Settings awaiting the service update](assets/secret-background-access/installed-awaiting-service.jpg)
