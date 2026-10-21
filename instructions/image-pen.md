@@ -30,8 +30,8 @@ Target sketch, retaining the current viewer and notes panel:
 ## Tasks and checks
 
 - [x] P1 Add normalized freehand strokes, undo and per-image draft state, with matching export rendering. Extend `scripts/test-image-review-gallery.sh` to use canonical build outputs and exercise real input and send payload.
-- [ ] P2 Add explicit annotation entry labels/actions; retain existing numbered notes and clipboard/browse behavior. Inspect before/after native screenshots and verify installed image entry.
-- [ ] P3 Source check, full Mac build, scoped Core/root commit/push, install/reopen under standing approval, tidy report. No service/API or iOS change; no runtime restart or TestFlight build needed.
+- [x] P2 Add explicit annotation entry labels/actions; retain existing numbered notes and clipboard/browse behavior. Inspect before/after native screenshots and verify installed image entry.
+- [x] P3 Source check, full Mac build, scoped Core/root commit/push, install/reopen under standing approval, tidy report. No service/API or iOS change; no runtime restart or TestFlight build needed.
 
 Test commands: `scripts/test-image-review-gallery.sh`, `scripts/check-sources.sh`, Mac Xcode build through `scripts/ship.sh`. Native verification: open an image in Building Chatterbox, draw with Pen, undo/redraw, inspect without sending a test message to the live agent, cancel. Native fixture verifies sending separately with an owned callback.
 
@@ -42,4 +42,7 @@ Preserve originals, independent annotation copies, existing notes, same-session 
 - `scripts/test-image-review-gallery.sh`: pass. Native mouse input checks drawing, Undo, gallery round trip and resized alignment; Send attaches an annotated PNG then the original, checks PNG dimensions and the orange stroke at the expected source pixel, and verifies the source bytes are unchanged. Existing numbered right-edge marks and PNG/TIFF clipboard checks pass.
 - Fixture output: `build/verification/image-pen-fixture.png` and `build/verification/image-pen-reply-controls.png`, inspected. AppKit cache rendering omits some native button labels; installed-screen verification below is required for final visual proof.
 - `scripts/check-sources.sh`: pass. Full Mac Xcode build: pass, log `build/image-pen-mac-build.log`.
-- Delivery and installed-screen checks pending.
+- Final implementation uses ordinary SwiftUI paths for the pen overlay; More sits beside Undo so the Send label fits in the footer. The complete native fixture passes again after these changes (`/tmp/chatterbox-image-review.ZoLtCs`).
+- Installed-screen verification: opened Library in Building Chatterbox and the existing `child-context-handoff.png`; Pen starts selected, clicking paints an orange dot, Undo removes it and disables Send again, and Cancel returns to the chat. Moved the automation pointer off the dot to inspect it. Continuous drag and the Send callback are covered by the isolated fixture; no test message was sent to the live agent. Evidence: `build/verification/image-pen-installed.jpg`.
+- Delivered and running through `scripts/ship.sh`: root `e15c5da`, Core `9b9fbd6`. Exact installed executable comparison passes. No background-service restart or iOS delivery needed for this desktop-only feature.
+- Tidy report: `build/image-pen-tidy.txt`. Reports 83 older leftovers (mostly previous test/mobile folders), left untouched; this task creates no per-run app builds or test processes to retain.
