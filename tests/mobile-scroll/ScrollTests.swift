@@ -29,6 +29,75 @@ final class ScrollTests: XCTestCase {
  func text(_ app: XCUIApplication, _ part: String) -> XCUIElement {
   app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", part)).firstMatch
  }
+ @MainActor func readingAnchor(_ app: XCUIApplication) throws -> XCUIElement {
+  // Lazy rows can be in accessibility before they are visible.
+  let visible = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Answer "))
+   .allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > app.navigationBars.firstMatch.frame.maxY }
+  return try XCTUnwrap(visible)
+ }
+ @MainActor func readOlder(_ app: XCUIApplication) {
+  let transcript = app.scrollViews["chatTranscript"]
+  let top = max(transcript.frame.minY, app.navigationBars.firstMatch.frame.maxY) + 40
+  let origin = app.coordinate(withNormalizedOffset: .zero)
+  let start = origin.withOffset(CGVector(dx: transcript.frame.midX, dy: top))
+  let end = origin.withOffset(CGVector(dx: transcript.frame.midX, dy: top + 200))
+  start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+ }
+ @MainActor func testReadingPositionSurvivesImagePreview() async throws {
+  try await control("reset")
+  try await control("image")
+  let app = openChat()
+  let image = app.images["chat-image-22222222-2222-2222-2222-222222222222"]
+  // Move deliberately toward older replies, including when the image starts in view on iPad.
+  readOlder(app)
+  for _ in 0..<8 {
+   if image.exists && image.isHittable && image.frame.minY > app.navigationBars.firstMatch.frame.maxY { break }
+   readOlder(app)
+  }
+  XCTAssertTrue(image.isHittable)
+  XCTAssertTrue(app.buttons["Scroll to newest message"].exists)
+  let before = image.frame
+  capture("reading-before-image-preview", app)
+  image.tap()
+  XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+  app.buttons["Done"].tap()
+  try await Task.sleep(for: .seconds(2))
+  XCTAssertTrue(image.isHittable, "Closing an image preview pulled the reader away")
+  XCTAssertEqual(image.frame.minY, before.minY, accuracy: 1, "Closing an image preview moved the reading position")
+  XCTAssertTrue(app.buttons["Scroll to newest message"].exists)
+  capture("reading-after-image-preview", app)
+ }
+ @MainActor func testReadingPositionSurvivesReactivation() async throws {
+  try await control("reset")
+  let app = openChat()
+  for _ in 0..<3 { app.scrollViews["chatTranscript"].swipeDown(velocity: .slow) }
+  let anchor = try readingAnchor(app)
+  let label = String(anchor.label.prefix(10)), before = anchor.frame
+  capture("reading-before-app-return", app)
+  XCUIDevice.shared.press(.home)
+  try await Task.sleep(for: .seconds(1))
+  app.activate()
+  try await Task.sleep(for: .seconds(2))
+  let same = text(app, label)
+  XCTAssertTrue(same.isHittable, "Returning to the app pulled the reader to the bottom")
+  XCTAssertEqual(same.frame.minY, before.minY, accuracy: 1, "Returning to the app moved the reading position")
+  XCTAssertTrue(app.buttons["Scroll to newest message"].exists)
+  capture("reading-after-app-return", app)
+  // New content and explicit refresh still must not take over.
+  try await advance()
+  try await Task.sleep(for: .seconds(2))
+  app.buttons["Session Menu"].tap(); app.buttons["Refresh Session"].tap()
+  try await Task.sleep(for: .seconds(1))
+  XCTAssertTrue(same.isHittable)
+  XCTAssertEqual(same.frame.minY, before.minY, accuracy: 1)
+  capture("reading-after-return-and-refresh", app)
+  // An intentional jump resumes following, including after another app return.
+  app.buttons["Scroll to newest message"].tap()
+  XCTAssertTrue(text(app, "Streaming reply").waitForExistence(timeout: 5))
+  XCUIDevice.shared.press(.home); app.activate()
+  try await advance(); try await Task.sleep(for: .seconds(2))
+  XCTAssertTrue(atEnd(app))
+ }
  /// The reader is looking at the end when the newest streaming text is on screen.
  func atEnd(_ app: XCUIApplication) -> Bool {
   let e = text(app, "Streaming reply")
@@ -48,8 +117,7 @@ final class ScrollTests: XCTestCase {
   XCTAssertTrue(atEnd(app), "follows while at the end")
   // Read upward: scroll up until an earlier answer is on screen.
   for _ in 0..<4 { app.swipeDown(velocity: .slow) }
-  let anchor = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Answer ")).firstMatch
-  XCTAssertTrue(anchor.waitForExistence(timeout: 3))
+  let anchor = try readingAnchor(app)
   XCTAssertFalse(atEnd(app))
   let label = String(anchor.label.prefix(10)), frame = anchor.frame   // "Answer NN."
   capture("2-reading-above", app)
