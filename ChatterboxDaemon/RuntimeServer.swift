@@ -143,6 +143,25 @@ import CoreFoundation
                       let automation=ProjectAutomations.load().first(where:{$0.id==id}) else{throw RuntimeFailure("That automation is gone.")}
                 guard let runner=AutomationRunner.shared else{throw RuntimeFailure("Automations aren't running yet.")}
                 result=["threadID":.string(try runner.run(automation,manual:true).uuidString)]
+            case "refreshSecrets", "authorizeSecret":
+                // Only Chatterbox's signed Settings window can inspect availability or
+                // request a native prompt. Agents and Golem cannot use this as a key broker.
+                guard role == "ui" else { throw RuntimeFailure("permission_denied") }
+                let vault = SecretVault.shared
+                try vault.reload()
+                var authorized: Bool?
+                if r.operation == "authorizeSecret" {
+                    guard let id = r.body["secretID"]?.string.flatMap(UUID.init(uuidString:)),
+                          vault.entries.contains(where: { $0.id == id }) else { throw RuntimeFailure("secret_not_found") }
+                    authorized = await vault.authorize(id)
+                }
+                // No key material, and no persisted command receipt. Claude compares the
+                // environment fingerprint before its next message; active turns continue.
+                var status: [String: JSON] = ["availability": .object(Dictionary(vault.entries.map {
+                    ($0.id.uuidString, JSON.bool(vault.hasValue($0)))
+                }, uniquingKeysWith: { _, last in last }))]
+                if let authorized { status["authorized"] = .bool(authorized) }
+                result = .object(status)
             case "authorizePush":
                 // Push notifications are signed here, so this process needs its own Keychain
                 // access to the APNs key: the key's ACL lists programs by signing identity,
