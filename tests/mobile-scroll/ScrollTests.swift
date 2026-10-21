@@ -1,7 +1,27 @@
 import XCTest
 final class ScrollTests: XCTestCase {
+ override func setUp() { continueAfterFailure = false }
  let base = "http://127.0.0.1:47410"
  let chat = "chat-33333333-3333-3333-3333-333333333333"
+ func control(_ path: String, body: [String: Any] = [:]) async throws {
+  var request = URLRequest(url: URL(string: base + "/test/" + path)!)
+  request.httpMethod = "POST"
+  request.httpBody = try JSONSerialization.data(withJSONObject: body)
+  _ = try await URLSession.shared.data(for: request)
+ }
+ @MainActor func openChat() -> XCUIApplication {
+  let app = XCUIApplication()
+  app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47410"]
+  app.launch()
+  let row = app.buttons[chat]
+  XCTAssertTrue(row.waitForExistence(timeout: 15)); row.tap()
+  XCTAssertTrue(text(app, "Answer 30").waitForExistence(timeout: 10))
+  return app
+ }
+ @MainActor func composer(_ app: XCUIApplication) -> XCUIElement {
+  app.textViews["messageComposer"].exists ? app.textViews["messageComposer"] : app.textFields["messageComposer"]
+ }
  func advance() async throws {
   var request = URLRequest(url: URL(string: base + "/test/advance")!); request.httpMethod = "POST"
   _ = try await URLSession.shared.data(for: request)
@@ -15,13 +35,8 @@ final class ScrollTests: XCTestCase {
   return e.exists && e.isHittable
  }
  @MainActor func testReadingPositionHoldsWhileStreaming() async throws {
-  let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47410"]
-  app.launch()
-  // iPhone: projects live under the Chats tab.
-  if app.tabBars.buttons["Chats"].waitForExistence(timeout: 10) { app.tabBars.buttons["Chats"].tap() }
-  let row = app.buttons[chat]
-  XCTAssertTrue(row.waitForExistence(timeout: 15)); row.tap()
+  try await control("reset")
+  let app = openChat()
   // Opens at the newest message.
   XCTAssertTrue(text(app, "Answer 30").waitForExistence(timeout: 10))
   XCTAssertTrue(text(app, "Answer 30").isHittable, "opens at the end")
@@ -67,6 +82,61 @@ final class ScrollTests: XCTestCase {
   try await Task.sleep(for: .seconds(2))
   XCTAssertTrue(text(app, "Sent from the test").isHittable, "send returns to the end")
   capture("5-after-send", app)
+ }
+
+ /// A tall draft collapses before the Mac replies. The text must stay in the
+ /// visible transcript throughout that resize, rather than scrolling into blank space.
+ @MainActor func testMultilineSendKeepsTranscriptVisible() async throws {
+  try await control("reset")
+  try await control("delay", body: ["seconds": 3])
+  let app = openChat()
+  let field = composer(app)
+  field.tap()
+  field.typeText((1...6).map { "Line \($0) of my longer message." }.joined(separator: "\n"))
+  capture("6-multiline-before-send", app)
+  XCTAssertTrue(text(app, "Answer 30").isHittable, "growing the draft hid the newest reply before sending")
+  app.buttons["Send"].tap()
+  // Keep sampling through the resize and queued scroll operations, before acknowledgment.
+  for _ in 0..<3 {
+   let latest = text(app, "Answer 30")
+   XCTAssertTrue(latest.isHittable, "latest transcript text left the viewport while clearing the composer")
+  }
+  let sent = text(app, "Sent from the test")
+  XCTAssertTrue(sent.waitForExistence(timeout: 10))
+  for _ in 0..<4 {
+   XCTAssertTrue(sent.isHittable, "acknowledgment or queued scroll displaced the sent message")
+   XCTAssertLessThan(sent.frame.maxY, field.frame.minY + 1, "sent message is covered by the composer")
+   try await Task.sleep(for: .milliseconds(400))
+  }
+  capture("7-multiline-after-send", app)
+ }
+
+ /// A user reading elsewhere during a slow send takes over from the send's follow request.
+ @MainActor func testReadingDuringSendWinsOverAcknowledgment() async throws {
+  try await control("reset")
+  try await control("hold")
+  let app = openChat()
+  let field = composer(app)
+  field.tap(); field.typeText("Send while I read")
+  app.buttons["Send"].tap()
+  // Drag inside the transcript and hold before releasing, so the acknowledgment is tested
+  // against a settled reading position rather than a fling still decelerating.
+  let transcript = app.scrollViews["chatTranscript"]
+  XCTAssertTrue(transcript.exists)
+  let origin = app.coordinate(withNormalizedOffset: .zero)
+  let top = max(transcript.frame.minY, app.navigationBars.firstMatch.frame.maxY) + 30
+  let start = origin.withOffset(CGVector(dx: field.frame.midX, dy: top))
+  let end = origin.withOffset(CGVector(dx: field.frame.midX, dy: min(top + 300, field.frame.minY - 30)))
+  start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+  let anchor = try XCTUnwrap(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Answer ")).allElementsBoundByIndex.first { $0.isHittable })
+  let label = String(anchor.label.prefix(10)), before = anchor.frame
+  try await control("release")
+  try await Task.sleep(for: .seconds(3))
+  let same = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch
+  XCTAssertTrue(same.isHittable, "send response pulled the reader away")
+  XCTAssertEqual(same.frame.minY, before.minY, accuracy: 1, "send response moved the reading position")
+  XCTAssertFalse(text(app, "The Mac may have applied").exists, "fixture exceeded the client's request timeout")
+  capture("8-reading-during-send", app)
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)

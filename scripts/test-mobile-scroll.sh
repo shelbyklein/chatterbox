@@ -79,8 +79,10 @@ xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
+selection=("-only-testing:ScrollTests")
+if [[ -n "${MOBILE_SCROLL_ONLY:-}" ]]; then selection=("-only-testing:ScrollTests/ScrollTests/$MOBILE_SCROLL_ONLY"); fi
 xcodebuild -project "$artifacts/MobileScrollRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" test || status=$?
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" "${selection[@]}" test || status=$?
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"
 exit "${status:-0}"
