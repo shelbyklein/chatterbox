@@ -1,0 +1,44 @@
+{
+  "build": "202610211235",
+  "version": "1.0",
+  "coreCommit": "9b9d166a7e14dabeb757076f05afadf070044f4c",
+  "sourceCommit": "eeac5be4c5666f6ca58b38b345e63b596ed1fbdb",
+  "archive": "build/TestFlight/Chatterbox-202610211235.xcarchive",
+  "signedArchive": true,
+  "deviceFamilies": [
+    "iPhone",
+    "iPad"
+  ],
+  "upload": "succeeded",
+  "processing": "VALID",
+  "buildId": "5abc19aa-6b51-44eb-87de-6a147f09d369",
+  "internalStates": [
+    "IN_BETA_TESTING"
+  ],
+  "existingInternalGroup": "Shelby",
+  "groupAssociated": true,
+  "groupAvailable": true,
+  "deviceInstallation": "not verified",
+  "simulatorTests": {
+    "iPhone": {
+      "passed": 6,
+      "failures": 0,
+      "suiteResult": "build/mobile-scroll.Yzg8lT/results.xcresult",
+      "tallImageResult": "build/mobile-scroll.1EDEbu/results.xcresult"
+    },
+    "iPad": {
+      "passed": 6,
+      "failures": 0,
+      "suiteResult": "build/mobile-scroll.lmYktO/results.xcresult",
+      "tallImageResult": "build/mobile-scroll.FL2gxo/results.xcresult"
+    }
+  },
+  "tidy": {
+    "mode": "report only",
+    "report": "build/mobile-reading-tidy.log",
+    "removable": 218,
+    "kept": 0,
+    "unrelatedItemsRemoved": false
+  },
+  "updatedAt": "2026-10-21T16:42:10.246647+00:00"
+}

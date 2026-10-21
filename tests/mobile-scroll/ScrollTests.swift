@@ -67,6 +67,30 @@ final class ScrollTests: XCTestCase {
   XCTAssertTrue(app.buttons["Scroll to newest message"].exists)
   capture("reading-after-image-preview", app)
  }
+ @MainActor func testReadingPositionHoldsWhileTallImageLoads() async throws {
+  try await control("reset")
+  try await control("hold-image")
+  let app = openChat()
+  let anchor = text(app, "Answer 28")
+  readOlder(app)
+  for _ in 0..<8 {
+   if anchor.exists && anchor.isHittable && anchor.frame.minY > app.navigationBars.firstMatch.frame.maxY { break }
+   readOlder(app)
+  }
+  XCTAssertTrue(anchor.isHittable)
+  let before = anchor.frame
+  let (data, _) = try await URLSession.shared.data(from: URL(string: base + "/test/image-requests")!)
+  let requests = try JSONDecoder().decode([String: Int].self, from: data)
+  XCTAssertGreaterThan(requests["count"] ?? 0, 0, "The held image must be in the viewport and loading")
+  capture("reading-before-tall-image-load", app)
+  try await control("release-image")
+  XCTAssertTrue(app.images["chat-image-22222222-2222-2222-2222-222222222222"].waitForExistence(timeout: 8))
+  try await Task.sleep(for: .seconds(2))
+  XCTAssertTrue(anchor.isHittable, "Image expansion pulled the reader away")
+  XCTAssertEqual(anchor.frame.minY, before.minY, accuracy: 1, "Loading a tall image moved the reading position")
+  XCTAssertTrue(app.buttons["Scroll to newest message"].exists)
+  capture("reading-after-tall-image-load", app)
+ }
  @MainActor func testReadingPositionSurvivesReactivation() async throws {
   try await control("reset")
   let app = openChat()

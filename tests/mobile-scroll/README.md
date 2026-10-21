@@ -16,3 +16,8 @@ An intentional Jump resumes following, including after another app return.
 `testReadingPositionSurvivesReactivation` because app activation unconditionally scrolls to the
 end, ignoring stopped follow intent. The image fixture is an opaque locally generated PNG;
 no user images or production service are involved.
+
+`testReadingPositionHoldsWhileTallImageLoads` holds an image response while an older answer
+is visible, then releases a tall 320-by-960 PNG. It checks that the same answer remains at
+the same vertical position when the image expands, with Jump still available. Run it alone
+using `MOBILE_SCROLL_ONLY=testReadingPositionHoldsWhileTallImageLoads`.
