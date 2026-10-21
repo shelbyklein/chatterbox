@@ -1,0 +1,37 @@
+{
+  "build": "202610210827",
+  "version": "1.0",
+  "coreCommit": "dd69875576a372bc5fc84fe66d1c664ec77990d1",
+  "sourceCommit": "e56e9524239cdab943622b2a353b0f77acf204b1",
+  "archive": "build/TestFlight/Chatterbox-202610210827.xcarchive",
+  "signedArchive": true,
+  "upload": "succeeded",
+  "processing": "VALID",
+  "buildId": "bee5d384-b5da-43f1-a541-d8d7665f4246",
+  "internalStates": [
+    "IN_BETA_TESTING"
+  ],
+  "existingInternalGroup": "Shelby",
+  "groupAssociated": true,
+  "groupAvailable": true,
+  "deviceInstallation": "not verified",
+  "simulatorTests": {
+    "iPhone": {
+      "passed": 4,
+      "failures": 0,
+      "result": "build/mobile-images.3ffXup/results.xcresult"
+    },
+    "iPad": {
+      "passed": 4,
+      "failures": 0,
+      "result": "build/mobile-images.XiMRiE/results.xcresult"
+    }
+  },
+  "tidy": {
+    "mode": "report only",
+    "removable": 185,
+    "kept": 0,
+    "unrelatedItemsRemoved": false
+  },
+  "updatedAt": "2026-10-21T12:32:16.336786+00:00"
+}
