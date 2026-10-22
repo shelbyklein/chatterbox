@@ -6,7 +6,7 @@ s=socket.socket();s.bind(('127.0.0.1',0));port=s.getsockname()[1];s.close()
 s=socket.socket();s.bind(('127.0.0.1',0));mobile_port=s.getsockname()[1];s.close()
 env=dict(os.environ,CHATTERBOX_DATA_DIR=str(root/'data'),CHATTERBOX_HOST_DIR=str(root/'host'),
     CHATTERBOX_AGENT_PORT=str(port),CHATTERBOX_COMPANION_PORT=str(mobile_port),CHATTERBOX_TEST_TRUST_UI='1',CHATTERBOX_TEST_DISABLE_COMPUTER='1',
-    CHATTERBOX_HOST_BINARY=str(Path('build/GolemPlan/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost').resolve()),
+    CHATTERBOX_HOST_BINARY=str(Path('build/GolemPlan/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost').resolve()),
     CHATTERBOX_HOST_NOTIFY='0',CHATTERBOX_HOST_IDLE_SECONDS='1',CHATTERBOX_HOST_DETACHED_IDLE_SECONDS='1',
     FAKE_PROVIDER=str(Path('tests/golem-integration/fake-provider.py').resolve()))
 p=subprocess.Popen(['build/runtime/chatterboxd'],env=env,stdout=open(root/'daemon.log','wb'),stderr=subprocess.STDOUT)

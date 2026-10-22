@@ -37,11 +37,14 @@ targets:
     - path: scripts/restart-service.sh
       buildPhase: resources
     dependencies:
+    # A small app of its own (Contents/Helpers), so macOS lists it in Privacy settings:
+    # agents' tools (Codex Computer Use) ask for Accessibility as this host.
     - target: ChatterboxHost
       embed: true
       codeSign: true
       copy:
-        destination: executables
+        destination: wrapper
+        subpath: Contents/Helpers
     - sdk: AVKit.framework
     - package: SwiftTerm
     - target: ChatterboxMCP
@@ -74,12 +77,21 @@ targets:
           CFBundleURLSchemes:
           - chatterbox
   ChatterboxHost:
-    type: tool
+    type: application
     platform: macOS
     sources:
     - path: ChatterboxHost
+      excludes:
+      - Info.plist
     - path: Core/Chatterbox/Support/JSON.swift
     - path: Core/Chatterbox/Support/HostProtocol.swift
+    info:
+      path: ChatterboxHost/Info.plist
+      properties:
+        CFBundleDisplayName: Chatterbox Host
+        CFBundleName: Chatterbox Host
+        LSUIElement: true
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Host

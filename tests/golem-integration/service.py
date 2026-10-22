@@ -5,7 +5,7 @@ root=Path(tempfile.mkdtemp(prefix='golem-service.',dir='/tmp'))
 env=dict(os.environ,CHATTERBOX_DATA_DIR=str(root/'data'),CHATTERBOX_HOST_DIR=str(root/'host'),
     CHATTERBOX_AGENT_PORT='0',CHATTERBOX_COMPANION_PORT='0',CHATTERBOX_TEST_DISABLE_COMPUTER='1',
     CHATTERBOX_HOST_NOTIFY='0',CHATTERBOX_HOST_IDLE_SECONDS='1',CHATTERBOX_HOST_DETACHED_IDLE_SECONDS='1',
-    CHATTERBOX_HOST_BINARY=str(Path('build/GolemPlan/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost').resolve()),
+    CHATTERBOX_HOST_BINARY=str(Path('build/GolemPlan/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost').resolve()),
     FAKE_PROVIDER=str(Path('tests/golem-integration/fake-provider.py').resolve()),GOLEM_TEST_JOB='fixture-checkin',CHATTERBOX_TEST_TRUST_UI='1',CHATTERBOX_PREFERENCES_SUITE='com.shelbyklein.golem.service-fixture.'+root.name)
 class Control:
     def __init__(self):

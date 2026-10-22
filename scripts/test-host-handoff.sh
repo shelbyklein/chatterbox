@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 source scripts/lib/safe-stop.sh
 fixture=$(mktemp -d /tmp/chatterbox-host-handoff.XXXXXX)
 export CHATTERBOX_HOST_DIR="$fixture/host" CHATTERBOX_HOST_IDLE_SECONDS=1000 CHATTERBOX_HOST_NOTIFY=0
-host_binary="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost"
+host_binary="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 "$host_binary" > "$fixture/host.log" 2>&1 &
 host_pid=$!
 for attempt in {1..30}; do [[ -S "$CHATTERBOX_HOST_DIR/host.sock" ]] && break; sleep 0.1; done

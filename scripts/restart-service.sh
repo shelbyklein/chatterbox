@@ -89,7 +89,7 @@ done
 if (( codex )); then
   # Chatterbox keeps one Codex app-server in its host and reattaches to it across restarts,
   # so a changed launch setting only applies to a fresh one. Chats keep their threads.
-  for host in $(pgrep -f "Chatterbox.app/Contents/MacOS/ChatterboxHost"); do
+  for host in $(pgrep -f "Chatterbox.app/Contents/(MacOS|Helpers/ChatterboxHost.app/Contents/MacOS)/ChatterboxHost"); do
     for pid in $(pgrep -P "$host" -f "codex app-server"); do
       log "stopping Chatterbox's Codex app-server (pid $pid)"
       kill "$pid" 2>/dev/null
@@ -101,7 +101,7 @@ if (( host_refresh )); then
   log "waiting for idle agent retirement before host handoff"
   host_deadline=$(( $(date +%s) + 4*3600 ))
   while true; do
-    hosts=$(pgrep -f '^/Applications/Chatterbox.app/Contents/MacOS/ChatterboxHost$' || true)
+    hosts=$(pgrep -f '^/Applications/Chatterbox.app/Contents/(MacOS|Helpers/ChatterboxHost.app/Contents/MacOS)/ChatterboxHost$' || true)
     [[ -z "$hosts" ]] && break
     pending_hosts=0
     for host_pid in $hosts; do

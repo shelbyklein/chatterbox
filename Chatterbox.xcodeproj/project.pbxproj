@@ -43,6 +43,7 @@
 		1DA936A0639706822FBEB1E2 /* TerminalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5208DFA263BFAB665CD5F16F /* TerminalPanel.swift */; };
 		1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */; };
 		1E15FA4721C71E829A413B97 /* KeepAwake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDF65761A4AB95BD3FA5E22 /* KeepAwake.swift */; };
+		1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = C735DF1840A721EE88C62B3E /* ChatterboxHost.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1EA6781C4F785F9F1B1106F5 /* GolemIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309C4C683D66228702C9DB23 /* GolemIntegration.swift */; };
 		1EF938C4F2418B40A5544318 /* CodexModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186B4DB480F00C74F544E9BD /* CodexModelCatalog.swift */; };
 		20BA8BF7B48DF74D8F430525 /* CompanionDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */; };
@@ -288,7 +289,6 @@
 		EC5E7AF05EE1C19F438032F2 /* RuntimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE207ED6C4BA57F3EE832C77 /* RuntimeClient.swift */; };
 		EC9341C03DCE541C4725D0DC /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		EDA06FE1F8A03C54C284197A /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
-		EF5DAB17947D2B1CE75CF17A /* ChatterboxHost in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 480A4365D3D11CC93334737A /* ChatterboxHost */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EFB541351775E9D69EF1DB32 /* ChatCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F02305CEDD843C4F7102555 /* ChatCommands.swift */; };
 		EFD44747D068E9E33D91A5B3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 11C72805397B7C55E9C7D439 /* Assets.xcassets */; };
 		F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */; };
@@ -350,12 +350,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				EF5DAB17947D2B1CE75CF17A /* ChatterboxHost in Embed Dependencies */,
-				0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */,
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -369,6 +367,18 @@
 				2FB71D9AA2A2CA4EB04E316A /* ChatterboxWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -441,7 +451,6 @@
 		44DA4B023806E1DA1F6C4174 /* ActivitySpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySpinner.swift; sourceTree = "<group>"; };
 		462CBBE17D4E507D8351DFF1 /* DotMemorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DotMemorySheet.swift; sourceTree = "<group>"; };
 		47C730A3C46C1BA05DCD3159 /* AutomationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationsSheet.swift; sourceTree = "<group>"; };
-		480A4365D3D11CC93334737A /* ChatterboxHost */ = {isa = PBXFileReference; includeInIndex = 0; path = ChatterboxHost; sourceTree = BUILT_PRODUCTS_DIR; };
 		4871296498953CBED355908D /* SpeechSegments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSegments.swift; sourceTree = "<group>"; };
 		499506AD5BC0D2785F115FFA /* Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tools.swift; sourceTree = "<group>"; };
 		4ABAE1B34A7039850D52C275 /* WebPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPane.swift; sourceTree = "<group>"; };
@@ -537,6 +546,7 @@
 		C39831B5DD1FA91C7E353C65 /* MobilePush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePush.swift; sourceTree = "<group>"; };
 		C520C60380E1A12AF90AF044 /* UtterancePause.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtterancePause.swift; sourceTree = "<group>"; };
 		C60A797A1C8AE593D0C0188A /* MobilePDFCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePDFCache.swift; sourceTree = "<group>"; };
+		C735DF1840A721EE88C62B3E /* ChatterboxHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChatterboxHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C8EB85AF0736434980646DAF /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
 		C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		CA49B80C67589CFEA0ED49EF /* SpeechAnalyzerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalyzerEngine.swift; sourceTree = "<group>"; };
@@ -665,7 +675,7 @@
 			children = (
 				0629105A36394E1CD3331ACD /* Chatterbox.app */,
 				2E985FA69A646D773A6202FA /* ChatterboxDaemon */,
-				480A4365D3D11CC93334737A /* ChatterboxHost */,
+				C735DF1840A721EE88C62B3E /* ChatterboxHost.app */,
 				199795CA97CD07D743A50C57 /* ChatterboxMCP */,
 				CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */,
 				E65FB7F7B2B0B0DDEAC21AFD /* ChatterboxMobileProductTests.xctest */,
@@ -976,6 +986,7 @@
 				F9B7AF6DE048FF2E6DEB3180 /* Resources */,
 				B89A04901CAAD54BB3EDDCD5 /* Frameworks */,
 				0B9673928E888D70EF723F3E /* Embed Dependencies */,
+				5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */,
 			);
 			buildRules = (
 			);
@@ -1077,8 +1088,8 @@
 			packageProductDependencies = (
 			);
 			productName = ChatterboxHost;
-			productReference = 480A4365D3D11CC93334737A /* ChatterboxHost */;
-			productType = "com.apple.product-type.tool";
+			productReference = C735DF1840A721EE88C62B3E /* ChatterboxHost.app */;
+			productType = "com.apple.product-type.application";
 		};
 		FE583FF9E37F26BE875FAF5C /* ChatterboxMobileProductTests */ = {
 			isa = PBXNativeTarget;
@@ -1742,11 +1753,13 @@
 		7773FCC666C26A62DD9E67EE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 9F3MKVW9C5;
 				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ChatterboxHost/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -1874,11 +1887,13 @@
 		B97516C3142AC356BC24555F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 9F3MKVW9C5;
 				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ChatterboxHost/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

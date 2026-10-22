@@ -8,7 +8,7 @@ export CHATTERBOX_DAEMON_CLIENT=1 CHATTERBOX_TEST_TRUST_UI=1 CHATTERBOX_TEST_DIS
 export CHATTERBOX_PREFERENCES_SUITE="com.shelbyklein.Chatterbox.lazy-test.$RANDOM.$$"
 export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
 export CHATTERBOX_HOST_NOTIFY=0
-export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost"
+export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
 export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
 export LAZY_CAPTURE="$PWD/design/lazy-session-loading/selected-chat.png"

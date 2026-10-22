@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 task_dir=$(mktemp -d /tmp/chatterbox-destinations.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data"
 export CHATTERBOX_HOST_DIR="$task_dir/host"
-export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost"
+export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_AGENT_PORT=0
 export CHATTERBOX_COMPANION_PORT=19650
 mkdir -p "$CHATTERBOX_DATA_DIR"

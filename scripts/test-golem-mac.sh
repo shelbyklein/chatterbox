@@ -9,7 +9,7 @@ export CHATTERBOX_PREFERENCES_SUITE="com.shelbyklein.golem.fixture.${task_dir##*
 export CHATTERBOX_DAEMON_CLIENT=1 CHATTERBOX_TEST_TRUST_UI=1 CHATTERBOX_TEST_DISABLE_COMPUTER=1
 export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
 export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
-export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/MacOS/ChatterboxHost"
+export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
 export GOLEM_TEST_JOB=fixture-native-capture
 export GOLEM_TEST_CAPTURE="$PWD/tests/golem-integration/artifacts"
