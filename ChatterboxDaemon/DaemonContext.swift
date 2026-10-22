@@ -32,10 +32,10 @@ typealias Attention=DaemonAttention
         }
     }}
     func worktrees(of project:ChatSession)->[ChatSession]{activeSessions.filter{$0.record.worktreeOf != nil && $0.record.worktreeOf == (project.record.projectFolder ?? project.record.convertedProjectFolder)}}
-    /// Starts on what `kind` last used (see ModelFavorites).
+    /// Starts on what `kind` last used (see ModelSelection).
     func newChat(backend:Backend?=nil,kind:SessionKind = .chats) throws ->ChatSession {
         let s=try makeNewChat(backend:backend)
-        ModelFavorites.startLikeLast(s,kind:kind,requested:backend)
+        ModelSelection.startLikeLast(s,kind:kind,requested:backend)
         return s
     }
     private func makeNewChat(backend:Backend?) throws ->ChatSession {

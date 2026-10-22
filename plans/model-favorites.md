@@ -43,3 +43,9 @@ its number, drag the effort. Favorites are just models; effort is the slider.
 
 Favorites and last-used are new preference keys; presets stay saved, so reverting brings
 the old pills back unchanged.
+
+## Superseded (Shelby, 2026-10-22)
+
+Favorites were removed everywhere (popover, Settings, cog, Automations, iPhone). The popover
+is now Claude | Codex | Open models, then that list. Last-used per kind and closest effort stay,
+in `Engine/ModelSelection.swift` (test: `scripts/test-model-selection.sh`).

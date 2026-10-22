@@ -1,8 +1,7 @@
 @testable import Chatterbox
 import AppKit
 import SwiftUI
-// The model popover: numbered favorites first, then Claude | Codex | Open models and that
-// provider's list, the effort slider. Pressing a favorite's number switches to it.
+// The model popover: Claude | Codex | Open models, that provider's list, the effort slider.
 // Evidence: popover.png (Claude), popover-open.png (a session on a PC open model).
 let app=NSApplication.shared
 app.setActivationPolicy(.regular)
@@ -20,7 +19,6 @@ Thread.detachNewThread { Thread.sleep(forTimeInterval: 120); print("FAIL timed o
     let model=AppModel()
     let session=model.newChat(backend:.claude)
     session.setModel("opus");session.setEffort("high")
-    ModelFavorites.shared.set([ModelChoice(backend:.claude,model:"opus"),ModelChoice(backend:.codex,model:"gpt-6.1-sol"),ModelChoice(backend:.claude,model:"sonnet")])
     let window=NSWindow(contentRect:NSRect(x:60,y:60,width:420,height:640),styleMask:[.titled],backing:.buffered,defer:false)
     window.isReleasedWhenClosed=false
     window.appearance=NSAppearance(named:.darkAqua)
@@ -34,13 +32,6 @@ Thread.detachNewThread { Thread.sleep(forTimeInterval: 120); print("FAIL timed o
             window.sendEvent(NSEvent.keyEvent(with:type,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:chars,charactersIgnoringModifiers:chars,isARepeat:false,keyCode:code)!)
         }
     }
-    press("2",19)
-    try await Task.sleep(for:.milliseconds(500))
-    check(session.record.backend == .codex && session.record.codex?.model=="gpt-6.1-sol","pressing 2 switches to favorite 2 (\(session.record.backend.rawValue) \(session.record.codex?.model ?? "-"))")
-    check(!closed,"and the popover stays open for the effort")
-    press("3",20)
-    try await Task.sleep(for:.milliseconds(500))
-    check(session.record.backend == .claude && session.record.model=="sonnet","pressing 3 switches back to Claude")
     press("\r",36)
     try await Task.sleep(for:.milliseconds(300))
     check(closed,"Return closes it")
