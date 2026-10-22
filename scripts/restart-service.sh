@@ -9,7 +9,7 @@
 #   scripts/restart-service.sh --codex    also stop Chatterbox's Codex process (only the one
 #                                         under its host, never the ChatGPT app's), so the next
 #                                         Codex chat starts it fresh with current settings
-#   scripts/restart-service.sh --host     explicitly approved host handoff, only after all agents retire
+#   scripts/restart-service.sh --host     (kept for old habits) hosts now hand off by themselves
 #   scripts/restart-service.sh --delay N  start N seconds from now (so a chat's reply lands first)
 #
 # Runs detached and replaces any restart already queued, so restarts never stack up.
@@ -97,26 +97,10 @@ if (( codex )); then
   done
 fi
 if (( host_refresh )); then
-  source "$(dirname "$0")/lib/safe-stop.sh"
-  log "waiting for idle agent retirement before host handoff"
-  host_deadline=$(( $(date +%s) + 4*3600 ))
-  while true; do
-    hosts=$(pgrep -f '^/Applications/Chatterbox.app/Contents/(MacOS|Helpers/ChatterboxHost.app/Contents/MacOS)/ChatterboxHost$' || true)
-    [[ -z "$hosts" ]] && break
-    pending_hosts=0
-    for host_pid in $hosts; do
-      if pgrep -P "$host_pid" >/dev/null 2>&1; then pending_hosts=1; continue; fi
-      if safe_stop "$host_pid" --idle-host; then
-        log "retired empty ChatterboxHost pid $host_pid; next agent uses installed host"
-      else pending_hosts=1; fi
-    done
-    (( ! pending_hosts )) && break
-    if (( $(date +%s) > host_deadline )); then
-      log "host handoff deferred: protected agent processes remain; no host stopped"
-      break
-    fi
-    sleep 15
-  done
+  # Hosts hand off on their own: when the service or app connects and the running host is
+  # from an older build, it's moved aside to finish its processes and a current one takes
+  # new work (HostClient.connect). Nothing to stop here.
+  log "host handoff: automatic once the service reconnects; an older host exits when its agents finish"
 fi
 if (( app )); then
   osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null

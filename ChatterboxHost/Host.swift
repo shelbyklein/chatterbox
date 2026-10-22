@@ -1,4 +1,5 @@
 import Foundation
+import MachO
 
 /// Keeps agent processes alive for Chatterbox, like tmux for JSON streams. The app connects
 /// over a Unix socket, starts processes here instead of as its own children, and reads their
@@ -15,6 +16,13 @@ final class Host {
     private var children: [String: Child] = [:]
     private var idleSince: Date?
     private var lastNotice: [String: Date] = [:]
+    private var lockFD: Int32 = -1
+    /// The socket file this host made, so it never removes or mistakes another host's.
+    private var socketInode: ino_t = 0
+    /// This host's own program, to tell whether a client would start a newer one.
+    private let executable = Host.ownExecutable()
+    /// A newer host has taken over: finish the processes here, then exit.
+    private var draining = false
 
     /// With no processes and no app connected for this long, the host exits.
     private let idleTimeout = Host.seconds("CHATTERBOX_HOST_IDLE_SECONDS", default: 60)
@@ -38,8 +46,9 @@ final class Host {
         try? fm.createDirectory(at: logs, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         chmod(directory.path, 0o700)
 
-        // One host per folder: the lock is held for the host's lifetime.
-        let lockFD = open(directory.appendingPathComponent("host.lock").path, O_CREAT | O_RDWR, 0o600)
+        // One current host per folder: the lock is held until it hands off to a newer one.
+        // (Hosts from before handoffs lock host.lock; they're moved aside, never waited on.)
+        lockFD = open(directory.appendingPathComponent("host-current.lock").path, O_CREAT | O_RDWR, 0o600)
         guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
             log("another host is running; exiting")
             exit(0)
@@ -52,16 +61,10 @@ final class Host {
             }
         }
 
-        guard let fd = UnixSocket.listen(at: directory.appendingPathComponent(HostPaths.socketName)) else {
+        guard listen() else {
             log("couldn't listen on \(directory.path)/\(HostPaths.socketName): \(String(cString: strerror(errno)))")
             exit(1)
         }
-        listenFD = fd
-        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
-        source.setEventHandler { [weak self] in self?.acceptClients() }
-        source.resume()
-        acceptSource = source
 
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 2, repeating: 2)
@@ -72,6 +75,53 @@ final class Host {
     }
 
     private var idleTimer: DispatchSourceTimer?
+
+    private var socketPath: String { directory.appendingPathComponent(HostPaths.socketName).path }
+
+    /// Listens on the usual socket. Also used when an older host removed it on its way out.
+    private func listen() -> Bool {
+        guard let fd = UnixSocket.listen(at: directory.appendingPathComponent(HostPaths.socketName)) else { return false }
+        acceptSource?.cancel()
+        if listenFD >= 0 { close(listenFD) }
+        listenFD = fd
+        var info = stat()
+        socketInode = stat(socketPath, &info) == 0 ? info.st_ino : 0
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
+        source.setEventHandler { [weak self] in self?.acceptClients() }
+        source.resume()
+        acceptSource = source
+        return true
+    }
+
+    /// The usual socket is still this host's.
+    private var ownsSocket: Bool {
+        var info = stat()
+        return stat(socketPath, &info) == 0 && info.st_ino == socketInode
+    }
+
+    /// This host's program and when that file was last written (its build).
+    static func ownExecutable() -> (path: String, built: Double) {
+        var size: UInt32 = 4096
+        var buffer = [CChar](repeating: 0, count: Int(size))
+        let path = _NSGetExecutablePath(&buffer, &size) == 0
+            ? URL(fileURLWithPath: String(cString: buffer)).resolvingSymlinksInPath().path : CommandLine.arguments[0]
+        return (path, built(path) ?? 0)
+    }
+
+    static func built(_ path: String) -> Double? {
+        var info = stat()
+        guard stat(path, &info) == 0 else { return nil }
+        return Double(info.st_mtimespec.tv_sec) + Double(info.st_mtimespec.tv_nsec) / 1e9
+    }
+
+    /// Whether this host is at least as new as `binary`, the host the client would start.
+    /// An install writes a newer file (in place, or at a new path). Only a newer build takes
+    /// over, so two apps sharing the folder (Chatterbox, Golem) never hand back and forth.
+    private func isCurrent(_ binary: String) -> Bool {
+        guard let theirs = Self.built(URL(fileURLWithPath: binary).resolvingSymlinksInPath().path) else { return true }
+        return theirs <= executable.built + 1
+    }
 
     // MARK: - Clients
 
@@ -127,6 +177,14 @@ final class Host {
             if let child = children[id], !child.isRunning { forget(child) }
         case "ack":
             children[id]?.acknowledge(request["offset"]?.int ?? 0, limit: logLimit)
+        case "hello":
+            client.send(["op": "hello", "current": .bool(!draining && isCurrent(request["binary"]?.string ?? ""))])
+        case "drain":
+            // A newer host takes the usual socket (the client moved this one's aside).
+            guard !draining else { return }
+            draining = true
+            flock(lockFD, LOCK_UN)
+            log("a newer host took over; finishing \(children.values.filter(\.isRunning).count) running process(es), then exiting")
         case "list":
             let processes: [JSON] = children.values.sorted { $0.id < $1.id }.map { child in
                 var entry: [String: JSON] = ["id": .string(child.id), "running": .bool(child.isRunning),
@@ -233,6 +291,20 @@ final class Host {
             }
         }
 
+        if draining {
+            if !children.values.contains(where: { $0.isRunning }) {
+                log("handed off and finished; exiting")
+                exit(0)
+            }
+            return
+        }
+        // An older host removes the usual socket when it exits, even once it's been moved
+        // aside: listen again so clients find this one.
+        if !ownsSocket, access(socketPath, F_OK) != 0 {
+            log("socket was removed; listening again")
+            _ = listen()
+        }
+
         let active = !clients.isEmpty || children.values.contains { $0.isRunning }
         if active {
             idleSince = nil
@@ -242,7 +314,7 @@ final class Host {
         idleSince = since
         if now.timeIntervalSince(since) >= idleTimeout {
             log("idle; exiting")
-            unlink(directory.appendingPathComponent(HostPaths.socketName).path)
+            if ownsSocket { unlink(socketPath) }
             exit(0)
         }
     }
