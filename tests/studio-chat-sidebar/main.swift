@@ -49,7 +49,8 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let view=panel.contentView!;view.layoutSubtreeIfNeeded()
  let bitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:bitmap)
  try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/studio-sidebar.png"))
- precondition(ThreadThumbnails.shared.images[first.id] != nil)
+ // Pinned rows are compact, like Activity: one line each (status and title), no thumbnail.
+ precondition(!SidebarDebug.pinnedRows.isEmpty && SidebarDebug.pinnedRows.values.allSatisfy { $0.height < 30 }, "pinned rows are one line: \(SidebarDebug.pinnedRows.values.map(\.height))")
  var cardPreferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
  cardPreferences["macStudioSidebarCards"]=true
  UserDefaults.standard.setVolatileDomain(cardPreferences,forName:UserDefaults.argumentDomain)
