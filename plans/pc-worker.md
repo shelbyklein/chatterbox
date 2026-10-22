@@ -137,7 +137,7 @@ Mermaid source: [`plans/assets/pc-worker/flow.mmd`](assets/pc-worker/flow.mmd)
 - [ ] T5 Codex on PC: code and harness pass (two app-servers running at once). Live check pending.
 - [ ] T6 files: code in, and path mapping is tested. Live preview and attachment checks pending.
 - [ ] T7 open models + UI: code in, and harness checks pass for the Claude and Codex open-model launches. Screenshot and live checks pending.
-- [ ] T8 build/test/install: daemon and Mac app build. Regressions pass: daemon 70, thread-restart 7, model-favorites 15, proxy-quota 2, fast-mode 1, agent-tools 41. `test-current-model.sh` fails for an unrelated reason: it still looks for the "Show presets" control, which main removed in 6922450.
+- [ ] T8 build/test/install: app installed 2026-10-22 06:23, and the installed binary's hash matches the build (prior bundle saved to `/tmp/Chatterbox-before-pc-worker.app`). Service restart queued with the idle wait (`service-restart.txt` 06:23:49). Daemon and Mac app build. Regressions pass: daemon 70, thread-restart 7, model-favorites 15, proxy-quota 2, fast-mode 1, agent-tools 41. `test-current-model.sh` fails for an unrelated reason: it still looks for the "Show presets" control, which main removed in 6922450.
 - [ ] T9 live acceptance
 
 ## Work preparation
