@@ -2,5 +2,11 @@
 # Stand-in for ssh in scripts/test-pc-worker.sh: records how it was called, then runs the
 # PC worker on this Mac with fake `claude` and `codex` first on PATH.
 printf '%s\n' "$*" >> "$PC_TEST_DIR/ssh-args.log"
+# PowerShell scripts (RemoteLaunch.run) are recorded, decoded, instead of run.
+if [[ "$*" == *-EncodedCommand* ]]; then
+  printf '%s' "${@: -1}" | awk '{print $NF}' | base64 -d | iconv -f UTF-16LE -t UTF-8 >> "$PC_TEST_DIR/powershell.log"
+  echo >> "$PC_TEST_DIR/powershell.log"
+  exit 0
+fi
 export PATH="$PC_TEST_DIR/bin:$PATH"
 exec node "$PC_WORKER"

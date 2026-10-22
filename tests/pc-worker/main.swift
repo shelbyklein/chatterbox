@@ -94,6 +94,9 @@ func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
     let pcFolder = pcCodex.record.remoteFolder ?? "?"
     try check(turns.contains { ($0["cwd"] as? String)?.hasSuffix("workspaces\\" + pcFolder) == true }, "PC Codex turn uses the PC workspace")
     try check(turns.contains { ($0["cwd"] as? String) == RuntimePaths.data.path }, "Mac Codex turn keeps its folder")
+    let scripts = (try? String(contentsOf: URL(fileURLWithPath: testDir + "/powershell.log"), encoding: .utf8)) ?? ""
+    try check(scripts.contains("New-Item -ItemType Directory") && scripts.contains("workspaces\\\(pcFolder)'"),
+              "PC Codex workspace is created before its thread starts")
 
     // Open model on the PC: Codex turns name it with an accepted effort.
     pcCodex.setOpenModel("qwen3.5:9b")
