@@ -38,6 +38,27 @@ import Darwin
     session.record.projectFolder = "/unrelated"
     session.record.sidechatProjectFolder = scoped.projects[0]
     try check(service.entries(for: session) == [scoped], "sidechat retains parent project secret scope")
+    // Studios: every session in a chosen Studio, mixable with projects.
+    let studio = UUID()
+    let studioSession = ChatSession(record: ConversationRecord(model: "default", effort: "", personality: .neutral))
+    studioSession.record.studioID = studio
+    try check(service.environment(for: studioSession).isEmpty, "project-only key excluded from a Studio session")
+    scoped.studios = [studio]
+    try writer.save(scoped, value: nil)
+    try service.reload()
+    try check(service.environment(for: studioSession)["FIXTURE_API"] == "fixture-only-replacement-value", "Studio scope reaches the Studio's sessions")
+    try check(service.entries(for: session) == [scoped], "mixed scope still reaches the chosen project")
+    let otherStudio = ChatSession(record: ConversationRecord(model: "default", effort: "", personality: .neutral))
+    otherStudio.record.studioID = UUID()
+    try check(service.environment(for: otherStudio).isEmpty, "another Studio's sessions don't get it")
+    let studioSidechat = ChatSession(record: ChatSession.sidechatRecord(of: studioSession, anchor: studioSession, number: 1))
+    try check(service.entries(for: studioSidechat) == [scoped], "a Studio session's Sidechat follows its parent")
+    scoped.projects = []
+    try writer.save(scoped, value: nil)
+    try service.reload()
+    try check(service.environment(for: session).isEmpty && !service.entries(for: studioSession).isEmpty, "Studio-only key excludes project chats")
+    let older = try JSONDecoder().decode(SecretEntry.self, from: Data(#"{"id":"\#(UUID().uuidString)","name":"Old","variable":"OLD","note":"","username":"","projects":[],"created":0}"#.utf8))
+    try check(older.studios.isEmpty && older.isEverywhere, "entries saved before Studios still load")
     let revision = service.revision
     try service.reload()
     try check(service.revision == revision, "unchanged refresh does not publish a false change")
