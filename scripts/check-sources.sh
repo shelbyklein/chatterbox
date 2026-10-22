@@ -8,6 +8,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib/source-list.sh
 xcodegen generate --quiet
+# xcodegen writes the two "Embed Dependencies" phases (the host app, the command-line tools)
+# in either order. Same lines in another order isn't a change: keep the committed file.
+pbx=Chatterbox.xcodeproj/project.pbxproj
+if ! git diff --quiet -- "$pbx" && cmp -s <(git show HEAD:"$pbx" | sort) <(sort "$pbx"); then
+  git checkout -- "$pbx"
+fi
 if ! git diff --quiet -- Chatterbox.xcodeproj; then
   echo "The Xcode project was out of date with project.yml; it has been regenerated:" >&2
   git diff --stat -- Chatterbox.xcodeproj >&2
