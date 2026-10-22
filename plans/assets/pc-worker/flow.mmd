@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph Mac["Mac (Chatterbox)"]
+    UI["Chat · Run on: Shelby-PC<br/>Model: Claude / Codex / PC model"]
+    D["chatterboxd<br/>ChatSession"]
+    H["ChatterboxHost<br/>spawns ssh"]
+    T["SSH tunnel<br/>127.0.0.1:47340 → PC 11434"]
+    M["~/Chatterbox/PC/&lt;chat&gt;<br/>(mirror for previews)"]
+    MC["Mac chat using a PC model"]
+  end
+  subgraph PC["Shelby-PC (Windows, ssh alias desktop)"]
+    W["chatterbox-worker.js (node)<br/>reads header: env, cwd, argv"]
+    C["claude.exe -p stream-json"]
+    X["codex app-server (PC instance)"]
+    O["Ollama :11434 (localhost)<br/>RTX 3080 Ti · started at logon"]
+    WS["D:\\Chatterbox\\workspaces\\&lt;chat&gt;"]
+  end
+  UI --> D --> H -- "ssh -T desktop (stdio)" --> W
+  W --> C
+  W --> X
+  C -- "cwd" --> WS
+  X -- "cwd" --> WS
+  C -. "PC model: ANTHROPIC_BASE_URL" .-> O
+  X -. "PC model: model_provider ollama" .-> O
+  D -- "after each turn: tar over ssh (changed files)" --> M
+  WS -. "pulled" .-> M
+  MC --> T --> O
