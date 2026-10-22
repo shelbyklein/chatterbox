@@ -144,9 +144,9 @@ final class HomeNavTests: XCTestCase {
   capture("2-sidequest-strip", app)
   app.buttons["Session Menu"].tap()
   XCTAssertTrue(app.buttons["Session Settings"].waitForExistence(timeout: 5)); app.buttons["Session Settings"].tap()
-  let opus = app.buttons["Opus preset, Claude · Opus 5.5 · Medium"], sol = app.buttons["Sol preset, Codex · GPT-6.1-Sol · Low"], maestro = app.buttons["Maestro preset, Codex · GPT-6-Luna"]
-  XCTAssertTrue(opus.waitForExistence(timeout: 5))
-  XCTAssertEqual(sol.frame.minY, maestro.frame.minY, accuracy: 2, "four presets share one row")
+  // Favorites, numbered, at the top of the settings; the old preset tiles are gone.
+  XCTAssertTrue(app.buttons["favorite-1"].waitForExistence(timeout: 5) && app.buttons["favorite-2"].exists, "favorites show in Session Settings")
+  XCTAssertFalse(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].exists, "no preset tiles")
   capture("2b-chat-settings", app)
   app.navigationBars["Session Settings"].buttons["Done"].tap()
   // The strip yields while a chat is open: a left-edge swipe here mustn't jump to Golem.
@@ -476,15 +476,14 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
   app.buttons["New Chat"].firstMatch.tap()
   XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
-  XCTAssertTrue(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].waitForExistence(timeout:5), "it shows the presets")
+  XCTAssertTrue(app.buttons["favorite-1"].waitForExistence(timeout:5), "it shows the numbered favorites")
   XCTAssertTrue(app.staticTexts["Effort"].firstMatch.exists, "and the effort")
   // The name comes first; the agent switch is further down the sheet.
   let name=app.textFields["new-chat-name"]
   XCTAssertTrue(name.waitForExistence(timeout:5),"it asks for a name first");name.tap();name.typeText("Logo ideas\n")
-  let codex=app.segmentedControls.buttons["Codex"].firstMatch
-  for _ in 0..<4 where !codex.isHittable { app.swipeUp() }
-  codex.tap()
-  XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "switching agent loads that agent's permissions")
+  // Favorite 2 is a Codex model: picking it switches the agent.
+  app.buttons["favorite-2"].tap()
+  XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "picking another agent's favorite loads that agent's permissions")
   capture("new-chat-sheet",app)
   app.buttons["new-chat-start"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")

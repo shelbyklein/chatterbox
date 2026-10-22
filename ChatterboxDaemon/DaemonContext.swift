@@ -32,7 +32,13 @@ typealias Attention=DaemonAttention
         }
     }}
     func worktrees(of project:ChatSession)->[ChatSession]{activeSessions.filter{$0.record.worktreeOf != nil && $0.record.worktreeOf == (project.record.projectFolder ?? project.record.convertedProjectFolder)}}
-    func newChat(backend:Backend?=nil) throws ->ChatSession {
+    /// Starts on what `kind` last used (see ModelFavorites).
+    func newChat(backend:Backend?=nil,kind:SessionKind = .chats) throws ->ChatSession {
+        let s=try makeNewChat(backend:backend)
+        ModelFavorites.startLikeLast(s,kind:kind,requested:backend)
+        return s
+    }
+    private func makeNewChat(backend:Backend?) throws ->ChatSession {
         var r=ConversationRecord(model:AppPreferences.defaults.string(forKey:"defaultModel") ?? "default",effort:AppPreferences.defaults.string(forKey:"defaultEffort") ?? "",personality:.friendly)
         r.activeBackend=backend ?? Backend(rawValue:AppPreferences.defaults.string(forKey:"defaultBackend") ?? "") ?? .claude
         r.claudeMode=PermissionModes.defaultClaude
@@ -62,7 +68,7 @@ typealias Attention=DaemonAttention
         return quest
     }
     func newChat(in studio: Studio, backend: Backend? = nil) throws -> ChatSession {
-        let session = try newChat(backend: backend)
+        let session = try newChat(backend: backend, kind: .studios)
         session.record.studioID = studio.id
         session.record.studioFolder = studio.folder
         PermissionModes.applyNewStudioDefaults(to: &session.record, folder: studio.folder)
