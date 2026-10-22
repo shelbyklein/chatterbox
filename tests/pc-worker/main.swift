@@ -138,6 +138,19 @@ func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
                   "unreachable PC reported within 15 s: \(error.errorDescription ?? "")")
     }
 
+    // A Mac chat on a PC model says the PC is unreachable instead of waiting on Claude.
+    var macOpen = ConversationRecord(model: "default", effort: "", personality: .pragmatic)
+    macOpen.title = "Mac open model"
+    macOpen.openModel = "qwen3.5:9b"
+    let macClaude = try runtime.insert(macOpen)
+    let sent = Date()
+    macClaude.send("hello")
+    try await wait("unreachable notice for a Mac open-model chat", seconds: 20) {
+        macClaude.items.contains { $0.kind == .notice && $0.text.contains("isn't reachable") }
+    }
+    try check(Date().timeIntervalSince(sent) < 15 && macClaude.claudeProcess == nil && !macClaude.isRunning,
+              "Mac open-model chat reports an unreachable PC within 15 s without starting Claude")
+
     for s in runtime.sessions { s.shutdown() }
     for codex in CodexAppServer.all { codex.terminate() }
     HostClient.shared.disconnect()
