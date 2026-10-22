@@ -355,6 +355,8 @@ import CoreFoundation
             if let x=body["codexEffort"]{s.setCodexEffort(x.string)}
             if let x=body["codexFolder"]?.string{s.setCodexFolder(x)}
             if let x=body["fastMode"]?.bool{s.setFastMode(x)}
+            if let x=body["runOn"]{s.setRunOn(x.string)}
+            if let x=body["openModel"]{s.setOpenModel(x.string)}
             if let x=body["mode"]?.string{s.setMode(x)}
             if let x=body["personality"]?.string.flatMap(Personality.init(rawValue:)){s.setPersonality(x)}
         case "remoteControl":try chat(r.body).setRemoteControl(r.body["enabled"]?.bool ?? false)
