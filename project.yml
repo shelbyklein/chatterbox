@@ -243,6 +243,8 @@ targets:
     - path: Core/Chatterbox/Engine/ChatSession+Summary.swift
     - path: Core/Chatterbox/Engine/ChatSession+Shell.swift
     - path: Core/Chatterbox/Engine/ChatSession+Remote.swift
+    - path: Core/Chatterbox/Engine/ChatSession+PC.swift
+    - path: Core/Chatterbox/Engine/RemoteMachine.swift
     - path: Core/Chatterbox/Engine/ChatSession+Tasks.swift
     - path: Core/Chatterbox/Engine/ChatSession+Issues.swift
     - path: Core/Chatterbox/Engine/ChatSession+Sidequest.swift

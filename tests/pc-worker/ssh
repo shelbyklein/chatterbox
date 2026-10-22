@@ -1,0 +1,6 @@
+#!/bin/bash
+# Stand-in for ssh in scripts/test-pc-worker.sh: records how it was called, then runs the
+# PC worker on this Mac with fake `claude` and `codex` first on PATH.
+printf '%s\n' "$*" >> "$PC_TEST_DIR/ssh-args.log"
+export PATH="$PC_TEST_DIR/bin:$PATH"
+exec node "$PC_WORKER"

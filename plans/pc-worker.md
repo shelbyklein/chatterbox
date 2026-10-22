@@ -46,7 +46,7 @@ Mermaid source: [`plans/assets/pc-worker/flow.mmd`](assets/pc-worker/flow.mmd)
 │ Run on      [This Mac | Shelby-PC]│
 └──────────────────────────────────┘
 ```
-"Run on" goes next to the existing Connection picker (`Views/ModelPicker.swift:270-296`). "PC models" lists Ollama's `/api/tags` and is hidden when the PC is unreachable. Current state: the popover has Favorites, Claude, Codex and Connection (`ModelPicker.swift:78`). T7 records before and after screenshots in `plans/assets/pc-worker/`.
+"Run on" goes next to the existing Connection picker (`Views/ModelPicker.swift:270-296`). "PC models" lists Ollama's `/api/tags` and is hidden when the PC is unreachable. Current state (Shelby's screenshot, 2026-10-22): ![popover before](assets/pc-worker/popover-before.png) Favorites, "All models ›", Effort, Fast mode. "Run on" goes as a row above Effort, and "PC models" goes under "All models". T7 records the after screenshot.
 
 ## Settled decisions
 - PC chats use **PC scratch workspaces**, not clones or mirrors of Mac projects (Shelby, 2026-10-22).
@@ -129,10 +129,21 @@ Mermaid source: [`plans/assets/pc-worker/flow.mmd`](assets/pc-worker/flow.mmd)
 - After a Windows reboot, nothing is logged in, so Ollama is down (agents over SSH still work). Turn on auto-logon later?
 - Tailscale on the PC, so it works when the MacBook is away from home (follow-up).
 
+## Progress
+- [x] T1 spike: passed (details in [`assets/pc-worker/spike.md`](assets/pc-worker/spike.md)). Claude's sign-in on the PC had expired; Shelby needs to run `claude` → `/login` on the PC.
+- [x] T2 worker + setup: `scripts/pc-worker-setup.sh` ran twice with the same result. It prints `chatterbox-worker 1` and the 5 Ollama models. The logon task "Chatterbox Ollama" is registered.
+- [x] T3 remote launch: `scripts/test-pc-worker.sh` passes all 20 checks (Core 2884873).
+- [ ] T4 Claude on PC: code and harness pass. Live check waits on the PC Claude sign-in.
+- [ ] T5 Codex on PC: code and harness pass (two app-servers running at once). Live check pending.
+- [ ] T6 files: code in, and path mapping is tested. Live preview and attachment checks pending.
+- [ ] T7 open models + UI: code in, and harness checks pass for the Claude and Codex open-model launches. Screenshot and live checks pending.
+- [ ] T8 build/test/install: daemon and Mac app build. Regressions pass: daemon 70, thread-restart 7, model-favorites 15, proxy-quota 2, fast-mode 1, agent-tools 41. `test-current-model.sh` fails for an unrelated reason: it still looks for the "Show presets" control, which main removed in 6922450.
+- [ ] T9 live acceptance
+
 ## Work preparation
 - Scope: confirmed by Shelby in chat, 2026-10-22 (PC scratch, Claude+Codex, open models for PC and Mac chats, screen control later).
 - Plan: this file. Issue: https://github.com/shelbyklein/chatterbox/issues/48
 - Mode: **linear**. Tasks share `ChatSession`/`HostClient`/`CodexAppServer` and depend on the T1 spike, so parallel lanes would collide.
 - Models: current session, Opus 5.5 (`claude-opus-5-5`); effort not exposed.
-- Now/later: not yet asked.
-- Readiness: pass · 2026-10-22 · R3 flow diagram + popover mockup present; current-state popover screenshot is taken at the start of T7 before any UI change (pending Shelby's OK to defer it) · R12 rollback covers install, PC setup and service.
+- Now/later: **now**. Shelby said "sounds good" on 2026-10-22, after having asked to implement and test.
+- Readiness: pass · 2026-10-22 · R3 flow diagram + popover mockup present; current-state popover screenshot is taken at the start of T7 before any UI change (superseded: Shelby supplied it, `assets/pc-worker/popover-before.png`) · R12 rollback covers install, PC setup and service.

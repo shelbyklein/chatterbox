@@ -103,6 +103,7 @@
 		488BE77A5A5E5ED51E57D12B /* CodexRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFFE37B80756592FFA1C4E /* CodexRoute.swift */; };
 		4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD71DB30FA4E56547B5EDD95 /* ContentView.swift */; };
 		4D1F421A53DFA98E7368D46D /* MediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB49DE70CCD56E2122A67E6 /* MediaViews.swift */; };
+		4D4504D95B0163F425214142 /* RemoteMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC10CF693F1C16CFCB7AC65A /* RemoteMachine.swift */; };
 		4E46C4A6103079CF90E5C54A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505EA4AEFE9AD144D1946F33 /* SettingsView.swift */; };
 		4EE239A300FAA791F43879AF /* CompanionServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350619589BFFE4830DF574FF /* CompanionServer.swift */; };
 		4F2E3215B87E3CBB1E557621 /* RuntimeSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8852E0839DFB42BCDA5BE7 /* RuntimeSocket.swift */; };
@@ -110,6 +111,7 @@
 		4FA3AC81E7EB95F204BE0985 /* AssistantConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325E96EC802C7975CFC0E53E /* AssistantConfiguration.swift */; };
 		5058C21645CEA21A07E1177F /* GolemQuickPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7DE0E3B1B7232E6F04FAAED /* GolemQuickPrompts.swift */; };
 		53E5385F34F56B97DE7DFC11 /* StudioOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D944B8AFFEB2AA62F5B2CB73 /* StudioOverview.swift */; };
+		53EF09A6315994CA6277FF71 /* RemoteMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC10CF693F1C16CFCB7AC65A /* RemoteMachine.swift */; };
 		546986B117BCCF07EBC7DC43 /* ChatPromotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAAD27DCABFFA6219C3B56F /* ChatPromotion.swift */; };
 		55C47B29A75795755C204C1A /* ChatWindowReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DFC9A91C3FDEEE6DA83D052 /* ChatWindowReader.swift */; };
 		56CD3F58F9EE442FB5D6E327 /* ChatSession+Issues.swift in Sources */ = {isa = PBXBuildFile; fileRef = A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */; };
@@ -266,6 +268,7 @@
 		DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E506CEBABA8892B98B49AE9 /* MediaKind.swift */; };
 		DBB1DA472C3C955C75FF0A02 /* ChatterboxApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1FB6523384620BBC3AA803 /* ChatterboxApp.swift */; };
 		DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA6AEF5454AAA03F422E2A83 /* GitHub.swift */; };
+		DD4E9D550F7ECA24664EA12E /* ChatSession+PC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F44446A1C9FE4A09F1B2FF /* ChatSession+PC.swift */; };
 		DDA317C76C77D32F8E771879 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8964CD6CAA729D104D06907D /* main.swift */; };
 		DDCF8DF82B0B5E9172B12CF0 /* RuntimePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871851519A7251235137D947 /* RuntimePreferences.swift */; };
 		DE95CB211CB51A27FB0D0B92 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B972A7FDEA18389B723512 /* AppPreferences.swift */; };
@@ -304,6 +307,7 @@
 		FAA7515AF05681D60A8E1AE3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
 		FC04411E7BB76D3B86BB87BA /* CodexAppServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C3FB24651A1A367B53C36 /* CodexAppServer.swift */; };
+		FC4CFCFAD7433B09C62795B1 /* ChatSession+PC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F44446A1C9FE4A09F1B2FF /* ChatSession+PC.swift */; };
 		FC8BFEAC696C3CA2113BA6E3 /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
 		FF3C1F89AA5F1CE49531E94B /* ReaderStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1A01363F2ADC00DD3B34D0 /* ReaderStyle.swift */; };
 /* End PBXBuildFile section */
@@ -497,6 +501,7 @@
 		810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxMobileApp.swift; sourceTree = "<group>"; };
 		81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
 		82893560A013653C8EA4F850 /* ToolDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolDiscovery.swift; sourceTree = "<group>"; };
+		82F44446A1C9FE4A09F1B2FF /* ChatSession+PC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+PC.swift"; sourceTree = "<group>"; };
 		83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAutomations.swift; sourceTree = "<group>"; };
 		8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatToolbar.swift; sourceTree = "<group>"; };
 		8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostProtocol.swift; sourceTree = "<group>"; };
@@ -552,6 +557,7 @@
 		CA49B80C67589CFEA0ED49EF /* SpeechAnalyzerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalyzerEngine.swift; sourceTree = "<group>"; };
 		CAA126E4C2CEC44FD39C5186 /* GolemConversationShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemConversationShortcuts.swift; sourceTree = "<group>"; };
 		CB5CC18160C7B1D685C573BC /* GolemSidePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolemSidePanel.swift; sourceTree = "<group>"; };
+		CC10CF693F1C16CFCB7AC65A /* RemoteMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteMachine.swift; sourceTree = "<group>"; };
 		CD00AEF264659F41BD565201 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		CE207ED6C4BA57F3EE832C77 /* RuntimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeClient.swift; sourceTree = "<group>"; };
 		CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChatterboxMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -765,6 +771,7 @@
 				C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */,
 				C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */,
 				A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */,
+				82F44446A1C9FE4A09F1B2FF /* ChatSession+PC.swift */,
 				7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */,
 				E46453278256F9AB1A12CC8B /* ChatSession+Shell.swift */,
 				E21B415D59CF10CAB07EE68E /* ChatSession+Sidequest.swift */,
@@ -804,6 +811,7 @@
 				09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */,
 				A125487FAFCF644CD583045D /* Prompts.swift */,
 				B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */,
+				CC10CF693F1C16CFCB7AC65A /* RemoteMachine.swift */,
 				5941C429D29DB4AF6D3E6812 /* RuntimePreferenceProjection.swift */,
 				A5D880F9204CBD1DAFCB11DD /* Secrets.swift */,
 				ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */,
@@ -1248,6 +1256,7 @@
 				E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */,
 				CD177B0129A911BCBAFC510C /* ChatSession+Issues.swift in Sources */,
 				C2062E2BD580A322486C6A14 /* ChatSession+Media.swift in Sources */,
+				DD4E9D550F7ECA24664EA12E /* ChatSession+PC.swift in Sources */,
 				FC8BFEAC696C3CA2113BA6E3 /* ChatSession+Remote.swift in Sources */,
 				5E7A560F77F5DFA853740235 /* ChatSession+Shell.swift in Sources */,
 				63AC4AD4471C0C41217C114A /* ChatSession+Sidequest.swift in Sources */,
@@ -1337,6 +1346,7 @@
 				B79ABA062171F68288AF9C7D /* ProxyQuotaView.swift in Sources */,
 				7DDA7CD35006881E95258A76 /* QuickSwitcher.swift in Sources */,
 				1896760BB7DB3AE32FB3F975 /* ReaderStyle.swift in Sources */,
+				53EF09A6315994CA6277FF71 /* RemoteMachine.swift in Sources */,
 				BD6B82AF3071B596678F93C8 /* ReplyQueue.swift in Sources */,
 				9B2381AF4F9F3ED0C38A0473 /* RuntimeClient.swift in Sources */,
 				9421CB1B01955A819ECB3133 /* RuntimePaths.swift in Sources */,
@@ -1469,6 +1479,7 @@
 				D2C92DDDCB9AEB5902ED8E12 /* ChatSession+Host.swift in Sources */,
 				56CD3F58F9EE442FB5D6E327 /* ChatSession+Issues.swift in Sources */,
 				AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */,
+				FC4CFCFAD7433B09C62795B1 /* ChatSession+PC.swift in Sources */,
 				121878FD864195B66430A97B /* ChatSession+Remote.swift in Sources */,
 				3EC752B70B18B16A4E818CDC /* ChatSession+Shell.swift in Sources */,
 				8C41F2945100C282239256BC /* ChatSession+Sidequest.swift in Sources */,
@@ -1509,6 +1520,7 @@
 				7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */,
 				7674615B45429144E4FA38F6 /* Prompts.swift in Sources */,
 				77621AD5A91712017B99E80A /* ProxyQuota.swift in Sources */,
+				4D4504D95B0163F425214142 /* RemoteMachine.swift in Sources */,
 				EC5E7AF05EE1C19F438032F2 /* RuntimeClient.swift in Sources */,
 				E5009C6A623772CB59FBC42D /* RuntimePaths.swift in Sources */,
 				A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */,

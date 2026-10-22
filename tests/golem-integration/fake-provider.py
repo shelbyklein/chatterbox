@@ -7,6 +7,9 @@ if 'exec' in sys.argv:
  Path(output).write_text(json.dumps({'emails':[{'account':'fixture@example.invalid','from':'Fixture Sender','subject':'Fixture appointment','why':'A fixture needs a decision.','action':'Review the appointment.','link':'','id':'fixture-mail-1'}]}))
  sys.exit(0)
 codex='app-server' in sys.argv
+if os.environ.get('FAKE_PROVIDER_LAUNCHES'):
+ # Where and how each launch happened, for the PC worker test.
+ with open(os.environ['FAKE_PROVIDER_LAUNCHES'],'a') as f:f.write(json.dumps({'pid':os.getpid(),'cwd':os.getcwd(),'argv':sys.argv[1:],'chat':os.environ.get('CHATTERBOX_CHAT_ID'),'base':os.environ.get('ANTHROPIC_BASE_URL')})+'\n')
 thread='fixture-thread';turn='fixture-turn';pending=None;fail_unsubscribe=False
 
 def emit(obj):print(json.dumps(obj),flush=True)
@@ -55,6 +58,7 @@ for line in sys.stdin:
    turn='turn-'+str(uuid.uuid4());emit({'id':rid,'result':{'turn':{'id':turn}}})
    text=' '.join(x.get('text','') for x in p.get('input',[]))
    note('codex-input.jsonl',text)
+   note('codex-turns.jsonl',{'model':p.get('model'),'effort':p.get('effort'),'cwd':p.get('cwd')})
    if text.endswith('mcp'):mcp_call()
    if text.endswith('question'):
     pending=True;emit({'id':'fixture-question','method':'item/tool/requestUserInput','params':{'threadId':thread,'questions':[{'id':'q','header':'Choice','question':'Pick one','options':[{'label':'A','description':'A'}]}]}})

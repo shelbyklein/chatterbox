@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 # Source list for the Foundation-only conversation engine, shared with the daemon.
-for name in Models ChatSession ChatSession+Claude ChatSession+Codex ChatSession+Host ChatSession+Status ChatSession+Summary ChatSession+Shell ChatSession+Remote ChatSession+Tasks ChatSession+Issues ChatSession+Sidequest ChatSession+Tools ToolScopes ToolDiscovery ProjectAutomations ClaudeCode CodexAppServer HostClient Usage ClaudeModels SlashCommands Tools ModelPresets ModelFavorites GitHub GitHubIssues IssuePrompts Prompts PermissionModes Secrets EasyCLIProxy CodexRoute BackgroundTasks ChatComputer CodexModelCatalog; do
+for name in Models ChatSession ChatSession+Claude ChatSession+Codex ChatSession+Host ChatSession+Status ChatSession+Summary ChatSession+Shell ChatSession+Remote ChatSession+PC RemoteMachine ChatSession+Tasks ChatSession+Issues ChatSession+Sidequest ChatSession+Tools ToolScopes ToolDiscovery ProjectAutomations ClaudeCode CodexAppServer HostClient Usage ClaudeModels SlashCommands Tools ModelPresets ModelFavorites GitHub GitHubIssues IssuePrompts Prompts PermissionModes Secrets EasyCLIProxy CodexRoute BackgroundTasks ChatComputer CodexModelCatalog; do
   printf '%s\n' "Chatterbox/Engine/$name.swift"
 done
 printf '%s\n' Chatterbox/Support/JSON.swift Chatterbox/Support/HostProtocol.swift Chatterbox/Support/Attachments.swift
