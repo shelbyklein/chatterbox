@@ -98,6 +98,20 @@ func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
     try check(scripts.contains("New-Item -ItemType Directory") && scripts.contains("workspaces\\\(pcFolder)'"),
               "PC Codex workspace is created before its thread starts")
 
+    // EasyCLIProxy on the Mac, reached from the PC through a reverse tunnel on the agent's
+    // own SSH connection. (The proxy itself isn't running here, so sessions fall back.)
+    let mac = EasyCLIProxy.Endpoint(host: "127.0.0.1", port: 8317, key: "k")
+    let forward = mac.forward(fromPC: EasyCLIProxy.pcCodexPort)
+    let command = RemoteLaunch.command(on: .pc, forwards: [forward])
+    try check(command.contains("-R") && command.contains("127.0.0.1:47390:127.0.0.1:8317") && command.contains("ExitOnForwardFailure=no")
+              && command.last?.hasPrefix("node ") == true, "PC launch carries the tunnel back to the proxy")
+    try check(!RemoteLaunch.command(on: .pc).contains("-R"), "no tunnel when there's no proxy")
+    try check(mac.onPC(port: 47390).base == "http://127.0.0.1:47390" && mac.onPC(port: 47390).key == "k", "the PC reaches the proxy on its tunneled port")
+    let port = EasyCLIProxy.pcClaudePort(for: claude.id)
+    try check((47400..<47900).contains(port) && port == EasyCLIProxy.pcClaudePort(for: claude.id), "each Claude agent has its own stable port (\(port))")
+    try check(pcCodex.codexConnection.key == "pc:direct", "no proxy answering: the PC's own ChatGPT sign-in")
+    try check(claude.claudeProxyForwards.isEmpty && claude.claudeProxyEnvironment.isEmpty, "and Claude on the PC uses its own sign-in")
+
     // Open model on the PC: Codex turns name it with an accepted effort.
     pcCodex.setOpenModel("qwen3.5:9b")
     pcCodex.send("open model")
