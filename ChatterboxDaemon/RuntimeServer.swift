@@ -143,6 +143,16 @@ import CoreFoundation
                       let automation=ProjectAutomations.load().first(where:{$0.id==id}) else{throw RuntimeFailure("That automation is gone.")}
                 guard let runner=AutomationRunner.shared else{throw RuntimeFailure("Automations aren't running yet.")}
                 result=["threadID":.string(try runner.run(automation,manual:true).uuidString)]
+            case "pcErrand":
+                // "Do that on the PC": like a sidequest, but on Shelby-PC and the same agent.
+                // Here, not with the receipts: copying files to the PC takes a while.
+                let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+                guard !task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
+                let parent=try chat(r.body)
+                guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isDot && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
+                let files=(r.body["files"]?.array ?? []).compactMap(\.string)
+                let backend=r.body["agent"]?.string.flatMap(Backend.init(rawValue:))
+                result = .string(try await DaemonContext(runtime).newPCErrand(of:parent,task:task,files:files,backend:backend).id.uuidString)
             case "refreshSecrets", "authorizeSecret":
                 // Only Chatterbox's signed Settings window can inspect availability or
                 // request a native prompt. Agents and Golem cannot use this as a key broker.

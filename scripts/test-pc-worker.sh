@@ -14,7 +14,8 @@ export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_D
 export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
 export FAKE_PROVIDER_LAUNCHES="$task_dir/launches.jsonl"
 export PC_TEST_DIR="$task_dir" PC_WORKER="$PWD/deploy/pc-worker/chatterbox-worker.js"
-export CHATTERBOX_SSH_BINARY="$PWD/tests/pc-worker/ssh" CHATTERBOX_PC_TUNNEL_PORT=47399
+export CHATTERBOX_SSH_BINARY="$PWD/tests/pc-worker/ssh"
+export CHATTERBOX_SCP_BINARY="$PWD/tests/pc-worker/scp" CHATTERBOX_PC_TUNNEL_PORT=47399
 mkdir -p "$CHATTERBOX_DATA_DIR" "$task_dir/bin"
 for name in claude codex; do
   printf '#!/bin/bash\nexec python3 "%s" "$@"\n' "$FAKE_PROVIDER" > "$task_dir/bin/$name"

@@ -8,6 +8,12 @@
 The sidequest opens beside the chat as a Sidechat on the other agent, caught up on the whole
 conversation. When it finishes, its answer comes back to the chat as a new message and the
 chat's agent carries on from it. Prints the sidequest's id.
+
+As `pc-errand` (the same script, by another name), the task goes to Shelby-PC instead, on this
+chat's own agent: for things only the PC can do, such as Photoshop there.
+  pc-errand "TASK" [--file PATH ...] [--agent claude|codex]
+Each --file is copied to the PC first and named in the task. When the errand finishes, the
+files it made are copied back to this Mac and its answer arrives here, naming those copies.
 """
 import argparse, json, os, socket, sys, uuid
 
@@ -94,15 +100,32 @@ def current_chat(service):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Send a task to the other agent as a sidequest.")
+    errand = os.path.basename(sys.argv[0]) == "pc-errand"
+    parser = argparse.ArgumentParser(description="Send a task to Shelby-PC as an errand." if errand
+                                     else "Send a task to the other agent as a sidequest.")
     parser.add_argument("task", nargs="+")
     parser.add_argument("--chat")
+    if errand:
+        parser.add_argument("--file", action="append", default=[], help="a file on this Mac to send along")
+        parser.add_argument("--agent", choices=["claude", "codex"], help="the agent on the PC (default: this chat's)")
     args = parser.parse_args()
     task = " ".join(args.task).strip()
     if not task:
-        fail("say what the sidequest should do.")
+        fail("say what the " + ("errand" if errand else "sidequest") + " should do.")
     service = Service()
     chat = args.chat or current_chat(service)
+    if errand:
+        files = [os.path.abspath(os.path.expanduser(f)) for f in args.file]
+        for f in files:
+            if not os.path.isfile(f):
+                fail(f"no such file: {f}")
+        service.sock.settimeout(600)   # Copying files to the PC can take a while.
+        body = {"chatID": chat, "task": task, "files": files}
+        if args.agent:
+            body["agent"] = args.agent
+        quest = service.request("pcErrand", body)
+        print(f"Sent errand {quest} to Shelby-PC. Its answer (and any files, copied here) comes back to this chat when it's done.")
+        return
     quest = service.request("sidequest", {"chatID": chat, "task": task})
     print(f"Started sidequest {quest}. Its answer comes back to this chat as a new message when it's done.")
 

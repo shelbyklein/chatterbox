@@ -1,0 +1,5 @@
+#!/bin/bash
+# Stand-in for scp in scripts/test-pc-worker.sh: the "PC" is this Mac, so host:path is path.
+printf '%s\n' "$*" >> "$PC_TEST_DIR/scp-args.log"
+src="${@: -2:1}"; dst="${@: -1}"
+cp "${src#*:}" "${dst#*:}"

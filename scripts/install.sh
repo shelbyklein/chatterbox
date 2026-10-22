@@ -21,6 +21,8 @@ mkdir -p "$HOME/.local/bin"
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/snippet "$HOME/.local/bin/snippet"
 # …and hand tasks to the other agent with `sidequest` (bin/sidequest).
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/sidequest "$HOME/.local/bin/sidequest"
+# …and send work to Shelby-PC with `pc-errand` (the same script, by its other name).
+ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/pc-errand "$HOME/.local/bin/pc-errand"
 # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
 # and `open` hands the caller's environment to the app. Launch it without any of them.
 clean_open() {

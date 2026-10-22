@@ -70,13 +70,22 @@ Mac session ──pc-errand "Export the logo at 3 sizes" --file logo.psd──�
       the PC; Claude via a user-only `--mcp-config` file, Codex via `-c mcp_servers…`; none
       for open models). Live 2026-10-22: Claude on the PC called `slippy_status` →
       "Photoshop 27.12.0 is reachable through Slippy 1.2.1's native plug-in".
-- [ ] T2b Desktop helper + `chatterbox-desktop` CLI, installed by `scripts/pc-worker-setup.sh`
-      (scheduled task at logon). Check: `chatterbox-desktop screenshot` from an SSH session.
-- [ ] T3 Screen control commands. Check: open Notepad, type, screenshot shows the text.
-- [ ] T4 Service `pcErrand` + `bin/pc-errand` + file upload. Check: headless test with the
-      stand-in ssh (`tests/pc-worker`): the errand runs on the PC, its answer returns.
-- [ ] T5 Session menu item and form. Check: rendered form; it starts an errand.
-- [ ] T6 Instructions for both sides; `instructionsVersion` bump.
+- [x] T2b Desktop helper: `chatterbox-desktop` (worker folder, on PC agents' PATH, worker 3).
+      No resident server: each command runs one action in the desktop session through a
+      one-off interactive scheduled task, launched windowless (desktop-run.vbs). Live: windows
+      list and screenshot from SSH.
+- [x] T3 Screen control. Live: `open` a scratch file, `type … --in "typing.txt - Notepad"`,
+      `key ctrl+s --in …` saved "hello from chatterbox (1+1)"; `--in` an absent window refused.
+      Found and fixed on the way: cmd ate `^` (keys are now `ctrl+s`), typing without a target
+      went to the front window (now `--in` focuses and checks first), `--in` clashed with
+      PowerShell's own parameters (arguments are now read raw).
+- [x] T4 Service `pcErrand` + `pc-errand` (bin/sidequest by another name) + uploads; files
+      copied back before the answer, PC paths rewritten to the Mac copies. Test:
+      `scripts/test-pc-worker.sh` (stand-in ssh and scp).
+- [x] T5 "Do on Shelby-PC…" in the session's right-click menu and as an icon beside
+      Sidequest; form: task, files (picker or drop), agent. Render: `scripts/test-pc-errand-form.sh`.
+- [x] T6 Instructions: every session learns `pc-errand` (version 11); PC agents learn Slippy
+      first, then `chatterbox-desktop` with `--in`.
 - [ ] T7 Live: from a Mac session, "do that on the PC: open logo.psd in Photoshop, export a
       PNG at 512 px" → the PNG shows in the session.
 - [ ] T8 Install, service restart, worker redeploy to the PC.

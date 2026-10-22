@@ -18,7 +18,7 @@ const net = require('net');
 const os = require('os');
 const path = require('path');
 
-const VERSION = '2';
+const VERSION = '3';
 
 const SLIPPY = [
   { name: 'slippy-photoshop', app: 'Photoshop', port: 7332 },
@@ -101,6 +101,9 @@ async function start(header) {
   const cwd = header.cwd || process.cwd();
   try { fs.mkdirSync(cwd, { recursive: true }); } catch (error) { fail(`cannot create ${cwd}: ${error.message}`); }
   const env = { ...process.env, ...(header.env || {}) };
+  // `chatterbox-desktop` (screen control) lives beside this worker.
+  const pathKey = Object.keys(env).find((k) => k.toLowerCase() === 'path') || 'PATH';
+  env[pathKey] = __dirname + path.delimiter + (env[pathKey] || '');
   for (const key of header.unset || []) delete env[key];
   let args = header.args || [];
   try { args = await withDesktopTools(header); } catch (_) {}

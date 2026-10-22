@@ -137,6 +137,33 @@ func alive(_ pid: Int32) -> Bool { kill(pid, 0) == 0 }
     try await wait("PC provider ends after stop", seconds: 8) { !alive(pid) }
     try check(true, "PC provider ended after stop")
 
+    // A PC errand from a Mac chat: its file goes to the PC, it runs there on the same agent,
+    // and its answer comes back to the chat with its PC paths turned into the Mac copies.
+    var parentRecord = ConversationRecord(model: "default", effort: "", personality: .neutral)
+    parentRecord.title = "Mac parent"
+    parentRecord.activeBackend = .claude
+    let parent = try runtime.insert(parentRecord)
+    try FileManager.default.createDirectory(atPath: testDir + "/attachments", withIntermediateDirectories: true)
+    let logo = testDir + "/logo.psd"
+    try Data("psd".utf8).write(to: URL(fileURLWithPath: logo))
+    let errand = try await DaemonContext(runtime).newPCErrand(of: parent, task: "Export the logo as a PNG", files: [logo], backend: nil)
+    try check(errand.record.runOn == "pc" && errand.isPCErrand && errand.record.backend == .claude
+              && errand.record.sidequestOf == parent.id && errand.title.hasPrefix("On Shelby-PC"),
+              "the errand runs on the PC, on the chat's own agent, as its sidequest")
+    let copied = try FileManager.default.contentsOfDirectory(atPath: testDir + "/attachments").filter { $0.hasSuffix("-logo.psd") }
+    try check(copied.count == 1 && (errand.record.sidequestTask ?? "").contains(copied[0]), "the file was copied to the PC and named in the task")
+    try check(errand.record.parentContext?.sourceID == parent.id, "the errand starts caught up on the chat")
+    try check(parent.items.contains { $0.kind == .notice && $0.text.hasPrefix("Sent to Shelby-PC") }, "the chat says where it went")
+    try await wait("the errand's reply", seconds: 20) { !errand.isRunning && errand.items.contains { $0.kind == .assistant && $0.phase == .final } }
+    try check(launches().contains { $0.chat == errand.id.uuidString && $0.cwd.contains("workspaces") }, "it ran through the PC worker in a PC workspace")
+    let out = errand.macPaths(RemoteMachine.pc.workspace(errand.record.remoteFolder ?? "") + #"\out\logo.png"#)
+    try check(out == RemoteMachine.pc.mirrorRoot.appendingPathComponent(errand.record.remoteFolder ?? "").path + "/out/logo.png",
+              "PC paths in its answer become the Mac copies (\(out))")
+    errand.sidequestTurnEnded(parent: parent)
+    try await wait("the answer goes back", seconds: 10) { parent.items.contains { $0.kind == .user && $0.text.contains("<sidequest_result>") } }
+    try check(parent.items.last { $0.kind == .user }?.text.contains("The user sent a task from this session to Shelby-PC") == true
+              && parent.items.last { $0.kind == .user }?.detail == "Back from Shelby-PC", "its answer came back to the chat")
+
     // Moving a chat back to the Mac starts a fresh session there, caught up on the chat.
     pcCodex.setRunOn(nil)
     try check(pcCodex.record.codex?.threadId == nil && pcCodex.record.pendingHandoff?.isEmpty == false && pcCodex.record.runOn == nil,

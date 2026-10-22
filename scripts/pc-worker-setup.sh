@@ -13,7 +13,8 @@ if [[ ${1-} == --remove ]]; then
   exit
 fi
 run 'New-Item -ItemType Directory -Force "$env:USERPROFILE\.chatterbox" | Out-Null'
-scp -q -B deploy/pc-worker/chatterbox-worker.js deploy/pc-worker/ollama-serve.vbs deploy/pc-worker/install.ps1 "$host:.chatterbox/"
+scp -q -B deploy/pc-worker/chatterbox-worker.js deploy/pc-worker/ollama-serve.vbs deploy/pc-worker/install.ps1 \
+  deploy/pc-worker/chatterbox-desktop.ps1 deploy/pc-worker/chatterbox-desktop.cmd deploy/pc-worker/desktop-run.vbs "$host:.chatterbox/"
 run 'powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.chatterbox\install.ps1"'
 run 'node "$env:USERPROFILE\.chatterbox\chatterbox-worker.js" --version'
 run '$m = (Invoke-RestMethod http://127.0.0.1:11434/api/tags -TimeoutSec 20).models.name; "Ollama models: " + ($m -join ", ")'

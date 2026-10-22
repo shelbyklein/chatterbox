@@ -67,6 +67,17 @@ typealias Attention=DaemonAttention
         quest.beginSidequest(from:parent)
         return quest
     }
+    /// A PC errand from `parent`: `files` go to the PC first, then a sidequest there on the
+    /// parent's own agent (or `backend`) does the task, and its answer and files come back.
+    func newPCErrand(of parent:ChatSession,task:String,files:[String],backend:Backend?) async throws ->ChatSession {
+        let uploaded=try await ChatSession.uploadForPCErrand(files)
+        let anchor=parent.record.sidechatOf.flatMap{id in sessions.first{$0.id==id}} ?? parent
+        let number=sessions.filter{$0.record.sidechatOf==anchor.id}.count+1
+        let errand=try runtime.insert(ChatSession.pcErrandRecord(of:parent,anchor:anchor,number:number,backend:backend ?? parent.record.backend,
+                                                                  task:task,files:uploaded))
+        errand.beginSidequest(from:parent)
+        return errand
+    }
     func newChat(in studio: Studio, backend: Backend? = nil) throws -> ChatSession {
         let session = try newChat(backend: backend, kind: .studios)
         session.record.studioID = studio.id
