@@ -1,8 +1,9 @@
 @testable import Chatterbox
 import AppKit
 import SwiftUI
-// The model popover: numbered favorites first, All models, the effort slider. Pressing a
-// favorite's number switches to it. Evidence: popover.png, popover-all.png.
+// The model popover: numbered favorites first, then Claude | Codex | Open models and that
+// provider's list, the effort slider. Pressing a favorite's number switches to it.
+// Evidence: popover.png (Claude), popover-open.png (a session on a PC open model).
 let app=NSApplication.shared
 app.setActivationPolicy(.regular)
 var failures=0
@@ -43,10 +44,11 @@ Thread.detachNewThread { Thread.sleep(forTimeInterval: 120); print("FAIL timed o
     press("\r",36)
     try await Task.sleep(for:.milliseconds(300))
     check(closed,"Return closes it")
-    UserDefaults.standard.set(true,forKey:"modelPopoverShowsAll")
-    try await Task.sleep(for:.milliseconds(600))
-    try shot(window,"popover-all.png",root)
-    UserDefaults.standard.removeObject(forKey:"modelPopoverShowsAll")
+    // A session on an open model opens on the Open models list.
+    session.record.openModel="qwen3.5:9b"
+    window.contentView=NSHostingView(rootView:ModelPopover(session:session){}.background(Color(white:0.14)).environment(model).environment(\.colorScheme,.dark))
+    try await Task.sleep(for:.milliseconds(900))
+    try shot(window,"popover-open.png",root)
     print(failures==0 ? "PASS model popover. Evidence: \(root.path)" : "FAIL \(failures) checks. Evidence: \(root.path)")
     exit(failures==0 ? 0 : 1)
 }
