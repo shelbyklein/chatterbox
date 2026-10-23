@@ -470,6 +470,21 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons["chat-"+uuid("Chatterbox")].exists, "and nothing that isn't pinned")
   capture("pinned-tab",app)
  }
+ /// Feedback: screenshot, Mark Up, then the Chatterbox session opens with it in the message box.
+ @MainActor func testFeedback() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Studios",app).tap()
+  XCTAssertTrue(app.buttons["Feedback"].firstMatch.waitForExistence(timeout:5), "Feedback in the top bar"); app.buttons["Feedback"].firstMatch.tap()
+  XCTAssertTrue(app.navigationBars["Mark Up"].waitForExistence(timeout:5), "the screenshot opens in Mark Up")
+  capture("feedback-markup",app)
+  app.buttons["Done"].tap()
+  XCTAssertTrue(app.buttons["Remove Feedback image"].waitForExistence(timeout:10), "the Chatterbox session opens with the screenshot in its message box")
+  XCTAssertTrue(app.navigationBars.staticTexts["Chatterbox"].exists || app.staticTexts["Chatterbox"].exists, "in the Chatterbox session")
+  capture("feedback-composer",app)
+ }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
  @MainActor func testUsage() async throws {
   try await fixture("reset")

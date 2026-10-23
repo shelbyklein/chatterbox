@@ -57,6 +57,13 @@ struct ChatterboxTabs: View {
                     .tag(page.rawValue)
             }
         }
+        // Feedback: the screenshot in Mark Up, then into the Chatterbox session's message box.
+        .fullScreenCover(item: Binding(get: { store.feedbackSketch }, set: { store.feedbackSketch = $0 })) { request in
+            SketchView(request: request) { image in store.placeFeedback(image) }
+        }
+        .alert("Couldn't Send Feedback", isPresented: Binding(get: { store.feedbackProblem != nil }, set: { if !$0 { store.feedbackProblem = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(store.feedbackProblem ?? "") }
         // Activity moved into the ⋯ menu; a saved tab from before lands on Projects.
         .onAppear { if ChatListView.Page(rawValue: tab) == nil { tab = ChatListView.Page.projects.rawValue } }
         // A tapped notification opens the tab its chat lives in.
