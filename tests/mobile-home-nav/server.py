@@ -24,6 +24,8 @@ LIST_DELAY=0
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 def reset():
+ global PINNED
+ PINNED[:]=['Loose chat','SDHQ']
  global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS,LIST_DELAY
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
  STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={};LIST_DELAY=0
@@ -114,6 +116,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
    id=self.path.split('/')[3].lower()
    name=next(c['title'] for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id)
    BRIEFS[name]=body['brief'];MUTATIONS.append('brief');return self.reply(detail(id))
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/pin'):
+   id=self.path.split('/')[3].lower()
+   names=[p[0] for p in PROJECTS]+['Coach Archie','No image','Crystal concept','Loose chat']
+   name=next(n for n in names if cid(n)==id)
+   pinned=body.get('pinned')
+   if pinned and name not in PINNED:PINNED.append(name)
+   if not pinned and name in PINNED:PINNED.remove(name)
+   MUTATIONS.append('pin');return self.reply(detail(id))
   if self.path.startswith('/v1/chats/') and self.path.endswith('/rename'):
    if FAIL:return self.reply({'error':'Fixture rename failed. Try again.'},503)
    id=self.path.split('/')[3].lower()

@@ -469,6 +469,16 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(loose.frame.minY < sdhq.frame.minY || (loose.frame.minY == sdhq.frame.minY && loose.frame.minX < sdhq.frame.minX), "in the Mac's order")
   XCTAssertFalse(app.buttons["chat-"+uuid("Chatterbox")].exists, "and nothing that isn't pinned")
   capture("pinned-tab",app)
+  // Pin and unpin from the phone: long-press a session.
+  tab("Projects",app).tap()
+  let chatterbox=app.buttons["chat-"+uuid("Chatterbox")]
+  XCTAssertTrue(chatterbox.waitForExistence(timeout:10)); chatterbox.press(forDuration:1.0)
+  XCTAssertTrue(app.buttons["Pin to Top"].waitForExistence(timeout:5), "Pin to Top in a session's menu"); app.buttons["Pin to Top"].tap()
+  tab("Pinned",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("Chatterbox")].waitForExistence(timeout:10), "pinned from the phone, it shows in Pinned")
+  app.buttons["chat-"+uuid("Loose chat")].press(forDuration:1.0)
+  XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout:5)); app.buttons["Unpin"].tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForNonExistence(timeout:10), "unpinned, it leaves Pinned")
  }
  /// Feedback: screenshot, Mark Up, then the Chatterbox session opens with it in the message box.
  @MainActor func testFeedback() async throws {

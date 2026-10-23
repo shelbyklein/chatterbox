@@ -112,6 +112,7 @@ import CoreFoundation
                     guard let value=AppPreferences.defaults.object(forKey:key) else{continue}
                     if let string=value as? String{values[key] = .string(string)}
                     else if let number=value as? NSNumber{values[key]=CFGetTypeID(number)==CFBooleanGetTypeID() ? .bool(number.boolValue):.number(number.doubleValue)}
+                    else if let list=value as? [String]{values[key] = .array(list.map(JSON.string))}
                 }
                 result = .object(values)
             case "setGolemPushEnabled":

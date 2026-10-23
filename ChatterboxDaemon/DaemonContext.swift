@@ -90,6 +90,15 @@ typealias Attention=DaemonAttention
     }
     func ensureDot() throws ->ChatSession{try runtime.ensureAssistant()}
     func archive(_ s:ChatSession){s.shutdown();s.setArchived(true)}
+    /// Pin or unpin from the phone: the service keeps the Mac's pin list and tells the app.
+    func setPinned(_ s:ChatSession,_ pinned:Bool){
+        var ids=AppPreferences.defaults.stringArray(forKey:"macPinnedThreads") ?? []
+        let id=s.id.uuidString
+        if pinned{guard !ids.contains(id),!s.isDot,s.record.worktreeOf==nil,s.record.sidechatOf==nil else{return};ids.append(id)}
+        else{guard ids.contains(id) else{return};ids.removeAll{$0==id}}
+        try? RuntimePreferences.update(["macPinnedThreads":.array(ids.map(JSON.string))])
+        runtime.publishUIRequest("pins.changed",payload:.array(ids.map(JSON.string)))
+    }
     func renameDot(_ title:String){dot?.setTitle(title);dot?.restartClaudeForNewTools()}
     func setInstructions(_ text:String,forStudio id:UUID){var all=runtime.studios;guard let i=all.firstIndex(where:{$0.id==id}) else{return};all[i].instructions=text;try? runtime.updateStudios(all)}
     func canFork(_ s:ChatSession)->Bool{!s.isRunning && !s.isDot && s.record.projectFolder==nil && !s.items.isEmpty}
