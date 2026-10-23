@@ -1,6 +1,24 @@
 import XCTest
 final class HomeNavTests: XCTestCase {
  override func setUp() { super.setUp(); continueAfterFailure = false }
+ /// An open foldable (iPhone Duo) in portrait reports a compact width, like a phone, but has an
+ /// iPad mini's room: it gets the iPad layout. Stood in for by an iPad told it's compact.
+ @MainActor func testFoldableGetsTabletLayout() async throws {
+  guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("needs an iPad-sized screen") }
+  try await fixture("reset")
+  XCUIDevice.shared.orientation = .portrait
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let project = app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+  let reply = app.staticTexts["Hi! This is SDHQ."]
+  XCTAssertTrue(reply.waitForExistence(timeout:10))
+  XCTAssertTrue(project.exists && project.frame.maxX < reply.frame.minX, "the list stays beside the open session, as on iPad")
+  capture("foldable-portrait",app)
+ }
  /// Real tablet navigation, rather than phone-only Back gestures and full-screen widths.
  @MainActor func testIPadCatchUp() async throws {
   guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("iPad split view") }

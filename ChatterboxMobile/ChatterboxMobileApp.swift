@@ -15,6 +15,7 @@ struct ChatterboxMobileApp: App {
                 if store.isPaired {
                     // Redrawn when the agents' colors change (Appearance).
                     ChatterboxTabs().id(claudeColor + "|" + codexColor)
+                        .modifier(TabletLayoutOnBigScreens())
                 } else {
                     ConnectView()
                 }
@@ -42,6 +43,28 @@ struct ChatterboxMobileApp: App {
     }
 }
 
+
+/// The iPad layout (sessions beside the open one) on any screen big enough in both directions,
+/// whatever width class iOS reports: an open iPhone Duo is "compact" in portrait, like a phone,
+/// though it has an iPad mini's room. Phones on their side (short) and narrow iPad windows keep
+/// the phone layout.
+struct TabletLayoutOnBigScreens: ViewModifier {
+    static let minimumSide: CGFloat = 600
+
+    func body(content: Content) -> some View {
+        let layout = GeometryReader { geometry in
+            let big = min(geometry.size.width, geometry.size.height) >= Self.minimumSide
+            content.transformEnvironment(\.horizontalSizeClass) { if big { $0 = .regular } }
+        }
+        #if DEBUG
+        // Tests: report compact width on an iPad, as an open iPhone Duo does in portrait.
+        if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_COMPACT_WIDTH"] != nil {
+            return AnyView(layout.environment(\.horizontalSizeClass, .compact))
+        }
+        #endif
+        return AnyView(layout)
+    }
+}
 
 /// The home's bottom tabs: Projects, Studios and Chats, like the Mac's Home pages.
 struct ChatterboxTabs: View {
