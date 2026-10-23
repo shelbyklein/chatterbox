@@ -454,6 +454,22 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
   return try JSONSerialization.jsonObject(with:data)
  }
+ /// Pinned: the Mac's pinned sessions, in the Mac's order, a tab of their own.
+ @MainActor func testPinnedTab() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  capture("activity-compact",app)
+  XCTAssertTrue(tab("Pinned",app).exists, "a Pinned tab in the bottom bar"); tab("Pinned",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")], sdhq=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10) && sdhq.exists, "it lists the pinned sessions")
+  // Reading order, in rows or in cards two to a row.
+  XCTAssertTrue(loose.frame.minY < sdhq.frame.minY || (loose.frame.minY == sdhq.frame.minY && loose.frame.minX < sdhq.frame.minX), "in the Mac's order")
+  XCTAssertFalse(app.buttons["chat-"+uuid("Chatterbox")].exists, "and nothing that isn't pinned")
+  capture("pinned-tab",app)
+ }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
  @MainActor func testUsage() async throws {
   try await fixture("reset")

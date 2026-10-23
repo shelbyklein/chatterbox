@@ -40,7 +40,10 @@ def summary(name,line,branch=None,waiting=False,dot=False):
  if name in PROMOTIONS and PROMOTIONS[name]['kind']=='project':s['project']='Promoted project'
  if branch:s['worktreeBranch']=branch
  if name in RUNNING:s['isRunning']=True;s['turnStartedAt']=STARTED
+ # Pinned on the Mac, in this order.
+ if name in PINNED:s['pinnedRank']=PINNED.index(name)
  return s
+PINNED=['Loose chat','SDHQ']
 def chats():
  global READS,ACTIVITY
  READS+=1
