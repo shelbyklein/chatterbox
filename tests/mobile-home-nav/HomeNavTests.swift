@@ -144,7 +144,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest isn't listed on its own")
   XCTAssertTrue(app.staticTexts["Codex: Render four ribbon options"].exists, "its chat's row names it")
   capture("1-chats-list",app)
-  // Cards, two to a row.
+  // Cards, two to a row (from the ⋯ menu, with the sort).
+  app.buttons["Connection"].tap()
   app.buttons["Show as Cards"].tap()
   try await Task.sleep(for: .seconds(1))
   let first = app.buttons["chat-" + uuid("Chatterbox")], second = app.buttons["chat-" + uuid("optimization")]
@@ -162,8 +163,8 @@ final class HomeNavTests: XCTestCase {
   capture("2-sidequest-strip", app)
   app.buttons["Session Menu"].tap()
   XCTAssertTrue(app.buttons["Session Settings"].waitForExistence(timeout: 5)); app.buttons["Session Settings"].tap()
-  // The model list, by agent; no favorites or preset tiles.
-  XCTAssertTrue(app.staticTexts["Models"].waitForExistence(timeout: 5), "Session Settings lists the models")
+  // The provider, then its models; no favorites or preset tiles.
+  XCTAssertTrue(app.staticTexts["Model"].waitForExistence(timeout: 5) && app.buttons["Open models"].exists, "Session Settings lists the providers")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "no favorites")
   XCTAssertFalse(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].exists, "no preset tiles")
   capture("2b-chat-settings", app)
@@ -521,7 +522,9 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   app.buttons["Connection"].tap()
-  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5), "Mac Screen in the ⋯ menu"); app.buttons["Mac Screen"].tap()
+  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5), "Mac Screen in the ⋯ menu")
+  XCTAssertFalse(app.staticTexts["127.0.0.1"].exists, "the menu doesn't list the Mac's addresses")
+  app.buttons["Mac Screen"].tap()
   XCTAssertTrue(app.textFields["mac-screen-user"].waitForExistence(timeout:5) && app.secureTextFields["mac-screen-password"].exists, "it asks for the Mac's sign-in first")
   capture("mac-screen-sign-in",app)
   app.buttons["Close Mac Screen"].tap()
@@ -584,12 +587,21 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
   XCTAssertTrue(app.staticTexts["Effort"].firstMatch.waitForExistence(timeout:5), "it shows the effort")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "and no favorites")
-  // The name comes first; the agent switch is further down the sheet.
+  // The name comes first, then the provider, with its models under it, above the effort.
   let name=app.textFields["new-chat-name"]
   XCTAssertTrue(name.waitForExistence(timeout:5),"it asks for a name first");name.tap();name.typeText("Logo ideas\n")
-  // Models: switch the list to Codex and pick one; that switches the agent.
-  let codexList=app.buttons["Codex"].firstMatch
+  let codexList=app.buttons["Codex"].firstMatch, openList=app.buttons["Open models"].firstMatch
   for _ in 0..<6 where !codexList.isHittable { app.swipeUp() }
+  XCTAssertTrue(openList.exists, "open models are a provider")
+  XCTAssertLessThan(codexList.frame.maxY, app.staticTexts["Effort"].firstMatch.frame.minY, "the provider comes before the effort")
+  // An open model: no effort for it.
+  openList.tap()
+  let qwen=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","qwen3.5:9b")).firstMatch
+  XCTAssertTrue(qwen.waitForExistence(timeout:5), "the open models list shows")
+  qwen.tap()
+  let effortGone=expectation(for:NSPredicate(format:"exists == false"),evaluatedWith:app.staticTexts["Effort"].firstMatch)
+  await fulfillment(of:[effortGone],timeout:5)
+  // Then Codex: pick one of its models; that switches the agent.
   codexList.tap()
   let sol=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","GPT-6.1-Sol")).firstMatch
   XCTAssertTrue(sol.waitForExistence(timeout:5), "the Codex list shows")
@@ -604,6 +616,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(created.last?["backend"] as? String,"codex")
   XCTAssertEqual((created.last?["settings"] as? [String:Any])?["mode"] as? String,"fullAccess","the chat starts with what was picked")
   XCTAssertEqual(created.last?["title"] as? String,"Logo ideas","and the name given")
+  XCTAssertNil((created.last?["settings"] as? [String:Any])?["openModel"] as? String,"a Codex model leaves the open model")
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {

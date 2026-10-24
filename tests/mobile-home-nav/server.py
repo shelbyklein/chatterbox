@@ -74,7 +74,7 @@ def detail(id):
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
  if s.get('isDot'):items.append({'id':cid('email'),'kind':'notice','text':'Email for you \u00b7 Shelby Klein, \u201cFW: One pager for NASP Coaches\u201d (shelbykleindesign@gmail.com): Callie forwarded copy changes for the NASP one pager. Suggested: Apply the updated 80% discount copy.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
- options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[]}
+ options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
 def stl():
  # A binary STL pyramid on a square base.
@@ -173,6 +173,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    o=detail(cid('SDHQ'))['options']
    if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'','systemImage':'eye','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
    if q.get('effort'):o['effort']=q['effort']
+   if q.get('openModel'):o['openModel']=q['openModel']
    return self.reply(o)
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path=='/v1/avatar':return self.reply({'files':[]})
