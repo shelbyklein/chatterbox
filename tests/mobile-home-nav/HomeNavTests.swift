@@ -540,7 +540,16 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5)); app.buttons["Mac Screen"].tap()
   XCUIDevice.shared.orientation = .landscapeLeft
   defer { XCUIDevice.shared.orientation = .portrait }
-  XCTAssertTrue(app.buttons["Mac Screen Options"].waitForExistence(timeout:5)); app.buttons["Mac Screen Options"].tap()
+  XCTAssertTrue(app.buttons["Mac Screen Options"].waitForExistence(timeout:5))
+  // Two displays: one at a time, with arrows to switch.
+  XCTAssertTrue(app.staticTexts["mac-screen-display"].waitForExistence(timeout:5), "a display switcher for two displays")
+  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "1 of 2")
+  app.buttons["Next Display"].tap()
+  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "2 of 2", "the arrow moves to the next display")
+  capture("mac-screen-display-2",app)
+  app.buttons["Previous Display"].tap()
+  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "1 of 2")
+  app.buttons["Mac Screen Options"].tap()
   // Menu pickers list their choices right in the menu.
   XCTAssertTrue(app.buttons["Laptop"].waitForExistence(timeout:5)); app.buttons["Laptop"].tap()
   sleep(2)
