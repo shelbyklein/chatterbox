@@ -39,6 +39,7 @@
 		1A66798F71D30121DFAFAF75 /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
 		1B78216B593A77E390EA5833 /* ChatSession+Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936BB2EAF610947326AC9E1E /* ChatSession+Tools.swift */; };
 		1BA6F024B046BE41B25099BC /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B972A7FDEA18389B723512 /* AppPreferences.swift */; };
+		1CDDFD00195A7B3ED3D42C75 /* RoyalVNCKit in Embed Frameworks */ = {isa = PBXBuildFile; productRef = ECA872FDDF3CF1A61FBC7E13 /* RoyalVNCKit */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1D505664006ADC6AA306A507 /* GolemSidePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB5CC18160C7B1D685C573BC /* GolemSidePanel.swift */; };
 		1DA936A0639706822FBEB1E2 /* TerminalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5208DFA263BFAB665CD5F16F /* TerminalPanel.swift */; };
 		1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DC84E40F7F1834C97EA642 /* PinsAndExtras.swift */; };
@@ -385,6 +386,17 @@
 				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		79074E8300F34E59AC4D1A64 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1CDDFD00195A7B3ED3D42C75 /* RoyalVNCKit in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -1048,6 +1060,7 @@
 				CFF72267322F674B1B1FA945 /* Resources */,
 				473071471AD9910186CEBF1E /* Frameworks */,
 				365D1F970BEC4EDDDB8630C7 /* Embed Foundation Extensions */,
+				79074E8300F34E59AC4D1A64 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);

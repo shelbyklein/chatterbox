@@ -69,6 +69,7 @@ y+='''    settings:
     dependencies:
       - package: RoyalVNC
         product: RoyalVNCKit
+        embed: true
   HomeNavTests:
     type: bundle.ui-testing
     platform: iOS

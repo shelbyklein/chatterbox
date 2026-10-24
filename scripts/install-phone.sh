@@ -40,6 +40,8 @@ echo "Building for ${device#* }…"
 xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Debug \
   -destination "id=$udid" -derivedDataPath build/DerivedDataMobile "${auth[@]}" -quiet build
 app=$(ls -d build/DerivedDataMobile/Build/Products/Debug-iphoneos/*.app | head -1)
+source scripts/lib/check-embedded.sh
+check_embedded "$app"
 xcrun devicectl device install app --device "$udid" "$app" | tail -3
 bundle=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
 xcrun devicectl device process launch --device "$udid" "$bundle" >/dev/null 2>&1 && echo "Installed and opened on ${device#* }." || echo "Installed on ${device#* } (open it there)."

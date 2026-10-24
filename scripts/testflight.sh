@@ -36,6 +36,9 @@ xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration
   -destination generic/platform=iOS -derivedDataPath build/DerivedDataMobile \
   -archivePath "$archive" CURRENT_PROJECT_VERSION="$build" "${auth[@]}" -quiet archive
 
+# Every framework the app links must be inside it, or the build crashes at launch.
+source scripts/lib/check-embedded.sh
+check_embedded "$(ls -d "$archive"/Products/Applications/*.app | head -1)"
 cat > "$out/ExportOptions.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

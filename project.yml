@@ -212,6 +212,8 @@ targets:
     # Mac Screen's Screen Sharing client (a dynamic library, embedded).
     - package: RoyalVNC
       product: RoyalVNCKit
+      # A dynamic library: it must be copied into the app, or the app can't launch.
+      embed: true
   ChatterboxWidget:
     type: app-extension
     platform: iOS
