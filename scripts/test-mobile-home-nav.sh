@@ -7,9 +7,13 @@ cd "$(dirname "$0")/.."
 case "${1:-iphone}" in
   iphone) device_type=com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro ;;
   ipad) device_type=com.apple.CoreSimulator.SimDeviceType.iPad-mini-A17-Pro ;;
-  *) echo 'Usage: scripts/test-mobile-home-nav.sh [iphone|ipad]' >&2; exit 2 ;;
+  # The foldable: starts closed; tests unfold it with simctl (CHATTERBOX_TEST_FOLDABLE).
+  duo) device_type=com.apple.CoreSimulator.SimDeviceType.iPhone-Duo ;;
+  *) echo 'Usage: scripts/test-mobile-home-nav.sh [iphone|ipad|duo]' >&2; exit 2 ;;
 esac
 root=$(pwd)
+# The newest iOS runtime installed (the Duo needs iOS 27.1 or later).
+runtime=$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"]]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])')
 mkdir -p build; artifacts=$(mktemp -d "$root/build/mobile-home-nav.XXXXXX")
 simulator=''
 status=0
@@ -79,7 +83,7 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump(info,f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-simulator=$(xcrun simctl create 'Chatterbox home nav regression' "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
+simulator=$(xcrun simctl create 'Chatterbox home nav regression' "$device_type" "$runtime")
 status=0
 xcrun simctl boot "$simulator"
 xcrun simctl bootstatus "$simulator" -b
