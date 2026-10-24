@@ -37,9 +37,11 @@ udid=${device%% *}
 # A phone new to the developer account is registered first, so its profile can include it.
 [[ -f "$config" ]] && /usr/bin/python3 -I scripts/register-device.py "$udid" "${device#* }"
 echo "Building for ${device#* }…"
-xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Debug \
-  -destination "id=$udid" -derivedDataPath build/DerivedDataMobile "${auth[@]}" -quiet build
-app=$(ls -d build/DerivedDataMobile/Build/Products/Debug-iphoneos/*.app | head -1)
+# Release: Debug runs the Screen Sharing decoding and sign-in maths about 25 times slower.
+xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Release \
+  -destination "id=$udid" -derivedDataPath build/DerivedDataMobile "${auth[@]}" \
+  APNS_ENVIRONMENT=development -quiet build   # Development-signed, so its push tokens are the sandbox's.
+app=$(ls -d build/DerivedDataMobile/Build/Products/Release-iphoneos/*.app | head -1)
 source scripts/lib/check-embedded.sh
 check_embedded "$app"
 xcrun devicectl device install app --device "$udid" "$app" | tail -3

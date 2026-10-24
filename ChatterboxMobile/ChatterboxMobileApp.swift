@@ -82,7 +82,7 @@ struct ChatterboxTabs: View {
         }
         // Mac Screen: the Mac's own Screen Sharing, at the address the app last reached it.
         .fullScreenCover(isPresented: Binding(get: { store.showingMacScreen }, set: { store.showingMacScreen = $0 })) {
-            MacScreenView(host: store.connection?.hosts.first ?? "")
+            MacScreenView(hosts: store.connection?.hosts ?? [])
         }
         // Feedback: the screenshot in Mark Up, then into the Chatterbox session's message box.
         .fullScreenCover(item: Binding(get: { store.feedbackSketch }, set: { store.feedbackSketch = $0 })) { request in
