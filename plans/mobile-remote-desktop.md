@@ -48,12 +48,11 @@ macOS's own Screen Sharing, over the route the app already uses: home Wi-Fi, or 
       of 30/33/36/35 offered) on the first try and saved a 3600×2338 frame. Learned: ask for the
       password before connecting (Screen Sharing hangs up on a slow sign-in); pin RoyalVNC by
       commit (it depends on a CryptoSwift branch).
-- [x] T2 Connection model on iOS: connect, sign in, frames to a CGImage, disconnect,
-      reconnect on foreground. Check: simulator against the Mac's own Screen Sharing.
-- [x] T3 Screen view: fit, zoom, pan; touch → pointer events; trackpad mode.
-      Check: unit tests of the touch → screen-point mapping at several zoom levels.
-- [x] T4 Keyboard and key row (clipboard: not yet). Check: type into a TextEdit window in the
-      simulator session; screenshot.
+- [~] T2 Connection model on iOS: connect, sign in, frames to a CGImage, disconnect,
+      reconnect on foreground. Built; not yet checked live (needs the Mac password: T6).
+- [~] T3 Screen view: fit, zoom, pan; touch → pointer events. Built (the image view is sized
+      in Mac pixels, so a touch's point is the Mac's). Trackpad mode: not built. Live check: T6.
+- [~] T4 Keyboard and key row: built; clipboard not yet. Live check: T6.
 - [x] T5 Entry point, credentials sheet (Keychain), quality setting, errors (wrong password,
       Screen Sharing off, unreachable). Check: UI test `testMacScreenAsksToSignIn` (menu entry, sign-in first, close).
 - [ ] T6 Install on the Duo (`scripts/install-phone.sh`), live check at home and on Tailscale;
