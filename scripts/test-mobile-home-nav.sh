@@ -12,8 +12,8 @@ case "${1:-iphone}" in
   *) echo 'Usage: scripts/test-mobile-home-nav.sh [iphone|ipad|duo]' >&2; exit 2 ;;
 esac
 root=$(pwd)
-# The newest iOS runtime installed (the Duo needs iOS 27.1 or later).
-runtime=$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"]]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])')
+# The newest iOS runtime that runs this device (27.1 runs only the iPhone Duo).
+runtime=$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; d=sys.argv[1]; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"] and any(t["identifier"]==d for t in x.get("supportedDeviceTypes",[]))]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])' "$device_type")
 mkdir -p build; artifacts=$(mktemp -d "$root/build/mobile-home-nav.XXXXXX")
 simulator=''
 status=0
@@ -41,6 +41,10 @@ y='''name: MobileHomeNavRegression
 options:
   deploymentTarget:
     iOS: '17.0'
+packages:
+  RoyalVNC:
+    url: https://github.com/royalapplications/royalvnc
+    revision: 92d4427c73817d8f849bb289ff190aa4b40c44ea
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -62,6 +66,9 @@ y+='''    settings:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Isolated test server
         TARGETED_DEVICE_FAMILY: '1,2'
         INFOPLIST_FILE: Regression-Info.plist
+    dependencies:
+      - package: RoyalVNC
+        product: RoyalVNCKit
   HomeNavTests:
     type: bundle.ui-testing
     platform: iOS

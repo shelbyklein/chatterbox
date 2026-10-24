@@ -209,6 +209,7 @@
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		A547827BF4E5714D97FD6872 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */; };
+		A8738BB6D7C07FFF63895DD6 /* MacScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */; };
 		A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */; };
 		AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
 		AADBF54F8E853A8B26468FCD /* UtterancePause.swift in Sources */ = {isa = PBXBuildFile; fileRef = C520C60380E1A12AF90AF044 /* UtterancePause.swift */; };
@@ -303,6 +304,7 @@
 		F72F71755FD8B1FC399BFE7E /* ImageReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */; };
 		F7536EF03980D8DF1AF66274 /* CompanionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA9F0B419529549C12E3317 /* CompanionAPI.swift */; };
 		F8B670EE672EBDE0BA77AC87 /* ElevenLabsSpeechSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 684370C40CDFEB2C4E7F70BE /* ElevenLabsSpeechSettings.swift */; };
+		FA568DA9621D15DE29ADB37A /* RoyalVNCKit in Frameworks */ = {isa = PBXBuildFile; productRef = ECA872FDDF3CF1A61FBC7E13 /* RoyalVNCKit */; };
 		FA765A7C0DE9F18A246F90EE /* MobileProductTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E022C0C64F7986EC3E3C3B37 /* MobileProductTests.swift */; };
 		FAA7515AF05681D60A8E1AE3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		FAC498FD79276176BF7B6D3A /* ChatSession+Summary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 294A0648C262A1713650E0D5 /* ChatSession+Summary.swift */; };
@@ -354,11 +356,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */,
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -377,10 +378,11 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				0A5854290E931E56FC4E4C9A /* ChatterboxMCP in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -492,6 +494,7 @@
 		6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptImages.swift; sourceTree = "<group>"; };
 		6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatColumnWidths.swift; sourceTree = "<group>"; };
 		71143A69C2726A534266C3D2 /* EmailWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailWatch.swift; sourceTree = "<group>"; };
+		73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacScreen.swift; sourceTree = "<group>"; };
 		7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionSettingsView.swift; sourceTree = "<group>"; };
 		77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAppearance.swift; sourceTree = "<group>"; };
 		77EB75509370857E3265A65B /* PluginsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginsSettingsView.swift; sourceTree = "<group>"; };
@@ -607,6 +610,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		473071471AD9910186CEBF1E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA568DA9621D15DE29ADB37A /* RoyalVNCKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B89A04901CAAD54BB3EDDCD5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -731,6 +742,7 @@
 				EB4266553DB50DB97AF95C8C /* GolemCapabilitiesView.swift */,
 				36DA89BC02E39190C5068EE6 /* GolemCues.swift */,
 				93F4855A5280DDE920296921 /* GolemVoice.swift */,
+				73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */,
 				439E46ECC9B546664D7C82AC /* MobileActivityHistory.swift */,
 				77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */,
 				E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */,
@@ -1034,6 +1046,7 @@
 			buildPhases = (
 				97F2FCDBAB73EB8D988AF393 /* Sources */,
 				CFF72267322F674B1B1FA945 /* Resources */,
+				473071471AD9910186CEBF1E /* Frameworks */,
 				365D1F970BEC4EDDDB8630C7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -1043,6 +1056,7 @@
 			);
 			name = ChatterboxMobile;
 			packageProductDependencies = (
+				ECA872FDDF3CF1A61FBC7E13 /* RoyalVNCKit */,
 			);
 			productName = ChatterboxMobile;
 			productReference = CF9340FA80FF7F326D72A011 /* ChatterboxMobile.app */;
@@ -1165,6 +1179,7 @@
 			mainGroup = A7DB699FF1B4A1B6456E2A07;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				36B83BDC18B1387ED2EDD29C /* XCRemoteSwiftPackageReference "royalvnc" */,
 				957D1B3C4B7DF1C6D0F2FC2C /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -1425,6 +1440,7 @@
 				E2D41BF20CBA93C6F651C94E /* GolemCues.swift in Sources */,
 				2734036DB8DD02AA836CF905 /* GolemQuickPrompts.swift in Sources */,
 				194C29C495FC8617E8B39AED /* GolemVoice.swift in Sources */,
+				A8738BB6D7C07FFF63895DD6 /* MacScreen.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
 				926883B9361BACFF072E7173 /* MobileActivityHistory.swift in Sources */,
@@ -2081,6 +2097,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		36B83BDC18B1387ED2EDD29C /* XCRemoteSwiftPackageReference "royalvnc" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/royalapplications/royalvnc";
+			requirement = {
+				kind = revision;
+				revision = 92d4427c73817d8f849bb289ff190aa4b40c44ea;
+			};
+		};
 		957D1B3C4B7DF1C6D0F2FC2C /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
@@ -2096,6 +2120,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 957D1B3C4B7DF1C6D0F2FC2C /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		ECA872FDDF3CF1A61FBC7E13 /* RoyalVNCKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 36B83BDC18B1387ED2EDD29C /* XCRemoteSwiftPackageReference "royalvnc" */;
+			productName = RoyalVNCKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -513,6 +513,20 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.navigationBars.staticTexts["Chatterbox"].exists || app.staticTexts["Chatterbox"].exists, "in the Chatterbox session")
   capture("feedback-composer",app)
  }
+ /// Mac Screen from the ⋯ menu: with no Mac sign-in saved yet, it asks for one.
+ @MainActor func testMacScreenAsksToSignIn() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5), "Mac Screen in the ⋯ menu"); app.buttons["Mac Screen"].tap()
+  XCTAssertTrue(app.textFields["mac-screen-user"].waitForExistence(timeout:5) && app.secureTextFields["mac-screen-password"].exists, "it asks for the Mac's sign-in first")
+  capture("mac-screen-sign-in",app)
+  app.buttons["Close Mac Screen"].tap()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:5), "and closes back to the app")
+ }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
  @MainActor func testUsage() async throws {
   try await fixture("reset")
