@@ -58,6 +58,14 @@ macOS's own Screen Sharing, over the route the app already uses: home Wi-Fi, or 
 - [ ] T6 Install on the Duo (`scripts/install-phone.sh`), live check at home and on Tailscale;
       TestFlight.
 
+## Laptop layout (Shelby, 2026-10-24)
+
+On the open iPhone Duo bent at the fold and held sideways, like a small laptop: the Mac's screen
+above the fold, a Mac keyboard (real key-down/up, so keys chord) and a trackpad below. Automatic
+from iOS 27.1's division region (active only while bent); Layout → Laptop / Full Screen in the
+view's menu overrides. The pointer is drawn locally (Screen Sharing sends its image).
+Check: `testMacScreenLaptopLayout` (Duo simulator, stand-in screen, Layout → Laptop).
+
 ## Not changed
 
 The companion API, pairing and the Mac app. No PC support yet. No audio. Screen Sharing stays

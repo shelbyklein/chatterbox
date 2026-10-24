@@ -527,6 +527,29 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Close Mac Screen"].tap()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:5), "and closes back to the app")
  }
+ /// Laptop layout (an open iPhone Duo held like a laptop): the Mac's screen on top, a Mac
+ /// keyboard and trackpad below. The simulator can't bend at the fold, so Layout → Laptop.
+ @MainActor func testMacScreenLaptopLayout() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_TEST_MAC_SCREEN":"1"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5)); app.buttons["Mac Screen"].tap()
+  XCUIDevice.shared.orientation = .landscapeLeft
+  defer { XCUIDevice.shared.orientation = .portrait }
+  XCTAssertTrue(app.buttons["Mac Screen Options"].waitForExistence(timeout:5)); app.buttons["Mac Screen Options"].tap()
+  // Menu pickers list their choices right in the menu.
+  XCTAssertTrue(app.buttons["Laptop"].waitForExistence(timeout:5)); app.buttons["Laptop"].tap()
+  sleep(2)
+  capture("mac-screen-laptop",app)
+  XCTAssertTrue(app.descendants(matching: .any)["Trackpad"].waitForExistence(timeout:5), "a trackpad below")
+  XCTAssertTrue(app.descendants(matching: .any)["return"].exists && app.descendants(matching: .any)["⌘"].firstMatch.exists, "and a Mac keyboard")
+  XCTAssertGreaterThan(app.descendants(matching: .any)["return"].frame.minY, app.frame.height / 2 - 40, "the keyboard is on the bottom half")
+  app.buttons["Close Mac Screen"].tap()
+ }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
  @MainActor func testUsage() async throws {
   try await fixture("reset")
