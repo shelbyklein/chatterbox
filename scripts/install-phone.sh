@@ -34,6 +34,8 @@ PY
 )
 [[ "$device" == ERR* ]] && { echo "${device#ERR }" >&2; exit 1; }
 udid=${device%% *}
+# A phone new to the developer account is registered first, so its profile can include it.
+[[ -f "$config" ]] && /usr/bin/python3 -I scripts/register-device.py "$udid" "${device#* }"
 echo "Building for ${device#* }…"
 xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Debug \
   -destination "id=$udid" -derivedDataPath build/DerivedDataMobile "${auth[@]}" -quiet build
