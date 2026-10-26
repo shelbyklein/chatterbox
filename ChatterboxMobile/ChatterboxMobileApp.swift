@@ -25,6 +25,12 @@ struct ChatterboxMobileApp: App {
                                 Color.clear.frame(height: height)
                             }
                         }
+                        .safeAreaInset(edge: .trailing, spacing: 0) {
+                            if let raw = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_TRAILING_OCCLUSION"],
+                               let width = Double(raw) {
+                                Color.clear.frame(width: width)
+                            }
+                        }
                         #endif
                 } else {
                     ConnectView()

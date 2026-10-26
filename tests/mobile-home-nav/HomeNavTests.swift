@@ -43,6 +43,27 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(composer.value as? String,"Keep this draft")
   capture("duo-keyboard-sidebar",app)
  }
+ /// The camera/outer rail's trailing safe area must not be inset a second
+ /// time inside the sidebar, whose right edge is internal to the window.
+ @MainActor func testSidebarContentFillsItsPane() async throws {
+  try await fixture("reset")
+  XCUIDevice.shared.orientation = .portrait
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411",
+                         "CHATTERBOX_TEST_COMPACT_WIDTH":"1","CHATTERBOX_TEST_TRAILING_OCCLUSION":"80"]
+  app.launch()
+  guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else {throw XCTSkip("open screen only")}
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
+  let project=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10));project.tap()
+  let sidebar=app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch
+  XCTAssertTrue(sidebar.waitForExistence(timeout:5))
+  let search=app.searchFields["Search Projects"]
+  XCTAssertTrue(search.waitForExistence(timeout:5))
+  XCTAssertGreaterThanOrEqual(sidebar.frame.maxX-search.frame.maxX,8,"search must stay inside its own pane")
+  XCTAssertLessThan(sidebar.frame.maxX-search.frame.maxX,36,"search should fill its pane, without a second camera/rail inset")
+  capture("duo-sidebar-content-insets",app)
+ }
  /// A native iPad stand-in for a bent Duo: an asymmetric fold catches a fixed
  /// sidebar width, an equal split, and the old maximum width.
  @MainActor func testBentDuoSidebarFillsLeftScreen() async throws {
@@ -51,7 +72,7 @@ final class HomeNavTests: XCTestCase {
   app.terminate()
   XCUIDevice.shared.orientation = .portrait
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
-                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_SESSION_DIVISION":"0.68"]
+                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_SESSION_DIVISION":"0.68", "CHATTERBOX_TEST_SESSION_DIVISION_MARGIN":"40"]
   app.launch()
   guard min(app.windows.firstMatch.frame.width, app.windows.firstMatch.frame.height) >= 600 else {
    throw XCTSkip("needs an open-screen sized window")
