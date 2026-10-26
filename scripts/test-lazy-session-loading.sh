@@ -11,7 +11,7 @@ export CHATTERBOX_HOST_NOTIFY=0
 export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
 export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
-export LAZY_CAPTURE="$PWD/design/lazy-session-loading/selected-chat.png"
+export LAZY_CAPTURE="${LAZY_CAPTURE:-$PWD/design/lazy-session-loading/selected-chat.png}"
 mkdir -p design/lazy-session-loading
 products=build/DerivedData/Build/Products/Debug
 mkdir -p "$products"

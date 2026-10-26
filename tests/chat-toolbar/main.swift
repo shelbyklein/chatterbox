@@ -277,6 +277,53 @@ func run() async throws {
     print("RENDER Projects sidebar: inspect 9-projects-sidebar.png")
     save(sideWindow,"9-projects-sidebar",out)
     unsetenv("CHATTERBOX_TEST_SIDEBAR_ONLY")
+    // Archive uses the same AppModel action as the session's context menu.
+    // All sessions here are disposable copies/fixtures, never the user's originals.
+    sideWindow.orderOut(nil)
+    window.makeKeyAndOrderFront(nil)
+    for view in [AppModel.MainView.projects, .studios, .chats] {
+        let session = fixture("Archive \(view.rawValue)", project: view == .projects)
+        session.record.items = [DisplayItem(kind: .user, text: "Archive this test session")]
+        if view == .studios {
+            let studio = Studio(name: "Archive Studio", folder: root)
+            model.studios.append(studio)
+            session.record.studioID = studio.id
+        }
+        model.showView(view)
+        try await show(session)
+        let studio = model.studioSidebarID, chats = model.showingChatsSidebar
+        let count = model.sessions.count
+        save(window, "archive-\(view.rawValue)-before", out)
+        model.archive(session)
+        try await Task.sleep(for: .milliseconds(500))
+        check(model.selectedID == nil && session.record.archivedAt != nil, "archiving \(view.rawValue) clears the selected session")
+        check(model.studioSidebarID == studio && model.showingChatsSidebar == chats,
+              "archiving \(view.rawValue) preserves the sidebar view")
+        check(model.sessions.count == count, "archiving \(view.rawValue) creates no replacement")
+        save(window, "archive-\(view.rawValue)-after", out)
+    }
+    let current = fixture("Keep open", project: true)
+    let other = fixture("Archive elsewhere", pending: true)
+    try await show(current)
+    model.showingHome = true
+    model.archive(other)
+    check(model.selectedID == current.id && model.showingHome, "archiving another session leaves the selection and overview alone")
+    model.archive(current)
+    check(model.selectedID == nil && model.showingHome, "archiving the selected session from overview preserves overview")
+    model.showingHome = false
+    for session in model.activeSessions { session.record.archivedAt = Date() }
+    let lastSession = fixture("Last session", project: true)
+    try await show(lastSession)
+    let lastCount = model.sessions.count
+    model.archive(lastSession)
+    check(model.selectedID == nil && model.activeSessions.isEmpty && model.sessions.count == lastCount,
+          "archiving the last session leaves an empty pane without creating a chat")
+    let empty = fixture("Empty session")
+    try await show(empty)
+    let emptyCount = model.sessions.count
+    model.archive(empty)
+    check(model.selectedID == nil && model.activeSessions.isEmpty && model.sessions.count == emptyCount - 1,
+          "archiving an empty last session keeps cleanup without creating a replacement")
     print(failures == 0 ? "RESULT all passed" : "RESULT \(failures) failed")
     exit(failures == 0 ? 0 : 1)
 }

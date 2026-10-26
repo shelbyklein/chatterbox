@@ -210,6 +210,31 @@ func check(_ condition: @autoclosure () -> Bool, _ message: String) throws {
     scroll.contentView.scroll(to: .zero); scroll.reflectScrolledClipView(scroll.contentView)
     try await Task.sleep(for: .seconds(1))
     try check(visible.items.count == 80, "newly reached top waits for another explicit click")
+    // A daemon list refresh after archiving must not fill the deliberately empty pane.
+    let sidebar = restored.studioSidebarID, chats = restored.showingChatsSidebar
+    restored.archive(visible)
+    var archiveConfirmed = false
+    for _ in 0..<100 {
+        let archiveState = try await RuntimeClient.shared.request("get", body: ["chatID": .string(visible.id.uuidString), "summaryOnly": true]).decode(RuntimeChatState.self)
+        if archiveState.record.archivedAt != nil { archiveConfirmed = true; break }
+        try await Task.sleep(for: .milliseconds(100))
+    }
+    try check(archiveConfirmed, "selected archive reaches the daemon")
+    _ = try await RuntimeClient.shared.request("preferences", body: ["defaultEffort": "medium"])
+    try await Task.sleep(for: .seconds(1))
+    try check(restored.selectedID == nil && restored.studioSidebarID == sidebar && restored.showingChatsSidebar == chats,
+              "daemon list refresh preserves the empty archive pane and sidebar")
+    if #available(macOS 14.4, *) {
+        let target = try await SCShareableContent.currentProcess.windows.first { $0.windowID == CGWindowID(window.windowNumber) }!
+        let config = SCStreamConfiguration(); config.width = 1100; config.height = 780; config.ignoreShadowsSingleWindow = true
+        let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(desktopIndependentWindow: target), configuration: config)
+        let dest = URL(fileURLWithPath: ProcessInfo.processInfo.environment["LAZY_CAPTURE"]!).deletingPathExtension().appendingPathExtension("archived.png")
+        try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: dest)
+    }
+    restored.selectedID = backgroundID
+    _ = try await RuntimeClient.shared.request("preferences", body: ["defaultEffort": "high"])
+    try await Task.sleep(for: .seconds(1))
+    try check(restored.selectedID == backgroundID, "deliberately opening another session resumes normal selection")
     RuntimeClient.shared.stop()
 }
 
