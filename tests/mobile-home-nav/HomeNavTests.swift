@@ -4,13 +4,14 @@ final class HomeNavTests: XCTestCase {
  /// An open foldable (iPhone Duo) in portrait reports a compact width, like a phone, but has an
  /// iPad mini's room: it gets the iPad layout. Stood in for by an iPad told it's compact.
  @MainActor func testFoldableGetsTabletLayout() async throws {
-  guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("needs an iPad-sized screen") }
   try await fixture("reset")
   XCUIDevice.shared.orientation = .portrait
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
                            "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
   app.launch()
+  let screen = app.windows.firstMatch.frame.size
+  guard min(screen.width, screen.height) >= 600 else { throw XCTSkip("needs an iPad-sized screen (an open iPhone Duo), not \(screen)") }
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   let project = app.buttons["chat-"+uuid("SDHQ")]
   XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
@@ -18,6 +19,29 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(reply.waitForExistence(timeout:10))
   XCTAssertTrue(project.exists && project.frame.maxX < reply.frame.minX, "the list stays beside the open session, as on iPad")
   capture("foldable-portrait",app)
+ }
+ /// Archiving the open session, beside the list: the right side clears, the list stays.
+ @MainActor func testArchiveClearsTheSession() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  let screen = app.windows.firstMatch.frame.size
+  guard min(screen.width, screen.height) >= 600 else { throw XCTSkip("needs the list beside the session") }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let project = app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10))
+  // Archiving the open session clears the right side and leaves the list as it was.
+  let archive = app.buttons["Archive"]
+  for _ in 0..<3 where !archive.exists {
+   app.buttons["Session Menu"].tap()
+   _ = archive.waitForExistence(timeout:3)
+  }
+  XCTAssertTrue(archive.exists, "the session menu offers Archive"); archive.tap()
+  XCTAssertTrue(app.staticTexts["Choose a Session"].waitForExistence(timeout:5), "nothing open beside the list after archiving")
+  XCTAssertTrue(tab("Projects",app).isSelected, "still on Projects")
+  capture("archived-beside-list",app)
  }
  /// Real tablet navigation, rather than phone-only Back gestures and full-screen widths.
  @MainActor func testIPadCatchUp() async throws {
