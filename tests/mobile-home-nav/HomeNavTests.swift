@@ -50,7 +50,7 @@ final class HomeNavTests: XCTestCase {
   XCUIDevice.shared.orientation = .portrait
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411",
-                         "CHATTERBOX_TEST_COMPACT_WIDTH":"1","CHATTERBOX_TEST_TRAILING_OCCLUSION":"80"]
+                         "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
   app.launch()
   guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else {throw XCTSkip("open screen only")}
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
