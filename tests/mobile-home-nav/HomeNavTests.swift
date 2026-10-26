@@ -20,6 +20,57 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(project.exists && project.frame.maxX < reply.frame.minX, "the list stays beside the open session, as on iPad")
   capture("foldable-portrait",app)
  }
+ /// A native iPad stand-in for a bent Duo: an asymmetric fold catches a fixed
+ /// sidebar width, an equal split, and the old maximum width.
+ @MainActor func testBentDuoSidebarFillsLeftScreen() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.terminate()
+  XCUIDevice.shared.orientation = .portrait
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_SESSION_DIVISION":"0.68"]
+  app.launch()
+  guard min(app.windows.firstMatch.frame.width, app.windows.firstMatch.frame.height) >= 600 else {
+   throw XCTSkip("needs an open-screen sized window")
+  }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let project = app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+  let reply = app.staticTexts["Hi! This is SDHQ."]
+  XCTAssertTrue(reply.waitForExistence(timeout:10))
+  let sidebar = app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch
+  let detail = app.descendants(matching:.any).matching(identifier:"session-detail-pane").firstMatch
+  XCTAssertTrue(sidebar.waitForExistence(timeout:5) && detail.exists)
+  let width = detail.frame.maxX - sidebar.frame.minX
+  XCTAssertEqual(sidebar.frame.width, width * 0.68 - 6, accuracy:2, "sidebar fills the whole left display")
+  XCTAssertGreaterThan(sidebar.frame.width,460,"fold layout has no old sidebar cap")
+  XCTAssertEqual(detail.frame.minX - sidebar.frame.maxX,12,accuracy:2,"leave the fold clear")
+  XCTAssertTrue(project.isHittable && project.frame.maxX < reply.frame.minX)
+  XCTAssertFalse(app.buttons["Hide Sidebar"].exists,"no control can collapse the open-screen sidebar")
+  capture("duo-bent-sidebar",app)
+ }
+ /// Closed phones retain full-screen list → chat navigation, then return to the
+ /// same list when the selected session is closed by archiving.
+ @MainActor func testClosedPhoneSessionNavigation() async throws {
+  try await fixture("reset")
+  XCUIDevice.shared.orientation = .portrait
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)<600 else { throw XCTSkip("closed phone only") }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
+  let project=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10));project.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10))
+  XCTAssertFalse(app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch.exists)
+  capture("closed-phone-conversation",app)
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(app.buttons["Archive"].waitForExistence(timeout:5))
+  app.buttons["Archive"].tap()
+  let remaining=app.buttons["chat-"+uuid("Chatterbox")]
+  XCTAssertTrue(remaining.waitForExistence(timeout:5) && remaining.isHittable,"back on the list after archiving")
+  XCTAssertFalse(project.exists,"the archived session is removed")
+ }
  /// Archiving the open session, beside the list: the right side clears, the list stays.
  @MainActor func testArchiveClearsTheSession() async throws {
   try await fixture("reset")
@@ -41,6 +92,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(archive.exists, "the session menu offers Archive"); archive.tap()
   XCTAssertTrue(app.staticTexts["Choose a Session"].waitForExistence(timeout:5), "nothing open beside the list after archiving")
   XCTAssertTrue(tab("Projects",app).isSelected, "still on Projects")
+  XCTAssertTrue(app.buttons["New Chat"].firstMatch.waitForExistence(timeout:5), "sidebar controls remain available")
   capture("archived-beside-list",app)
  }
  /// Real tablet navigation, rather than phone-only Back gestures and full-screen widths.

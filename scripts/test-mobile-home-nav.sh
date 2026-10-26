@@ -13,7 +13,8 @@ case "${1:-iphone}" in
 esac
 root=$(pwd)
 # The newest iOS runtime that runs this device (27.1 runs only the iPhone Duo).
-runtime=$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; d=sys.argv[1]; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"] and any(t["identifier"]==d for t in x.get("supportedDeviceTypes",[]))]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])' "$device_type")
+# MOBILE_TEST_RUNTIME can pin a supported installed runtime for a reproducible regression.
+runtime=${MOBILE_TEST_RUNTIME:-$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; d=sys.argv[1]; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"] and any(t["identifier"]==d for t in x.get("supportedDeviceTypes",[]))]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])' "$device_type")}
 mkdir -p build; artifacts=$(mktemp -d "$root/build/mobile-home-nav.XXXXXX")
 simulator=''
 status=0
