@@ -16,6 +16,16 @@ struct ChatterboxMobileApp: App {
                     // Redrawn when the agents' colors change (Appearance).
                     ChatterboxTabs().id(claudeColor + "|" + codexColor)
                         .modifier(TabletLayoutOnBigScreens())
+                        #if DEBUG
+                        // A native safe-area fixture for keyboard-sized occlusion on an
+                        // open screen. The window stays large while usable height shrinks.
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            if let raw = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_BOTTOM_OCCLUSION"],
+                               let height = Double(raw) {
+                                Color.clear.frame(height: height)
+                            }
+                        }
+                        #endif
                 } else {
                     ConnectView()
                 }
@@ -50,12 +60,18 @@ struct ChatterboxMobileApp: App {
 /// the phone layout.
 struct TabletLayoutOnBigScreens: ViewModifier {
     static let minimumSide: CGFloat = 600
+    @State private var windowSize: CGSize?
 
     func body(content: Content) -> some View {
         let layout = GeometryReader { geometry in
-            let big = min(geometry.size.width, geometry.size.height) >= Self.minimumSide
+            // The keyboard reduces usable height, not the size of the open phone.
+            // Window bounds also respect narrow iPad/Stage Manager windows, unlike
+            // UIScreen bounds. Keep keyboard avoidance on the content itself.
+            let size = windowSize ?? geometry.size
+            let big = min(size.width, size.height) >= Self.minimumSide
             content.transformEnvironment(\.horizontalSizeClass) { if big { $0 = .regular } }
         }
+        .background { SessionWindowSizeProbe(size: $windowSize).allowsHitTesting(false) }
         #if DEBUG
         // Tests: report compact width on an iPad, as an open iPhone Duo does in portrait.
         if ProcessInfo.processInfo.environment["CHATTERBOX_TEST_COMPACT_WIDTH"] != nil {
@@ -63,6 +79,34 @@ struct TabletLayoutOnBigScreens: ViewModifier {
         }
         #endif
         return AnyView(layout)
+    }
+}
+
+/// Measures the app window independently of keyboard/safe-area occlusion. Bounds
+/// change when the Duo opens/closes or the iPad window resizes, but not when typing.
+private struct SessionWindowSizeProbe: UIViewRepresentable {
+    @Binding var size: CGSize?
+
+    func makeUIView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.report = { value in if size != value { size = value } }
+        return probe
+    }
+
+    func updateUIView(_ probe: Probe, context: Context) {
+        probe.report = { value in if size != value { size = value } }
+        probe.check()
+    }
+
+    final class Probe: UIView {
+        var report: (CGSize) -> Void = { _ in }
+        override func didMoveToWindow() { super.didMoveToWindow(); check() }
+        override func layoutSubviews() { super.layoutSubviews(); check() }
+
+        func check() {
+            guard let value = window?.bounds.size, value.width > 0, value.height > 0 else { return }
+            DispatchQueue.main.async { [weak self] in self?.report(value) }
+        }
     }
 }
 

@@ -20,6 +20,29 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(project.exists && project.frame.maxX < reply.frame.minX, "the list stays beside the open session, as on iPad")
   capture("foldable-portrait",app)
  }
+ /// Keyboard/occluded height must not turn an open screen back into phone navigation.
+ @MainActor func testOpenSidebarSurvivesKeyboardHeight() async throws {
+  try await fixture("reset")
+  XCUIDevice.shared.orientation = .portrait
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_BOTTOM_OCCLUSION":"540"]
+  app.launch()
+  guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else { throw XCTSkip("open screen only") }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
+  let project=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(project.waitForExistence(timeout:10));project.tap()
+  let sidebar=app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch
+  let detail=app.descendants(matching:.any).matching(identifier:"session-detail-pane").firstMatch
+  XCTAssertTrue(sidebar.waitForExistence(timeout:5) && detail.exists,"open layout must survive a keyboard-sized loss of usable height")
+  let originalWidth=sidebar.frame.width
+  let composer=app.textViews["messageComposer"].exists ? app.textViews["messageComposer"] : app.textFields["messageComposer"]
+  XCTAssertTrue(composer.waitForExistence(timeout:5));composer.tap();composer.typeText("Keep this draft")
+  XCTAssertTrue(sidebar.exists && detail.exists,"typing must not replace either navigation pane")
+  XCTAssertEqual(sidebar.frame.width,originalWidth,accuracy:2)
+  XCTAssertEqual(composer.value as? String,"Keep this draft")
+  capture("duo-keyboard-sidebar",app)
+ }
  /// A native iPad stand-in for a bent Duo: an asymmetric fold catches a fixed
  /// sidebar width, an equal split, and the old maximum width.
  @MainActor func testBentDuoSidebarFillsLeftScreen() async throws {
