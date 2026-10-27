@@ -176,6 +176,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if q.get('openModel'):o['openModel']=q['openModel']
    return self.reply(o)
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
+  if self.path=='/v1/displays':return self.reply([{'x':0,'y':0,'width':900,'height':584.5},{'x':900,'y':0,'width':756,'height':491}])
   if self.path=='/v1/avatar':return self.reply({'files':[]})
   if self.path.startswith('/v1/chats/'):
    id=self.path.split('/')[3].split('?')[0]

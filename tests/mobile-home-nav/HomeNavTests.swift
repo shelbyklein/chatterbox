@@ -664,7 +664,7 @@ final class HomeNavTests: XCTestCase {
   XCUIDevice.shared.orientation = .landscapeLeft
   defer { XCUIDevice.shared.orientation = .portrait }
   XCTAssertTrue(app.buttons["Mac Screen Options"].waitForExistence(timeout:5))
-  // Two displays: one at a time, with arrows to switch.
+  // Two displays (from the Mac's layout; Screen Sharing sends one picture): one at a time.
   XCTAssertTrue(app.staticTexts["mac-screen-display"].waitForExistence(timeout:5), "a display switcher for two displays")
   XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "1 of 2")
   app.buttons["Next Display"].tap()
@@ -680,6 +680,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.descendants(matching: .any)["Trackpad"].waitForExistence(timeout:5), "a trackpad below")
   XCTAssertTrue(app.descendants(matching: .any)["return"].exists && app.descendants(matching: .any)["⌘"].firstMatch.exists, "and a Mac keyboard")
   XCTAssertGreaterThan(app.descendants(matching: .any)["return"].frame.minY, app.frame.height / 2 - 40, "the keyboard is on the bottom half")
+  let click = app.descendants(matching: .any)["Click"], arrow = app.descendants(matching: .any)["→"]
+  XCTAssertTrue(click.exists && click.frame.minX > arrow.frame.maxX - 2 && abs(click.frame.midY - arrow.frame.midY) < 2, "a click key at the bottom right")
   app.buttons["Close Mac Screen"].tap()
  }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
