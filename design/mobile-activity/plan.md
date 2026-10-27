@@ -1,10 +1,10 @@
 # iOS finished-turn timeline
 
-Shelby confirmed: turn ends only, each entry opens its chat. Existing mobile tabs have no history and chat list has no completion timestamps. Add optional saved completion events to conversation records, export bounded newest-first events in paired Chatterbox chat list, add Activity tab using existing chat deep-link routing. No starts/questions/errors feed or inferred historical end times. Golem remains excluded. Backward-compatible optional API/record fields; older servers show waiting-for-update state.
+Shelby confirmed: turn ends only, each entry opens its chat. Existing mobile tabs have no history and chat list has no completion timestamps. Add optional saved completion events to conversation records, export bounded newest-first events in paired Chatterbox chat list, add Activity tab using existing chat deep-link routing. No starts/questions/errors feed or inferred historical end times. Backward-compatible optional API/record fields; older servers show waiting-for-update state.
 
 Target: bottom tabs [Projects][Studios][Chats][Activity]; Activity list row [check] Chat name / Turn ended · provider / completion date-time [chevron]. Newest first. Existing tabs preserved. Source/current entry ChatterboxMobileApp.swift and Companion.ChatList. Linear current Codex session, no delegation; exact runtime effort unavailable, continuing user's direct build authority. local: design/mobile-activity/plan.md, GitHub read-only, preserve all prior changes.
 
-- [x] A1 Record bounded exact running-to-idle transitions without duplicate false-to-false updates; JSON persistence and old payload compatibility; exclude Golem in exported list.
+- [x] A1 Record bounded exact running-to-idle transitions without duplicate false-to-false updates; JSON persistence and old payload compatibility.
 - [x] A2 Activity tab, empty/older-server state, refresh and entry-to-chat route; simulator UI test and inspect actual screenshot.
 - [ ] A3 Build/install phone + Mac service bundle; no interruption or daemon restart without an idle safe path. Report active versus installed status explicitly.
 

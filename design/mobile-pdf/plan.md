@@ -2,7 +2,7 @@
 
 The phone renders Review PDF links pointing at Mac paths but cannot open them. The companion file endpoint only serves attachments, referenced pictures and animations, and builds full response bodies in memory. Shelby authorized implementing the PDF viewing/downloading proposal.
 
-[Current mobile layout](../mobile-conversation/golem-dark-iphone.png) and [viewer sketch](target.svg). Add chat-specific PDF metadata and portable links; stream downloads to disk with progress and cancellation. Open in a full-screen PDFKit viewer with zoom/pages, Save to Files and Share. Retain downloaded files in a Saved PDFs library reachable offline.
+[Current mobile layout](../mobile-conversation/claude-light-iphone.png) and [viewer sketch](target.svg). Add chat-specific PDF metadata and portable links; stream downloads to disk with progress and cancellation. Open in a full-screen PDFKit viewer with zoom/pages, Save to Files and Share. Retain downloaded files in a Saved PDFs library reachable offline.
 
 Work preparation: direct implementation request confirms scope and now. Linear GPT-6.1-Sol / medium, this session (verified runtime). Tracker local:8F8E40A4-87F8-4583-A820-06A9F663A282. PD-1 Mac references/transport; PD-2 mobile viewer/cache; PD-3 verification. Readiness R1-R13 pass; no open decisions. No push or installation authorized by this request.
 

@@ -3,31 +3,20 @@ import Foundation
 #if CHATTERBOX_HEADLESS
 // Compatibility surface for the existing companion API; this is not a UI model.
 typealias AppModel=DaemonContext
-typealias Attention=DaemonAttention
-@MainActor final class DaemonAttention {
-    static let shared=DaemonAttention()
-    func dotUnreadCount(_ session:ChatSession)->Int {
-        let seen=AppPreferences.defaults.string(forKey:"dotSeenItem").flatMap(UUID.init(uuidString:))
-        guard let seen,let i=session.items.firstIndex(where:{$0.id==seen}) else{return 0}
-        return session.items.dropFirst(i+1).filter{$0.kind == .assistant && $0.phase == .final}.count
-    }
-}
 @MainActor final class DaemonContext {
     let runtime:ConversationRuntime
     var selectedID:UUID?
     init(_ runtime:ConversationRuntime){self.runtime=runtime}
     var sessions:[ChatSession]{runtime.sessions}
     var activeSessions:[ChatSession]{sessions.filter{$0.record.archivedAt==nil}}
-    var dot:ChatSession?{runtime.assistant}
-    var dotName:String{dot?.title ?? "Golem"}
     var companionListRevision:Int{runtime.state.sequence}
     func companionRevision(of id:UUID)->Int{runtime.state.revisions[id.uuidString] ?? 0}
-    var sidebarProjects:[ChatSession]{activeSessions.filter{$0.record.projectFolder != nil && $0.record.worktreeOf==nil && !$0.isDot}.sorted{$0.record.updatedAt>$1.record.updatedAt}}
-    var sidebarChats:[ChatSession]{activeSessions.filter{$0.record.projectFolder==nil && $0.record.studioID==nil && $0.record.sidechatOf==nil && !$0.isDot}}
+    var sidebarProjects:[ChatSession]{activeSessions.filter{$0.record.projectFolder != nil && $0.record.worktreeOf==nil}.sorted{$0.record.updatedAt>$1.record.updatedAt}}
+    var sidebarChats:[ChatSession]{activeSessions.filter{$0.record.projectFolder==nil && $0.record.studioID==nil && $0.record.sidechatOf==nil}}
     var activeStudios:[Studio]{runtime.studios.filter{$0.archivedAt==nil}}
     func studio(_ id:UUID)->Studio?{runtime.studios.first{$0.id==id}}
     func chats(in studio:Studio)->[ChatSession]{activeSessions.filter { chat in
-        chat.record.studioID == studio.id && !chat.isDot && !activeSessions.contains { parent in
+        chat.record.studioID == studio.id && !activeSessions.contains { parent in
             chat.record.sidechatOf == parent.id || (chat.record.worktreeOf != nil && chat.record.worktreeOf == parent.record.convertedProjectFolder)
         }
     }}
@@ -88,20 +77,18 @@ typealias Attention=DaemonAttention
         try runtime.flush()
         return session
     }
-    func ensureDot() throws ->ChatSession{try runtime.ensureAssistant()}
     func archive(_ s:ChatSession){s.shutdown();s.setArchived(true)}
     /// Pin or unpin from the phone: the service keeps the Mac's pin list and tells the app.
     func setPinned(_ s:ChatSession,_ pinned:Bool){
         var ids=AppPreferences.defaults.stringArray(forKey:"macPinnedThreads") ?? []
         let id=s.id.uuidString
-        if pinned{guard !ids.contains(id),!s.isDot,s.record.worktreeOf==nil,s.record.sidechatOf==nil else{return};ids.append(id)}
+        if pinned{guard !ids.contains(id),s.record.worktreeOf==nil,s.record.sidechatOf==nil else{return};ids.append(id)}
         else{guard ids.contains(id) else{return};ids.removeAll{$0==id}}
         try? RuntimePreferences.update(["macPinnedThreads":.array(ids.map(JSON.string))])
         runtime.publishUIRequest("pins.changed",payload:.array(ids.map(JSON.string)))
     }
-    func renameDot(_ title:String){dot?.setTitle(title);dot?.restartClaudeForNewTools()}
     func setInstructions(_ text:String,forStudio id:UUID){var all=runtime.studios;guard let i=all.firstIndex(where:{$0.id==id}) else{return};all[i].instructions=text;try? runtime.updateStudios(all)}
-    func canFork(_ s:ChatSession)->Bool{!s.isRunning && !s.isDot && s.record.projectFolder==nil && !s.items.isEmpty}
+    func canFork(_ s:ChatSession)->Bool{!s.isRunning && s.record.projectFolder==nil && !s.items.isEmpty}
     func sidechats(of parent: ChatSession) -> [ChatSession] { activeSessions.filter { $0.record.sidechatOf == parent.id }.sorted { $0.record.updatedAt > $1.record.updatedAt } }
     func studioFamily(of parent: ChatSession) -> [ChatSession] {
         var family = [parent] + sidechats(of: parent)
@@ -112,13 +99,12 @@ typealias Attention=DaemonAttention
         guard canFork(s) else{return nil}
         var r=s.record;r.id=UUID();r.title += " (fork)";r.createdAt=Date();r.updatedAt=Date();r.archivedAt=nil;r.forkedFrom=s.id
         if r.convertedProjectFolder != nil { r.sidechatProjectFolder=s.convertedProjectScope;r.convertedProjectFolder=nil }
-        r.isDot=nil;r.sentDotName=nil;r.dotFollowing=nil;r.currentIssue=nil;r.turnStartedAt=nil;r.backgroundTasks=nil;r.claudeHost=nil;r.codexHost=nil
+        r.currentIssue=nil;r.turnStartedAt=nil;r.backgroundTasks=nil;r.claudeHost=nil;r.codexHost=nil
         r.claudeForkPending=r.claudeSessionID != nil ? true:nil
         if let thread=r.codex?.threadId{r.codex?.forkFrom=thread;r.codex?.threadId=nil}
         for i in r.items.indices{r.items[i].queued=nil;if r.items[i].approvalState == .pending{r.items[i].approvalState = .expired}}
         r.items.append(DisplayItem(kind:.notice,text:"Forked from \(s.title)."))
         return try? runtime.insert(r)
     }
-    func recordAssistantDecision(_ title:String,detail:String?,chat:ChatSession?){try? runtime.recordAssistantNote(title:title,detail:detail,chat:chat?.id)}
 }
 #endif

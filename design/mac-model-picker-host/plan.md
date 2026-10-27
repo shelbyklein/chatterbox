@@ -1,6 +1,6 @@
-# Golem model popover hosting repair
+# Model popover hosting repair
 
-Golem's cog opens a 300pt settings page and replaces it with the shared 380×600 model picker. Shelby's current screenshot shows the picker shifted outside the host's left edge after the previously shipped fixed-picker-size change. Prior tests exercised a direct ModelPicker entry, not this page replacement. Reproduce the actual cog entry and remove unstable outer sizing while keeping every selected setting.
+The chat settings cog opens a 300pt settings page and replaces it with the shared 380×600 model picker. Shelby's current screenshot shows the picker shifted outside the host's left edge after the previously shipped fixed-picker-size change. Prior tests exercised a direct ModelPicker entry, not this page replacement. Reproduce the actual cog entry and remove unstable outer sizing while keeping every selected setting.
 
 Current evidence: [reported screenshot](reported.png); target [inset layout sketch](target.svg). Files: ChatSettingsCog.swift and ModelPicker.swift.
 

@@ -6,7 +6,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
  let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-notes."))
- UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
  let model = AppModel()
  var project = ConversationRecord(model:"gpt-6.1-sol", effort:"medium", personality:.pragmatic)
  project.activeBackend = .codex; project.projectFolder = root+"/project"; project.title="Project"

@@ -14,10 +14,15 @@ out=pathlib.Path(sys.argv[1]);(out/'Conversations').mkdir()
 source=pathlib.Path.home()/'Library/Application Support/Chatterbox/Conversations'
 for f in source.glob('*.json'):
  r=json.loads(f.read_text())
- if not (r.get('isDot') or r.get('projectFolder')=='/Users/shelbyklein/Vibes/Chatterbox'):continue
+ if r.get('projectFolder')!='/Users/shelbyklein/Vibes/Chatterbox':continue
  for k in ['claudeHost','codexHost']:r.pop(k,None)
  (out/'Conversations'/f.name).write_text(json.dumps(r))
-shutil.copytree(pathlib.Path.home()/'Chatterbox/Dot/Avatar',out/'Dot/Avatar')
+# Two project chats are needed; with only one, a second copy stands in.
+copies=list((out/'Conversations').glob('*.json'))
+if len(copies)==1:
+ import uuid
+ r=json.loads(copies[0].read_text());r['id']=str(uuid.uuid4()).upper();r['title']=(r.get('title') or 'Chatterbox')+' copy'
+ (out/'Conversations'/(r['id']+'.json')).write_text(json.dumps(r))
 shutil.copy2(source.parent/'Studios.json',out/'Studios.json')
 # Preserve exact copies used by this run for repeatable regression checks.
 shutil.copytree(out,pathlib.Path('/tmp/chatterbox-columns-fixture-last'),dirs_exist_ok=True)

@@ -7,7 +7,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-view-memory."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
     UserDefaults.standard.removeObject(forKey:"lastSessionInView")
     defer { UserDefaults.standard.removeObject(forKey:"lastSessionInView") }
     let model=AppModel()
@@ -66,7 +66,7 @@ app.setActivationPolicy(.accessory)
     let before=model.sidebarRevealRequest
     click(0)
     precondition(at(sidechat) && model.sidebarRevealRequest == before+1,"native Projects repeat click reveals instead of toggling")
-    for session in model.activeSessions where !session.isDot { session.setArchived(true) }
+    for session in model.activeSessions { session.setArchived(true) }
     model.showView(.projects)
     precondition(model.selectedID == nil && !model.showingHome && !model.showingChatsSidebar && !model.showingStudiosSidebar,"empty Projects clears the old session")
     model.showView(.chats)

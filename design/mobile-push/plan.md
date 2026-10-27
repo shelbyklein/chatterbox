@@ -1,5 +1,5 @@
 # Push notifications
-The phone/iPad can read chats but has no APNs registration, entitlement or provider. Deliver native notifications for waiting approvals/questions, finished work, Golem briefings and important email; taps open the relevant chat. Add the authentic Gmail icon to Mac email cards as Shelby requested during this work.
+The phone/iPad can read chats but has no APNs registration, entitlement or provider. Deliver native notifications for waiting approvals/questions, and finished work; taps open the relevant chat. Add the authentic Gmail icon to Mac email cards as Shelby requested during this work.
 
 Scope confirmed by request to do what is needed for mobile push; execute now. No cloud relay, background polling, mobile notification approval actions, auto-install or Mac restart. Existing pairing, local network restrictions, Mac notifications and running sessions remain intact. Apple account key/ID are requested; credential availability gates the live send test, not implementation.
 

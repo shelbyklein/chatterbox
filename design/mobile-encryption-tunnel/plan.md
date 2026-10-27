@@ -6,7 +6,7 @@ Issues: [#6 Encrypt and authenticate the mobile connection](https://github.com/s
 
 > **Hostname moved (2026-10-09):** `chatterbox.shelbyklein.com` now serves the public website (`deploy/website/`), so this tunnel uses `chatterbox-mac.shelbyklein.com`. When creating the DNS route, pass a config naming this tunnel: with the default `~/.cloudflared/config.yml`, `cloudflared tunnel route dns` points the record at `agentos` instead.
 
-The Chatterbox and Golem iPhone apps talk to the Mac over plain HTTP. On home Wi-Fi, anyone on the
+The Chatterbox iPhone app talks to the Mac over plain HTTP. On home Wi-Fi, anyone on the
 network could read the pairing code, the reusable login token, chats, uploads and the commands that
 drive agents. This plan encrypts and authenticates that connection end to end (issue #6), pairing by
 scanning a QR code. It then adds a Cloudflare tunnel at `chatterbox-mac.shelbyklein.com` behind
@@ -28,7 +28,7 @@ optional fallback.
 - Away from home the only route is Tailscale (`MobileStore.isTailscale`, the "turn on Tailscale"
   messages).
 
-**Who it affects:** Shelby's iPhone and iPad (Chatterbox app) and the Golem iPhone app, on any network
+**Who it affects:** Shelby's iPhone and iPad (Chatterbox app), on any network
 that isn't fully trusted, and whenever Tailscale is off away from home.
 
 **Wanted:** an attacker on the same Wi-Fi, or anywhere on the internet, can't read or alter traffic
@@ -51,7 +51,7 @@ the phone's scanner.
 ```mermaid
 flowchart LR
   subgraph Phone
-    A[Chatterbox / Golem app] -->|seal request| E1[Envelope: X25519 + ChaCha20-Poly1305]
+    A[Chatterbox app] -->|seal request| E1[Envelope: X25519 + ChaCha20-Poly1305]
   end
   E1 -->|home Wi-Fi: http, ciphertext only| S
   E1 -->|anywhere: https + Access service token| CF[Cloudflare Access\nchatterbox-mac.shelbyklein.com]
@@ -93,7 +93,6 @@ flowchart LR
 | Tailscale | Kept as a fallback route |
 | Hostname | `chatterbox-mac.shelbyklein.com` |
 | Pairing | Scan a QR code; typed long code as a fallback |
-| Golem iPhone app | Included: the shared phone code is in Core; the Golem chat adopts it in its app |
 | Existing pairings | Re-pair once by scanning the QR code (a token sent in plaintext can't safely bootstrap keys) |
 
 ## Success criteria
@@ -120,7 +119,6 @@ flowchart LR
 | Core: envelope crypto, QR pairing, sealed client (Shared + ChatterboxMobile) | committed and pushed |
 | Mac: secure pairing, `/v1/secure` dispatch, legacy gate, Settings QR + "Require encryption" | committed, pushed, installed |
 | Chatterbox iPhone app: QR scanner, sealed requests, routes incl. tunnel | committed; installed on iPhone (TestFlight or cable) after Shelby's go-ahead |
-| Golem iPhone app adoption | handed to the Golem Development chat; adopted there |
 | Test harness: envelope, replay, tamper, impersonation; capture script | committed |
 | Tunnel `chatterbox`, DNS record, launch agent, config in `deploy/chatterbox-tunnel/` (no credentials) | created and running after Shelby's go-ahead |
 | Cloudflare Access app + service token | made by Shelby in the dashboard; token entered in Mac Settings |
@@ -135,7 +133,6 @@ flowchart LR
 | T2 | Mac: identity key in Keychain, QR pairing endpoint, `/v1/secure` dispatching to existing routes, loopback limited to envelope routes, legacy plaintext gate | Harness against an isolated service: sealed chat list matches plaintext; loopback plaintext refused; legacy works only with the gate open |
 | T3 | Mac Settings → iPhone: QR code with typed fallback, paired devices marked encrypted or legacy, "Require encryption" | Rendered Settings check; QR decodes to the expected payload |
 | T4 | Chatterbox iPhone app: QR scanner pairing (camera permission), pinned Mac key, every request sealed, downloads/uploads chunked | Simulator: pairs from a QR image, loads chats, sends, downloads a PDF; impersonating server refused (criterion 2) |
-| T5 | Golem app hand-off: message the Golem Development chat with the Core API and migration steps | Golem chat confirms adoption, or the plan records it as pending |
 | T6 | Verify #6 on Wi-Fi | **Gate: Shelby installs the Mac and iPhone builds.** Then the capture script passes (criterion 1) and migration works (criterion 5) |
 | T7 | Tunnel: create `chatterbox`, own config, DNS `chatterbox-mac.shelbyklein.com`, launch agent; save config to `deploy/chatterbox-tunnel/` | **Gate: Shelby's OK to publish the hostname.** `cloudflared tunnel info chatterbox` shows connections; DNS points at this tunnel's ID, not `agentos` |
 | T8 | Access | **Gate: Shelby creates the Access app (Self-hosted, `chatterbox-mac.shelbyklein.com`, Service Auth policy) and a service token, and enters it in Mac Settings.** `curl` without the token is refused (criterion 4) |
@@ -145,8 +142,7 @@ flowchart LR
 ## Scope boundaries
 
 **Not included:** the PWA; the agents' local API (port 47320) stays loopback-only and is never
-tunnelled; changing how push notifications are delivered; removing Tailscale support; the Golem app's
-own UI beyond adopting the shared code; anything in the `agentos` or other existing tunnels.
+tunnelled; changing how push notifications are delivered; removing Tailscale support; anything in the `agentos` or other existing tunnels.
 
 **Must not change:** Bonjour discovery at home; chats, drafts and attachments; push registration and
 delivery; the agent API and its token; existing tunnels and DNS records; existing paired devices keep
@@ -158,8 +154,7 @@ working (legacy) until re-paired or "Require encryption" is turned on.
   round trip covering seal/open, wrong key, tamper, replay, stale timestamp, legacy gate and loopback
   restriction.
 - Existing suites stay green: `./scripts/test-mobile-idempotency.sh`, `./scripts/test-mobile-composer.sh`,
-  `./scripts/test-mobile-pdf.sh`, `./scripts/test-mobile-push.sh`, `./scripts/test-chatterbox-daemon.sh`,
-  `/usr/bin/python3 tests/golem-integration/rpc.py`.
+  `./scripts/test-mobile-pdf.sh`, `./scripts/test-mobile-push.sh`, `./scripts/test-chatterbox-daemon.sh`.
 - UI: Mac Settings → iPhone render (QR visible, device states); iPhone simulator pairing from a QR
   image and the chat list loading, screenshot checked.
 - Wi-Fi: `scripts/capture-companion.sh` (new) records the Mac's Wi-Fi interface during a scripted
@@ -187,7 +182,7 @@ working (legacy) until re-paired or "Require encryption" is turned on.
 ## Work preparation
 
 - Scope: confirmed in chat on 2026-10-07 (encryption end to end; Access service token; Tailscale kept
-  as fallback; `chatterbox-mac.shelbyklein.com`; QR pairing; Golem app included, coordinated).
+  as fallback; `chatterbox-mac.shelbyklein.com`; QR pairing).
 - Mode: `linear`. The work is one security-critical chain through shared files (CompanionAPI,
   CompanionServer, MobileStore), so parallel lanes would conflict and split review of the crypto.
 - Models: executor `claude-opus-5-5` (this session), medium effort.

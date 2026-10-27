@@ -1,7 +1,7 @@
 #!/bin/bash
 source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
-# Edge swipes between Golem and Chats, Back still working, and the list/cards toggle, against
+# Edge swipes, Back still working, and the list/cards toggle, against
 # an isolated mock companion server (tests/mobile-home-nav/server.py).
 cd "$(dirname "$0")/.."
 case "${1:-iphone}" in

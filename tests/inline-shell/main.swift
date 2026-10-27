@@ -49,7 +49,7 @@ func processCount(_ marker: String) -> Int {
 @MainActor func run() async throws {
     let root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-inline-shell."))
-    UserDefaults.standard.setVolatileDomain(["codexFolder": root.path, "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false, "dotEmailWatch": false, "companionEnabled": false, "keepMacAwake": false, "mobilePushConfigured": false], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["codexFolder": root.path, "companionEnabled": false, "keepMacAwake": false, "mobilePushConfigured": false], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let session = model.newChat(backend: .codex)
 

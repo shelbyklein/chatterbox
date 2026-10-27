@@ -8,7 +8,7 @@ Current: [Home proof](/Users/shelbyklein/Chatterbox/Screenshots/mac-home/home-wi
 
 Success criteria: tile add/switch/remove never changes or archives a thread; history/drafts remain per-session and only one tile can show a session; grid adapts to narrow/wide windows; saved tiles/column preference survive remount/relaunch; typing, paste and keyboard shortcuts target only the active tile. Existing main chat behavior remains intact.
 
-Deliverables: code, regression harness, inspected native screenshots, plan committed/pushed; Mac built/installed/restarted under standing authority. No mobile update, shell grid, provider/routing/permissions changes or automatic submissions. Tile removal keeps the chat running and saved. Golem mini retains exclusive ownership of its composer.
+Deliverables: code, regression harness, inspected native screenshots, plan committed/pushed; Mac built/installed/restarted under standing authority. No mobile update, shell grid, provider/routing/permissions changes or automatic submissions. Tile removal keeps the chat running and saved.
 
 | Task | Acceptance |
 | --- | --- |
@@ -32,6 +32,6 @@ Verification: Debug build and scripts/test-command-center.sh pass, fixture /tmp/
 
 Proof: [four-chat grid](/Users/shelbyklein/Chatterbox/Screenshots/command-center/four-chats.png), [narrow](/Users/shelbyklein/Chatterbox/Screenshots/command-center/narrow.png), [chooser](/Users/shelbyklein/Chatterbox/Screenshots/command-center/chooser.png).
 
-Limits: no messages submitted to real providers in fixture tests; streaming/send uses the existing ChatSession engine. Clipboard image paste, VoiceOver speech, live Golem mini interaction and embedded preview links not manually exercised. Scope of native focus and shortcuts is implemented with the tile context; regular single-chat context remains default-active. No shell-mode grid added.
+Limits: no messages submitted to real providers in fixture tests; streaming/send uses the existing ChatSession engine. Clipboard image paste, VoiceOver speech and embedded preview links not manually exercised. Scope of native focus and shortcuts is implemented with the tile context; regular single-chat context remains default-active. No shell-mode grid added.
 
 Delivery: 0ef53a4 committed and pushed to origin/main. scripts/install.sh built, installed signed Mac bundle and reopened app (PID 31731); installed Debug dylib matches build byte-for-byte, authenticated local /v1/chats HTTP 200. Installed Command Center UI not manually operated; native/visual proof is the isolated production-view harness. Other worktrees unchanged.

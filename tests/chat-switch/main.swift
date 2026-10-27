@@ -9,25 +9,23 @@ app.setActivationPolicy(.accessory)
     let root = URL(fileURLWithPath: env["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-columns."))
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns":false, "dotWatchWaiting":false, "dotSummarizeFinished":false, "dotEmailWatch":false,
-        "companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,
-        "golemPanelOpen":true
+        "companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false
     ],forName: UserDefaults.argumentDomain)
     // Writable preferences in this standalone test executable, not launch-argument overrides.
     // Argument-domain values cannot be changed by AppStorage, which would make drag tests inert.
     precondition(Bundle.main.bundleIdentifier != "com.shelbyklein.Chatterbox")
-    for (key,value) in ["mainSidebarVisible":true,"mainSidebarWidth":260.0,"golemInspectorWidth":0.0,"issuesInspectorWidth":0.0,"previewInspectorWidth":0.0] as [String:Any] {
+    for (key,value) in ["mainSidebarVisible":true,"mainSidebarWidth":260.0,"issuesInspectorWidth":0.0,"previewInspectorWidth":0.0] as [String:Any] {
         UserDefaults.standard.set(value,forKey:key)
     }
-    UserDefaults.standard.removeObject(forKey: "golemActivityExpanded")
     let model = AppModel()
-    let dot = model.sessions.first { $0.isDot }!
-    let project = model.sessions.first { $0.record.projectFolder == "/Users/shelbyklein/Vibes/Chatterbox" }!
-    dot.draft = "Unsent Golem draft"
+    let chats = model.sessions.filter { $0.record.projectFolder == "/Users/shelbyklein/Vibes/Chatterbox" }
+    precondition(chats.count >= 2,"Fixture needs two Chatterbox project chats")
+    let first = chats[0], project = chats[1]
+    first.draft = "Unsent first draft"
     project.draft = "Unsent project draft"
-    let counts = [dot.items.count,project.items.count]
+    let counts = [first.items.count,project.items.count]
     let transition = ChatSwitchTransition()
-    model.selectedID = dot.id
+    model.selectedID = first.id
     let panel = NSPanel(contentRect:NSRect(x:20,y:80,width:1100,height:820),styleMask:[.titled,.closable,.resizable,.nonactivatingPanel],backing:.buffered,defer:false)
     panel.contentView = NSHostingView(rootView:ContentView(chatSwitch:transition).environment(model))
     panel.orderFrontRegardless()
@@ -44,31 +42,8 @@ app.setActivationPolicy(.accessory)
     }
     try await Task.sleep(for:.seconds(2))
     func all(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(all)}
-    func probes()->[ColumnProbe.Probe] {all(panel.contentView!).compactMap {$0 as? ColumnProbe.Probe}}
-    func avatarFrame()->CGRect {
-        let p=probes().first {$0.role=="floating-golem"}!
-        return p.convert(p.bounds,to:nil)
-    }
-    precondition(!probes().contains {$0.role.hasPrefix("inspector")},"Activity did not start collapsed")
-    let collapsedFrame=avatarFrame()
-    snap("00-collapsed-golem")
-    func clickAvatar() {
-        let frame=avatarFrame()
-        for hit in all(panel.contentView!).compactMap({$0 as? FloatingGolemHitTarget.HitView}) { print("CLICK REGION \(hit.convert(hit.bounds,to:nil)) probe=\(frame)"); fflush(stdout) }
-        for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-            let event=NSEvent.mouseEvent(with:type,location:NSPoint(x:frame.midX,y:frame.midY),modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
-            panel.sendEvent(event)
-        }
-    }
-    clickAvatar()
-    try await wait {probes().contains {$0.role=="inspector"}}
-    try await Task.sleep(for:.milliseconds(200))
-    precondition(abs(avatarFrame().midX-collapsedFrame.midX)<0.5 && abs(avatarFrame().midY-collapsedFrame.midY)<0.5,"Golem moved on expansion")
-    snap("00-expanded-golem")
-    clickAvatar()
-    try await wait {!probes().contains {$0.role.hasPrefix("inspector")}}
-    precondition(abs(avatarFrame().midX-collapsedFrame.midX)<0.5,"Golem moved on collapse")
-    snap("01-golem")
+    try await wait {transition.displayedID==first.id && !transition.switching}
+    snap("01-first")
     let switchStarted=Date()
     model.selectedID = project.id
     try await wait {transition.switching}
@@ -83,18 +58,18 @@ app.setActivationPolicy(.accessory)
     print("NATIVE selection-to-interactive: \(Int(Date().timeIntervalSince(switchStarted)*1000))ms (includes capture overhead)")
     snap("05-project")
     // Repeated picks through the actual ContentView task cancellation path.
-    model.selectedID = dot.id
+    model.selectedID = first.id
     try await Task.sleep(for:.milliseconds(40))
     model.selectedID = project.id
     try await Task.sleep(for:.milliseconds(40))
-    model.selectedID = dot.id
-    try await wait {transition.displayedID==dot.id && !transition.switching}
-    snap("06-rapid-final-golem")
-    print("DRAFT CHECK golem=\(dot.draft.debugDescription) project=\(project.draft.debugDescription)")
-    precondition(dot.draft=="Unsent Golem draft" && project.draft=="Unsent project draft")
-    precondition(counts==[dot.items.count,project.items.count],"Switch submitted or mutated transcript")
+    model.selectedID = first.id
+    try await wait {transition.displayedID==first.id && !transition.switching}
+    snap("06-rapid-final-first")
+    print("DRAFT CHECK first=\(first.draft.debugDescription) project=\(project.draft.debugDescription)")
+    precondition(first.draft=="Unsent first draft" && project.draft=="Unsent project draft")
+    precondition(counts==[first.items.count,project.items.count],"Switch submitted or mutated transcript")
     // Capture-free measurements separate render/cancellation latency from screenshot cost.
-    for target in [project.id,dot.id,project.id,dot.id] {
+    for target in [project.id,first.id,project.id,first.id] {
         let start=Date()
         model.selectedID=target
         try await wait {transition.displayedID==target && !transition.switching}
@@ -108,14 +83,7 @@ app.setActivationPolicy(.accessory)
         let f=probe.convert(probe.bounds,to:nil)
         precondition(f.minX >= -0.5 && f.maxX<=800.5,"Animated pane outside window")
     }
-    UserDefaults.standard.set(true,forKey:GolemMiniWindow.collapsedKey)
-    model.showingDot=true
-    try await wait {probes().allSatisfy {$0.role != "floating-golem"}}
-    snap("08-mini-excludes-floating")
-    model.showingDot=false
-    print("PASS mini excludes window avatar")
-    print("PASS actual floating-avatar expand/collapse clicks, stable coordinates, collapsed default")
-    print("PASS native Golem/regular hidden swap, outgoing/incoming captures, rapid latest selection, unchanged drafts/transcripts, narrow pane bounds")
+    print("PASS native hidden swap between chats, outgoing/incoming captures, rapid latest selection, unchanged drafts/transcripts, narrow pane bounds")
     exit(0)
 }
 @MainActor func capture(_ window:NSWindow,_ url:URL) {

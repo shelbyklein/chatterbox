@@ -92,8 +92,6 @@ func digest(_ path:String) -> String {
     st.codex=CodexSettings(folder:root,canEdit:false,mode:"fullAccess")
     let studioChat=try runtime.insert(st)
     let plain=try runtime.insert(ConversationRecord(model:"default",effort:"",personality:.neutral))
-    var dot=ConversationRecord(model:"default",effort:"",personality:.neutral);dot.isDot=true
-    let golem=try runtime.insert(dot)
     let baseline=ClaudeCodeProcess.arguments(.init(cwd:root,model:"opus",effort:"",permissionMode:"default",appendSystemPrompt:"x"))
     try check(ToolScopes.effective(for:projectChat).isEmpty && ToolScopes.fingerprint(for:projectChat).isEmpty,"no Tools settings: nothing changes")
     let linear=ToolServer(name:"linear",kind:.url,url:"https://mcp.linear.app/mcp",bearerSecret:"LINEAR_TOKEN")
@@ -109,7 +107,6 @@ func digest(_ path:String) -> String {
     try check(Set(es.servers.map(\.name))==["linear","figma"] && es.isOff(ToolKey.server("inspo")),"a Studio chat gets Chatterbox-wide + Studios, with its offs")
     try check(ep.servers.map(\.name)==["wp"],"a project can turn off a Chatterbox-wide server for itself")
     try check(ep.isOff(ToolKey.skill("impeccable")),"Chatterbox-wide offs reach every level")
-    try check(ToolScopes.effective(for:golem).isEmpty,"Golem keeps its own tools")
     var side=projectChat.record;side.id=UUID();side.projectFolder=nil;side.sidechatOf=projectChat.id;side.sidechatProjectFolder=project
     try check(ToolScopes.effective(for:ChatSession(record:side)).servers.map(\.name)==["wp"],"a project's Sidechats and sidequests get the project's set")
 

@@ -56,7 +56,7 @@ func check(_ condition: @autoclosure () -> Bool, _ message: String) throws {
 }
 
 @MainActor func run() async throws {
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotEmailWatch": false, "notifyNeeds": false, "notifyReplies": false, "companionEnabled": false], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["notifyNeeds": false, "notifyReplies": false, "companionEnabled": false], forName: UserDefaults.argumentDomain)
     let started = Date()
     let model = AppModel()
     try await wait("summary list loads") { model.sessions.count == 40 && model.sessionLoadStatus == nil }

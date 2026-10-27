@@ -12,7 +12,7 @@ Local plan; user requested implementation in ongoing turn. Linear, Codex GPT-6.1
 
 Native Home suite passed in `/tmp/chatterbox-mac-home.pR6D41`; all page/action/history checks passed, four top-aligned Studio panels at 2000pt and in-bounds cards at 640pt. Inspected actual production-view wide/narrow captures in `/Users/shelbyklein/Chatterbox/Screenshots/studio-home-grid`. First fixture failed because creating sample Studios navigated away from Home; explicitly reopening Home after sample creation fixed the fixture. No production failure identified.
 
-Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`, Golem `8427c4e`. Mac builds pass; installed hash identity verified. Installed interactions not driven.
+Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`. Mac builds pass; installed hash identity verified. Installed interactions not driven.
 
 ## Revision: four icons on the left and leading toolbar
 
@@ -31,7 +31,7 @@ Verification: final Home suite passed `/tmp/chatterbox-mac-home.Nb5iDf`, includi
 
 Send-delay finding (read-only, separate from UI delivery): Mac projections send via `remoteCommand` and fetch event-triggered state after 100ms. Codex mid-turn `codexSend` appends a user item without `onChange`, then awaits `turn/steer`; immediate transcript notification missing until provider/another event. Matches sent-while-working scenario, but physical timing not measured. No send-path changes or live runtime restart in this UI update.
 
-Delivery: Core `073bcb4` pushed; consumer pin included with native test updates. Mac source built successfully; app backup `/tmp/Chatterbox-before-studio-icons.app`; install verification recorded below after replacement. No Golem app/Core pin or mobile install changes.
+Delivery: Core `073bcb4` pushed; consumer pin included with native test updates. Mac source built successfully; app backup `/tmp/Chatterbox-before-studio-icons.app`; install verification recorded below after replacement. No mobile install changes.
 
 ## Revision: compact groups side by side
 Shelby's reference `742CC953-0EA0-4C4F-B434-0897A8AD50DC` clarifies that Studios should sit next to each other. Each group takes only the width of its threads (up to four icon columns), with additional threads wrapping inside; whole groups wrap at narrower widths, aligned at their headings. Target sketch: `[SDHQ: icon] [PlayCase: icon] [USA Archery: icon icon icon icon / ...]`. Preserve icon controls, search, filters, selection/history/context menus and all other Home pages. No data, account, runtime or mobile changes.

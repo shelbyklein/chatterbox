@@ -19,9 +19,7 @@ func run() async throws {
     let chatID = UUID(uuidString: env["SPLIT_CHAT"] ?? "")!
     let widths = (env["SPLIT_WIDTHS"] ?? "1600,1290,1100,900,800").split(separator: ",").compactMap { Double($0) }
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false, "dotEmailWatch": false,
-        "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
-        "golemPanelOpen": true
+        "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false
     ], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     guard let session = model.sessions.first(where: { $0.id == chatID }) else { fatalError("Chat \(chatID) not found") }
@@ -42,7 +40,8 @@ func run() async throws {
         app.sendEvent(down)
     }
     let openLate = env["SPLIT_OPEN_LATE"] != nil
-    if !session.isDot, !openLate {
+    let isProject = session.record.projectFolder != nil
+    if isProject, !openLate {
         openIssues()
         try await Task.sleep(for: .seconds(2))
     }
@@ -76,14 +75,14 @@ func run() async throws {
                 print("   intrinsic \(name(v)) intrinsic \(v.intrinsicContentSize) fitting \(v.fittingSize) frame \(v.frame.integral)")
             }
         }
-        capture(window, to: URL(fileURLWithPath: root).appendingPathComponent("\(session.isDot ? "golem" : "project")-\(label).png"))
+        capture(window, to: URL(fileURLWithPath: root).appendingPathComponent("\(isProject ? "project" : "chat")-\(label).png"))
     }
 
     for (n, width) in widths.enumerated() {
         window.setContentSize(NSSize(width: width, height: 820))
         try await Task.sleep(for: .seconds(2))
         report("\(Int(width))")
-        if n == 0, openLate, !session.isDot {
+        if n == 0, openLate, isProject {
             openIssues()
             try await Task.sleep(for: .seconds(2))
             report("\(Int(width))-then-issues")

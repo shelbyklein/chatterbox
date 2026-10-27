@@ -2,7 +2,7 @@
 
 Run `./scripts/test-mobile-refresh.sh iphone` or `./scripts/test-mobile-refresh.sh ipad`. Requires Xcode, XcodeGen, and the iOS 26.2 simulator runtime. Run the two targets sequentially; they use loopback port 19645. The runner creates and removes its own simulator, uses a separate bundle ID, and leaves screenshots, request logs and an xcresult bundle in the printed temporary directory. It never pairs with the live Mac or sends a message to an agent.
 
-The native UI tests use the actual `ChatListView` and `ChatDetailView`, with 300-row Golem and project transcripts:
+The native UI tests use the actual `ChatListView` and `ChatDetailView`, with 300-row chat and project transcripts:
 
 - Tap a chat in the list and read its history without sending.
 - Leave for the Home Screen, change the server's history, and return. Assert an immediate full GET and the new reply.

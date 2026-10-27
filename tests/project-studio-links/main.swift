@@ -6,7 +6,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
  let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-project-studio."))
- UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
  let model=AppModel()
  let a=Studio(name:"Playcase Studio",folder:root+"/studio-a")
  let b=Studio(name:"Other Studio",folder:root+"/studio-b")

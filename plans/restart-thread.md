@@ -2,7 +2,7 @@
 There is no user-facing restart control today. Claude has an internal process relaunch helper; Codex shares one server for all threads. Shelby authorizes a Mac thread-scoped restart which preserves saved provider IDs, conversation, draft, attachments, model/effort/route and access. It must never restart the shared Codex process or silently start a new thread.
 
 ![Flow](assets/restart-thread/flow.svg)
-Current mini controls: [before exit](/Users/shelbyklein/Chatterbox/Screenshots/mini-hover-ack/before-exit.png). Add Restart Thread to sidebar context menus, Chat menu, Golem settings cog and mini + menu. While replying label is Stop and Restart Thread. Inline outcome tells whether restart succeeded without adding a transcript row. User request authorizes execution now.
+Add Restart Thread to sidebar context menus, Chat menu and settings cog. While replying label is Stop and Restart Thread. Inline outcome tells whether restart succeeded without adding a transcript row. User request authorizes execution now.
 
 Tracker: local:76AFC730-1EE7-4B76-BB56-2633EB5720C0.
 - RESTART-1: backend restart scoped to current chat, single-flight input gating, interrupt then reconnect same Codex ID without new-thread fallback; Claude relaunch uses saved --resume ID. Preserve all history and drafts. Fake-host behavioral checks for provider requests/IDs, active-turn ordering, failure and double click, and untouched other chat.

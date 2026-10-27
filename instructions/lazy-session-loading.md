@@ -45,7 +45,7 @@ Run scripts/test-chatterbox-daemon.sh and a focused scripts/test-lazy-session-lo
 - First focused projection run passed: 40 conversations, 900 messages in selected chat, 39 unopened transcripts empty; navigation 16,349 bytes versus legacy 8,017,748 bytes; fixture startup about 0.10 seconds. This is fixture evidence, not a timing claim for Shelby’s installed app.
 - Selected-chat render inspected: recent transcript and a pending question outside its loaded tail both visible; sidebar populated from summaries. Proof: ../design/lazy-session-loading/selected-chat.png.
 - Final focused run passed all 42 checks, including working/completion Activity, rename/eviction, archive, Studio-new-chat, cached startup, and old-protocol transition checks. Debug fixture startup was 0.13 seconds; list payloads were 8,017,851 bytes (legacy) versus 16,452 bytes (summaries). This is not an installed-app timing claim.
-- Final Mac Debug build and source/diff checks pass. Activity previews, menu-bar recents and Golem waiting cards also use navigation summaries. The rendered selected-chat proof was inspected again.
+- Final Mac Debug build and source/diff checks pass. Activity previews and menu-bar recents also use navigation summaries. The rendered selected-chat proof was inspected again.
 - Tidy report completed without deletions; unrelated older artifacts remain for a separate cleanup.
 
 ## Delivery

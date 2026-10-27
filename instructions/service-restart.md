@@ -41,7 +41,7 @@ flowchart LR
 
 ## Boundaries, rollback, and tests
 
-Mac only; no immediate restart option, provider-host termination, mobile release, data migration, or change to the restart script's safety behavior. The control stays hidden in Golem, which does not bundle this Chatterbox action. Isolated development builds cannot operate installed services. Rollback is the previous app build/source; no authoritative chat data changes or backup migration is needed. Run scripts/test-service-restart.sh, scripts/check-sources.sh, the Mac build via scripts/ship.sh, then inspect Settings → Diagnostics through native UI. Keep screenshots in design/service-restart/ and report service activation separately from installation.
+Mac only; no immediate restart option, provider-host termination, mobile release, data migration, or change to the restart script's safety behavior. Isolated development builds cannot operate installed services. Rollback is the previous app build/source; no authoritative chat data changes or backup migration is needed. Run scripts/test-service-restart.sh, scripts/check-sources.sh, the Mac build via scripts/ship.sh, then inspect Settings → Diagnostics through native UI. Keep screenshots in design/service-restart/ and report service activation separately from installation.
 
 ## Verification
 

@@ -117,7 +117,7 @@ final class Host {
 
     /// Whether this host is at least as new as `binary`, the host the client would start.
     /// An install writes a newer file (in place, or at a new path). Only a newer build takes
-    /// over, so two apps sharing the folder (Chatterbox, Golem) never hand back and forth.
+    /// over, so two copies sharing the folder never hand back and forth.
     private func isCurrent(_ binary: String) -> Bool {
         guard let theirs = Self.built(URL(fileURLWithPath: binary).resolvingSymlinksInPath().path) else { return true }
         return theirs <= executable.built + 1

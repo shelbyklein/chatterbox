@@ -3,7 +3,7 @@ source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 fixture=$(mktemp -d /tmp/chatterbox-studio-cards.XXXXXX)
-engine_dir=$(./scripts/build-golem-test-engine.sh)
+engine_dir=$(./scripts/build-test-engine.sh)
 products=build/DerivedData/Build/Products/Debug
 sed 's/@testable import Chatterbox$/@testable import ChatterboxTestEngine/' tests/studio-cards/main.swift > "$fixture/main.swift"
 export CHATTERBOX_LEGACY_RUNTIME=1

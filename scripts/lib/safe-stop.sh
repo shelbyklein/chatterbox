@@ -14,7 +14,7 @@ hosted_work() {
   local pid
   for pid in $(_safe_tree "$1"); do
     ps -o pid=,command= -p "$pid" 2>/dev/null \
-      | grep -E '(^|/)(claude|codex)( |$)|claude -p|app-server|ChatterboxHost|chatterboxd|chatterbox-mcp|/Chatterbox( |$)' \
+      | grep -E '(^|/)(claude|codex)( |$)|claude -p|app-server|ChatterboxHost|chatterboxd|/Chatterbox( |$)' \
       | grep -v fake-provider
   done
 }

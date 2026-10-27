@@ -29,11 +29,8 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     let proxySession=ChatSession(record:proxyRecord)
     if EasyCLIProxy.shared.isRunning {
         try check(proxySession.claudeProxyEnvironment["ANTHROPIC_BASE_URL"] == EasyCLIProxy.shared.endpoint?.base,"Claude launch environment selects healthy proxy")
-        proxySession.record.isDot=true
-        try check(proxySession.claudeProxyEnvironment.isEmpty,"assistant remains direct")
     }
     try RuntimePreferences.update(["proxyClaudeChats":false])
-    proxySession.record.isDot=false
     try check(proxySession.claudeProxyEnvironment.isEmpty,"disabled Claude routing remains direct")
     // Companion-created Studio chats persist unrestricted modes for both agents.
     do {

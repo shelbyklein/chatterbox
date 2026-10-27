@@ -21,9 +21,9 @@ func pressAccessible(_ label: String, in root: Any) -> Bool {
 
 @MainActor func run() async throws {
     guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("isolated only") }
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotEmailWatch":false,"companionEnabled":false,"themeBackground":"black"], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"themeBackground":"black"], forName: UserDefaults.argumentDomain)
     let model = AppModel()
-    let chat = model.activeSessions.filter { !$0.isDot }.max { $0.items.count < $1.items.count }!
+    let chat = model.activeSessions.max { $0.items.count < $1.items.count }!
     print("ITEMS", chat.items.count, "LAST", chat.items.last?.id.uuidString ?? "none")
     let window = NSWindow(contentRect: NSRect(x: 60,y:60,width:1300,height:900),styleMask:[.titled,.resizable,.closable],backing:.buffered,defer:false)
     window.contentView = NSHostingView(rootView: ContentView().environment(model))

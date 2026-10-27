@@ -49,7 +49,7 @@ func pids(_ binary: String) -> [String] {
     try await wait("the current host still answers") { FileManager.default.fileExists(atPath: HostPaths.socket.path) }
     let after = (try? await client.list()) ?? []
     try check(after.contains { $0.id == "after-install" }, "and the current host carries on")
-    // An app with the older host (Golem sharing the folder, say) mustn't take it back.
+    // An app with the older host (an older install sharing the folder, say) mustn't take it back.
     let probe = UnixSocket.connect(to: HostPaths.socket)!
     var hello = try JSON.object(["op": "hello", "binary": .string(old)]).encoded(); hello.append(0x0A)
     _ = hello.withUnsafeBytes { Darwin.write(probe, $0.baseAddress!, $0.count) }

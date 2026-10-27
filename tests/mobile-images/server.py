@@ -28,7 +28,7 @@ PNG = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!IIBBBBB', 320, 160, 8,
 
 def summary():
     return dict(id=CHAT, title='Image retries', project='Image retries', backend='claude',
-                isRunning=False, isWaitingOnYou=False, updatedAt='2026-10-21T00:00:00Z', isDot=False)
+                isRunning=False, isWaitingOnYou=False, updatedAt='2026-10-21T00:00:00Z')
 
 def item(key, text, image=None):
     files = [] if image is None else [dict(id=image, name='Retry proof.png', mediaType='image/png',
@@ -98,8 +98,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply(dict(revision=revision, groups=[dict(id='projects', kind='projects', title='Projects', chats=[summary()])]))
         if self.path == '/v1/addresses':
             return self.reply(dict(addresses=['127.0.0.1']))
-        if self.path == '/v1/avatar':
-            return self.reply(dict(files=[]))
         if self.path.startswith('/v1/chats/' + CHAT):
             return self.reply(dict(unchanged=True, revision=revision) if f'?since={revision}' in self.path else detail())
         self.send_error(404)

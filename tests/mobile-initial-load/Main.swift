@@ -2,7 +2,7 @@ import SwiftUI
 @main struct RegressionApp: App {
     @State private var store = MobileStore()
     @State private var history = MobileChatHistory(id: UUID(uuidString:"11111111-1111-1111-1111-111111111111")!)
-    private let chat = Companion.ChatSummary(id: UUID(uuidString:"11111111-1111-1111-1111-111111111111")!, title:"Golem", backend:"codex", isRunning:false, isWaitingOnYou:false, updatedAt:Date(), isDot:true)
+    private let chat = Companion.ChatSummary(id: UUID(uuidString:"11111111-1111-1111-1111-111111111111")!, title:"History fixture", backend:"codex", isRunning:false, isWaitingOnYou:false, updatedAt:Date())
     var body: some Scene {
         WindowGroup {
             Group {

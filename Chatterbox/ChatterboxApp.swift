@@ -54,8 +54,6 @@ struct ChatterboxApp: App {
             CommandMenu("Go") {
                 Button("Quick Switcher\u{2026}") { ChatCommands.shared.showingQuickSwitcher.toggle() }
                     .keyboardShortcut("k")
-                Button("Open Golem") { GolemIntegration.shared.open() }
-                .keyboardShortcut("j")
                 Divider()
                 Button("Next Chat") { model.selectAdjacentChat(1) }
                     .keyboardShortcut("]", modifiers: [.command, .shift])

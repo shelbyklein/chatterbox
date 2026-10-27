@@ -17,7 +17,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-studio-two-level."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"mainSidebarWidth":260.0],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"mainSidebarWidth":260.0],forName:UserDefaults.argumentDomain)
     let model=AppModel()
     let archery=model.newStudio(named:"USA Archery")!, geekify=model.newStudio(named:"Geekify")!
     _ = geekify

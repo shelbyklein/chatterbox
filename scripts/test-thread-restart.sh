@@ -8,7 +8,7 @@ export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
 export CHATTERBOX_HOST_BINARY="$(pwd)/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 cp tests/thread-restart/fake-*.py "$fixture/"
 chmod +x "$fixture"/fake-*.py
-engine_dir=$(./scripts/build-golem-test-engine.sh)
+engine_dir=$(./scripts/build-test-engine.sh)
 products=build/DerivedData/Build/Products/Debug
 sed 's/@testable import Chatterbox$/@testable import ChatterboxTestEngine/' tests/thread-restart/main.swift > "$fixture/main.swift"
 export CHATTERBOX_LEGACY_RUNTIME=1

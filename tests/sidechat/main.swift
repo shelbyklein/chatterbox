@@ -6,7 +6,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-sidechat."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"1,1,1"],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"1,1,1"],forName:UserDefaults.argumentDomain)
     let model=AppModel()
     var record=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
     record.title="Chatterbox";record.projectFolder=root.path;record.projectNickname="Chatterbox"

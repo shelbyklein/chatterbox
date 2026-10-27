@@ -9,7 +9,7 @@ import tempfile
 import time
 import uuid
 
-root = Path(tempfile.mkdtemp(prefix="golem-secrets-wire.", dir="/tmp"))
+root = Path(tempfile.mkdtemp(prefix="chatterbox-test-secrets-wire.", dir="/tmp"))
 data = root / "data"
 data.mkdir()
 binary = Path("build/runtime/secret-access-fixture").resolve()
@@ -83,7 +83,7 @@ try:
     process = start(True)
     client = Client("ui")
     assert "result" in client.hello
-    for role in ["agent", "golem", "golem-ui"]:
+    for role in ["agent"]:
         unprivileged = Client(role)
         assert "result" in unprivileged.hello
         for operation in ["refreshSecrets", "authorizeSecret"]:
@@ -105,7 +105,7 @@ try:
     process = None
     persisted = (data / "runtime-state.json").read_text()
     assert value not in persisted and "authorizeSecret" not in persisted and "refreshSecrets" not in persisted
-    print("PASS unsigned UI rejected; agents and Golem denied secret status and authorization")
+    print("PASS unsigned UI rejected; agents denied secret status and authorization")
     print("PASS service reload, targeted authorization, missing-value status and removal")
     print("PASS no secret values in RPC responses or persisted command receipts")
     print("Secret wire artifacts:", root)

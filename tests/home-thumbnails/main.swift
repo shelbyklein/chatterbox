@@ -12,8 +12,7 @@ let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWi
 func run() async throws {
     guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("Use the isolated runner") }
     let out = ProcessInfo.processInfo.environment["THUMB_OUT"] ?? "/tmp"
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
-        "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
+    UserDefaults.standard.setVolatileDomain(["companionEnabled": false, "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false,
         "macHomePage": ProcessInfo.processInfo.environment["THUMB_PAGE"] ?? "Studios",
         "themeBackground": ProcessInfo.processInfo.environment["THUMB_THEME"] ?? "standard",
         "sidebarTagFilter": ProcessInfo.processInfo.environment["THUMB_TAGS"] ?? "",

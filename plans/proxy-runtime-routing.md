@@ -1,6 +1,6 @@
 # Restore proxy preference routing
 
-Claude's proxy toggle is omitted from RuntimePreferences, so daemon sessions use direct auth. The daemon also has no awaited proxy health check before provider startup. Restore forwarding and persisted routing for ordinary chats without changing Golem direct routing, credentials, model or effort.
+Claude's proxy toggle is omitted from RuntimePreferences, so daemon sessions use direct auth. The daemon also has no awaited proxy health check before provider startup. Restore forwarding and persisted routing for ordinary chats without changing credentials, model or effort.
 
 Flow: Settings toggles → preference projection → daemon persisted preferences → awaited proxy check → Claude process environment → EasyCLIProxy account pool.
 

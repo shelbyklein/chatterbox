@@ -2,7 +2,7 @@
 
 Add a Sidechat action to a project or chat's Mac context menu. It creates a separate, explicitly temporary conversation using the same folder and agent settings, without Git branching or copying the parent transcript. End Sidechat archives its history; no automatic deletion.
 
-Target structure: Project/Chat → indented [Temporary · Sidechat] → End Sidechat → Archived. Sidechats of Golem appear in Chats with their parent relationship retained, so Golem's fixed home stays compact.
+Target structure: Project/Chat → indented [Temporary · Sidechat] → End Sidechat → Archived.
 
 Work preparation: local:sidechat; direct implementation request confirms now. Linear GPT-6.1-Sol Medium, one lane. R1–R13 pass; no blocking questions. Existing scoped commit/push/Mac install authorized; no GitHub issue mutations. Mobile list representation included, no new mobile creation control/device install in this change.
 
@@ -12,8 +12,8 @@ Success/deliverables: Mac menu action creates one fresh session preserving paren
 - [x] SIDE-2: Mac creation/end menu, temporary badge/nesting; companion list visibility. Native menu entry/render check; old save compatibility and no duplicate grouping.
 - [x] SIDE-3: Build, scoped commit/push/install, verify bundle. Screenshot proof and remaining device limits reported.
 
-Preserve parent files/settings/history; no worktree/branch operations or implicit execution. All history remains local; no transcript copying. Converting projects to Studios is separate, waiting on existing-Studio folder semantics. Tests link production debug module with isolated data, automatic Golem jobs off, no provider turns. Backup installed app /tmp/Chatterbox-before-sidechat.app; revert commit to roll back UI, new optional metadata remains harmless and unknown-field-compatible in saved JSON. Never remove saved sidechat files on rollback.
+Preserve parent files/settings/history; no worktree/branch operations or implicit execution. All history remains local; no transcript copying. Converting projects to Studios is separate, waiting on existing-Studio folder semantics. Tests link production debug module with isolated data, no provider turns. Backup installed app /tmp/Chatterbox-before-sidechat.app; revert commit to roll back UI, new optional metadata remains harmless and unknown-field-compatible in saved JSON. Never remove saved sidechat files on rollback.
 
-Verified scripts/test-sidechat.sh: native click creates fresh session, inherited route/effort/Fast/permissions/folder, unchanged parent including running flag and draft, one appearance in companion list, old-record decoding, empty persistence/archive and orphan fallback. Native sidebar render inspected at 280pt: /Users/shelbyklein/Chatterbox/Screenshots/sidechat/sidebar.png. Golem sidechats show in Chats. No real provider turn sent; phone payload checked, mobile UI/device not checked. Creation shared button clicked in native harness, full right-click menu itself not clicked.
+Verified scripts/test-sidechat.sh: native click creates fresh session, inherited route/effort/Fast/permissions/folder, unchanged parent including running flag and draft, one appearance in companion list, old-record decoding, empty persistence/archive and orphan fallback. Native sidebar render inspected at 280pt: /Users/shelbyklein/Chatterbox/Screenshots/sidechat/sidebar.png. No real provider turn sent; phone payload checked, mobile UI/device not checked. Creation shared button clicked in native harness, full right-click menu itself not clicked.
 
 Installed Mac code revision b315910; scripts/install.sh succeeded, signed bundle verified by installer, installed/built debug dylib SHA-256 match 4e01899fc9c860e86e8d77915107dd61d2ae89c5e443c5a9f1a39696890cfbbc, /Applications process launched and authenticated local API returned 200. No user project converted and no live Sidechat created during verification. Mobile UI not installed/exercised in this task.

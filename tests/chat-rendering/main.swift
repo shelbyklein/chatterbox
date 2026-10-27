@@ -14,8 +14,7 @@ func run() async throws {
     guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"],
           root.hasPrefix("/tmp/chatterbox-render.") else { fatalError("Use the isolated runner") }
     UserDefaults.standard.setVolatileDomain([
-        "themeBackground": "black", "dotCheckIns": false, "dotWatchWaiting": false,
-        "dotSummarizeFinished": false, "dotEmailWatch": false, "companionEnabled": false,
+        "themeBackground": "black", "companionEnabled": false,
         "notifyNeeds": false, "notifyFinished": false, "keepMacAwake": false
     ], forName: UserDefaults.argumentDomain)
     let model = AppModel()

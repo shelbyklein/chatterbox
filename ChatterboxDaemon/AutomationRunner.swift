@@ -35,7 +35,7 @@ import Foundation
         }
         guard let project = model.sessions.first(where: {
             $0.record.projectFolder == automation.projectFolder && $0.record.worktreeOf == nil && $0.record.sidechatOf == nil
-                && $0.record.archivedAt == nil && !$0.isDot
+                && $0.record.archivedAt == nil
         }) else { throw RuntimeFailure("Its project isn't open in Chatterbox anymore.") }
         let quest = try model.newAutomationRun(automation, of: project, manual: manual)
         state.lastRun = Date()

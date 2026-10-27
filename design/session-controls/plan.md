@@ -4,7 +4,7 @@ Show New replies explicitly in the Chats sidebar for quick access. Move session-
 
 Current evidence: ContentView.sidebarColumn already contains UnseenRepliesStrip, but the strip disappears when empty. ChatView.chatContent places Notes and Quick prompts in a top-leading overlay; WindowToolbar carries ToneSlot, PlaceSlot (including images), and RepoSlot. [Current screenshot](current.png). [Target sketch](target.svg).
 
-Scope: macOS regular chat windows, including project and Studio sessions. Reuse tone, folder/Studio, image and repository/issue controls; keep their existing actions and data. Leave Golem, compact chats, multi-session tiles, iOS, authentication, and agent runtime unchanged. Preserve Notes, Quick prompts and message pins, with pins below the controls. Terminal placement is an optional preference; default to keeping its top-bar shortcut unless requested otherwise.
+Scope: macOS regular chat windows, including project and Studio sessions. Reuse tone, folder/Studio, image and repository/issue controls; keep their existing actions and data. Leave compact chats, multi-session tiles, iOS, authentication, and agent runtime unchanged. Preserve Notes, Quick prompts and message pins, with pins below the controls. Terminal placement is an optional preference; default to keeping its top-bar shortcut unless requested otherwise.
 
 Success: Chats sidebar visibly offers New replies, including an empty state; unread rows open the correct chat and clear from attention. Session tools, Notes and Quick prompts appear at the top right without overlapping pins. Main toolbar no longer duplicates the moved session controls. Existing actions still target the selected session.
 
@@ -25,7 +25,7 @@ Readiness: pass 2026-10-08, R1–R13 covered above; R7 local task checklist. Ins
 ## Verification evidence
 Mac Debug build and scripts/check-sources.sh passed. Inspected [chat controls](chat-controls.png), [tools panel](tools-panel.png), [unread Chats sidebar](new-replies.png), and [caught-up sidebar](caught-up.png). The unread fixture opened the correct chat and cleared its attention entry. Existing toolbar controls retain their identity across chat switches. Native popover and Image Library interaction remain an installed-app acceptance check: the isolated harness cannot reliably drive these SwiftUI controls through AX or synthetic events. The final toolbar suite passed all checks, including Settings/Terminal, after restoring the main test window focus. Synthetic-click assertions were removed because the harness could not exercise those SwiftUI controls reliably; installed dropdown interaction remains pending.
 
-Tidy report: 126 older test folders (837 MB), no leftover test processes or stray app copies in this repo; 12 Golem build apps left to their owner. Report only, no deletions.
+Tidy report: 126 older test folders (837 MB), no leftover test processes or stray app copies in this repo. Report only, no deletions.
 
 ## Installed acceptance
 2026-10-08: user approved installation; scripts/install.sh completed and the installed executable matched the verified build. The app reconnected; chatterboxd retained PID 24522. Through native computer use, Session tools opened its popover with Friendly, USA Archery and Image Library; Image Library opened the current session’s six images. Closed the sheet and returned to the same chat. Inspected the installed screenshot showing tools, Notes and Quick prompts on the right. No service restart or interruption of replies.

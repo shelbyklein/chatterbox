@@ -5,14 +5,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
 }
 @MainActor func run() async throws {
     let root = RuntimePaths.data
-    precondition(root.path.hasPrefix("/tmp/golem-promotion."))
+    precondition(root.path.hasPrefix("/tmp/chatterbox-test-promotion."))
     AppPreferences.defaults.setVolatileDomain(["companionEnabled": true,"mobilePushEnabled": false,"codexFolder":root.path], forName: UserDefaults.argumentDomain)
     let runtime = try ConversationRuntime(root:root), model = DaemonContext(runtime), server = CompanionServer.shared
     server.model = model
     func request(_ path:String,_ method:String="POST",_ body:Data=Data("{}".utf8),_ headers:[String:String]=[:]) -> HTTPRequest {
         HTTPRequest(method:method,path:path,query:[:],headers:headers,body:body)
     }
-    let paired = server.respond(to:request("/v1/pair","POST",try Companion.encoder.encode(Companion.PairRequest(code:server.pairingCode,deviceName:"Promotion fixture"))),local:false)
+    let paired = server.respond(to:request("/v1/pair","POST",try Companion.encoder.encode(Companion.PairRequest(code:server.pairingCode,deviceName:"Promotion fixture"))))
     try check(paired.status == 200,"paired fixture")
     let token = try Companion.decoder.decode(Companion.PairResponse.self,from:paired.body).token
     let headers = [Companion.tokenHeader.lowercased():token]
@@ -27,7 +27,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     func post(_ chat:ChatSession,_ body:Companion.PromotionRequest,_ extra:[String:String]=[:]) throws -> HTTPResponse {
         // Sorted keys: the same request encodes to the same bytes, as a phone's retry resends.
         let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys
-        return server.respond(to:request("/v1/chats/\(chat.id)/promote","POST",try encoder.encode(body),headers.merging(extra){_,b in b}),local:false)
+        return server.respond(to:request("/v1/chats/\(chat.id)/promote","POST",try encoder.encode(body),headers.merging(extra){_,b in b}))
     }
     func saved(_ chat:ChatSession) throws -> ConversationRecord {
         try Companion.decoder.decode(ConversationRecord.self,from:Data(contentsOf:root.appendingPathComponent("Conversations/\(chat.id).json")))
@@ -35,13 +35,11 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let chat=try make(), original=chat.record
     let payload=Companion.PromotionRequest(kind:.studio,name:"Design Lab")
     let path="/v1/chats/\(chat.id)/promote", body=try Companion.encoder.encode(payload)
-    try check(server.respond(to:request(path,"POST",body),local:false).status==401,"unpaired promotion rejected")
-    try check(server.respond(to:request(path,"POST",body,headers),local:true).status != 200,"agent promotion rejected")
-    try check(post(chat,payload,["x-chatterbox-product":"golem"]).status==403,"wrong product rejected")
+    try check(server.respond(to:request(path,"POST",body)).status==401,"unpaired promotion rejected")
     chat.isRunning=true
     try check(post(chat,payload).status==409 && runtime.studios.isEmpty,"running chat refused before creating a folder")
     chat.isRunning=false
-    let probe=server.respond(to:request("/v1/addresses","GET",Data(),headers),local:false)
+    let probe=server.respond(to:request("/v1/addresses","GET",Data(),headers))
     var envelope=[String:String]();for(k,v) in probe.headers { envelope[k.lowercased()]=v }
     envelope[CompanionRetry.operationHeader.lowercased()]=UUID().uuidString
     let promoted=try post(chat,payload,envelope)
@@ -74,15 +72,13 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(post(unknown,payload).status==409,"Sidechat promotion rejected")
     try check(String(contentsOf:file)=="source stays","existing project files untouched")
     let browse=HTTPRequest(method:"GET",path:"/v1/project-folders",query:["path":root.path],headers:headers,body:Data())
-    let folders=await server.respondAsync(to:browse,local:false)
+    let folders=await server.respondAsync(to:browse)
     try check(folders.status==200,"paired folder browser succeeds")
     let listing=try Companion.decoder.decode(Companion.ProjectFolders.self,from:folders.body)
     try check(listing.folders.contains{$0.name=="Existing"} && !listing.folders.contains{$0.name=="keep.txt"},"browser contains only directories")
     let noToken=HTTPRequest(method:"GET",path:browse.path,query:browse.query,headers:[:],body:Data())
-    let unauthorized=await server.respondAsync(to:noToken,local:false)
+    let unauthorized=await server.respondAsync(to:noToken)
     try check(unauthorized.status==401,"unpaired folder browsing rejected")
-    let localBrowse=await server.respondAsync(to:browse,local:true)
-    try check(localBrowse.status==403,"agent folder browsing rejected")
     // A storage failure rolls back the record and the newly-created empty folder.
     let failure=try make(), conversation=root.appendingPathComponent("Conversations/\(failure.id).json")
     try FileManager.default.removeItem(at:conversation)

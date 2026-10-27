@@ -9,12 +9,11 @@ Chatterbox gets one place to manage what its agents can use: MCP servers (local 
 ## Problem
 
 Today Chatterbox has no say in what tools its Claude and Codex chats load, so every chat gets the same tools, whatever the project.
-- **Claude:** Claude Code is launched without `--mcp-config` (except Golem), `--strict-mcp-config` or plugin flags (`Core/Chatterbox/Engine/ClaudeCode.swift:87-108`). Every Claude chat loads whatever `~/.claude` and the project's own files set up.
+- **Claude:** Claude Code is launched without `--mcp-config`, `--strict-mcp-config` or plugin flags (`Core/Chatterbox/Engine/ClaudeCode.swift:87-108`). Every Claude chat loads whatever `~/.claude` and the project's own files set up.
 - **Codex:** threads get only `model_provider` routing and the retired VM's servers switched off (`CodexRoute.swift:29`, `ChatComputer.swift:9-15`, `ChatSession+Codex.swift:264-297`). They inherit all of `~/.codex/config.toml`'s `[mcp_servers]` and skills.
-- **Settings:** the only nearby page is **Plugins**, which holds Chatterbox's own features (Next Steps, Golem) (`PluginsSettingsView.swift`).
+- **Settings:** the only nearby page is **Plugins**, which holds Chatterbox's own features (Next Steps) (`PluginsSettingsView.swift`).
   ![Today's Settings](assets/current-settings-plugins.png)
   The page's content draws blank in the test render; the sidebar shows where it sits.
-- **Connectors:** the only connector awareness is Golem's allowed Gmail and Calendar tools (`AssistantConfiguration.swift:16-21`).
 - **Secrets:** these are scoped to projects only, with no Studio level (`Secrets.swift:22-23`).
 
 Who it affects: Shelby. A WordPress project and a design Studio get the same servers and skills. Servers only some places need (WordPress, Analytics, Stripe) are on, or off, everywhere. Turning one off means editing `~/.claude.json` or `config.toml` by hand.
@@ -52,7 +51,6 @@ Layering for a chat:
 - **Project chat** (including its worktrees, Sidechats, sidequests and automation runs): Chatterbox-wide + the project's own − what the project turned off.
 - **Studio chat:** Chatterbox-wide + Studios − what Studios turned off.
 - **Other chats:** Chatterbox-wide.
-- **Golem:** keeps its own tools; unchanged.
 
 ```mermaid
 flowchart LR
@@ -119,7 +117,7 @@ Consequences for the design:
 | ID | Task | Acceptance check |
 |---|---|---|
 | T1 | **Mechanism spike.** With fixture servers, confirm on the installed versions: (a) Claude `--mcp-config` adds to the outside servers, `--disallowedTools mcp__<name>` removes an outside server's tools, and `mcp__claude_ai_<Connector>` removes a connector; (b) how to turn off one Claude skill (a `--disallowedTools` Skill rule, or a generated `--settings` rule) and load an added skill folder (`--plugin-dir` holding a generated plugin); (c) Codex per-thread `mcp_servers.<name>` adds a server and `enabled=false` removes an outside one, plus how its skills and apps are switched off. Record the findings in this plan. | Each mechanism shown working, or a documented fallback, in a scratch run listing each agent's tools. |
-| T2 | **Model and resolver.** `ToolScopes` and `ToolSet` (servers, connector allow/block, skill on/off, skill folders, offs of inherited items), stored in `ToolScopes.json`, with `effective(for: ChatSession)`. Shared by the app and service (added to the runtime sources). | Unit checks: layering for project, Studio, plain and Golem chats; offs; no file means an empty set. |
+| T2 | **Model and resolver.** `ToolScopes` and `ToolSet` (servers, connector allow/block, skill on/off, skill folders, offs of inherited items), stored in `ToolScopes.json`, with `effective(for: ChatSession)`. Shared by the app and service (added to the runtime sources). | Unit checks: layering for project, Studio and plain chats; offs; no file means an empty set. |
 | T3 | **Discovery.** Read `~/.claude.json` and `~/.claude/settings.json` mcpServers, installed Claude plugins, `~/.claude/skills`, `~/.codex/config.toml` (`mcp_servers`, `skills`), and a project's `.mcp.json` and `.claude/skills`. Read-only. | A fixture home folder: every item listed with its source; the files are unchanged (checksums). |
 | T4 | **Apply to Claude.** Write a per-chat MCP config file and pass `--mcp-config`. Pass `--disallowedTools` for the offs. Add skills per T1. Restart idle Claude chats when the effective set changes. | The fixture agent records its arguments: they match the effective set; no file means the same arguments as today. |
 | T5 | **Apply to Codex.** Add the effective servers and offs to the thread config, include them in `codexConfigurationKey`, and handle skills and connectors per T1. | The fixture records the `thread/start` config; changing the set reloads the thread. |
@@ -137,20 +135,18 @@ Gates for Shelby:
 - Not included:
   - Writing or editing skill contents.
   - Adding connectors on claude.ai or ChatGPT.
-  - Golem's own tools.
   - The iPhone app.
   - Writing any outside config file.
   - Per-chat overrides; levels only.
 - Must not change:
   - Chats with no Tools settings launch exactly as now.
-  - Golem's MCP config.
   - Secrets' current project scoping and Keychain storage.
   - The Plugins page (Chatterbox's own features).
   - Next Steps' side calls (they already run with `--strict-mcp-config`).
 
 ## Test plan
 
-- `scripts/test-agent-tools.sh` (new): T2 layering, T3 discovery against a fixture home, T4/T5 the launch arguments and thread config recorded by the fixture provider (`tests/golem-integration/fake-provider.py`, extended to record them), and T8 import.
+- `scripts/test-agent-tools.sh` (new): T2 layering, T3 discovery against a fixture home, T4/T5 the launch arguments and thread config recorded by the fixture provider (`tests/fixtures/fake-provider.py`, extended to record them), and T8 import.
 - Render tests: `scripts/test-tools-settings.sh` (Settings → Tools and the project panel) and the Session tools entry. Real entry points: Settings → Tools, right-click a project → Tools…, a chat's Session tools.
 - Regression: `scripts/test-sidequest.sh`, `scripts/test-chatterbox-daemon.sh`, `scripts/test-chat-toolbar.sh`, `scripts/check-sources.sh`.
 - Installed-app check (T9).

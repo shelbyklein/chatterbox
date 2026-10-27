@@ -238,7 +238,6 @@ final class HomeNavTests: XCTestCase {
   capture("0-all-sessions",app)
   tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
-  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 10))
   app.buttons["chat-" + uuid("SDHQ")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
@@ -255,7 +254,6 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
-  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
   XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
   let activityReply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
   let activityWorking = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
@@ -289,11 +287,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].exists, "no preset tiles")
   capture("2b-chat-settings", app)
   app.navigationBars["Session Settings"].buttons["Done"].tap()
-  // The strip yields while a chat is open: a left-edge swipe here mustn't jump to Golem.
+  // The strip yields while a chat is open: a left-edge swipe here mustn't switch tabs.
   // (A synthesized drag can't trigger iOS's own Back swipe; see the calibration test.)
   edgeSwipe(app, fromLeft: true)
   try await Task.sleep(for: .seconds(1.5))
-  XCTAssertFalse(app.tabBars.buttons["Golem"].exists,"ordinary chat navigation does not expose Golem")
   // iOS's own Back swipe may or may not fire for a synthesized drag; either way, back to the list.
   if app.staticTexts["Hi! This is SDHQ."].exists { app.navigationBars.buttons.element(boundBy: 0).tap() }
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 5), "back at the cards")
@@ -301,7 +298,6 @@ final class HomeNavTests: XCTestCase {
   // Chatterbox remains on ordinary chats after a sidebar edge gesture.
   edgeSwipe(app,fromLeft:true)
   try await Task.sleep(for:.seconds(1))
-  XCTAssertFalse(app.tabBars.buttons["Golem"].exists)
   // The system sidebar gesture can hide the sidebar; list/cards interaction
   // was already verified above before exercising native navigation.
  }

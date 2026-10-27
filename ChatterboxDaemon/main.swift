@@ -7,7 +7,7 @@ Task { @MainActor in
     do {
         try RuntimePreferences.load()
         #if DEBUG
-        if RuntimePaths.data.path.hasPrefix("/tmp/golem-"), let fake=ProcessInfo.processInfo.environment["FAKE_PROVIDER"] {
+        if RuntimePaths.data.path.hasPrefix("/tmp/chatterbox-test-"), let fake=ProcessInfo.processInfo.environment["FAKE_PROVIDER"] {
             AppPreferences.defaults.setVolatileDomain(["claudePath":fake,"codexPath":fake,"easyCLIProxyEnabled":false,"remoteControlClaudeChats":false],forName:UserDefaults.argumentDomain)
         }
         #endif
@@ -23,15 +23,8 @@ Task { @MainActor in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }
         CompanionServer.shared.model=model
-        CompanionServer.shared.startAgentListener()
         if CompanionServer.shared.isEnabled {CompanionServer.shared.start()}
         RuntimeHooks.clearSuggestions={NextSteps.shared.clear($0)}
-        RuntimeHooks.suggested={session,item in
-            try? runtime.recordAssistantNote(title:"Suggested an answer",detail:item.suggestedReason,chat:session.id)
-        }
-        RuntimeHooks.answered={session,item,suggestion,answers in
-            try? runtime.recordAssistantNote(title:answers==suggestion ? "Sent the suggested answer":"Answered a question",detail:item.text,chat:session.id)
-        }
         RuntimeHooks.turnEnded={session in
             NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
             // A sidequest's answer goes back once the turn has settled.

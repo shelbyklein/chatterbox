@@ -9,7 +9,6 @@ setbuf(stdout,nil)
     let root=URL(fileURLWithPath:ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-thread-restart."))
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,
         "companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,
         "nextStepsEnabled":false,"claudeRemoteControl":false,
         "codexPath":root.appendingPathComponent("fake-codex.py").path,
@@ -128,7 +127,7 @@ setbuf(stdout,nil)
     print("PASS Claude failed resume preserves original session ID/history and reports failure")
     let panel=NSPanel(contentRect:NSRect(x:30,y:80,width:380,height:620),styleMask:[.titled,.nonactivatingPanel],backing:.buffered,defer:false)
     a.threadRestartStatus=nil
-    panel.contentView=NSHostingView(rootView:ScrollView {ChatSettingsCog(session:a).main})
+    panel.contentView=NSHostingView(rootView:VStack(alignment:.leading,spacing:8) {RestartThreadControl(session:a);ThreadRestartStatus(session:a)}.padding(14).frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading))
     panel.orderFrontRegardless()
     try await pause()
     capture(panel,root.appendingPathComponent("restart-control.png"))
@@ -140,7 +139,7 @@ setbuf(stdout,nil)
     try await Task.sleep(for:.milliseconds(600))
     precondition(requests().filter {$0["method"] as? String=="thread/resume"}.count==count+1,"Native Restart Thread click didn't reconnect")
     capture(panel,root.appendingPathComponent("restart-result.png"))
-    print("PASS native Golem settings Restart Thread button click and rendered outcome")
+    print("PASS native chat settings Restart Thread button click and rendered outcome")
     claude.claudeProcess?.terminate()
     CodexAppServer.shared.terminate()
     panel.orderOut(nil)

@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib/source-list.sh
 mkdir -p build/runtime
-manifest=$(mktemp /tmp/golem-daemon-sources.XXXXXX)
+manifest=$(mktemp /tmp/chatterbox-test-daemon-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT
 ./scripts/runtime-sources.sh > "$manifest"
 printf '%s\n' ChatterboxRuntime/RuntimeClient.swift >> "$manifest"

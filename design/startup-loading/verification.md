@@ -15,7 +15,6 @@ Validation:
 - Daemon build, wire tests, Mac build/install, source check and diff checks pass.
 - Wire regression checks working-only fetches omit idle sessions and preserve full-list behavior.
 - Native projection regression checks expired startup history is not delivered, initial load completes, providers stay in the daemon, configuration updates arrive, and reconnect preserves transcript and draft. These pass in an isolated Chatterbox fixture.
-- The broader Golem projection test passed the startup/reconnect checks but timed out launching the separate standalone Golem app. That unrelated application-launch check is not claimed as passing. The same compiled Chatterbox fixture passed with that optional launch excluded.
 - Installed UI inspected: loading status appears during startup; Activity subsequently displays the parent name and sidequest icon.
 
 Delivery: Mac app installed and reopened. Service restart queued with default idle-wait behavior; priority loading remains pending that restart. Active replies were not interrupted. No iOS changes or TestFlight upload. Tidy report run; no cleanup applied.

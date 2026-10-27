@@ -2,7 +2,7 @@ import http.server,json,os,time,uuid,subprocess
 from pathlib import Path
 ROOT=Path(os.environ['CHATTERBOX_TEST_OUTPUT']); logs=[]; revision=1; delay_next=False; structured=False
 IDS=['11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333']
-def summary(i):return {'id':IDS[i],'title':['Golem','Claude project'][i],'backend':['codex','claude'][i],'isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':i==0}
+def summary(i):return {'id':IDS[i],'title':['Codex fixture','Claude project'][i],'backend':['codex','claude'][i],'isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 def detail(i):
  def item(n,kind,text,**extra):return dict(id=str(uuid.uuid5(uuid.NAMESPACE_URL,f'{i}:{n}')),kind=kind,text=text,isStreaming=False,isCommentary=False,isPending=False,attachments=[],isQueued=False,**extra)
  items=[item(1,'user','What changed on mobile?'),item(2,'tool','Reading the mobile layout',toolState='done'),item(3,'assistant','The mobile layout is ready. Each paragraph has its own bubble.\n\nCodex uses green and Claude uses orange, so you can tell which agent you are talking to.\n\n**Next:** try it on your phone and iPad. Your existing chats and attachments stay available.')]
@@ -34,9 +34,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if delayed:delay_next=False
   logs.append({'method':'GET','path':self.path,'time':time.time(),'delayed':delayed}); (ROOT/'requests.json').write_text(json.dumps(logs))
   if delayed:time.sleep(8)
-  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'dot','kind':'dot','title':'Assistant','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
+  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
-  if self.path=='/v1/avatar':return self.reply({'files':[]})
   for i,ident in enumerate(IDS):
    if self.path.startswith('/v1/chats/'+ident):return self.reply({'unchanged':True,'revision':revision} if f'?since={revision}' in self.path else detail(i))
   self.send_error(404)

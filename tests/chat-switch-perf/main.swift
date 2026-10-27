@@ -27,12 +27,11 @@ func run() async throws {
     guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"],
           root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("Use the isolated runner") }
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
-        "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false,
+        "companionEnabled": false, "notifyNeeds": false,
         "notifyFinished": false, "keepMacAwake": false
     ], forName: UserDefaults.argumentDomain)
     let model = AppModel()
-    let heavy = model.activeSessions.filter { !$0.isDot }.sorted { $0.items.count > $1.items.count }.prefix(6)
+    let heavy = model.activeSessions.sorted { $0.items.count > $1.items.count }.prefix(6)
     guard heavy.count >= 2 else { fatalError("Need at least two saved chats") }
 
     // Parsing alone: what each switch pays for the newest 40 rows' markdown.

@@ -23,7 +23,7 @@ import CoreFoundation
         runtime.onEvent={ [weak self] event in
             guard let self else{return}
             for id in self.subscribed {self.peers[id]?.send(RuntimeReply(event:event))}
-            if let chat=event.chatID.flatMap(self.runtime.session),!chat.isDot {
+            if let chat=event.chatID.flatMap(self.runtime.session) {
                 if ["approval.waiting","question.waiting"].contains(event.kind){
                     MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.approvalState == .pending})?.text ?? "This session needs you",chat:chat.id,kind:"needs",identity:"event-\(event.sequence)")
                 }else if event.kind=="turn.finished" {
@@ -66,35 +66,23 @@ import CoreFoundation
             guard r.version==1 else {throw RuntimeFailure("unsupported_version")}
             if r.operation=="hello" {
                 let role=r.body["role"]?.string ?? "agent"
-                guard ["agent","golem","ui","golem-ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
-                guard !["ui","golem-ui"].contains(role) || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
+                guard ["agent","ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
+                guard role != "ui" || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
                 roles[peer.id]=role
-                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]));return
+                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
-            if role=="golem-ui" {
-                let allowed:Set<String>=["health","subscribe","list","get","getStudios","getPins","draft","setDraft","ensureAssistant","send","sendNow","sendQueuedNow","stop","answer","approve","rename","metadata","settings","remoteControl","restartTools","restartThread","getPreferences","preferences","companionStatus","companion","authorizePush","pushStatus","testPush","setGolemPushEnabled","codexModels"]
-                guard allowed.contains(r.operation) else{throw RuntimeFailure("permission_denied")}
-                if let raw=r.body["record"],let record=try? raw.decode(ConversationRecord.self),(record.isDot != true || runtime.session(record.id)?.isDot != true){throw RuntimeFailure("permission_denied")}
-                if r.operation=="preferences",!Set((r.body.object ?? [:]).keys).isSubset(of:["dotDefaultBackend","dotDefaultModel","dotApplyDefault","dotSeenItem"]){throw RuntimeFailure("permission_denied")}
-                if r.operation=="companion" {
-                    if r.body["newCode"]?.bool==true{throw RuntimeFailure("permission_denied")}
-                    if let id=r.body["forget"]?.string.flatMap(UUID.init(uuidString:)),CompanionServer.shared.devices.first(where:{$0.id==id})?.product != "golem"{throw RuntimeFailure("permission_denied")}
-                }
-                if !["get","draft"].contains(r.operation),let id=r.body["chatID"]?.string.flatMap(UUID.init(uuidString:)),runtime.session(id)?.isDot != true{throw RuntimeFailure("permission_denied")}
-            }
-            if ["approve","answer","integration","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","preferences"].contains(r.operation), !["ui","golem-ui"].contains(role) {
+            if ["approve","answer","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","preferences"].contains(r.operation), role != "ui" {
                 throw RuntimeFailure("permission_denied")
             }
-            if ["golem","agent","golem-ui"].contains(role),!runtime.state.integrationEnabled,!["health","subscribe"].contains(r.operation) {throw RuntimeFailure("integration_disabled")}
             if r.operation == "preferences", r.body["proxyClaudeChats"] != nil || r.body["proxyCodexChats"] != nil {
                 await EasyCLIProxy.shared.refresh()
             }
             let result:JSON
             switch r.operation {
-            case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence)),"integrationEnabled":.bool(runtime.state.integrationEnabled)]
+            case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence))]
             case "codexModels":
-                guard ["ui", "golem-ui"].contains(role) else { throw RuntimeFailure("permission_denied") }
+                guard role == "ui" else { throw RuntimeFailure("permission_denied") }
                 try await CodexAppServer.shared.refreshModels()
                 result = .array(CodexAppServer.shared.models.map { model in
                     ["model": .string(model.model), "displayName": .string(model.displayName),
@@ -104,9 +92,8 @@ import CoreFoundation
                 })
             case "getStudios":result=try .value(runtime.studios)
             case "getPins":result=try .value(PinStore.shared.pins)
-            case "assistantNotes":result=try .value(runtime.state.assistantNotes ?? [])
             case "getPreferences":
-                guard ["ui","golem-ui"].contains(role) else{throw RuntimeFailure("permission_denied")}
+                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
                 var values:[String:JSON]=[:]
                 for key in RuntimePreferences.keys.subtracting(["companionDevices","pins"]){
                     guard let value=AppPreferences.defaults.object(forKey:key) else{continue}
@@ -115,25 +102,19 @@ import CoreFoundation
                     else if let list=value as? [String]{values[key] = .array(list.map(JSON.string))}
                 }
                 result = .object(values)
-            case "setGolemPushEnabled":
-                guard ["ui", "golem-ui"].contains(role), let enabled = r.body["enabled"]?.bool else { throw RuntimeFailure("permission_denied") }
-                try RuntimePreferences.update(["golemPushEnabled": .bool(enabled)])
-                result = ["enabled": .bool(MobilePush.shared.enabled(forProduct: "golem"))]
             case "pushStatus", "testPush":
-                guard ["ui", "golem-ui"].contains(role) else { throw RuntimeFailure("permission_denied") }
-                let product = r.body["product"]?.string ?? (role == "golem-ui" ? "golem" : "chatterbox")
-                guard ["golem", "chatterbox"].contains(product), role != "golem-ui" || product == "golem" else { throw RuntimeFailure("permission_denied") }
+                guard role == "ui" else { throw RuntimeFailure("permission_denied") }
                 let push = MobilePush.shared
                 if r.operation == "pushStatus" {
-                    result = ["configured": .bool(push.configured), "enabled": .bool(push.enabled(forProduct: product)),
-                              "optedIn": .bool(product == "golem" ? (AppPreferences.defaults.object(forKey: "golemPushEnabled") as? Bool ?? (AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true)) : (AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true)),
-                              "status": .string(push.deliveryStatus(product: product))]
+                    result = ["configured": .bool(push.configured), "enabled": .bool(push.enabled),
+                              "optedIn": .bool(AppPreferences.defaults.object(forKey: "mobilePushEnabled") as? Bool ?? true),
+                              "status": .string(push.deliveryStatus)]
                 } else {
                     guard let deviceID = r.body["deviceID"]?.string.flatMap(UUID.init(uuidString:)),
-                          CompanionServer.shared.devices.contains(where: { $0.id == deviceID && ($0.product ?? "chatterbox") == product }) else { throw RuntimeFailure("permission_denied") }
+                          CompanionServer.shared.devices.contains(where: { $0.id == deviceID }) else { throw RuntimeFailure("permission_denied") }
                     let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
                     result = try await runtime.executeAsync(id: r.id, operation: r.operation, fingerprint: fingerprint) {
-                        let status = try await push.testDelivery(deviceID, product: product, identity: r.id)
+                        let status = try await push.testDelivery(deviceID, identity: r.id)
                         return ["accepted": true, "status": .string(status)]
                     }
                 }
@@ -150,13 +131,13 @@ import CoreFoundation
                 let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
                 guard !task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
                 let parent=try chat(r.body)
-                guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isDot && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
+                guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
                 let files=(r.body["files"]?.array ?? []).compactMap(\.string)
                 let backend=r.body["agent"]?.string.flatMap(Backend.init(rawValue:))
                 result = .string(try await DaemonContext(runtime).newPCErrand(of:parent,task:task,files:files,backend:backend).id.uuidString)
             case "refreshSecrets", "authorizeSecret":
                 // Only Chatterbox's signed Settings window can inspect availability or
-                // request a native prompt. Agents and Golem cannot use this as a key broker.
+                // request a native prompt. Agents cannot use this as a key broker.
                 guard role == "ui" else { throw RuntimeFailure("permission_denied") }
                 let vault = SecretVault.shared
                 try vault.reload()
@@ -178,10 +159,10 @@ import CoreFoundation
                 // access to the APNs key: the key's ACL lists programs by signing identity,
                 // and the app's "Always Allow" doesn't cover chatterboxd. This read may show
                 // the system Keychain prompt, so it runs off the main thread (other chats keep
-                // being answered while it's open). Only a signed product window may ask; the
+                // being answered while it's open). Only Chatterbox's signed window may ask; the
                 // reply carries the outcome, never key material. Reading changes nothing, so
                 // there's no command receipt.
-                guard ["ui","golem-ui"].contains(role) else{throw RuntimeFailure("permission_denied")}
+                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
                 let outcome=await Task.detached(priority:.userInitiated) { () -> (authorized:Bool,status:String) in
                     do {
                         _ = try PushCredentials.read(allowInteraction:true)
@@ -192,9 +173,9 @@ import CoreFoundation
                 }.value
                 result=["authorized":.bool(outcome.authorized),"status":.string(outcome.status)]
             case "companionStatus":
-                guard ["ui","golem-ui"].contains(role) else{throw RuntimeFailure("permission_denied")}
+                guard role=="ui" else{throw RuntimeFailure("permission_denied")}
                 let server=CompanionServer.shared
-                result=["enabled":.bool(server.isEnabled),"running":.bool(server.isRunning),"problem":server.problem.map(JSON.string) ?? .null,"pairingCode":.string(role=="golem-ui" ? "":server.pairingCode),"golemPairingCode":.string(server.golemPairingCode),"devices":try .value(server.devices.filter{role != "golem-ui" || $0.product=="golem"})]
+                result=["enabled":.bool(server.isEnabled),"running":.bool(server.isRunning),"problem":server.problem.map(JSON.string) ?? .null,"pairingCode":.string(server.pairingCode),"devices":try .value(server.devices)]
             case "subscribe":
                 let cursor=r.body["after"]?.int ?? 0;let replay=runtime.events(after:cursor)
                 subscribed.insert(peer.id)
@@ -226,13 +207,12 @@ import CoreFoundation
                 // The newest draft simply replaces the last, so it needs no command receipt and no
                 // conversation rewrite; its save is coalesced. Each keystroke used to rewrite the
                 // runtime state three times and the whole chat file, backing up every request.
-                guard role != "golem-ui" || (try? chat(r.body))?.isDot == true else { throw RuntimeFailure("permission_denied") }
                 let s=try chat(r.body)
                 runtime.updateDraft(s,text:r.body["text"]?.string ?? "",attachments:try r.body["attachments"]?.decode([Attachment].self) ?? [])
                 result = .null
             default:
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
-                result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try mutate(r,role:role=="golem-ui" ? "ui":role)}
+                result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try mutate(r,role:role)}
             }
             peer.send(RuntimeReply(id:r.id,result:result))
         }catch {peer.send(RuntimeReply(id:r.id,error:error.localizedDescription))}
@@ -245,11 +225,7 @@ import CoreFoundation
         case "create":
             guard let raw=r.body["record"] else{throw RuntimeFailure("invalid_record")}
             let record=try raw.decode(ConversationRecord.self)
-            guard role=="ui" || record.isDot != true else {throw RuntimeFailure("permission_denied")}
             return .string(try runtime.insert(record).id.uuidString)
-        case "integration":
-            guard role=="ui",let enabled=r.body["enabled"]?.bool else{throw RuntimeFailure("permission_denied")}
-            try runtime.setIntegrationEnabled(enabled)
         case "companion":
             let server=CompanionServer.shared
             if let enabled=r.body["enabled"]?.bool{server.setEnabled(enabled)}
@@ -259,7 +235,7 @@ import CoreFoundation
             let previousClaude = EasyCLIProxy.shared.claudeOn
             try RuntimePreferences.update(r.body.object ?? [:])
             if previousClaude != EasyCLIProxy.shared.claudeOn {
-                for session in runtime.sessions where !session.isDot && session.record.backend == .claude {
+                for session in runtime.sessions where session.record.backend == .claude {
                     session.restartClaudeForNewTools()
                 }
             }
@@ -295,25 +271,6 @@ import CoreFoundation
             }
             if oldFolder != s.record.boundFolder{s.claudeWorkingFolderChanged()}
             s.onChange?(s)
-        case "ensureAssistant":return .string(try runtime.ensureAssistant().id.uuidString)
-        case "sendAutomatic":
-            guard role=="golem" else {throw RuntimeFailure("permission_denied")}
-            let s=try runtime.ensureAssistant()
-            let text=r.body["text"]?.string ?? "",label=r.body["label"]?.string ?? "Check-in"
-            s.send(text)
-            if let i=s.record.items.lastIndex(where:{$0.kind == .user}) {s.record.items[i].automatic=true;s.record.items[i].detail=label}
-            s.automaticTurn=true;s.onChange?(s)
-        case "ackAssistantNotes":
-            guard role=="golem" else{throw RuntimeFailure("permission_denied")}
-            let ids=Set(try r.body["ids"]?.decode([String].self) ?? [])
-            try runtime.ackAssistantNotes(ids)
-        case "notify":
-            guard role=="golem" else{throw RuntimeFailure("permission_denied")}
-            if let id=r.body["itemID"]?.string.flatMap(UUID.init(uuidString:)),let assistant=runtime.assistant,
-               let index=assistant.items.firstIndex(where:{$0.id==id}),
-               let seen=AppPreferences.defaults.string(forKey:"dotSeenItem").flatMap(UUID.init(uuidString:)),
-               let seenIndex=assistant.items.firstIndex(where:{$0.id==seen}),index<=seenIndex{return ["suppressed":true]}
-            MobilePush.shared.post(title:r.body["title"]?.string ?? "Golem",body:r.body["text"]?.string ?? "",chat:runtime.assistant?.id,kind:"golem",identity:r.id)
         case "send", "sendNow":
             let s=try chat(r.body);let text=r.body["text"]?.string ?? ""
             let files=try r.body["attachments"]?.decode([Attachment].self) ?? []
@@ -332,10 +289,6 @@ import CoreFoundation
                 s.answerQuestions(id,answers:raw == nil || raw == .null ? nil : try raw!.decode([String:[String]].self))
             }
             else {guard let decision=r.body["decision"]?.string.flatMap(DisplayItem.ApprovalState.init(rawValue:)),[.approved,.approvedForSession,.denied].contains(decision) else{throw RuntimeFailure("invalid_decision")};s.resolveApproval(id,decision)}
-        case "suggest":
-            let s=try chat(r.body)
-            guard let id=r.body["itemID"]?.string.flatMap(UUID.init(uuidString:)),let answers=r.body["answers"] else {throw RuntimeFailure("invalid_suggestion")}
-            try s.suggestAnswers(id,answers:answers.decode([String:[String]].self),reason:r.body["reason"]?.string ?? "",by:r.body["by"]?.string ?? "Golem")
         case "archive":try chat(r.body).setArchived(r.body["archived"]?.bool ?? true)
         case "rename":try chat(r.body).setTitle(r.body["title"]?.string ?? "")
         case "setBrief":
@@ -346,8 +299,8 @@ import CoreFoundation
             let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
             guard !task.isEmpty else{throw RuntimeFailure("invalid_sidequest")}
             let parent=try chat(r.body)
-            // An agent may start one only from a chat that's mid-reply (its own), never Golem's.
-            guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isDot && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
+            // An agent may start one only from a chat that's mid-reply (its own).
+            guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
             return .string(try DaemonContext(runtime).newSidequest(of:parent,task:task).id.uuidString)
         case "returnSidequest":
             let s=try chat(r.body)

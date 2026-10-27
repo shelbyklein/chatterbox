@@ -1,6 +1,6 @@
 import http.server,json,uuid
 ID='11111111-1111-1111-1111-111111111111'
-chat={'id':ID,'title':'Golem','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':True}
+chat={'id':ID,'title':'History fixture','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 item={'id':'22222222-2222-2222-2222-222222222222','kind':'assistant','text':'History loaded without sending a message. This is the initial-load regression test.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}
 detail={'revision':0,'summary':chat,'settings':'Codex · GPT-6.1-Sol','items':[item],'earlierCount':0}
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -11,9 +11,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/pair':self.reply({'token':'isolated-regression-token','macName':'Regression Mac','addresses':['127.0.0.1']})
   else:self.send_error(400,'Test does not accept chat mutations')
  def do_GET(self):
-  if self.path=='/v1/chats':self.reply({'revision':0,'groups':[{'id':'dot','kind':'dot','title':'Golem','chats':[chat]}]})
+  if self.path=='/v1/chats':self.reply({'revision':0,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[chat]}]})
   elif self.path.startswith('/v1/chats/'+ID):self.reply({'unchanged':True,'revision':0} if '?since=0' in self.path else detail)
   elif self.path=='/v1/addresses':self.reply({'addresses':['127.0.0.1']})
-  elif self.path=='/v1/avatar':self.reply({'files':[]})
   else:self.send_error(404)
 http.server.ThreadingHTTPServer(('127.0.0.1',19645),Handler).serve_forever()

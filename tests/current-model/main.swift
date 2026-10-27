@@ -21,7 +21,7 @@ struct Entry:View {
   ModelPreset(title:"Smarty",backend:.claude,model:"sonnet",effort:"medium"),
   ModelPreset(title:"Maestro",backend:.codex,model:"gpt-6-luna",effort:"low"),
   ModelPreset(title:"Brainy",backend:.claude,model:"haiku",effort:"medium")])
- UserDefaults.standard.setVolatileDomain(["modelPresets":presets,"dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"themeBackground":"black"],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["modelPresets":presets,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"themeBackground":"black"],forName:UserDefaults.argumentDomain)
  let model=AppModel()
  var record=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
  record.activeBackend = .codex;record.codex=CodexSettings(model:"gpt-6-astra",effort:"medium",folder:root,canEdit:false)

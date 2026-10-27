@@ -5,7 +5,7 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-studio-sidebar."))
- UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyReplies":false,"mobilePushEnabled":false,"keepMacAwake":false,"macStudioSidebarCards":false,"readerBackground":"black","sidebarTagFilter":"wordpress"],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyReplies":false,"mobilePushEnabled":false,"keepMacAwake":false,"macStudioSidebarCards":false,"readerBackground":"black","sidebarTagFilter":"wordpress"],forName:UserDefaults.argumentDomain)
  let model=AppModel()
  let a=Studio(name:"Playcase Studio",folder:root+"/studio-a"),b=Studio(name:"Other Studio",folder:root+"/studio-b")
  model.studios=[a,b]

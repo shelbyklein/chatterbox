@@ -7,22 +7,16 @@ final class ComposerTests: XCTestCase {
     if post { r.httpMethod = "POST" }
     return try JSONSerialization.jsonObject(with: await URLSession.shared.data(for:r).0) as! [String:Any]
   }
-  @MainActor func open(_ regular: Bool = false) -> XCUIApplication {
+  @MainActor func open() -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = ["-drafts", "{}", "-mobileHomeTab", "golem"]
+    app.launchArguments = ["-drafts", "{}"]
     app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19645"]
     app.launch()
-    #if GOLEM_APP
-    let golem=app.buttons["Message Regression Golem"]
-    XCTAssertTrue(golem.waitForExistence(timeout:15));golem.tap()
-    #else
     let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
     XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
-    #endif
     XCTAssertTrue(field(app).waitForExistence(timeout:5))
     return app
   }
-  #if !GOLEM_APP
   /// Next Steps arrive folded to one line; tapping shows and hides them, and a step fills the box.
   @MainActor func testNextStepsFolded() async throws {
     _ = try await control("reset")
@@ -42,23 +36,22 @@ final class ComposerTests: XCTestCase {
     app.buttons["Run the full test suite"].tap()
     XCTAssertEqual(field(app).value as? String, "Run the full test suite")
   }
-  #endif
   @MainActor func testSessionControls() async throws {
     _ = try await control("reset"); _ = try await control("running")
-    let app = open(true)
+    let app = open()
     field(app).tap(); field(app).typeText("Keep this draft")
-    app.buttons["Chat Menu"].tap()
+    app.buttons["Session Menu"].tap()
     XCTAssertTrue(app.buttons["Stop Reply"].waitForExistence(timeout:5))
     XCTAssertTrue(app.buttons["Restart Thread"].exists)
     capture(app,"session-controls-menu")
     app.buttons["Stop Reply"].tap()
     let stopped = NSPredicate { _,_ in !app.buttons["Stop"].exists }
     let check=expectation(for:stopped,evaluatedWith:nil);await fulfillment(of:[check],timeout:8)
-    app.buttons["Chat Menu"].tap();app.buttons["Restart Thread"].tap()
+    app.buttons["Session Menu"].tap();app.buttons["Restart Thread"].tap()
     XCTAssertTrue(app.alerts["Restart Thread?"].waitForExistence(timeout:5))
     capture(app,"restart-confirmation")
     app.alerts.buttons["Cancel"].tap()
-    app.buttons["Chat Menu"].tap();app.buttons["Restart Thread"].tap()
+    app.buttons["Session Menu"].tap();app.buttons["Restart Thread"].tap()
     app.alerts.buttons["Restart Thread"].tap()
     try await Task.sleep(for:.seconds(1))
     XCTAssertTrue((field(app).value as? String ?? "").contains("Keep this draft"))
@@ -72,14 +65,14 @@ final class ComposerTests: XCTestCase {
   }
   @MainActor func empty(_ app:XCUIApplication) -> Bool {
     let text = field(app).value as? String ?? ""
-    return text.isEmpty || text == "Message" || text == "Message Regression Golem"
+    return text.isEmpty || text == "Message"
   }
   @MainActor func capture(_ app:XCUIApplication,_ name:String) {
     let shot=XCTAttachment(screenshot:app.screenshot());shot.name=name;shot.lifetime = .keepAlways;add(shot)
   }
-  @MainActor func exercise(_ regular:Bool) async throws {
+  @MainActor func exercise() async throws {
     _ = try await control("reset")
-    let app=open(regular)
+    let app=open()
     field(app).tap();field(app).typeText("First send")
     _ = try await control("hold")
     app.buttons["Send"].tap()
@@ -92,24 +85,16 @@ final class ComposerTests: XCTestCase {
     await fulfillment(of:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"enabled == true"),object:send)],timeout:5)
     XCTAssertEqual(field(app).value as? String,"Next draft", "Acknowledgment erased the new draft")
     XCTAssertEqual(app.staticTexts.matching(identifier:"First send").count, 1, "User message was rendered more than once")
-    capture(app, regular ? "project-new-draft-after-ack" : "golem-new-draft-after-ack")
+    capture(app, "project-new-draft-after-ack")
     let log=try await control("log",post:false)
     XCTAssertEqual((log["requests"] as! [[String:Any]]).count,1)
-    XCTAssertEqual((log["counts"] as! [Int])[regular ? 1:0],1)
+    XCTAssertEqual((log["counts"] as! [Int])[1],1)
     // Reopening restores only the new draft, never the consumed text.
-    app.terminate();app.launchArguments = ["-mobileHomeTab", "golem"];app.launch()
-    #if GOLEM_APP
-    let golem=app.buttons["Message Regression Golem"]
-    XCTAssertTrue(golem.waitForExistence(timeout:15));golem.tap()
-    #else
+    app.terminate();app.launchArguments = [];app.launch()
     let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
     XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
-    #endif
     XCTAssertEqual(field(app).value as? String,"Next draft")
   }
-  #if GOLEM_APP
-  @MainActor func testGolemDelayedAcknowledgment() async throws { try await exercise(false) }
-  #else
   @MainActor func testActivityTimeline() async throws {
     _ = try await control("reset")
     let app=XCUIApplication()
@@ -128,10 +113,10 @@ final class ComposerTests: XCTestCase {
     XCTAssertTrue(field(app).waitForExistence(timeout:10))
     capture(app,"activity-opened-chat")
   }
-  @MainActor func testRegularDelayedAcknowledgment() async throws { try await exercise(true) }
+  @MainActor func testRegularDelayedAcknowledgment() async throws { try await exercise() }
   @MainActor func testSuccessfulAndFailedRepeatedSends() async throws {
     _ = try await control("reset")
-    let app=open(true)
+    let app=open()
     for _ in 0..<2 {
       field(app).tap();field(app).typeText("Intentional repeat")
       app.buttons["Send"].tap()
@@ -150,5 +135,4 @@ final class ComposerTests: XCTestCase {
     XCTAssertEqual(field(app).value as? String,"Recover this failed draft")
     capture(app,"failed-send-recovered")
   }
-  #endif
 }

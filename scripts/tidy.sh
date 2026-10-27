@@ -52,11 +52,11 @@ while read -r pid ppid cmd; do
   removable=$((removable+1)); listed "pid $pid: ${cmd:0:120}"
   (( apply )) && safe_stop "$pid"
 done < <(ps -axo pid=,ppid=,command= | awk '$2==1' \
-  | grep -E '/tmp/[^ ]*/fake-provider|fake-provider.py|/tmp/(golem|chatterbox|canvas)-[^ ]*/(chatterboxd|ChatterboxHost|test)( |$)' \
+  | grep -E '/tmp/[^ ]*/fake-provider|fake-provider.py|/tmp/(chatterbox|canvas)-[^ ]*/(chatterboxd|ChatterboxHost|test)( |$)' \
   | grep -v grep || true)
 
 section "Test temp folders older than 2 days"
-for d in /tmp/chatterbox-* /tmp/golem-* /tmp/canvas-* /tmp/test-hygiene.* /private/tmp/merge-check.*; do
+for d in /tmp/chatterbox-* /tmp/canvas-* /tmp/test-hygiene.* /private/tmp/merge-check.*; do
   [[ -e "$d" ]] || continue
   [[ $(age "$d") -ge 2 ]] || continue
   if in_use "$d"; then keep "$d" "in use"; else remove "$d" "temp folder, $(age "$d") days old"; fi
@@ -80,10 +80,10 @@ while IFS= read -r app; do
     /tmp/*|/private/tmp/*) remove "$app" "app copy" ;;
     *) other_apps=$((other_apps+1)) ;;
   esac
-done < <( { find /tmp /private/tmp -maxdepth 6 \( -name Chatterbox.app -o -name Golem.app \) -type d -prune 2>/dev/null
-            find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o \( -name Chatterbox.app -o -name Golem.app \) -type d -prune -print 2>/dev/null; } | sort -u)
+done < <( { find /tmp /private/tmp -maxdepth 6 -name Chatterbox.app -type d -prune 2>/dev/null
+            find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o -name Chatterbox.app -type d -prune -print 2>/dev/null; } | sort -u)
 
-(( other_apps )) && item "$other_apps app copies in other repos' build folders (e.g. Golem); left for that repo's own cleanup"
+(( other_apps )) && item "$other_apps app copies in other repos' build folders; left for that repo's own cleanup"
 
 # The simulator service can wedge and leave simctl hanging; give up after 20 seconds.
 simulators() {
@@ -105,7 +105,7 @@ while IFS= read -r line; do
   removable=$((removable+1)); listed "simulator: $line"
   (( apply )) && xcrun simctl delete "$udid" >/dev/null 2>&1
   true
-done < <(simulators | grep -E 'Golem separation|Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' | sed -E 's/^ +//')
+done < <(simulators | grep -E 'Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' | sed -E 's/^ +//')
 
 section "Restart jobs and activation folders"
 for pid in $(pgrep -f 'restart-service.sh|Activation/activate.sh|cb-restart.sh' 2>/dev/null); do
@@ -116,8 +116,8 @@ for d in "$HOME/Library/Application Support/"*-Activation "$HOME/Library/Applica
   [[ $(age "$d") -ge 7 ]] && remove "$d" "old activation/archive folder, $(age "$d") days" || true
 done
 
-section "Xcode's own Chatterbox/Golem build data older than 14 days (other projects are left alone)"
-for d in "$HOME/Library/Developer/Xcode/DerivedData"/Chatterbox-* "$HOME/Library/Developer/Xcode/DerivedData"/Golem-*; do
+section "Xcode's own Chatterbox build data older than 14 days (other projects are left alone)"
+for d in "$HOME/Library/Developer/Xcode/DerivedData"/Chatterbox-*; do
   [[ -d "$d" ]] || continue
   [[ $(age "$d") -ge 14 ]] && remove "$d" "Xcode DerivedData, $(age "$d") days old" || true
 done

@@ -8,7 +8,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
     precondition(root.hasPrefix("/tmp/chatterbox-automations-panel."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotEmailWatch":false,"companionEnabled":false],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false],forName:UserDefaults.argumentDomain)
     let folder=root+"/sdhq"
     var wordpress=ProjectAutomation(projectFolder:folder,title:"WordPress updates",template:.wordpress,instructions:ProjectAutomations.wordpressInstructions,weekday:2,hour:9)
     wordpress.backend="claude";wordpress.effort="high"

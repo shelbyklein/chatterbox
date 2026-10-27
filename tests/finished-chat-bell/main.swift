@@ -6,7 +6,7 @@ app.setActivationPolicy(.regular)
 @MainActor func run() async throws {
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-bell."))
- UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyReplies":false,"mobilePushEnabled":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyReplies":false,"mobilePushEnabled":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
  let model=AppModel(), attention=Attention.shared
  func chat(_ title:String,project:Bool=false)->ChatSession {
   var record=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)

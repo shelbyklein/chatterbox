@@ -12,7 +12,7 @@ PORTRAIT=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!IIBBBBB',320,960,8,2,0
 send_gate=threading.Event(); send_gate.set()
 def item(key,kind,text,streaming=False):
  return dict(id=str(uuid.uuid5(uuid.NAMESPACE_URL,'scroll:'+key)),kind=kind,text=text,isStreaming=streaming,isCommentary=False,isPending=False,attachments=[],isQueued=False)
-def summary():return {'id':CHAT,'title':'Long chat','project':'Long chat','backend':'claude','isRunning':streamed>0,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':False}
+def summary():return {'id':CHAT,'title':'Long chat','project':'Long chat','backend':'claude','isRunning':streamed>0,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 def items():
  out=[]
  for n in range(1,31):
@@ -61,7 +61,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
    return
   if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'projects','kind':'projects','title':'Projects','chats':[summary()]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
-  if self.path=='/v1/avatar':return self.reply({'files':[]})
   if self.path.startswith('/v1/chats/'+CHAT):return self.reply({'unchanged':True,'revision':revision} if f'?since={revision}' in self.path else detail())
   self.send_error(404)
 http.server.ThreadingHTTPServer(('127.0.0.1',PORT),Handler).serve_forever()

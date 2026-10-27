@@ -60,7 +60,7 @@ Readiness: pass · 2026-10-19. R1 summary, R2 observed problem, R3 baseline and 
 
 - iPhone 17 Pro, iOS 26.2: Activity dismissal/swipe actions (43.3 s), delayed first-load/cached relaunch (19.2 s), Studio thumbnails/navigation/brief (71.9 s) all passed. Core implementation committed as `1f32175`.
 
-- Tidy report: no leftover test processes, test simulators or restart workers. Eleven removable diagnostic/cache directories were reported (895 MB of simulator result folders, plus 24 MB of older Golem DerivedData); no broad cleanup was applied. The temporary Simulator GUI was stopped through `safe_stop`, and the existing default simulator was returned to its initial shutdown state.
+- Tidy report: no leftover test processes, test simulators or restart workers. Eleven removable diagnostic/cache directories were reported (895 MB of simulator result folders and older DerivedData); no broad cleanup was applied. The temporary Simulator GUI was stopped through `safe_stop`, and the existing default simulator was returned to its initial shutdown state.
 
 ## Delivered
 

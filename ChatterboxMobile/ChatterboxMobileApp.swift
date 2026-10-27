@@ -1,6 +1,5 @@
 import SwiftUI
 
-#if !GOLEM_APP
 @main
 struct ChatterboxMobileApp: App {
     @UIApplicationDelegateAdaptor(MobilePushAppDelegate.self) private var delegate
@@ -58,7 +57,6 @@ struct ChatterboxMobileApp: App {
         }
     }
 }
-
 
 /// The iPad layout (sessions beside the open one) on any screen big enough in both directions,
 /// whatever width class iOS reports: an open iPhone Duo is "compact" in portrait, like a phone,
@@ -124,7 +122,7 @@ struct ChatterboxTabs: View {
     var body: some View {
         TabView(selection: $tab) {
             ForEach(ChatListView.Page.allCases) { page in
-                ChatListView(hidesAssistant: true, fixedPage: page)
+                ChatListView(fixedPage: page)
                     .tabItem { Label(page.title, systemImage: page.icon) }
                     .badge(waiting(on: page))
                     .tag(page.rawValue)
@@ -158,5 +156,3 @@ struct ChatterboxTabs: View {
         (store.chatList?.groups ?? []).filter { page.includes($0.kind) }.flatMap(\.chats).filter(\.isWaitingOnYou).count
     }
 }
-
-#endif

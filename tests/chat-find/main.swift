@@ -20,9 +20,9 @@ let capture = unsafeBitCast(dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWi
 @MainActor func run() async throws {
     guard let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"], root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("isolated runner") }
     let out = ProcessInfo.processInfo.environment["FIND_OUT"]!
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotEmailWatch": false, "companionEnabled": false], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled": false], forName: UserDefaults.argumentDomain)
     let model = AppModel()
-    let chat = model.activeSessions.filter { !$0.isDot }.max { $0.items.count < $1.items.count }!
+    let chat = model.activeSessions.max { $0.items.count < $1.items.count }!
     // A word that appears in exactly one early user message.
     func words(_ text: String) -> [String] { text.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init) }
     var counts: [String: Int] = [:]

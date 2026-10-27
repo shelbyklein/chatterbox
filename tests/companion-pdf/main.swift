@@ -6,7 +6,7 @@ app.setActivationPolicy(.prohibited)
 @MainActor func run() async throws {
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-pdf-mac."))
- UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.setVolatileDomain(["companionEnabled":true,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false],forName:UserDefaults.argumentDomain)
  let model=AppModel();let chat=model.newChat(backend:.claude)
  let url=URL(fileURLWithPath:root).appendingPathComponent("Review proof.pdf")
  var box=CGRect(x:0,y:0,width:612,height:792)
@@ -25,8 +25,12 @@ app.setActivationPolicy(.prohibited)
  precondition(item.text==text)
  let relative=CompanionMapper.item(DisplayItem(kind:.assistant,text:"[Review PDF](Review%20proof.pdf)"),folder:root)
  precondition(relative.text.contains("chatterbox-document://"))
+ // Paired like a phone, over the phone port.
  try await Task.sleep(for:.milliseconds(500))
- let token=try String(contentsOf:CompanionServer.agentTokenFile,encoding:.utf8)
+ var pair=URLRequest(url:URL(string:"http://127.0.0.1:19648/v1/pair")!);pair.httpMethod="POST"
+ pair.httpBody=try Companion.encoder.encode(Companion.PairRequest(code:CompanionServer.shared.pairingCode,deviceName:"PDF fixture"))
+ let (paired,_)=try await URLSession.shared.data(for:pair)
+ let token=try Companion.decoder.decode(Companion.PairResponse.self,from:paired).token
  func request(_ path:String,authenticated:Bool=true) async throws -> (Data,Int) {
   var r=URLRequest(url:URL(string:"http://127.0.0.1:19648"+path)!)
   if authenticated {r.setValue(token,forHTTPHeaderField:Companion.tokenHeader)}

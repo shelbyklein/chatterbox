@@ -37,7 +37,7 @@ Builds, pushes committed main, installs into Applications, and restarts Chatterb
 **Prompt layer** (`prompts/`, bundled into the app): `personalities/friendly.md` and `pragmatic.md` are swappable tone layers. Both agents bring their own system prompt; Chatterbox adds the tone and a note about the chat window.
 
 **Runtime layer** (`Chatterbox/Engine/ChatSession.swift`):
-- **Commentary vs. final.** Progress notes stay visible in the chat while a reply runs, including Golem's chat and mini window. Tools and thoughts stay in their step groups. When the reply finishes, progress notes fold into the completed steps too. Only the text that ends the turn becomes the reply.
+- **Commentary vs. final.** Progress notes stay visible in the chat while a reply runs. Tools and thoughts stay in their step groups. When the reply finishes, progress notes fold into the completed steps too. Only the text that ends the turn becomes the reply.
 - **Steering.** The input box stays live while the agent works. Anything you send joins the running turn. It shows "Queued" until the agent picks it up at its next step, then "Sent while working".
 - **Interrupt.** Stop (Cmd-.) keeps the partial reply.
 - **Tone switching.** The tone menu in the toolbar has Friendly, Pragmatic, and Neutral. The tone is sent as a tagged block only when it changes.
@@ -51,7 +51,6 @@ Builds, pushes committed main, installs into Applications, and restarts Chatterb
 - **Context and usage.** A small ring next to the model line shows how full the conversation's context is. Hover it for the token count, or click it to see your 5-hour and 7-day usage limits and when they reset. It appears after the agent's first reply.
 - **Quick switcher.** Cmd-K finds any chat or project by name, title, tag, or agent. It also has New Chat, New Project Chat, New Project from GitHub, and Settings. Use the arrow keys, Return, and Esc.
 - **Sidebar.** Search filters chats by title, project name, and tags. The filter button shows only projects with a given tag. A spinner in the agent's color marks chats that are working.
-- **Golem mini.** Cmd-J in Chatterbox, the Mini button in Golem's toolbar, or Show Mini Window in its sidebar menu opens a separate window above ordinary app windows. Drag its header to move it; the minus button shrinks it to a draggable avatar with unread and waiting indicators. Click the avatar to resume the same chat and draft. The expand button returns to the main window. Its position, size and collapsed state are remembered; hiding it does not stop Golem.
 
 ## Claude Code backend
 
@@ -101,7 +100,7 @@ Conversations are saved as JSON in `~/Library/Application Support/Chatterbox/Con
 
 ## Graft development tools
 
-[Graft](https://github.com/NanoNets/context-graph-engine) indexes Chatterbox's source for coding agents. It's a project-local development dependency (Node.js 20 or later), separate from the app, the iOS companion and the MCP server.
+[Graft](https://github.com/NanoNets/context-graph-engine) indexes Chatterbox's source for coding agents. It's a project-local development dependency (Node.js 20 or later), separate from the app and the iOS companion.
 
 ```sh
 npm ci
@@ -129,10 +128,10 @@ Verification: `scripts/test-companion-pdf.sh` tests the Mac route and bounded tr
 
 On the Mac, Settings → iPhone → Push notifications accepts an APNs Key ID and .p8 signing key (stored in Keychain). Enable the companion server, then on each paired mobile device tap the bell in the chat list and turn on Notifications. The Mac can send a test to each registered device.
 
-Approvals/questions, finished replies, Golem briefings and important emails can each be enabled separately; previews and sound are optional. The Mac must stay awake with Chatterbox open. Notifications arrive through Apple on cellular as well as Wi-Fi; tapping into the actual chat still needs a connection to the Mac. Debug installs use APNs sandbox; Release uses production. See [validation and setup limits](design/mobile-push/delivery.md).
+Approvals/questions and finished replies can each be enabled separately; previews and sound are optional. The Mac must stay awake with Chatterbox open. Notifications arrive through Apple on cellular as well as Wi-Fi; tapping into the actual chat still needs a connection to the Mac. Debug installs use APNs sandbox; Release uses production. See [validation and setup limits](design/mobile-push/delivery.md).
 
 ## Repository boundaries
 
-Golem is developed separately in [shelbyklein/golem](https://github.com/shelbyklein/golem). This repository owns Chatterbox's Mac/mobile entrypoints and icons, chatterboxd, host and MCP tools. Both products pin the shared source package [chatterbox-core](https://github.com/shelbyklein/chatterbox-core) at `Core/` (Git submodule). Clone with `--recurse-submodules` or run `git submodule update --init --recursive` before generating/building. Shared Swift sources are compiled by the product, preserving existing conditional flags; Core is not a SwiftPM module.
+This repository owns Chatterbox's Mac/mobile entrypoints and icons, chatterboxd and the host. Chatterbox's shared source lives in the [chatterbox-core](https://github.com/shelbyklein/chatterbox-core) submodule at `Core/`. Clone with `--recurse-submodules` or run `git submodule update --init --recursive` before generating/building. Shared Swift sources are compiled by each target, preserving existing conditional flags; Core is not a SwiftPM module.
 
-Edit reusable code in Core, commit/push there, then update the tested gitlink in both consumers. The source directory aliases point within this checkout for existing scripts and navigation; do not duplicate code into them. Golem app/service/mobile/rig ownership has left this repository. Historical commits remain intact. Cross-product fixture scripts accept `GOLEM_REPO` (default `../Golem`), solely for integration tests; application builds do not need the sibling checkout.
+Edit reusable code in Core, commit/push there, then update the tested gitlink here. The source directory aliases point within this checkout for existing scripts and navigation; do not duplicate code into them.

@@ -6,7 +6,7 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 @MainActor func run() async throws {
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":true,"keepMacAwake":false], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":true,"keepMacAwake":false], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let server = CompanionServer.shared
     server.model = model
@@ -54,10 +54,6 @@ app.setActivationPolicy(.accessory)
     }
     let regular = model.newChat(backend:.codex)
     regular.isRunning = true // Queue only: no paid model or agent process.
-    let golem = model.ensureDot()
-    golem.setBackend(.codex); golem.isRunning = true
-    // Pairings are product-scoped after extraction; the Chatterbox token only
-    // exercises ordinary mutations here. Separate Golem RPC fixtures cover it.
     for chat in [regular] {
         let body = try Companion.encoder.encode(Companion.SendRequest(text:"Intentional identical text"))
         let before = chat.items.filter{$0.kind == .user}.count
@@ -72,7 +68,7 @@ app.setActivationPolicy(.accessory)
     let created = try await lostReply("/v1/chats",body:Data("{\"backend\":\"codex\"}".utf8),afterFirst:{
         // Make a newly created chat nonempty so a second accidental create cannot be
         // hidden by the app's normal empty-chat reuse.
-        model.sessions.first(where:{$0.items.isEmpty && !$0.isDot && !$0.isRunning})?.appendItem(.init(kind:.assistant,text:"Fixture changed after lost create reply"))
+        model.sessions.first(where:{$0.items.isEmpty && !$0.isRunning})?.appendItem(.init(kind:.assistant,text:"Fixture changed after lost create reply"))
     })
     precondition(model.sessions.count == count+1 && model.sessions.contains{$0.id == created.summary.id})
     regular.isRunning = false
@@ -136,7 +132,7 @@ app.setActivationPolicy(.accessory)
             })
             preconditionFailure("Uncertain request returned success")
         } catch {
-            precondition(scenario == "http-error" ? error.localizedDescription == "rejected" : error.localizedDescription.contains("check the chat"))
+            precondition(scenario == "http-error" ? error.localizedDescription == "rejected" : error.localizedDescription.contains("check the session"))
         }
         precondition(attempts == (scenario == "exhausted" ? 2:1))
     }
@@ -144,7 +140,7 @@ app.setActivationPolicy(.accessory)
     do {
         let _: Companion.ChatDetail = try CompanionRetry.decode(Companion.ChatDetail.self,data:Data(),method:"POST")
         preconditionFailure("Unreadable mutation reply accepted")
-    } catch { precondition(error.localizedDescription.contains("check the chat")) }
+    } catch { precondition(error.localizedDescription.contains("check the session")) }
     print("PASS unreadable successful mutation reply reports uncertainty")
     // Authorization is checked before cached responses can be retrieved.
     let unauthorized = try await URLSession.shared.data(for:make("127.0.0.1","/v1/chats/\(regular.id)/fork","POST",Data("{}".utf8),"revoked-token"))

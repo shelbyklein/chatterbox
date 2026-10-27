@@ -49,8 +49,7 @@ class Service:
                 if reply.get("error"):
                     fail({"invalid_sidequest": "the background service didn't take it: say what the sidequest should do, or restart the service if it predates agent sidequests (scripts/restart-service.sh).",
                           "chat_not_found": "that chat isn't open in Chatterbox.",
-                          "permission_denied": "a sidequest can only start from a chat that's working right now.",
-                          "integration_disabled": "agent access to Chatterbox is turned off in its settings."}
+                          "permission_denied": "a sidequest can only start from a chat that's working right now."}
                          .get(reply["error"], reply["error"]))
                 return reply.get("result")
 
@@ -91,7 +90,7 @@ def current_chat(service):
             return match[0]["id"]
     here = os.path.realpath(os.getcwd())
     working = [c["record"] for c in service.request("list", {}) or [] if c.get("running")]
-    matches = [r for r in working if here in folders(r) and not r.get("isDot")]
+    matches = [r for r in working if here in folders(r)]
     if len(matches) == 1:
         return matches[0]["id"]
     if not matches:

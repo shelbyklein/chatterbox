@@ -98,13 +98,12 @@ Mermaid source: [`plans/assets/pc-worker/flow.mmd`](assets/pc-worker/flow.mmd)
 - Tailscale / away-from-home access
 - Wake-on-LAN
 - Mobile UI for "Run on" (mobile shows these chats normally)
-- Running Golem/Dot, NextSteps, EmailWatch or the inline shell on the PC
+- Running NextSteps or the inline shell on the PC
 - chatterbox-mcp tools for PC chats
 - Exposing Ollama on the LAN
 
 **Unchanged**
 - Mac chats' launch path, EasyCLIProxy routing and accounts
-- Golem direct routing
 - Existing chats and their transcripts. `runOn` defaults to This Mac
 - PC: existing logins, Docker Desktop, Steam/Plex/etc., existing Ollama models (none pulled or deleted without asking)
 - The PIA VPN
@@ -112,7 +111,7 @@ Mermaid source: [`plans/assets/pc-worker/flow.mmd`](assets/pc-worker/flow.mmd)
 **Data:** the only new stored field is per-chat `runOn` (optional, so old records decode unchanged). The new folders are `~/Chatterbox/PC/` on the Mac and `D:\Chatterbox\` plus `C:\Users\sklei\.chatterbox\` on the PC.
 
 ## Test plan
-- `scripts/test-pc-worker.sh` (new, sources `lib/test-hygiene.sh`). It uses a fake `ssh` shim that runs the worker locally with `tests/golem-integration/fake-provider.py`. It covers: header env/cwd, secrets not in argv, EOF tree kill, Claude remote launch args, two Codex app-servers at once, path mapping, the unreachable-host error.
+- `scripts/test-pc-worker.sh` (new, sources `lib/test-hygiene.sh`). It uses a fake `ssh` shim that runs the worker locally with `tests/fixtures/fake-provider.py`. It covers: header env/cwd, secrets not in argv, EOF tree kill, Claude remote launch args, two Codex app-servers at once, path mapping, the unreachable-host error.
 - Regression: `scripts/test-chatterbox-daemon.sh`, `test-thread-restart.sh`, `test-current-model.sh`, `test-model-favorites.sh`, `test-proxy-quota.sh`, `test-fast-mode.sh`, `test-agent-tools.sh`.
 - Build: `xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug -derivedDataPath build/DerivedData build`, and `scripts/build-chatterbox-daemon.sh`. Run `xcodegen generate` + `scripts/check-sources.sh` when adding files.
 - Live, in the real UI entry point: model popover → Run on / PC models, in the installed app. Rendered-state checks are screenshots of the popover and of a PC chat showing the mirrored file preview. PC side checks are `tasklist`, `ollama ps` and a directory listing over SSH.

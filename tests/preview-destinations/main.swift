@@ -7,7 +7,7 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"keepMacAwake":false], forName: UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"keepMacAwake":false], forName: UserDefaults.argumentDomain)
     let model = AppModel()
     let session = model.newChat(backend:.claude)
     session.setModel("claude-opus-5-5")
@@ -32,7 +32,7 @@ app.setActivationPolicy(.accessory)
     precondition(decoded["fastMode"] == true)
     precondition(PreviewDestination.allCases.count == 6)
     precondition(PreviewDestination.chrome.bundleID == "com.google.Chrome" && PreviewDestination.chromium.bundleID == "org.chromium.Chromium" && PreviewDestination.safari.bundleID == "com.apple.Safari")
-    let url = URL(fileURLWithPath:"/Users/shelbyklein/Chatterbox/Dot/output/medieval-parallax-cape.html")
+    let url = URL(fileURLWithPath:"/tmp/chatterbox-preview/medieval-parallax-cape.html")
     let panel = NSPanel(contentRect:NSRect(x:0,y:0,width:420,height:490),styleMask:[.titled,.nonactivatingPanel],backing:.buffered,defer:false)
     panel.appearance = NSAppearance(named:.darkAqua)
     var selected:PreviewDestination?

@@ -11,7 +11,7 @@ export CHATTERBOX_COMPANION_PORT=19650
 mkdir -p "$CHATTERBOX_DATA_DIR"
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' | sort > "$task_dir/files.txt"
 engine_key=$({ swiftc --version; cat "$task_dir/files.txt"; while IFS= read -r source; do cat "$source"; done < "$task_dir/files.txt"; } | shasum -a 256 | cut -c 1-16)
-engine_dir="/tmp/chatterbox-mini-engine.$engine_key"
+engine_dir="/tmp/chatterbox-test-engine-cache.$engine_key"
 if [[ ! -f "$engine_dir/libChatterboxTestEngine.dylib" || ! -f "$engine_dir/ChatterboxTestEngine.swiftmodule" ]]; then
   mkdir -p "$engine_dir"
   cp build/DerivedData/Build/Products/Debug/SwiftTerm.o "$engine_dir/SwiftTerm.o"

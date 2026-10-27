@@ -29,9 +29,6 @@ targets:
     - path: Core/Chatterbox
     - path: Core/ChatterboxRuntime
     - path: Core/Shared
-      excludes:
-      - GolemRig.swift
-      - GolemRigView.swift
     - path: Core/prompts
       type: folder
       buildPhase: resources
@@ -52,11 +49,6 @@ targets:
         subpath: Contents/Helpers
     - sdk: AVKit.framework
     - package: SwiftTerm
-    - target: ChatterboxMCP
-      embed: true
-      codeSign: true
-      copy:
-        destination: executables
     - target: ChatterboxDaemon
       embed: true
       codeSign: true
@@ -106,20 +98,6 @@ targets:
         DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: true
         SKIP_INSTALL: true
-  ChatterboxMCP:
-    type: tool
-    platform: macOS
-    sources:
-    - path: ChatterboxMCP
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.MCP
-        PRODUCT_NAME: chatterbox-mcp
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: Apple Development
-        DEVELOPMENT_TEAM: 9F3MKVW9C5
-        ENABLE_HARDENED_RUNTIME: true
-        SKIP_INSTALL: true
   ChatterboxMobile:
     type: application
     platform: iOS
@@ -131,9 +109,6 @@ targets:
       - '*.imageset'
     - path: Core/ChatterboxMobile
     - path: Core/Shared
-      excludes:
-      - GolemRig.swift
-      - GolemRigView.swift
     - path: Core/Chatterbox/Views/MarkdownText.swift
     - path: Core/Chatterbox/Views/ReaderStyle.swift
     - path: Core/Chatterbox/Views/PathLinks.swift
@@ -165,9 +140,6 @@ targets:
         - _chatterbox._tcp
         NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats
           to Photos when you ask it to.
-        NSMicrophoneUsageDescription: Chatterbox listens while you dictate a message.
-        NSSpeechRecognitionUsageDescription: Chatterbox turns what you say into the
-          text of your message.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
           NSExceptionDomains:
@@ -288,12 +260,10 @@ targets:
     - path: Core/Shared/Backend.swift
     - path: Core/Shared/MediaKind.swift
     - path: Core/Shared/FilePaths.swift
-    - path: Core/ChatterboxRuntime/AssistantInstructions.swift
     - path: Core/ChatterboxRuntime/RuntimeWire.swift
     - path: Core/ChatterboxRuntime/RuntimePaths.swift
     - path: Core/ChatterboxRuntime/RuntimeSocket.swift
     - path: Core/ChatterboxRuntime/ChatSession+Media.swift
-    - path: Core/ChatterboxRuntime/AssistantConfiguration.swift
     - path: Core/ChatterboxRuntime/ConversationRuntime.swift
     - path: Core/ChatterboxRuntime/ChatPromotion.swift
     - path: Core/ChatterboxRuntime/RuntimePreferences.swift
@@ -322,19 +292,6 @@ targets:
         ENABLE_HARDENED_RUNTIME: true
         SKIP_INSTALL: true
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) CHATTERBOX_HEADLESS
-  ChatterboxMobileProductTests:
-    type: bundle.ui-testing
-    platform: iOS
-    deploymentTarget: '17.0'
-    sources:
-    - path: tests/golem-integration/MobileProductTests.swift
-    dependencies:
-    - target: ChatterboxMobile
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.ChatterboxMobileProductTests
-        GENERATE_INFOPLIST_FILE: true
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited)
 schemes:
   Chatterbox:
     build:
@@ -344,11 +301,3 @@ schemes:
     build:
       targets:
         ChatterboxMobile: all
-  ChatterboxMobileAcceptance:
-    build:
-      targets:
-        ChatterboxMobile: all
-        ChatterboxMobileProductTests: all
-    test:
-      targets:
-      - ChatterboxMobileProductTests

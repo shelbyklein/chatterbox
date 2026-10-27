@@ -8,20 +8,19 @@ app.setActivationPolicy(.accessory)
     let root = URL(fileURLWithPath: env["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-columns."))
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns":false, "dotWatchWaiting":false, "dotSummarizeFinished":false, "dotEmailWatch":false,
-        "companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,
-        "golemPanelOpen":true
+        "companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false
     ],forName: UserDefaults.argumentDomain)
     // Writable preferences in this standalone test executable, not launch-argument overrides.
     // Argument-domain values cannot be changed by AppStorage, which would make drag tests inert.
     precondition(Bundle.main.bundleIdentifier != "com.shelbyklein.Chatterbox")
-    for (key,value) in ["mainSidebarVisible":true,"mainSidebarWidth":260.0,"golemInspectorWidth":0.0,"issuesInspectorWidth":0.0,"previewInspectorWidth":0.0] as [String:Any] {
+    for (key,value) in ["mainSidebarVisible":true,"mainSidebarWidth":260.0,"issuesInspectorWidth":0.0,"previewInspectorWidth":0.0] as [String:Any] {
         UserDefaults.standard.set(value,forKey:key)
     }
     let model = AppModel()
-    let dot = model.sessions.first { $0.isDot }!
-    let project = model.sessions.first { $0.record.projectFolder == "/Users/shelbyklein/Vibes/Chatterbox" }!
-    model.selectedID = dot.id
+    let chats = model.sessions.filter { $0.record.projectFolder == "/Users/shelbyklein/Vibes/Chatterbox" }
+    precondition(chats.count >= 2,"Fixture needs two Chatterbox project chats")
+    let first = chats[0], project = chats[1]
+    model.selectedID = first.id
     let panel = NSPanel(contentRect:NSRect(x:20,y:80,width:1600,height:820),styleMask:[.titled,.closable,.resizable,.nonactivatingPanel],backing:.buffered,defer:false)
     panel.contentView = NSHostingView(rootView:ContentView().environment(model))
     panel.orderFrontRegardless()
@@ -50,7 +49,7 @@ app.setActivationPolicy(.accessory)
     for width in [1600.0,1100,950,800,640] {
         panel.setContentSize(NSSize(width:width,height:820))
         try await Task.sleep(for:.milliseconds(600))
-        check("golem-\(Int(width))")
+        check("chat-\(Int(width))")
     }
     // A real AppKit drag, routed to the production divider's mouse handlers.
     panel.setContentSize(NSSize(width:1100,height:820))
@@ -66,7 +65,7 @@ app.setActivationPolicy(.accessory)
     try await Task.sleep(for:.milliseconds(400))
     let after=frames().first {$0.0=="sidebar"}!.1.width
     precondition(abs(after-before-40)<1,"Divider did not resize: \(before) -> \(after)")
-    check("golem-resized")
+    check("chat-resized")
     // The sidebar can't be hidden: asking to toggle it leaves it where it is.
     model.sidebarToggleRequest += 1
     try await Task.sleep(for:.milliseconds(400))
@@ -75,9 +74,9 @@ app.setActivationPolicy(.accessory)
     model.selectedID=project.id
     try await Task.sleep(for:.milliseconds(700))
     check("project-1100")
-    model.selectedID=dot.id
+    model.selectedID=first.id
     try await Task.sleep(for:.milliseconds(700))
-    check("golem-reopened")
+    check("chat-reopened")
     // The same container with actual Issues and WebKit views, no network service involved.
     var noRepo = project.record
     noRepo.projectFolder = nil; noRepo.githubRepo = nil; noRepo.items = []

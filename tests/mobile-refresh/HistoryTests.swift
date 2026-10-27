@@ -48,7 +48,7 @@ final class HistoryTests: XCTestCase {
     XCTAssertGreaterThan(
       after.filter { ($0["path"] as? String) == "/v1/chats/11111111-1111-1111-1111-111111111111" }
         .count, count, "Foreground never forced a full refresh")
-    capture("golem-foreground", app)
+    capture("chat-foreground", app)
     // Return to the list and reopen, without sending anything.
     let back = app.navigationBars.buttons.matching(
       NSPredicate(format: "label CONTAINS %@", "Regression Mac")
@@ -61,7 +61,7 @@ final class HistoryTests: XCTestCase {
       NSPredicate(format: "label CONTAINS %@", "History ready 0 version \(version2)")
     ).firstMatch
     XCTAssertTrue(reopened.waitForExistence(timeout: 3), "Reopening did not refresh")
-    capture("golem-reopened", app)
+    capture("chat-reopened", app)
     let calls = try await control("/test/log") as! [[String: Any]]
     XCTAssertFalse(
       calls.contains { ($0["method"] as? String) == "POST" }, "A chat mutation was sent")

@@ -24,7 +24,7 @@ its number, drag the effort. Favorites are just models; effort is the slider.
 - `Engine/ModelFavorites.swift`: favorites (synced to the service as `modelFavorites`),
   migration from presets, `choose`, `setEffort`, last-used per kind (`lastModel.<kind>`).
 - Mac `ModelPopover` rebuilt; composer chip opens it directly (preset pills removed);
-  Golem's cog, Settings and Automations lose their preset controls; Settings lists favorites.
+  Settings and Automations lose their preset controls; Settings lists favorites.
 - New sessions (app, service, the phone's draft) start on the last-used model and effort.
 - iPhone: options carry favorites; the form shows Favorites and All models, no preset tiles.
 - Kept for older data: `ModelPresets` still reads saved presets (an automation saved with a

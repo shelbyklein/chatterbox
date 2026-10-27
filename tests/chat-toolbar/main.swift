@@ -45,8 +45,7 @@ func run() async throws {
           root.hasPrefix("/tmp/chatterbox-perf.") else { fatalError("Use the isolated runner") }
     let out = ProcessInfo.processInfo.environment["TOOLBAR_OUT"] ?? "/tmp"
     UserDefaults.standard.setVolatileDomain([
-        "dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
-        "dotEmailWatch": false, "companionEnabled": false, "notifyNeeds": false,
+        "companionEnabled": false, "notifyNeeds": false,
         "notifyFinished": false, "keepMacAwake": false,
         "themeBackground": ProcessInfo.processInfo.environment["TOOLBAR_THEME"] ?? "standard", "settingsPage": ProcessInfo.processInfo.environment["TOOLBAR_PAGE"] ?? "models"
     ], forName: UserDefaults.argumentDomain)
@@ -55,8 +54,8 @@ func run() async throws {
     for path in ["/Applications", "/System/Applications/Notes.app", "/System/Applications/Calendar.app"] {
         PinStore.shared.add(Pin(title: URL(fileURLWithPath: path).lastPathComponent, kind: path.hasSuffix(".app") ? .app : .file, target: path, place: nil))
     }
-    let chats = model.activeSessions.filter { !$0.isDot && $0.record.backend == .claude && $0.record.projectFolder != nil }
-    let others = model.activeSessions.filter { !$0.isDot && $0.record.backend == .codex }
+    let chats = model.activeSessions.filter { $0.record.backend == .claude && $0.record.projectFolder != nil }
+    let others = model.activeSessions.filter { $0.record.backend == .codex }
     guard chats.count >= 2, let codex = others.first else { fatalError("Need two Claude project chats and a Codex chat") }
     let pinned = ProcessInfo.processInfo.environment["TOOLBAR_FIRST"].flatMap { t in chats.first { $0.title.hasPrefix(t) } }
     let a = pinned ?? chats[0], b = chats.first { $0.projectName != a.projectName } ?? chats[1]
@@ -120,9 +119,9 @@ func run() async throws {
     window.makeKeyAndOrderFront(nil)
     app.activate(ignoringOtherApps: true)
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(order.prefix(2) == ["title", "views"] && order.suffix(6) == ["usage", "terminal", "finished", "NSToolbarSpaceItem", "settings", "newChat"]
+    check(order.prefix(2) == ["title", "views"] && order.suffix(7) == ["usage", "terminal", "finished", "feedback", "NSToolbarSpaceItem", "settings", "newChat"]
             && order.contains("newChat") && !order.contains("images") && !order.contains("remote"),
-          "order: title, views; session info with library; usage and terminal; Settings then New Chat (\(order))")
+          "order: title, views; usage, terminal and Feedback; Settings then New Chat (\(order))")
     save(window, "1-\(a.projectName)", out)
     let baseline = Attention.shared.viewCounts(in: model)
     func fixture(_ title: String, project: Bool = false, studio: Bool = false, pending: Bool = false) -> ChatSession {

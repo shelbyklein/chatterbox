@@ -16,4 +16,4 @@ Excludes dynamic AI generation, new mobile empty-state UI, provider/account chan
 
 Visual proof: actual production ChatView window-server captures inspected in `/tmp/chatterbox-starter-ui.IfU2W8`, stable copies `/Users/shelbyklein/Chatterbox/Screenshots/starter-prompts/`. Provider intentionally unavailable in fixture; warning banner is fixture-only. First view-cache capture failed to draw text correctly; using current-process ScreenCaptureKit produced readable native buttons without screen capture of other applications. No messages/drafts submitted.
 
-Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`, Golem `8427c4e`. Mac builds pass; installed hash identity verified. Installed interactions not driven.
+Pinned in shared Core `5c3a4ec`, Chatterbox `eb82539`. Mac builds pass; installed hash identity verified. Installed interactions not driven.

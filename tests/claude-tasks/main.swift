@@ -7,7 +7,7 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() {
     let root = ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
     precondition(root.hasPrefix("/tmp/chatterbox-claude-tasks."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"keepMacAwake":false,"mobilePushConfigured":false],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"keepMacAwake":false,"mobilePushConfigured":false],forName:UserDefaults.argumentDomain)
     let session = AppModel().newChat(backend: .claude)
     func create(_ id: String, _ subject: String) {
         session.claudeTaskResult("TaskCreate", input: ["subject": .string(subject)], result: "Task #\(id) created successfully: \(subject)")

@@ -11,7 +11,7 @@ trap 'echo "PC worker test artifacts: $task_dir"' EXIT
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
-export FAKE_PROVIDER="$PWD/tests/golem-integration/fake-provider.py"
+export FAKE_PROVIDER="$PWD/tests/fixtures/fake-provider.py"
 export FAKE_PROVIDER_LAUNCHES="$task_dir/launches.jsonl"
 export PC_TEST_DIR="$task_dir" PC_WORKER="$PWD/deploy/pc-worker/chatterbox-worker.js"
 export CHATTERBOX_SSH_BINARY="$PWD/tests/pc-worker/ssh"

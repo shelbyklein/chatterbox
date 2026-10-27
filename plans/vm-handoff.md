@@ -4,11 +4,11 @@
 Issue: https://github.com/shelbyklein/chatterbox/issues/22 · Tracker Trapper: off (see Work preparation)
 
 ## Summary
-Agents that need a browser (Geekify picking photos from Dropbox) currently take over Shelby's Mac Chrome. Chatterbox already has a separate agent computer (a Docker Linux desktop with Chromium), but only Golem can use it, nothing it downloads can reach the Mac, and it can't open local SKD Studio previews. This plan lets any project chat browse in the agent computer, hand a downloaded file to its project on the Mac, and open a local preview Shelby has explicitly enabled.
+Agents that need a browser (Geekify picking photos from Dropbox) currently take over Shelby's Mac Chrome. Chatterbox already has a separate agent computer (a Docker Linux desktop with Chromium), but only the built-in assistant can use it, nothing it downloads can reach the Mac, and it can't open local SKD Studio previews. This plan lets any project chat browse in the agent computer, hand a downloaded file to its project on the Mac, and open a local preview Shelby has explicitly enabled.
 
 ## Problem (current behavior, with evidence)
 - **Mac Chrome is driven directly.** The Geekify chat runs `/tmp/geekify-dropbox.py`, which uses `osascript` to find the Dropbox tab in Google Chrome and run JavaScript in it (observed 2026-10-02 15:19–15:24), taking over Shelby's own browser and signed-in sessions.
-- **Only Golem gets the computer's browser.** `ChatSession.dotMCPConfig` / `dotCodexConfig` (`Chatterbox/Engine/Dot.swift`) add the `computer` MCP server only for the assistant.
+- **Only the assistant gets the computer's browser.** The assistant's MCP configuration adds the `computer` MCP server only for it.
 - **No way out of the VM.** `docker inspect chatterbox-dot` shows a single mount, the profile volume `chatterbox-dot-profile → /home/dot/profile`. Downloads stay inside the container.
 - **Local previews are unreachable.** SKD Studio serves sites on IPv6 loopback only (`lsof`: `node [::1]:8891` = "Geekify Inc"). From the container, `host.docker.internal` (192.168.65.254) reaches the Mac's IPv4 loopback, so `:8891` is refused; the IPv6 gateway is unreachable. A throwaway relay `127.0.0.1:8891 → [::1]:8891` plus a request with `Host: localhost:8891` returned `200 OK · Geekify Inc` from inside the container. WordPress redirects to `http://localhost:8891`, so the VM browser must use that exact origin.
 
@@ -42,7 +42,7 @@ Person's gates: Dropbox sign-in on the VM screen (T6). Install/restart is pre-ap
 ## Scope boundaries
 - Not mounted: anything on the Mac except `~/Chatterbox/Computer/Downloads`. No Mac browser profiles, cookies, or Keychain items are copied.
 - Relays bind 127.0.0.1 only and only for ports Shelby enables; nothing is published to the network or the internet.
-- Unchanged: SKD Studio and native design tools on the Mac; Golem's existing computer access; the Geekify chat's in-progress reply (not interrupted, its scripts not edited). Moving Geekify's work onto the VM is offered to that chat, not forced.
+- Unchanged: SKD Studio and native design tools on the Mac; the assistant's existing computer access; the Geekify chat's in-progress reply (not interrupted, its scripts not edited). Moving Geekify's work onto the VM is offered to that chat, not forced.
 - No paid services, no production deploys.
 
 ## Test plan

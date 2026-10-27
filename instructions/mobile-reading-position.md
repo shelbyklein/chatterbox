@@ -24,7 +24,7 @@ This is a scroll/control-flow repair with the current transcript and jump button
 
 - Reproduce a forced jump in the current app through a real UI action, then verify the same visible message/vertical position survives that event on iPhone and iPad.
 - Reader scrolling cancels pending automatic work; stream/refresh and app reactivation respect stopped following. Returning to the end or tapping Jump resumes following. Verify existing mobile scroll suite plus focused lifecycle and reading tests.
-- Preserve first opening at the newest messages, multiline composing/sending, reading during a delayed send, image retry behavior, cache, lazy transcript loading, Golem's explicit sent-message anchor, stored transcripts and API/authentication contracts.
+- Preserve first opening at the newest messages, multiline composing/sending, reading during a delayed send, image retry behavior, cache, lazy transcript loading, stored transcripts and API/authentication contracts.
 
 Deliverables: scoped Core fix, root UI regression and evidence/plan committed/pushed; signed iOS build uploaded and available to the existing internal Shelby TestFlight group. No new testers/public release. No Mac/service changes unless the platform clarification identifies a separate desktop fault.
 

@@ -7,16 +7,12 @@ app.setActivationPolicy(.accessory)
 @MainActor func run() async throws {
     let root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-mac-home."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"1.6,0.6,0.8"],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"1.6,0.6,0.8"],forName:UserDefaults.argumentDomain)
     precondition(Bundle.main.bundleIdentifier != "com.shelbyklein.Chatterbox")
     UserDefaults.standard.set(false, forKey: "macProjectsSidebarCards")
     UserDefaults.standard.set(HomeThreadPage.projects.rawValue,forKey:"macHomePage")
     defer { UserDefaults.standard.removeObject(forKey: "macProjectsSidebarCards"); UserDefaults.standard.removeObject(forKey:"macHomePage") }
     let model = AppModel()
-    var golemRecord=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
-    golemRecord.title="Golem"; golemRecord.isDot=true; golemRecord.activeBackend = .codex
-    golemRecord.items=[DisplayItem(kind:.assistant,text:"Your projects are up to date. Two threads have new work ready to review.",phase:.final)]
-    _ = model.insertSession(golemRecord)
     func project(_ title: String, _ backend: Backend) -> ChatSession {
         var record = ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
         record.title=title; record.projectNickname=title; record.projectFolder=root.appendingPathComponent(title).path
@@ -54,9 +50,10 @@ app.setActivationPolicy(.accessory)
     let pageThreads=[HomeThreadPage.projects,.studios,.chats].flatMap { HomeThreads.groups(model,page:$0).flatMap(\.threads) }
     precondition(Set(pageThreads.map(\.id))==Set(model.activeSessions.map(\.id)) && Set(pageThreads.map(\.id)).count==pageThreads.count)
     precondition(HomeThreads.groups(model,page:.projects).flatMap(\.threads).contains {$0.id==branch.id})
-    precondition(HomeThreads.groups(model,page:.projects).flatMap(\.threads).contains {$0.id==side.id})
+    // Sidechats sit inside their parent's card, not as cards of their own.
+    precondition(!HomeThreads.groups(model,page:.projects).flatMap(\.threads).contains {$0.id==side.id} && model.childChats(of:parent).contains {$0.id==side.id})
     precondition(HomeThreads.groups(model,page:.studios).flatMap(\.threads).map(\.id)==[studioChat.id])
-    precondition(HomeThreads.groups(model,page:.chats).flatMap(\.threads).contains( where: {$0.isDot}))
+    precondition(HomeThreads.groups(model,page:.chats).flatMap(\.threads).contains {$0.id==regular.id})
     precondition(HomeThreads.groups(model,page:.archive).flatMap(\.threads).map(\.id)==[archived.id])
     precondition(HomeThreads.groups(model,page:.archive,search:"layout").flatMap(\.threads).map(\.id)==[archived.id])
     precondition(HomeThreads.groups(model,page:.projects,search:"Geekify").isEmpty)
@@ -98,7 +95,7 @@ app.setActivationPolicy(.accessory)
     precondition(UserDefaults.standard.bool(forKey:"macProjectsSidebarCards"),"Native Cards segment failed")
     setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","230",1)
     try await render(AnyView(ContentView()),230,900,"sidebar-cards")
-    for thread in [parent,other,branch,side] {   // standalone chats live on the Chats page
+    for thread in [parent,other,branch] {   // standalone chats live on the Chats page; sidechats inside their parent card
         guard let frame=MacHomeDebug.cards[thread.id] else {fatalError("Missing visible sidebar card \(thread.title) of \(MacHomeDebug.cards.count)")}
         precondition(frame.minX>=globalOrigin.x && frame.maxX<=globalOrigin.x+230,"Clipped sidebar card")
     }

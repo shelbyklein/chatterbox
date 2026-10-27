@@ -1,9 +1,8 @@
 import http.server,json,os,uuid,zlib,struct,datetime,time
-# Isolated fixture: Golem, six projects (one a worktree, one waiting on you) and a Studio.
+# Isolated fixture: six projects (one a worktree, one waiting on you) and a Studio.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
 NEWCHAT=[];CREATED=[]
 def cid(n):return str(uuid.uuid5(uuid.NAMESPACE_URL,'home:'+n))
-DOT=cid('golem')
 PROJECTS=[('Chatterbox','Shipped the Next Steps plugin and the new message box.',None,False),
  ('optimization','Speed up switching between long chats.','optimization',False),
  ('SDHQ','Read SSL mode, cache rules and zone settings.',None,True),
@@ -30,8 +29,8 @@ def reset():
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
  STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={};LIST_DELAY=0
 
-def summary(name,line,branch=None,waiting=False,dot=False):
- s={'id':DOT if dot else cid(name),'title':name,'project':None if dot else name,'subtitle':line,'backend':'codex' if dot else 'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z','isDot':dot}
+def summary(name,line,branch=None,waiting=False):
+ s={'id':cid(name),'title':name,'project':name,'subtitle':line,'backend':'claude','isRunning':False,'isWaitingOnYou':waiting,'updatedAt':'2026-10-03T00:00:00Z'}
  if name in ['Coach Archie','Chatterbox']:
   s['thumbnail']={'id':cid('thumbnail'),'name':'proof.png','mediaType':'image/png','isImage':True,'revision':'1'}
   if name=='Coach Archie':s['project']=None
@@ -51,15 +50,14 @@ def chats():
  READS+=1
  if READS==2:ACTIVITY.append(completed('Tracker Trapper'))
  quest=summary('Sidequest · Render ribbons','Generating image 2 of 4');quest.update({'project':None,'backend':'codex','isRunning':True,'sidechatOf':cid('SDHQ'),'sidequestOf':cid('SDHQ'),'sidequestTask':'Render four ribbon options','sidequestReturned':False})
- groups=[{'id':'dot','kind':'dot','title':'Golem','chats':[summary('Golem','Ready',dot=True)]},
-  {'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]+[quest]},
+ groups=[{'id':'projects','kind':'projects','title':'Projects','chats':[summary(*p) for p in PROJECTS]+[quest]},
   {'id':'studio-1','kind':'studio','title':'USA Archery','chats':[summary('Coach Archie','Full USA flags on both sleeves.'),summary('No image','Text-only session.')],'studioID':cid('studio')},
   {'id':'chats','kind':'chats','title':'Chats','chats':[summary('Loose chat','An ordinary chat.')]},
   {'id':'studio-2','kind':'studio','title':'Geekify','chats':[summary('Crystal concept','Purple faceted crystal.')],'studioID':cid('studio2')}]
  for name,p in PROMOTIONS.items():
   source=next(c for g in groups for c in g['chats'] if c['id']==cid(name))
   for g in groups:g['chats']=[c for c in g['chats'] if c['id']!=cid(name)]
-  if p['kind']=='project':groups[1]['chats'].append(source)
+  if p['kind']=='project':groups[0]['chats'].append(source)
   elif p.get('studioID'):
    next(g for g in groups if g.get('studioID','').lower()==p['studioID'].lower())['chats'].append(source)
   else:groups.append({'id':'new-studio','kind':'studio','title':p['name'],'studioID':cid('new-studio'),'chats':[source]})
@@ -72,7 +70,6 @@ def detail(id):
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
  # A reply with a 3D model (an STL) to preview.
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
- if s.get('isDot'):items.append({'id':cid('email'),'kind':'notice','text':'Email for you \u00b7 Shelby Klein, \u201cFW: One pager for NASP Coaches\u201d (shelbykleindesign@gmail.com): Callie forwarded copy changes for the NASP one pager. Suggested: Apply the updated 80% discount copy.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
  options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
@@ -177,7 +174,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
    return self.reply(o)
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path=='/v1/displays':return self.reply([{'x':0,'y':0,'width':900,'height':584.5},{'x':900,'y':0,'width':756,'height':491}])
-  if self.path=='/v1/avatar':return self.reply({'files':[]})
   if self.path.startswith('/v1/chats/'):
    id=self.path.split('/')[3].split('?')[0]
    return self.reply({'unchanged':True,'revision':1} if '?since=1' in self.path else detail(id))

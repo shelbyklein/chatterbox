@@ -8,7 +8,7 @@ for n in range(1,4):
  c.setFillColorRGB(.08,.20,.26);c.rect(0,0,612,792,fill=1,stroke=0)
  c.setFillColorRGB(1,1,1); c.setFont('Helvetica-Bold',32); c.drawString(48,680,'Mobile PDF Review'); c.setFont('Helvetica',18);c.drawString(48,620,f'Page {n} of 3');c.drawString(48,570,'Zoom, review, save and share.'); c.showPage()
 c.save();PDF=buf.getvalue()
-summary={'id':CHAT,'title':'Golem','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':True}
+summary={'id':CHAT,'title':'PDF review','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 file={'id':FILE,'name':'Review proof.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PDF)}
 class Handler(http.server.BaseHTTPRequestHandler):
  def reply(self,x):
@@ -34,9 +34,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
      if mode=='slow':time.sleep(.1)
    except (BrokenPipeError,ConnectionResetError):pass
    return
-  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'dot','kind':'dot','title':'Assistant','chats':[summary]}]})
+  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
-  if self.path=='/v1/avatar':return self.reply({'files':[]})
   if self.path.startswith('/v1/chats/'+CHAT+'?since=1'):return self.reply({'unchanged':True,'revision':1})
   if self.path.startswith('/v1/chats/'+CHAT):return self.reply({'revision':1,'summary':summary,'settings':'Codex','items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':f'Your proof is ready. [Review PDF](chatterbox-document://{FILE})','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[file],'isQueued':False}],'earlierCount':0})
   self.send_error(404)

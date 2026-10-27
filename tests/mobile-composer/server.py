@@ -3,7 +3,7 @@ from pathlib import Path
 ROOT=Path(os.environ['CHATTERBOX_TEST_OUTPUT'])
 IDS=['11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333']
 logs=[]; messages=[[],[]]; hold=False; fail=False; release=threading.Event(); lock=threading.Lock(); running=False
-def summary(i):return {'id':IDS[i],'title':['Regression Golem','Regression Project'][i],'backend':'codex','isRunning':running,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z','isDot':i==0}
+def summary(i):return {'id':IDS[i],'title':['Regression Chat','Regression Project'][i],'backend':'codex','isRunning':running,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 def detail(i):
  return {'revision':len(messages[i])+1,'summary':summary(i),'settings':'Codex','earlierCount':0,'items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':'Ready for send regression.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]+messages[i],'nextSteps':(['Run the full test suite','Open a pull request for this change','Write up what changed for the changelog'] if i==1 and not running else None)}
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -37,9 +37,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
   if self.path.startswith('/v1/') and self.headers.get('X-Chatterbox-Token')!='fixture':return self.reply({'error':'Unauthorized'},401)
   if self.path=='/test/log':return self.reply({'requests':logs,'counts':[len(x) for x in messages]})
-  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'dot','kind':'dot','title':'Assistant','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}], 'activity':[{'id':'55555555-5555-5555-5555-555555555555','chatID':IDS[1],'title':'Regression Project','backend':'codex','endedAt':'2026-10-06T14:00:00Z'},{'id':'66666666-6666-6666-6666-666666666666','chatID':IDS[1],'title':'Regression Project','backend':'claude','endedAt':'2026-10-06T13:00:00Z'}]})
+  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}], 'activity':[{'id':'55555555-5555-5555-5555-555555555555','chatID':IDS[1],'title':'Regression Project','backend':'codex','endedAt':'2026-10-06T14:00:00Z'},{'id':'66666666-6666-6666-6666-666666666666','chatID':IDS[1],'title':'Regression Project','backend':'claude','endedAt':'2026-10-06T13:00:00Z'}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
-  if self.path=='/v1/avatar':return self.reply({'files':[]})
   for i,ident in enumerate(IDS):
    if self.path.startswith('/v1/chats/'+ident):return self.reply(detail(i))
   self.send_error(404)

@@ -9,7 +9,7 @@ app.setActivationPolicy(.accessory)
     try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
     let guide=root.appendingPathComponent("design.md")
     try "Existing design guide\n".write(to:guide,atomically:true,encoding:.utf8)
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns":false,"dotWatchWaiting":false,"dotSummarizeFinished":false,"dotEmailWatch":false,"companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"claudeDefaultMode":"default","codexDefaultMode":"readOnly","defaultBackend":"claude","sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"0.3,2.4,0.3"],forName:UserDefaults.argumentDomain)
+    UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyFinished":false,"keepMacAwake":false,"claudeDefaultMode":"default","codexDefaultMode":"readOnly","defaultBackend":"claude","sidebarProjectsCollapsed":false,"sidebarStudiosCollapsed":false,"sidebarChatsCollapsed":false,"sidebarSectionWeights":"0.3,2.4,0.3"],forName:UserDefaults.argumentDomain)
     let model=AppModel()
     // Restrictive ordinary defaults must not leak into newly created Studio chats.
     let permissionsStudio=model.newStudio(named:"Permissions",folder:root.appendingPathComponent("permission-studio").path)!

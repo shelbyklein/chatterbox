@@ -14,8 +14,7 @@ func check(_ ok: Bool, _ what: String) {
 @MainActor func run() async throws {
     let root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!)
     precondition(root.path.hasPrefix("/tmp/chatterbox-empty-chat."))
-    UserDefaults.standard.setVolatileDomain(["dotCheckIns": false, "dotWatchWaiting": false, "dotSummarizeFinished": false,
-                                             "dotEmailWatch": false, "companionEnabled": false, "keepMacAwake": false,
+    UserDefaults.standard.setVolatileDomain(["companionEnabled": false, "keepMacAwake": false,
                                              "mobilePushConfigured": false], forName: UserDefaults.argumentDomain)
     func settle() async { try? await Task.sleep(for: .milliseconds(300)) }
     func conversationFiles() -> [String] {

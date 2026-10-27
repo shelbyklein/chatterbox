@@ -7,7 +7,6 @@ case "${1:-iphone}" in
   ipad) device_type=com.apple.CoreSimulator.SimDeviceType.iPad-mini-A17-Pro ;;
   *) echo 'Usage: scripts/test-mobile-composer.sh [iphone|ipad]' >&2; exit 2 ;;
 esac
-export GOLEM_TEST_PRODUCT="${GOLEM_TEST_PRODUCT:-chatterbox}"
 root=$(pwd)
 artifacts=${CHATTERBOX_TEST_ARTIFACTS:-$(mktemp -d /tmp/chatterbox-mobile-composer.XXXXXX)}
 results="$artifacts/results-$(date +%s).xcresult"
@@ -32,12 +31,16 @@ sleep 0.3
 kill -0 "$server_pid"
 /usr/bin/python3 - "$root" "$artifacts" <<'PY'
 from pathlib import Path
-import plistlib,sys,os
+import plistlib,sys
 root=Path(sys.argv[1]); out=Path(sys.argv[2])
 y='''name: MobileComposerRegression
 options:
   deploymentTarget:
     iOS: '17.0'
+packages:
+  RoyalVNC:
+    url: https://github.com/royalapplications/royalvnc
+    revision: 92d4427c73817d8f849bb289ff190aa4b40c44ea
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -48,9 +51,8 @@ targets:
     platform: iOS
     sources:
 '''
-for source in (['GolemMobile'] if os.environ.get('GOLEM_TEST_PRODUCT')=='golem' else [])+['ChatterboxMobile','ChatterboxMobile/ChatterboxMobileApp.swift','Core/ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
-    y+='      - path: '+str(Path(os.environ.get('GOLEM_REPO',str(root.parent/'Golem')))/source if source=='GolemMobile' else root/source)+'\n'
-    if source=='GolemMobile': y+='        excludes: [Info.plist]\n'
+for source in ['ChatterboxMobile','ChatterboxMobile/ChatterboxMobileApp.swift','Core/ChatterboxMobile','Shared','Chatterbox/Views/MarkdownText.swift','Chatterbox/Views/ReaderStyle.swift','Chatterbox/Views/PathLinks.swift']:
+    y+='      - path: '+str(root/source)+'\n'
     if source=='ChatterboxMobile': y+='        excludes: [Info.plist, Assets.xcassets/AppIcon.appiconset, "*.swift"]\n'
 y+='''    settings:
       base:
@@ -60,6 +62,10 @@ y+='''    settings:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Isolated test server
         TARGETED_DEVICE_FAMILY: '1,2'
         INFOPLIST_FILE: Regression-Info.plist
+    dependencies:
+      - package: RoyalVNC
+        product: RoyalVNCKit
+        embed: true
   ComposerTests:
     type: bundle.ui-testing
     platform: iOS
@@ -72,7 +78,6 @@ y+='''    settings:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests
         GENERATE_INFOPLIST_FILE: YES
 '''
-if os.environ.get('GOLEM_TEST_PRODUCT')=='golem': y=y.replace('GENERATE_INFOPLIST_FILE: YES','SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP\n        GENERATE_INFOPLIST_FILE: YES').replace('PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests','SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) GOLEM_APP\n        PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.ComposerRegression.tests')
 (out/'project.yml').write_text(y)
 with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
