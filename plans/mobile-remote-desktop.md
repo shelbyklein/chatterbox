@@ -55,7 +55,9 @@ macOS's own Screen Sharing, over the route the app already uses: home Wi-Fi, or 
 - [~] T4 Keyboard and key row: built; clipboard not yet. Live check: T6.
 - [x] T5 Entry point, credentials sheet (Keychain), quality setting, errors (wrong password,
       Screen Sharing off, unreachable). Check: UI test `testMacScreenAsksToSignIn` (menu entry, sign-in first, close).
-- [ ] T6 Install on the Duo (`scripts/install-phone.sh`), live check at home and on Tailscale;
+- Live 2026-10-26 (Duo, home Wi-Fi): taps click on the Mac. They did nothing before: with
+      `inputMode: .none` RoyalVNC drops every mouse and key event.
+- [~] T6 Install on the Duo (`scripts/install-phone.sh`), live check at home and on Tailscale;
       TestFlight.
 
 ## Laptop layout (Shelby, 2026-10-24)
