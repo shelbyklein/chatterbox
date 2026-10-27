@@ -6,6 +6,9 @@ final class ConversationTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19646"]
   app.launch()
+  // Sessions are on their tabs: the plain one on Chats, the project on Projects.
+  let chatsTab = app.tabBars.buttons["Chats"]
+  XCTAssertTrue(chatsTab.waitForExistence(timeout: 15)); chatsTab.tap()
   let codex = app.buttons["chat-11111111-1111-1111-1111-111111111111"]
   XCTAssertTrue(codex.waitForExistence(timeout: 15)); codex.tap()
   XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "The mobile layout is ready")).firstMatch.waitForExistence(timeout: 10))
@@ -14,10 +17,10 @@ final class ConversationTests: XCTestCase {
   XCTAssertTrue(app.buttons["Send"].exists)
   do {
    app.buttons["Session Menu"].tap()
-   let cog = app.buttons["Chat Settings"]
+   let cog = app.buttons["Session Settings"]
    XCTAssertTrue(cog.exists); cog.tap()
    XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 3)); capture("codex-settings", app)
-   app.navigationBars["Chat Settings"].buttons["Done"].tap()
+   app.navigationBars["Session Settings"].buttons["Done"].tap()
    XCTAssertTrue(app.staticTexts["Reading the mobile layout"].exists)
    _ = try await URLSession.shared.data(from: URL(string:"http://127.0.0.1:19646/test/light")!)
    try await Task.sleep(for: .seconds(1))
@@ -31,10 +34,11 @@ final class ConversationTests: XCTestCase {
    XCTAssertTrue(ready.waitForExistence(timeout: 8))
    capture("codex-structured", app)
   }
-  let back = app.navigationBars.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Regression Mac")).firstMatch
-  if back.exists { back.tap() }
+  // Back to the list, then the Projects tab.
+  app.navigationBars.buttons.element(boundBy: 0).tap()
+  app.tabBars.buttons["Projects"].tap()
   let claude = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
-  XCTAssertTrue(claude.waitForExistence(timeout: 3)); claude.tap()
+  XCTAssertTrue(claude.waitForExistence(timeout: 10)); claude.tap()
   XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "I reviewed the layout")).firstMatch.waitForExistence(timeout: 5))
   capture("claude-light", app)
   let (data, _) = try await URLSession.shared.data(from: URL(string:"http://127.0.0.1:19646/test/log")!)
