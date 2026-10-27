@@ -68,6 +68,8 @@ def detail(id):
  s=next(c for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id.lower())
  items=[{'id':cid(id+'u'),'kind':'user','text':'Hello','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
+ # A reply with an email draft, shown as a card with its own Copy.
+ if s['title']=='Loose chat':items.append({'id':cid('draft-reply'),'kind':'assistant','text':"Here's a draft to Lauren.\n\n```draft\nSubject: Website feedback\n\nHey Lauren,\n\n- **Sitemap:** Where will today's menu items live?\n\nThanks,\nShelby\n```\n\nBefore you send: check the doc.",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
  # A reply with a 3D model (an STL) to preview.
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]

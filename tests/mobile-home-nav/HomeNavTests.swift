@@ -115,6 +115,33 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(remaining.waitForExistence(timeout:5) && remaining.isHittable,"back on the list after archiving")
   XCTAssertFalse(project.exists,"the archived session is removed")
  }
+ /// A ```draft block in a reply: a card with Copy, Copy Subject and Open in Mail, and Copy
+ /// takes only the draft (no notes around it).
+ @MainActor func testDraftCard() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
+  XCTAssertTrue(app.staticTexts["Email draft"].waitForExistence(timeout:10), "the draft shows as an email card")
+  XCTAssertTrue(app.buttons["draft-subject"].exists && app.buttons["draft-mail"].exists, "with the subject apart and Mail")
+  XCTAssertLessThan(app.staticTexts["Email draft"].frame.height, 30, "its label on one line")
+  XCTAssertFalse(app.staticTexts["```draft"].exists, "no raw fence")
+  capture("draft-card",app)
+  let copy=app.buttons["draft-body"]
+  for _ in 0..<4 where !copy.isHittable { app.swipeUp() }
+  copy.tap()
+  XCTAssertTrue(copy.label=="Copied" || app.buttons["draft-body"].label=="Copied", "Copy confirms")
+  // The test runner can't read another app's clipboard: paste into the message box instead.
+  let composer=app.textFields["messageComposer"].exists ? app.textFields["messageComposer"] : app.textViews["messageComposer"]
+  composer.tap(); composer.press(forDuration:1.0)
+  let paste=app.menuItems["Paste"].exists ? app.menuItems["Paste"] : app.buttons["Paste"]
+  XCTAssertTrue(paste.waitForExistence(timeout:5), "a Paste option"); paste.tap()
+  let pasted=(composer.value as? String) ?? ""
+  XCTAssertTrue(pasted.hasPrefix("Hey Lauren,") && pasted.contains("• Sitemap: Where") && !pasted.contains("Before you send") && !pasted.contains("Subject"), "only the body, clean: \(pasted)")
+ }
  /// Archiving the open session, beside the list: the right side clears, the list stays.
  @MainActor func testArchiveClearsTheSession() async throws {
   try await fixture("reset")
