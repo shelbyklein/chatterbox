@@ -705,6 +705,16 @@ final class HomeNavTests: XCTestCase {
   XCTAssertGreaterThan(app.descendants(matching: .any)["return"].frame.minY, app.frame.height / 2 - 40, "the keyboard is on the bottom half")
   let click = app.descendants(matching: .any)["Click"], arrow = app.descendants(matching: .any)["→"]
   XCTAssertTrue(click.exists && click.frame.minX > arrow.frame.maxX - 2 && abs(click.frame.midY - arrow.frame.midY) < 2, "a click key at the bottom right")
+  // Caps Lock: a light on its key, and capital letters, until it's pressed again.
+  let caps=app.descendants(matching: .any)["caps"]
+  XCTAssertEqual(caps.value as? String, "off")
+  XCTAssertTrue(app.descendants(matching: .any)["a"].exists, "letters are lowercase with Caps Lock off")
+  caps.tap()
+  XCTAssertEqual(caps.value as? String, "on", "Caps Lock shows on")
+  XCTAssertTrue(app.descendants(matching: .any)["A"].exists && !app.descendants(matching: .any)["a"].exists, "and the letters turn capital")
+  capture("mac-screen-caps-lock",app)
+  caps.tap()
+  XCTAssertEqual(caps.value as? String, "off", "pressed again, it's off")
   app.buttons["Close Mac Screen"].tap()
  }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
