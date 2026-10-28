@@ -72,7 +72,7 @@ import CoreFoundation
                 peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
-            if ["approve","answer","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","preferences"].contains(r.operation), role != "ui" {
+            if ["approve","answer","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","connector","preferences"].contains(r.operation), role != "ui" {
                 throw RuntimeFailure("permission_denied")
             }
             if r.operation == "preferences", r.body["proxyClaudeChats"] != nil || r.body["proxyCodexChats"] != nil {
@@ -226,6 +226,8 @@ import CoreFoundation
             guard let raw=r.body["record"] else{throw RuntimeFailure("invalid_record")}
             let record=try raw.decode(ConversationRecord.self)
             return .string(try runtime.insert(record).id.uuidString)
+        case "connector":
+            if let id=r.body["request"]?.string.flatMap(UUID.init(uuidString:)),let allow=r.body["allow"]?.bool{ConnectorServer.shared.decide(id,allow:allow)}
         case "companion":
             let server=CompanionServer.shared
             if let enabled=r.body["enabled"]?.bool{server.setEnabled(enabled)}

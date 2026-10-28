@@ -130,6 +130,12 @@ On the Mac, Settings → iPhone → Push notifications accepts an APNs Key ID an
 
 Approvals/questions and finished replies can each be enabled separately; previews and sound are optional. The Mac must stay awake with Chatterbox open. Notifications arrive through Apple on cellular as well as Wi-Fi; tapping into the actual chat still needs a connection to the Mac. Debug installs use APNs sandbox; Release uses production. See [validation and setup limits](design/mobile-push/delivery.md).
 
+## Claude connector (Claude Duet, claude.ai)
+
+Claude can use Chatterbox as an MCP connector: list sessions and see what's waiting, read a session, send a message, start a session, answer approvals and questions, and stop a reply. It's served by the background service on this Mac's loopback (port 47331, `ConnectorServer`) and published by the `chatterbox-mcp` Cloudflare tunnel (`~/.cloudflared/chatterbox-mcp.yml`, LaunchAgent `com.shelbyklein.chatterbox-mcp-tunnel`, log `~/Library/Logs/Chatterbox/mcp-tunnel.log`).
+
+Add it in Claude: Settings → Connectors → Add custom connector, URL `https://chatterbox-mcp.shelbyklein.com/mcp`. Signing in asks on the Mac: Allow, and the connector is paired like a phone. It's listed with the paired iPhones in Settings and removed the same way. Its tools go through the phone API (`ConnectorTools`), so it can do what the iPhone app can. Test: `scripts/test-connector.sh`.
+
 ## Repository boundaries
 
 This repository owns Chatterbox's Mac/mobile entrypoints and icons, chatterboxd and the host. Chatterbox's shared source lives in the [chatterbox-core](https://github.com/shelbyklein/chatterbox-core) submodule at `Core/`. Clone with `--recurse-submodules` or run `git submodule update --init --recursive` before generating/building. Shared Swift sources are compiled by each target, preserving existing conditional flags; Core is not a SwiftPM module.

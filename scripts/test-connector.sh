@@ -1,0 +1,11 @@
+#!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
+set -euo pipefail
+cd "$(dirname "$0")/.."
+fixture=$(mktemp -d /tmp/chatterbox-connector.XXXXXX)
+engine_dir=$(./scripts/build-test-engine.sh)
+products=build/DerivedData/Build/Products/Debug
+swiftc -I "$products" -I "$engine_dir" -L "$engine_dir" -lChatterboxTestEngine -Xlinker -rpath -Xlinker "$engine_dir" -D DEBUG -o "$fixture/test" tests/connector/main.swift
+CHATTERBOX_PREFERENCES_SUITE="chatterbox.connector.$(basename "$fixture")" CHATTERBOX_LEGACY_RUNTIME=1 CHATTERBOX_DATA_DIR="$fixture" \
+ CHATTERBOX_COMPANION_PORT=0 CHATTERBOX_CONNECTOR_PORT=47591 CHATTERBOX_CONNECTOR_URL=https://connector.test \
+ CHATTERBOX_CONNECTOR_TEST_REDIRECT_HOST=claude.test "$fixture/test"

@@ -176,6 +176,8 @@
 		99475508E92A548622B3B672 /* ChatSession+Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936BB2EAF610947326AC9E1E /* ChatSession+Tools.swift */; };
 		9A1C0E07F843E2C8D7682D29 /* SessionImageGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64471F2635F8902B8ABA0F12 /* SessionImageGrid.swift */; };
 		9B2381AF4F9F3ED0C38A0473 /* RuntimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE207ED6C4BA57F3EE832C77 /* RuntimeClient.swift */; };
+		9B553257496CC7A3A68206A4 /* ConnectorTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */; };
+		9B9F7310DE93EEE844226B8C /* ConnectorTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */; };
 		9BDCBB02063371D520142B8D /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
 		9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */; };
 		9ED58E7DD7E344630B0255D3 /* SidequestViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B655CB0300FF39415543F26 /* SidequestViews.swift */; };
@@ -190,6 +192,7 @@
 		AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */; };
 		AB708721BCC8467087735CED /* ChatColumns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CB314DEA89B87998298D8B /* ChatColumns.swift */; };
 		ACB41DDBD0BF127A2B797F79 /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
+		AD4E846A9844D5618C4530EA /* ConnectorServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1128D953C085340C80B95088 /* ConnectorServer.swift */; };
 		AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
 		B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */; };
@@ -206,6 +209,7 @@
 		BCD376F8E08A9FC2CA16DC5E /* Studio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D2A3DE96AF0E796C221742 /* Studio.swift */; };
 		BD0FF238483A303F2DC234E2 /* PermissionModes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */; };
 		BEAE48E0B2CBC15ABD093D65 /* ChatSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8CC235964DF222CEF117DF4 /* ChatSettingsSheet.swift */; };
+		C0817ED4744FF2D45CCD7BB6 /* ConnectorServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1128D953C085340C80B95088 /* ConnectorServer.swift */; };
 		C13032352B9C1BC38FEE5334 /* HTTPFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */; };
 		C2062E2BD580A322486C6A14 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
 		C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */; };
@@ -299,10 +303,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -321,10 +325,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -357,6 +361,7 @@
 		0DA9F0B419529549C12E3317 /* CompanionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionAPI.swift; sourceTree = "<group>"; };
 		0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePaths.swift; sourceTree = "<group>"; };
 		104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewView.swift; sourceTree = "<group>"; };
+		1128D953C085340C80B95088 /* ConnectorServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorServer.swift; sourceTree = "<group>"; };
 		11C72805397B7C55E9C7D439 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		12CB314DEA89B87998298D8B /* ChatColumns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatColumns.swift; sourceTree = "<group>"; };
 		1358FF8D7EC801AC99C84139 /* MobileSidequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSidequests.swift; sourceTree = "<group>"; };
@@ -519,6 +524,7 @@
 		F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionRetry.swift; sourceTree = "<group>"; };
 		F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshot.swift; sourceTree = "<group>"; };
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorTools.swift; sourceTree = "<group>"; };
 		F590872692259FADBC73667E /* DocumentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewer.swift; sourceTree = "<group>"; };
 		F8396140D14FE6E04F22C13F /* prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = prompts; path = Core/prompts; sourceTree = SOURCE_ROOT; };
 		F8D7D2F235E3F6DC973ABA35 /* CommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCenter.swift; sourceTree = "<group>"; };
@@ -704,6 +710,8 @@
 				609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */,
 				4E57D8A0521922845EFD029A /* CompanionMutationLedger.swift */,
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
+				1128D953C085340C80B95088 /* ConnectorServer.swift */,
+				F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */,
 				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
@@ -1112,6 +1120,8 @@
 				F10CEDEDABF1B83F6E376F7E /* CompanionServer.swift in Sources */,
 				9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */,
 				D684E7EA272ACE003FF7EFB0 /* ComposerBox.swift in Sources */,
+				AD4E846A9844D5618C4530EA /* ConnectorServer.swift in Sources */,
+				9B9F7310DE93EEE844226B8C /* ConnectorTools.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				265E9D78EEBB723103EEF085 /* ConversationRuntime.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
@@ -1287,6 +1297,8 @@
 				3B483AADFF958E0C36577F9F /* CompanionMutationLedger.swift in Sources */,
 				D05637DB26A0FAF32E86A286 /* CompanionRetry.swift in Sources */,
 				4EE239A300FAA791F43879AF /* CompanionServer.swift in Sources */,
+				C0817ED4744FF2D45CCD7BB6 /* ConnectorServer.swift in Sources */,
+				9B553257496CC7A3A68206A4 /* ConnectorTools.swift in Sources */,
 				65DFD36FCBC41F84E758DF29 /* ConversationRuntime.swift in Sources */,
 				E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */,
 				BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */,

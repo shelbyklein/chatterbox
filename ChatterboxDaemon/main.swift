@@ -24,6 +24,9 @@ Task { @MainActor in
         }
         CompanionServer.shared.model=model
         if CompanionServer.shared.isEnabled {CompanionServer.shared.start()}
+        // Claude's connector: each sign-in asks the Mac app to Allow it.
+        ConnectorServer.shared.onRequest={id,client in runtime.publishUIRequest("connector.request",payload:["id":.string(id.uuidString),"client":.string(client)])}
+        ConnectorServer.shared.start()
         RuntimeHooks.clearSuggestions={NextSteps.shared.clear($0)}
         RuntimeHooks.turnEnded={session in
             NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
