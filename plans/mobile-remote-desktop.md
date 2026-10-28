@@ -57,6 +57,9 @@ macOS's own Screen Sharing, over the route the app already uses: home Wi-Fi, or 
       Screen Sharing off, unreachable). Check: UI test `testMacScreenAsksToSignIn` (menu entry, sign-in first, close).
 - Live 2026-10-26 (Duo, home Wi-Fi): taps click on the Mac. They did nothing before: with
       `inputMode: .none` RoyalVNC drops every mouse and key event.
+- Live 2026-10-28 (Duo, away from home): unlocked the Mac's lock screen with the laptop
+      keyboard. Shifted keys failed before: Screen Sharing types the character it's sent, so
+      keys now send what they type ("A", "!"), and Caps Lock capitalizes on the phone.
 - [~] T6 Install on the Duo (`scripts/install-phone.sh`), live check at home and on Tailscale;
       TestFlight.
 
