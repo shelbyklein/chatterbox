@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 source scripts/lib/source-list.sh
 task_dir=$(mktemp -d /tmp/chatterbox-pin-sync.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
-export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
+export CHATTERBOX_COMPANION_PORT=0
 export CHATTERBOX_PREFERENCES_SUITE="chatterbox.pin-sync.$(basename "$task_dir")"
 mkdir -p "$CHATTERBOX_DATA_DIR" build/DerivedData/Build/Products/Debug
 ./scripts/runtime-sources.sh > "$task_dir/sources"

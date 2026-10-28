@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 task_dir=$(mktemp -d /tmp/chatterbox-inline-shell.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data"
 export CHATTERBOX_HOST_DIR="$task_dir/host"
-export CHATTERBOX_AGENT_PORT=0
+export
 export CHATTERBOX_COMPANION_PORT=47421
 mkdir -p "$CHATTERBOX_DATA_DIR"
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift | sort > "$task_dir/files.txt"

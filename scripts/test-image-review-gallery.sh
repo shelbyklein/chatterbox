@@ -10,4 +10,4 @@ sed '/@testable import ChatterboxTestEngine$/d' tests/image-review-gallery/main.
 export CHATTERBOX_LEGACY_RUNTIME=1
 swiftc -I "$products" "$products/SwiftTerm.o" -D DEBUG -whole-module-optimization -Onone \
   -o "$products/image-review-tests" @"$fixture/sources" "$fixture/main.swift"
-CHATTERBOX_DATA_DIR="$fixture" CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0 "$products/image-review-tests"
+CHATTERBOX_DATA_DIR="$fixture" CHATTERBOX_COMPANION_PORT=0 "$products/image-review-tests"

@@ -28,7 +28,7 @@ shutil.copy2(source.parent/'Studios.json',out/'Studios.json')
 shutil.copytree(out,pathlib.Path('/tmp/chatterbox-columns-fixture-last'),dirs_exist_ok=True)
 PY
 export CHATTERBOX_DATA_DIR="$fixture" CHATTERBOX_HOST_DIR="$fixture/host"
-export CHATTERBOX_AGENT_PORT=47491 CHATTERBOX_COMPANION_PORT=47492
+export CHATTERBOX_COMPANION_PORT=47492
 products=build/DerivedData/Build/Products/Debug
 dylib="$(pwd)/$products/Chatterbox.app/Contents/MacOS"
 # Use the actual testable Debug module/library rather than recompiling every app file.

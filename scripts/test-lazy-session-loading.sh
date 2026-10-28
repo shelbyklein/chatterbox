@@ -6,7 +6,7 @@ task_dir=$(mktemp -d /tmp/chatterbox-test-lazy-loading.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_DAEMON_CLIENT=1 CHATTERBOX_TEST_TRUST_UI=1 CHATTERBOX_TEST_DISABLE_COMPUTER=1
 export CHATTERBOX_PREFERENCES_SUITE="com.shelbyklein.Chatterbox.lazy-test.$RANDOM.$$"
-export CHATTERBOX_AGENT_PORT=0 CHATTERBOX_COMPANION_PORT=0
+export CHATTERBOX_COMPANION_PORT=0
 export CHATTERBOX_HOST_NOTIFY=0
 export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1

@@ -9,7 +9,7 @@ products="$PWD/build/DerivedData/Build/Products/Debug"
 task_dir=$(mktemp -d /tmp/chatterbox-claude-tasks.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data"
 export CHATTERBOX_HOST_DIR="$task_dir/host"
-export CHATTERBOX_AGENT_PORT=0
+export
 export CHATTERBOX_COMPANION_PORT=47430
 mkdir -p "$CHATTERBOX_DATA_DIR"
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name ChatterboxApp.swift | sort > "$task_dir/files.txt"

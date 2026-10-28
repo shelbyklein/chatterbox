@@ -61,11 +61,22 @@ log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$report"; }
 cleanup() { [[ "$(cat "$lock" 2>/dev/null)" == $$ ]] && rm -f "$lock"; }
 trap cleanup EXIT
 
-# How many chats are mid-reply, from the service's local API ("err" if it doesn't answer).
+# How many chats are mid-reply, asked of the service over its socket ("err" if it doesn't answer).
 running() {
-  curl -s -m 10 -H "x-chatterbox-token: $(cat "$sup/agent-token")" http://127.0.0.1:47320/v1/chats \
-    | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print(sum(c["isRunning"] for g in d["groups"] for c in g["chats"]))' 2>/dev/null \
-    || echo err
+  /usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo err
+import json, socket, sys, uuid
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sys.argv[1]); f = s.makefile("rwb")
+def ask(op, body):
+    rid = str(uuid.uuid4())
+    f.write((json.dumps({"version": 1, "id": rid, "operation": op, "body": body}) + "\n").encode()); f.flush()
+    while True:
+        reply = json.loads(f.readline())
+        if reply.get("id") == rid:
+            if reply.get("error"): raise SystemExit(1)
+            return reply.get("result")
+ask("hello", {"role": "agent"})
+print(sum(1 for c in ask("list", {}) or [] if c.get("running")))
+PY
 }
 
 sleep "$delay"

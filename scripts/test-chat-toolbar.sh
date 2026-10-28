@@ -9,7 +9,7 @@ test_dir=$(mktemp -d /tmp/chatterbox-perf.XXXXXX)
 trap 'rm -rf "$test_dir"' EXIT
 export CHATTERBOX_DATA_DIR="$test_dir/data"
 export CHATTERBOX_HOST_DIR="$test_dir/host"
-export CHATTERBOX_AGENT_PORT=0
+export
 export CHATTERBOX_COMPANION_PORT=0
 export CHATTERBOX_PREFERENCES_SUITE="chatterbox.toolbar.$(basename "$test_dir")"
 export CHATTERBOX_LEGACY_RUNTIME=1
