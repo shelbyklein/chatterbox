@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00D0193DF3583B1B3AEE3468 /* PlaceSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */; };
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
 		08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590872692259FADBC73667E /* DocumentViewer.swift */; };
 		088AB733159394D33015A471 /* MobileUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674F51BEFACA28D2BA78382A /* MobileUsageView.swift */; };
@@ -18,6 +19,7 @@
 		0C05433F3D417EFBF927AD1F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90E1FEF54757E746B104D0F /* main.swift */; };
 		0D0AA5565003163647FC890D /* PinsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25AF49642A0603DB9DB1791 /* PinsSection.swift */; };
 		0D8842689F17DD0539AB0255 /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
+		0F7A27E3AFC7E55003F7CB5F /* PlaceSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */; };
 		12069144D157B29FCB0815F3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		121878FD864195B66430A97B /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
 		12619EA37700E060F9BDE7FD /* ChatToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */; };
@@ -349,6 +351,7 @@
 /* Begin PBXFileReference section */
 		00772506A1F5031126B3A36E /* ChatFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFind.swift; sourceTree = "<group>"; };
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
+		021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSuggestion.swift; sourceTree = "<group>"; };
 		036774A4584171FAB2B8EC39 /* BackgroundServiceRestart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundServiceRestart.swift; sourceTree = "<group>"; };
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		064C3FB24651A1A367B53C36 /* CodexAppServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAppServer.swift; sourceTree = "<group>"; };
@@ -792,6 +795,7 @@
 				F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */,
 				7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */,
 				3E506CEBABA8892B98B49AE9 /* MediaKind.swift */,
+				021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */,
 				6240D04D668176B8C39EAF3F /* StarterPrompts.swift */,
 				F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */,
 			);
@@ -1157,6 +1161,7 @@
 				F0BA2EB9603DFE1663656409 /* PermissionModes.swift in Sources */,
 				0B91C5988467BFB685D8B2C7 /* Pins.swift in Sources */,
 				0D0AA5565003163647FC890D /* PinsSection.swift in Sources */,
+				0F7A27E3AFC7E55003F7CB5F /* PlaceSuggestion.swift in Sources */,
 				831329C2CBD309EF09838EC0 /* PluginsSettingsView.swift in Sources */,
 				D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */,
 				AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */,
@@ -1254,6 +1259,7 @@
 				E7E97C400408C81738252805 /* MobileWidgetSync.swift in Sources */,
 				3676EB8F6588D30D5BB9A400 /* PathLinks.swift in Sources */,
 				1DF20F97749EBAEDB23D8754 /* PinsAndExtras.swift in Sources */,
+				00D0193DF3583B1B3AEE3468 /* PlaceSuggestion.swift in Sources */,
 				FF3C1F89AA5F1CE49531E94B /* ReaderStyle.swift in Sources */,
 				2CFB8E2B4A0501FAE90F8DC0 /* SketchView.swift in Sources */,
 				2CFE90EA6F8CAE80DD9D476D /* StarterPrompts.swift in Sources */,
