@@ -132,7 +132,7 @@ Approvals/questions and finished replies can each be enabled separately; preview
 
 ## Claude connector (Claude Duet, claude.ai)
 
-Claude can use Chatterbox as an MCP connector: list sessions and see what's waiting, read a session, send a message, start a session, answer approvals and questions, and stop a reply. It's served by the background service on this Mac's loopback (port 47331, `ConnectorServer`) and published by the `chatterbox-mcp` Cloudflare tunnel (`~/.cloudflared/chatterbox-mcp.yml`, LaunchAgent `com.shelbyklein.chatterbox-mcp-tunnel`, log `~/Library/Logs/Chatterbox/mcp-tunnel.log`).
+Claude can use Chatterbox as an MCP connector: list sessions and see what's waiting, read a session (with its files), send a message, start a session, answer approvals and questions, stop a reply, show a session's pictures, share its files as 24-hour download links (`/share/…`, served by the connector), and show or change a session's agent, model, effort and Fast mode. It's served by the background service on this Mac's loopback (port 47331, `ConnectorServer`) and published by the `chatterbox-mcp` Cloudflare tunnel (`~/.cloudflared/chatterbox-mcp.yml`, LaunchAgent `com.shelbyklein.chatterbox-mcp-tunnel`, log `~/Library/Logs/Chatterbox/mcp-tunnel.log`).
 
 Add it in Claude: Settings → Connectors → Add custom connector, URL `https://chatterbox-mcp.shelbyklein.com/mcp`. Signing in asks on the Mac: Allow, and the connector is paired like a phone. It's listed with the paired iPhones in Settings and removed the same way. Its tools go through the phone API (`ConnectorTools`), so it can do what the iPhone app can. Test: `scripts/test-connector.sh`.
 

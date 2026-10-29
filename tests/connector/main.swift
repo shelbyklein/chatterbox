@@ -71,16 +71,42 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  let hello=await rpc("initialize",#"{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}"#)
  check(hello["result"]?["serverInfo"]?["name"]?.string=="chatterbox","initialize")
  let tools=(await rpc("tools/list"))["result"]?["tools"]?.array?.compactMap{$0["name"]?.string} ?? []
- check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply"],"six tools: \(tools)")
+ check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply","show_image","share_file","session_settings"],"nine tools: \(tools)")
  let listed=(await rpc("tools/call",#"{"name":"list_sessions","arguments":{}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
  check(listed.contains("Website feedback") && listed.contains(session.id.uuidString),"list_sessions shows the session")
  let read=(await rpc("tools/call",#"{"name":"read_session","arguments":{"session_id":"\#(session.id.uuidString)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
  check(read.contains("Shelby: Draft the email") && read.contains("Here's the draft."),"read_session shows the messages")
  let missing=(await rpc("tools/call",#"{"name":"read_session","arguments":{"session_id":"\#(UUID().uuidString)"}}"#))["result"]
  check(missing?["isError"]?.bool==true,"an unknown session is an error, not a crash")
+ // Files: a picture the session showed, inline and as a link.
+ let png=URL(fileURLWithPath:root).appendingPathComponent("render.png")
+ let rep=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:800,pixelsHigh:600,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+ try rep.representation(using:.png,properties:[:])!.write(to:png)
+ session.appendItem(DisplayItem(kind:.assistant,text:"The render: ![Render](\(png.path))",phase:.final))
+ let withFile=(await rpc("tools/call",#"{"name":"read_session","arguments":{"session_id":"\#(session.id.uuidString)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
+ let fileID=withFile.components(separatedBy:"File [").dropFirst().first?.components(separatedBy:"]").first ?? ""
+ check(withFile.contains("render.png (image: show_image)") && UUID(uuidString:fileID) != nil,"read_session lists the picture with its id")
+ let shown=(await rpc("tools/call",#"{"name":"show_image","arguments":{"session_id":"\#(session.id.uuidString)","file_id":"\#(fileID)","size":400}}"#))["result"]?["content"]?.array?.first
+ let imageData=Data(base64Encoded:shown?["data"]?.string ?? "") ?? Data()
+ check(shown?["type"]?.string=="image" && shown?["mimeType"]?.string?.hasPrefix("image/")==true && NSImage(data:imageData) != nil && (NSImage(data:imageData)?.representations.first?.pixelsWide ?? 0) <= 400,"show_image returns the picture, resized")
+ let shared=(await rpc("tools/call",#"{"name":"share_file","arguments":{"session_id":"\#(session.id.uuidString)","file_id":"\#(fileID)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
+ let link=shared.components(separatedBy:.whitespacesAndNewlines).first{$0.hasPrefix("https://connector.test/share/")} ?? ""
+ check(link.hasSuffix("/render.png"),"share_file gives a link ending in the file's name: \(shared)")
+ let download=await get(String(link.dropFirst("https://connector.test".count)))
+ let downloaded=download.fileURL.flatMap{try? Data(contentsOf:$0)} ?? download.body
+ let original=try Data(contentsOf:png)
+ check(download.status==200 && downloaded==original,"the link downloads the exact file")
+ check((await get("/share/nope/render.png")).status==404,"an unknown link is refused")
+ let settings=(await rpc("tools/call",#"{"name":"session_settings","arguments":{"session_id":"\#(session.id.uuidString)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
+ check(settings.hasPrefix("Now:") && settings.contains("Agent: claude") && settings.contains("Codex models:"),"session_settings shows the settings and choices")
+ let badModel=(await rpc("tools/call",#"{"name":"session_settings","arguments":{"session_id":"\#(session.id.uuidString)","model":"no-such-model"}}"#))["result"]
+ check(badModel?["isError"]?.bool==true && badModel?["content"]?.array?.first?["text"]?.string?.contains("Choices") == true,"an unknown model names the choices instead")
+ let toCodex=(await rpc("tools/call",#"{"name":"session_settings","arguments":{"session_id":"\#(session.id.uuidString)","agent":"codex"}}"#))["result"]
+ check(toCodex?["isError"]?.bool==false && session.record.backend == .codex,"switching the agent applies: \(toCodex?["content"]?.array?.first?["text"]?.string ?? "")")
  // Revoked like a phone: the token stops working.
  if let device=CompanionServer.shared.device(forToken:token) {CompanionServer.shared.forget(device)}
  check((await post("/mcp",Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#.utf8),headers:auth2)).status==401,"a removed connector is signed out")
+ check((await get(String(link.dropFirst("https://connector.test".count)))).status==404,"and its file links stop working")
 
  // The real listener: loopback only.
  connector.start();try await Task.sleep(for:.milliseconds(300))
