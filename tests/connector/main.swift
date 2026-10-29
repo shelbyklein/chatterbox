@@ -71,7 +71,7 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  let hello=await rpc("initialize",#"{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}"#)
  check(hello["result"]?["serverInfo"]?["name"]?.string=="chatterbox","initialize")
  let tools=(await rpc("tools/list"))["result"]?["tools"]?.array?.compactMap{$0["name"]?.string} ?? []
- check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply","show_image","share_file","session_settings"],"nine tools: \(tools)")
+ check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply","show_image","share_file","session_settings","list_places"],"ten tools: \(tools)")
  let listed=(await rpc("tools/call",#"{"name":"list_sessions","arguments":{}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
  check(listed.contains("Website feedback") && listed.contains(session.id.uuidString),"list_sessions shows the session")
  let read=(await rpc("tools/call",#"{"name":"read_session","arguments":{"session_id":"\#(session.id.uuidString)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
@@ -103,6 +103,22 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  check(badModel?["isError"]?.bool==true && badModel?["content"]?.array?.first?["text"]?.string?.contains("Choices") == true,"an unknown model names the choices instead")
  let toCodex=(await rpc("tools/call",#"{"name":"session_settings","arguments":{"session_id":"\#(session.id.uuidString)","agent":"codex"}}"#))["result"]
  check(toCodex?["isError"]?.bool==false && session.record.backend == .codex,"switching the agent applies: \(toCodex?["content"]?.array?.first?["text"]?.string ?? "")")
+ // Placing work: Studios and projects with what belongs there; no place, no start.
+ if let studio=model.newStudio(named:"USA Archery") {
+  model.setInstructions("Website, print and marketing for USA Archery.",forStudio:studio.id)
+  model.newChat(in:studio).appendItem(DisplayItem(kind:.user,text:"Banner ideas"))
+ }
+ var projectRecord=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
+ projectRecord.title="Dogear";projectRecord.projectFolder=root+"/Dogear";projectRecord.projectNickname="Dogear"
+ projectRecord.items=[DisplayItem(kind:.user,text:"Ship it")]
+ try FileManager.default.createDirectory(atPath:root+"/Dogear",withIntermediateDirectories:true)
+ _=model.insertSession(projectRecord)
+ let placesText=(await rpc("tools/call",#"{"name":"list_places","arguments":{}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
+ check(placesText.contains("Studio USA Archery — Website, print and marketing for USA Archery.") && placesText.contains("Project Dogear"),"list_places names Studios with what belongs there, and projects: \(placesText)")
+ let unplaced=(await rpc("tools/call",#"{"name":"start_session","arguments":{"text":"Make a banner"}}"#))["result"]
+ check(unplaced?["isError"]?.bool==true && unplaced?["content"]?.array?.first?["text"]?.string?.contains("ask Shelby") == true,"start_session without a place is refused")
+ let wrongPlace=(await rpc("tools/call",#"{"name":"start_session","arguments":{"text":"Make a banner","place":"Archery USA"}}"#))["result"]
+ check(wrongPlace?["isError"]?.bool==true && wrongPlace?["content"]?.array?.first?["text"]?.string?.contains("Studio USA Archery") == true,"an unknown place lists the real ones")
  // Revoked like a phone: the token stops working.
  if let device=CompanionServer.shared.device(forToken:token) {CompanionServer.shared.forget(device)}
  check((await post("/mcp",Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#.utf8),headers:auth2)).status==401,"a removed connector is signed out")
