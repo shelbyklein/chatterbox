@@ -791,10 +791,130 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(created.last?["title"] as? String,"Logo ideas","and the name given")
   XCTAssertNil((created.last?["settings"] as? [String:Any])?["openModel"] as? String,"a Codex model leaves the open model")
  }
+ /// Comments on a PDF, as with the Mac's Image Review: from the page being read, tap a spot and
+ /// drag a box, with a note for each, on two pages. Add to Message puts the feedback in the
+ /// message box with a marked-up copy of each marked page; comments on the photo then follow it.
+ @MainActor func testPDFComments() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  // Its own preferences: no draft left in the session by another test.
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_PREFERENCES_SUITE":"comments-"+UUID().uuidString]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let chat = app.buttons["chat-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(chat.waitForExistence(timeout:10)); chat.tap()
+  let composer = field("messageComposer",app)
+  let pdf = app.buttons["Review PDF: Magnet proof.pdf"]
+  XCTAssertTrue(pdf.waitForExistence(timeout:10)); pdf.tap()
+  XCTAssertTrue(app.staticTexts["1 of 3"].waitForExistence(timeout:10))
+  app.swipeUp()
+  XCTAssertTrue(app.staticTexts["2 of 3"].waitForExistence(timeout:5))
+  XCTAssertTrue(app.buttons["Comment"].isEnabled, "Comment in the PDF viewer's bottom bar")
+  app.buttons["Comment"].tap()
+  XCTAssertTrue(app.staticTexts["Page 2 of 3"].waitForExistence(timeout:5), "the review opens on the page being read")
+  let page = app.descendants(matching:.any)["reviewPicture"]
+  XCTAssertTrue(page.waitForExistence(timeout:5))
+  try await Task.sleep(for:.seconds(1))
+  capture("pdf-review-start",app)
+  // A tap marks a spot; its note field opens.
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.3,dy:0.2)).tap()
+  let first = field("reviewNote-1",app)
+  XCTAssertTrue(first.waitForExistence(timeout:5), "a tap makes mark 1, with a note")
+  first.typeText("Make the title bigger")
+  capture("pdf-review-typing",app)
+  first.typeText("\n")
+  // A drag marks an area.
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.15,dy:0.3))
+   .press(forDuration:0.1,thenDragTo:page.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.65)))
+  let second = field("reviewNote-2",app)
+  XCTAssertTrue(second.waitForExistence(timeout:5), "a drag makes mark 2, with a note")
+  second.typeText("Swap in the new photo\n")
+  try await Task.sleep(for:.seconds(1))
+  capture("pdf-review-marks",app)
+  // Page 3: a mark, undone, and another.
+  app.buttons["Next Page"].tap()
+  XCTAssertTrue(app.staticTexts["Page 3 of 3"].waitForExistence(timeout:5))
+  XCTAssertFalse(field("reviewNote-1",app).exists, "each page keeps its own marks")
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.8,dy:0.9)).tap()
+  XCTAssertTrue(field("reviewNote-1",app).waitForExistence(timeout:5))
+  app.buttons["Undo"].tap()
+  XCTAssertTrue(field("reviewNote-1",app).waitForNonExistence(timeout:5), "Undo takes the mark back")
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.75,dy:0.85)).tap()
+  let third = field("reviewNote-1",app)
+  XCTAssertTrue(third.waitForExistence(timeout:5)); third.typeText("Add the price here\n")
+  XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","Page 2, 2 marks")).firstMatch.exists, "the other marked page is listed")
+  capture("pdf-review-page-3",app)
+  app.buttons["Previous Page"].tap()
+  XCTAssertTrue(app.staticTexts["Page 2 of 3"].waitForExistence(timeout:5))
+  XCTAssertEqual(field("reviewNote-1",app).value as? String, "Make the title bigger", "page 2's notes are kept")
+  let overall = field("reviewOverallNote",app)
+  overall.tap(); overall.typeText("Otherwise ready to print.")
+  app.buttons["Add to Message"].tap()
+  XCTAssertTrue(composer.waitForExistence(timeout:10))
+  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 2 image"].waitForExistence(timeout:10), "page 2, marked up, waits to be sent")
+  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 3 image"].exists, "and page 3")
+  let text = composer.value as? String ?? ""
+  XCTAssertTrue(text.hasPrefix("Feedback on Magnet proof.pdf. Marked-up copies of pages 2, 3 are attached"), text)
+  for line in ["Page 2:", "1. spot at top left", ": Make the title bigger", "2. area at center", ": Swap in the new photo",
+               "Page 3:", "1. spot at bottom right", ": Add the price here", "Overall: Otherwise ready to print."] {
+   XCTAssertTrue(text.contains(line), "missing \(line) in \(text)")
+  }
+  XCTAssertFalse(text.contains("bigger\n\n") || text.contains("photo\n\n2."), "Return ends a note without a line break in it")
+  capture("pdf-review-composer",app)
+  // Comments on the photo go after what's already in the box.
+  let photo = app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
+  XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap()
+  XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:5)); app.buttons["Comment"].tap()
+  let picture = app.descendants(matching:.any)["reviewPicture"]
+  XCTAssertTrue(picture.waitForExistence(timeout:5))
+  picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+  XCTAssertTrue(field("reviewNote-1",app).waitForExistence(timeout:5)); field("reviewNote-1",app).typeText("Use this photo\n")
+  app.buttons["Add to Message"].tap()
+  XCTAssertTrue(app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10))
+  let both = composer.value as? String ?? ""
+  XCTAssertTrue(both.hasPrefix(text + "\n\nFeedback on magnet-photo.png. The attached image is annotated."), both)
+  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 2 image"].exists, "the pages' copies are still there")
+ }
+ /// Comment on an image from the full-screen viewer: one spot with a note and an overall note.
+ @MainActor func testImageComments() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  // Its own preferences: no draft left in the session by another test.
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_PREFERENCES_SUITE":"comments-"+UUID().uuidString]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let chat = app.buttons["chat-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(chat.waitForExistence(timeout:10)); chat.tap()
+  let photo = app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
+  XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap()
+  XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:5), "Comment beside Mark Up"); app.buttons["Comment"].tap()
+  let picture = app.descendants(matching:.any)["reviewPicture"]
+  XCTAssertTrue(picture.waitForExistence(timeout:5))
+  picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+  let first = field("reviewNote-1",app)
+  XCTAssertTrue(first.waitForExistence(timeout:5)); first.typeText("Make the magnet red\n")
+  let overall = field("reviewOverallNote",app)
+  overall.tap(); overall.typeText("Brighter background")
+  capture("image-review",app)
+  app.buttons["Add to Message"].tap()
+  XCTAssertTrue(app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10), "the marked-up copy waits to be sent")
+  let text = field("messageComposer",app).value as? String ?? ""
+  XCTAssertTrue(text.hasPrefix("Feedback on magnet-photo.png. The attached image is annotated."), text)
+  XCTAssertTrue(text.contains("1. spot at center") && text.contains(": Make the magnet red") && text.contains("Overall: Brighter background"), text)
+  capture("image-review-composer",app)
+ }
+ /// A text field or text view (vertical TextFields are text views) by identifier.
+ @MainActor func field(_ id:String,_ app:XCUIApplication) -> XCUIElement {
+  app.descendants(matching:.any).matching(NSPredicate(format:"identifier == %@ AND (elementType == %d OR elementType == %d)",
+   id, XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.textView.rawValue)).firstMatch
+ }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
-   "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340"][name]!
+   "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340",
+   "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD"][name]!
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)

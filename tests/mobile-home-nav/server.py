@@ -70,6 +70,10 @@ def detail(id):
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
  # A reply with an email draft, shown as a card with its own Copy.
  if s['title']=='Loose chat':items.append({'id':cid('draft-reply'),'kind':'assistant','text':"Here's a draft to Lauren.\n\n```draft\nSubject: Website feedback\n\nHey Lauren,\n\n- **Sitemap:** Where will today's menu items live?\n\nThanks,\nShelby\n```\n\nBefore you send: check the doc.",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
+ # A reply with a PDF proof and a photo, to comment on.
+ if s['title']=='PlayCase Magnets':items.append({'id':cid('proof-reply'),'kind':'assistant','text':'The proof and a product photo are ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[
+  {'id':cid('magnet-proof'),'name':'Magnet proof.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PROOF)},
+  {'id':cid('magnet-photo'),'name':'magnet-photo.png','mediaType':'image/png','isImage':True,'revision':'1'}],'isQueued':False})
  # A reply with a 3D model (an STL) to preview.
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
@@ -88,6 +92,38 @@ def thumbnail():
  w,h=240,160
  rows=b''.join(b'\0'+b''.join(bytes((40+x//3,70+y//2,140)) for x in range(w)) for y in range(h))
  return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
+def proof(pages=3):
+ # A small letter-size PDF, written by hand (no PDF library needed): a title band and two panels per page.
+ objects=[]
+ def add(body):objects.append(body);return len(objects)
+ font=add(b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>')
+ parent=add(b'')
+ kids=[]
+ for n in range(1,pages+1):
+  stream=(b'0.96 0.55 0.18 rg 0 672 612 120 re f\n0.16 0.36 0.62 rg 54 220 300 400 re f\n0.86 0.86 0.86 rg 378 220 180 400 re f\n'
+          b'BT /F1 40 Tf 0 0 0 rg 54 712 Td (Magnet proof) Tj ET\n'
+          b'BT /F1 22 Tf 0 0 0 rg 54 150 Td (Page %d of %d) Tj ET\n'%(n,pages))
+  content=add(b'<< /Length %d >>\nstream\n'%len(stream)+stream+b'\nendstream')
+  kids.append(add(b'<< /Type /Page /Parent %d 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>'%(parent,font,content)))
+ objects[parent-1]=b'<< /Type /Pages /Kids [%s] /Count %d >>'%(b' '.join(b'%d 0 R'%k for k in kids),pages)
+ catalog=add(b'<< /Type /Catalog /Pages %d 0 R >>'%parent)
+ out=bytearray(b'%PDF-1.4\n');offsets=[]
+ for i,body in enumerate(objects,1):offsets.append(len(out));out+=b'%d 0 obj\n'%i+body+b'\nendobj\n'
+ xref=len(out)
+ out+=b'xref\n0 %d\n'%(len(objects)+1)+b'0000000000 65535 f \n'+b''.join(b'%010d 00000 n \n'%o for o in offsets)
+ out+=b'trailer\n<< /Size %d /Root %d 0 R >>\nstartxref\n%d\n%%%%EOF\n'%(len(objects)+1,catalog,xref)
+ return bytes(out)
+PROOF=proof()
+def photo():
+ # A 640x480 "product photo": a warm gradient with a round magnet in the middle.
+ def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
+ w,h=640,480
+ def px(x,y):
+  if (x-320)**2+(y-240)**2<120**2:return bytes((40,90,170))
+  return bytes((230-y//6,170-y//8,120+x//10))
+ rows=b''.join(b'\0'+b''.join(px(x,y) for x in range(w)) for y in range(h))
+ return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
+PHOTO=photo()
 class Handler(http.server.BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def reply(self,x,status=200):
@@ -160,6 +196,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
    return self.reply({'currentFolder':'/Users/fixture','studios':[{'id':cid('studio'),'name':'USA Archery','folder':'/Users/fixture/Studios/USA Archery'},{'id':cid('studio2'),'name':'Geekify','folder':'/Users/fixture/Studios/Geekify'}]})
   if '/files/'+cid('model-file') in self.path.lower():
    b=stl();self.send_response(200);self.send_header('Content-Type','application/octet-stream');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
+  for fid,body,kind in [(cid('magnet-proof'),PROOF,'application/pdf'),(cid('magnet-photo'),PHOTO,'image/png')]:
+   if '/files/'+fid in self.path.lower():
+    self.send_response(200);self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
   if '/thumbnail/' in self.path:
    b=thumbnail();self.send_response(200);self.send_header('Content-Type','image/png');self.send_header('Content-Length',str(len(b)));self.end_headers();self.wfile.write(b);return
   if self.path=='/v1/chats':

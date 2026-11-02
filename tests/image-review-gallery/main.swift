@@ -22,7 +22,7 @@ app.setActivationPolicy(.regular)
   urls.append(url)
  }
  let middle=Attachment(name:urls[1].lastPathComponent,path:urls[1].path,mediaType:"image/png",kind:.image)
- let panel=NSPanel(contentRect:NSRect(x:40,y:80,width:1100,height:680),styleMask:[.titled],backing:.buffered,defer:false)
+ let panel=NSPanel(contentRect:NSRect(x:40,y:80,width:1100,height:680),styleMask:[.titled,.nonactivatingPanel],backing:.buffered,defer:false)
  panel.appearance=NSAppearance(named:.darkAqua)
  panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:middle,gallery:urls) { _,_ in }.frame(width:1100,height:680))
  panel.orderFrontRegardless()
