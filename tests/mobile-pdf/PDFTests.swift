@@ -2,6 +2,8 @@ import XCTest
 final class PDFTests: XCTestCase {
  @MainActor func testReviewExportAndOfflineReopen() async throws {
   let app = XCUIApplication()
+  // A fresh install opens on the Desk; this session is on Projects.
+  app.launchArguments = ["-mobileChatListPage", "projects"]
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19647"]
   app.launch()
   let chat = app.buttons["chat-11111111-1111-1111-1111-111111111111"]

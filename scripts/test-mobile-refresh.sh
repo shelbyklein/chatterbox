@@ -34,6 +34,10 @@ y='''name: MobileRefreshRegression
 options:
   deploymentTarget:
     iOS: '17.0'
+packages:
+  RoyalVNC:
+    url: https://github.com/royalapplications/royalvnc
+    revision: 92d4427c73817d8f849bb289ff190aa4b40c44ea
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -55,6 +59,10 @@ y+='''    settings:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Isolated test server
         TARGETED_DEVICE_FAMILY: '1,2'
         INFOPLIST_FILE: Regression-Info.plist
+    dependencies:
+      - package: RoyalVNC
+        product: RoyalVNCKit
+        embed: true
   HistoryTests:
     type: bundle.ui-testing
     platform: iOS

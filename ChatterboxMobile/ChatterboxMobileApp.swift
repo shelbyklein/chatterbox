@@ -114,18 +114,39 @@ private struct SessionWindowSizeProbe: UIViewRepresentable {
     }
 }
 
-/// The home's bottom tabs: Projects, Studios and Chats, like the Mac's Home pages.
+/// The home's bottom tabs: the Desk first (plans/front-desk.md), then Pinned, Projects,
+/// Studios and Chats, like the Mac's Home pages; All is Chats' other half. A phone's bar holds
+/// five (iOS puts the rest behind More, inside a second navigation bar) and an iPad mini's
+/// scrolls the sixth out of sight, so the bar keeps to five everywhere.
 struct ChatterboxTabs: View {
+    typealias Page = ChatListView.Page
+    /// The Desk's tab; the others are named for their pages.
+    static let desk = "desk"
     @Environment(MobileStore.self) private var store
-    @AppStorage("mobileChatListPage") private var tab = ChatListView.Page.projects.rawValue
+    /// A fresh install opens on the Desk; afterwards, on the tab last used.
+    @AppStorage("mobileChatListPage") private var tab = ChatterboxTabs.desk
+    /// Chats or All, on the Chats tab.
+    @AppStorage("mobileChatsScope") private var chatsScope = Page.chats.rawValue
+    private let pages = Page.allCases.filter { $0 != .all }
 
     var body: some View {
         TabView(selection: $tab) {
-            ForEach(ChatListView.Page.allCases) { page in
-                ChatListView(fixedPage: page)
-                    .tabItem { Label(page.title, systemImage: page.icon) }
-                    .badge(waiting(on: page))
-                    .tag(page.rawValue)
+            MobileDeskView()
+                .tabItem { Label("Desk", systemImage: "lamp.desk") }
+                .badge(store.latestDesk.map(MobileDeskView.waiting) ?? 0)
+                .tag(Self.desk)
+            ForEach(pages) { page in
+                Group {
+                    if page == .chats {
+                        ChatListView(fixedPage: chatsScope == Page.all.rawValue ? .all : .chats, isSelected: tab == page.rawValue,
+                                     scopes: [.chats, .all], scope: $chatsScope)
+                    } else {
+                        ChatListView(fixedPage: page, isSelected: tab == page.rawValue)
+                    }
+                }
+                .tabItem { Label(page.title, systemImage: page.icon) }
+                .badge(waiting(on: page))
+                .tag(page.rawValue)
             }
         }
         // Mac Screen: the Mac's own Screen Sharing, at the address the app last reached it.
@@ -139,16 +160,34 @@ struct ChatterboxTabs: View {
         .alert("Couldn't Send Feedback", isPresented: Binding(get: { store.feedbackProblem != nil }, set: { if !$0 { store.feedbackProblem = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(store.feedbackProblem ?? "") }
-        // Activity moved into the ⋯ menu; a saved tab from before lands on Projects.
-        .onAppear { if ChatListView.Page(rawValue: tab) == nil { tab = ChatListView.Page.projects.rawValue } }
-        // A tapped notification opens the tab its chat lives in.
-        .onChange(of: MobilePushNotifications.shared.pendingChat) { _, id in
+        .onAppear(perform: settleTab)
+        // A tapped notification, or a session opened from the Desk, opens in the tab its chat
+        // lives in; that tab's list opens it (ChatListView). Also at launch, from a notification.
+        .onChange(of: MobilePushNotifications.shared.pendingChat, initial: true) { _, id in
             guard let id else { return }
-            let kind = store.chatList?.groups.first { $0.chats.contains { $0.id == id } }?.kind
-            // All lists every chat already; otherwise go to the chat's own tab.
-            if tab != ChatListView.Page.all.rawValue {
-                tab = (ChatListView.Page.allCases.first { $0 != .all && $0.kind == kind } ?? .chats).rawValue
+            Task {
+                // The tab comes from the chat list; a new session may not be in it yet.
+                if store.chatList?.groups.contains(where: { $0.chats.contains { $0.id == id } }) != true { await store.loadChats() }
+                guard MobilePushNotifications.shared.pendingChat == id else { return }
+                // All lists every chat already; otherwise go to the chat's own tab.
+                if tab == Page.chats.rawValue, chatsScope == Page.all.rawValue { return }
+                let page = Page.home(for: store.chatList?.groups.first { $0.chats.contains { $0.id == id } }?.kind)
+                if page == .chats { chatsScope = Page.chats.rawValue }
+                tab = page.rawValue
             }
+        }
+    }
+
+    /// Activity moved into the ⋯ menu: a saved tab from before lands on the Desk. The All
+    /// tab from before is Chats showing All.
+    private func settleTab() {
+        if tab == Page.all.rawValue { chatsScope = Page.all.rawValue; tab = Page.chats.rawValue }
+        else if tab != Self.desk, Page(rawValue: tab) == nil { tab = Self.desk }
+        // The Desk is new: open on it once after updating, then the last tab as before.
+        // Tests that launch on a set tab (-mobileChatListPage) keep it.
+        if !UserDefaults.standard.bool(forKey: "deskIntroduced") {
+            UserDefaults.standard.set(true, forKey: "deskIntroduced")
+            if !ProcessInfo.processInfo.arguments.contains("-mobileChatListPage") { tab = Self.desk }
         }
     }
 

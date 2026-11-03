@@ -40,11 +40,11 @@ someone must act, a healthy state takes no space.
 
 ## Tasks
 
-- [ ] T1 Service: DeskStore (desk.json), place proposal (Studios and projects), Needs you and
+- [x] T1 Service: DeskStore (desk.json), place proposal (Studios and projects), Needs you and
       Working, routes, socket operation and event, connector `propose_work`. Test.
-- [ ] T2 iPhone/iPad: Desk tab first, sections, ask box, Start there / Change place / Ignore,
+- [x] T2 iPhone/iPad: Desk tab first, sections, ask box, Start there / Change place / Ignore,
       approve and deny in place. UI test against the fixture server.
-- [ ] T3 Mac: Desk home page with the same sections and actions. Render test.
+- [x] T3 Mac: Desk home page with the same sections and actions. Render test.
 - [ ] T4 Integrate, install, service restart, TestFlight; live check.
 
 ## Not changed

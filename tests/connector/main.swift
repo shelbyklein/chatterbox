@@ -71,7 +71,8 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  let hello=await rpc("initialize",#"{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}"#)
  check(hello["result"]?["serverInfo"]?["name"]?.string=="chatterbox","initialize")
  let tools=(await rpc("tools/list"))["result"]?["tools"]?.array?.compactMap{$0["name"]?.string} ?? []
- check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply","show_image","share_file","session_settings","list_places"],"ten tools: \(tools)")
+ check(Set(tools)==["list_sessions","read_session","send_message","start_session","answer","stop_reply","show_image","share_file","session_settings","list_places","propose_work"],"eleven tools: \(tools)")
+ check(ConnectorTools.instructions.contains("propose_work instead of start_session"),"the instructions say to propose work when unsure where it goes")
  let listed=(await rpc("tools/call",#"{"name":"list_sessions","arguments":{}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
  check(listed.contains("Website feedback") && listed.contains(session.id.uuidString),"list_sessions shows the session")
  let read=(await rpc("tools/call",#"{"name":"read_session","arguments":{"session_id":"\#(session.id.uuidString)"}}"#))["result"]?["content"]?.array?.first?["text"]?.string ?? ""
@@ -119,6 +120,14 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  check(unplaced?["isError"]?.bool==true && unplaced?["content"]?.array?.first?["text"]?.string?.contains("ask Shelby") == true,"start_session without a place is refused")
  let wrongPlace=(await rpc("tools/call",#"{"name":"start_session","arguments":{"text":"Make a banner","place":"Archery USA"}}"#))["result"]
  check(wrongPlace?["isError"]?.bool==true && wrongPlace?["content"]?.array?.first?["text"]?.string?.contains("Studio USA Archery") == true,"an unknown place lists the real ones")
+ // Unsure where it goes: propose_work puts it on the Desk, from Claude, and starts nothing.
+ let sessionsBefore=model.sessions.count
+ let proposal=(await rpc("tools/call",#"{"name":"propose_work","arguments":{"text":"Banner and flyer ideas for the USA Archery homepage","note":"For the fall camp"}}"#))["result"]
+ let proposalText=proposal?["content"]?.array?.first?["text"]?.string ?? ""
+ check(proposal?["isError"]?.bool==false && proposalText.contains("Studio USA Archery") && DeskStore.shared.requests.first?.source=="claude"
+       && DeskStore.shared.requests.first?.note=="For the fall camp" && model.sessions.count==sessionsBefore,"propose_work puts work on the Desk from Claude, starting nothing: \(proposalText)")
+ let proposedNowhere=(await rpc("tools/call",#"{"name":"propose_work","arguments":{"text":"Something","place":"Archery USA"}}"#))["result"]
+ check(proposedNowhere?["isError"]?.bool==true && proposedNowhere?["content"]?.array?.first?["text"]?.string?.contains("Studio USA Archery") == true,"propose_work to an unknown place lists the real ones")
  // Revoked like a phone: the token stops working.
  if let device=CompanionServer.shared.device(forToken:token) {CompanionServer.shared.forget(device)}
  check((await post("/mcp",Data(#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#.utf8),headers:auth2)).status==401,"a removed connector is signed out")

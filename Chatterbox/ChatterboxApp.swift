@@ -60,7 +60,9 @@ struct ChatterboxApp: App {
                 Button("Previous Chat") { model.selectAdjacentChat(-1) }
                     .keyboardShortcut("[", modifiers: [.command, .shift])
                 Divider()
-                // ⌘1–⌘3 switch views, in the toolbar's order.
+                // ⌘0 opens the Desk; ⌘1–⌘3 switch views, in the toolbar's order.
+                Button("Desk") { model.showDesk() }
+                .keyboardShortcut("0")
                 Button("Projects") { model.showView(.projects) }
                 .keyboardShortcut("1")
                 Button("Studios") { model.showView(.studios) }

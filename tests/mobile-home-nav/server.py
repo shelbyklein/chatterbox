@@ -1,5 +1,5 @@
 import http.server,json,os,uuid,zlib,struct,datetime,time
-# Isolated fixture: six projects (one a worktree, one waiting on you) and a Studio.
+# Isolated fixture: six projects (one a worktree, one waiting on you), Studios, and the Desk.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
 NEWCHAT=[];CREATED=[]
 def cid(n):return str(uuid.uuid5(uuid.NAMESPACE_URL,'home:'+n))
@@ -22,7 +22,41 @@ PROMOTIONS={}
 LIST_DELAY=0
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+# The Desk (plans/front-desk.md): an approval and questions waiting, two requests to place (one
+# with a proposed Studio, one with none), and what's running. Calls are recorded for asserts.
+PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banners, flyers and social posts for USA Archery.'},
+ {'kind':'studio','id':cid('studio2'),'name':'Geekify','detail':'3D-printed figures and crystal stands.'},
+ {'kind':'project','id':cid('Chatterbox'),'name':'Chatterbox','detail':'The Mac and iPhone app for Claude and Codex sessions.'},
+ {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
+ {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
+DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1
+def stamp(minutes=0):
+ return (datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
+def place_named(name):
+ return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
+def desk_reset(empty=False):
+ global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION
+ DESK_CALLS=[];DESK_REVISION+=1
+ DESK_WAITING=[] if empty else [
+  {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?'},
+  {'id':cid('desk-questions'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','place':'Tracker Trapper','kind':'questions','text':'Which progress style for the menu bar: a ring or a bar?',
+   'questions':[{'id':'style','header':'Style','question':'Which progress style?','options':[{'label':'Ring','detail':''},{'label':'Bar','detail':''}],'multiSelect':False,'isSecret':False}]}]
+ DESK_INCOMING=[] if empty else [
+  {'id':cid('desk-banner'),'text':'Make a banner for the fall archery camp','source':'claude','createdAt':stamp(12),
+   'proposed':{k:v for k,v in PLACES[0].items() if k!='detail'},'note':'Camp graphics belong to USA Archery.'},
+  {'id':cid('desk-printer'),'text':'Find out why the print queue stalls overnight','source':'you','createdAt':stamp(3),'proposed':None}]
+def desk():
+ working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n} for n in RUNNING]
+ return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working}
+def started_chat(place):
+ # The session a start opens: a fixture chat in that place.
+ if not place or place.get('kind')=='loose':return 'Loose chat'
+ if place.get('id','').lower()==cid('studio'):return 'Coach Archie'
+ if place.get('id','').lower()==cid('studio2'):return 'Crystal concept'
+ return next((n for n,*_ in PROJECTS if cid(n)==place.get('id','').lower()),'Loose chat')
+desk_reset()
 def reset():
+ desk_reset()
  global PINNED
  PINNED[:]=['Loose chat','SDHQ']
  global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS,LIST_DELAY
@@ -131,9 +165,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
+  if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
+  if self.path=='/v1/desk':
+   DESK_CALLS.append({'action':'add','body':body})
+   text=body.get('text','')
+   proposed=place_named(body.get('place')) or (PLACES[0] if 'banner' in text.lower() else PLACES[3] if 'magnet' in text.lower() else None)
+   DESK_INCOMING.append({'id':str(uuid.uuid4()),'text':text,'source':body.get('source') or 'you','createdAt':stamp(),'proposed':proposed,'note':body.get('note')})
+   DESK_REVISION+=1;return self.reply(desk())
+  if self.path.startswith('/v1/desk/') and self.path.endswith(('/start','/ignore')):
+   id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
+   request=next((r for r in DESK_INCOMING if r['id'].lower()==id),None)
+   if not request:return self.reply({'error':'That request is no longer on the Desk.'},404)
+   DESK_CALLS.append({'action':action,'id':id,'body':body})
+   DESK_INCOMING=[r for r in DESK_INCOMING if r['id'].lower()!=id];DESK_REVISION+=1
+   if action=='ignore':return self.reply(desk())
+   return self.reply(detail(cid(started_chat(body.get('place') or request['proposed']))))
+  if self.path.startswith('/v1/chats/') and '/approvals/' in self.path:
+   parts=self.path.split('/');chat,item=parts[3].lower(),parts[5].lower()
+   DESK_CALLS.append({'action':'decide','chat':chat,'item':item,'decision':body.get('decision')})
+   DESK_WAITING=[w for w in DESK_WAITING if w['id'].lower()!=item];DESK_REVISION+=1
+   return self.reply(detail(chat))
   if self.path=='/test/list-delay':
    LIST_DELAY=body.get('seconds',0);return self.reply({'ok':True})
   if self.path=='/test/fail':FAIL=body['value'];return self.reply({'ok':True})
@@ -180,6 +234,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   self.send_error(404)
  def do_GET(self):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
+  if self.path=='/test/desk-calls':return self.reply(DESK_CALLS)
+  if self.path=='/v1/desk':return self.reply(desk())
+  if self.path=='/v1/desk/places':return self.reply(PLACES)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path=='/test/briefs':return self.reply(BRIEFS)
   if self.path=='/test/renames':return self.reply(RENAMES)

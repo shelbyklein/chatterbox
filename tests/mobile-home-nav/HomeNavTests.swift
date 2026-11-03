@@ -240,6 +240,8 @@ final class HomeNavTests: XCTestCase {
   try await fixture("list-delay",body:["seconds":5])
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411", "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
+  // The session list's own loading line: open on Projects, not the Desk (the first tab).
+  app.launchArguments=["-mobileChatListPage","projects"]
   app.launch()
   let loading=app.descendants(matching:.any)["session-load-status"].firstMatch
   XCTAssertTrue(loading.waitForExistence(timeout:5),"A slow first response has a visible explanation")
@@ -275,8 +277,9 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
-  XCTAssertTrue(tab("All",app).waitForExistence(timeout:15), "All is in the bottom bar")
-  XCTAssertGreaterThan(tab("All",app).frame.minX, tab("Chats",app).frame.minX, "All comes last, after Chats")
+  // The bar keeps to five tabs with the Desk first: All is Chats' other half.
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
+  XCTAssertTrue(tab("All",app).waitForExistence(timeout:5), "All, beside Chats")
   tab("All",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:10), "All lists projects")
   XCTAssertTrue(app.descendants(matching:.any)["Coach Archie"].exists || app.staticTexts["Coach Archie"].exists, "and Studio sessions, together")
@@ -610,6 +613,187 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Hi! This is Loose chat."].waitForExistence(timeout:8))
   promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
   XCTAssertNil(promoted["Loose chat"]?["newFolderName"])
+ }
+ // MARK: The Desk (plans/front-desk.md)
+
+ /// A fresh install opens on the Desk, the first tab: what needs you, then incoming
+ /// requests (one with a proposed Studio, one with none), then one line of what's working.
+ @MainActor func testDeskFirstTab() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let desk=deskTab(app)
+  XCTAssertTrue(desk.waitForExistence(timeout:20))
+  for name in ["Pinned","Projects","Studios","Chats"] {
+   XCTAssertTrue(tab(name,app).exists, "\(name) is still a tab")
+   // Across the bar, or down it (a closed iPhone Duo's bar runs down the side).
+   let other=tab(name,app).frame
+   XCTAssertTrue(desk.frame.minX < other.minX || (abs(desk.frame.minX-other.minX) < 1 && desk.frame.minY < other.minY), "the Desk comes before \(name)")
+  }
+  // No More tab: All moved beside Chats, in its tab.
+  XCTAssertFalse(app.tabBars.buttons["More"].exists, "every tab fits the bar")
+  XCTAssertFalse(app.tabBars.buttons["All"].exists)
+  if app.tabBars.buttons["Desk"].exists { XCTAssertTrue(desk.isSelected, "a fresh install opens on the Desk") }
+  let needs=app.staticTexts["desk-section-needs-you"], incoming=app.staticTexts["desk-section-incoming"]
+  XCTAssertTrue(needs.waitForExistence(timeout:10) && incoming.exists, "Needs you and Incoming")
+  XCTAssertLessThan(needs.frame.minY, incoming.frame.minY, "Needs you first")
+  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 need you · 2 incoming · 2 working")
+  XCTAssertTrue(app.buttons[approve].exists && app.buttons["desk-deny-"+deskID("approval")].exists, "an approval: Approve and Deny in place")
+  XCTAssertTrue(app.buttons["desk-open-"+deskID("questions")].exists, "questions: Open")
+  XCTAssertFalse(app.buttons["desk-approve-"+deskID("questions")].exists)
+  XCTAssertTrue(app.staticTexts["Run wrangler deploy to publish the new cache rules?"].exists, "what it asks")
+  XCTAssertEqual(app.buttons["desk-place-"+deskID("banner")].label, "Place: USA Archery", "the proposed Studio")
+  XCTAssertTrue(app.staticTexts["Camp graphics belong to USA Archery."].exists, "with its note")
+  XCTAssertEqual(app.buttons["desk-place-"+deskID("printer")].label, "Choose a place", "nothing proposed")
+  XCTAssertFalse(app.staticTexts["desk-calm"].exists, "no calm line while something needs you")
+  capture("desk", app)
+  let working=app.staticTexts["desk-working"]
+  reveal(working, app)
+  XCTAssertTrue(working.exists && working.frame.minY > incoming.frame.minY, "Working last")
+  XCTAssertTrue(app.buttons["desk-working-"+deskID("Galley")].exists && app.buttons["desk-working-"+deskID("Coach Archie")].exists)
+  capture("desk-working", app)
+  // Tapping a card opens its session in its own tab, as a notification does.
+  app.swipeDown(); app.swipeDown()
+  app.buttons["desk-waiting-"+deskID("approval")].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "the card opens the session")
+  capture("desk-opened-session", app)
+  deskTab(app).tap()
+  let galley=app.buttons["desk-working-"+deskID("Galley")]
+  reveal(galley, app); galley.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Galley."].waitForExistence(timeout:10), "a working title opens its session")
+ }
+ /// Approve in place uses the session's approval call; Open opens a session with questions.
+ @MainActor func testDeskApprove() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let button=app.buttons[approve]
+  XCTAssertTrue(button.waitForExistence(timeout:20)); button.tap()
+  XCTAssertTrue(button.waitForNonExistence(timeout:8), "approved, it leaves Needs you")
+  let calls=try await deskCalls()
+  XCTAssertEqual(calls.last?["action"] as? String, "decide")
+  XCTAssertEqual(calls.last?["decision"] as? String, "approved")
+  XCTAssertEqual(calls.last?["item"] as? String, deskID("approval").lowercased())
+  XCTAssertEqual(calls.last?["chat"] as? String, uuid("SDHQ").lowercased(), "through the session's approval endpoint")
+  XCTAssertEqual(app.staticTexts["desk-summary"].label, "1 needs you · 2 incoming · 2 working")
+  capture("desk-approved", app)
+  app.buttons["desk-open-"+deskID("questions")].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "Open opens the session")
+ }
+ /// Start There: the proposed Studio; the new session opens.
+ @MainActor func testDeskStartThere() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let start=app.buttons["desk-start-"+deskID("banner")]
+  XCTAssertTrue(start.waitForExistence(timeout:20)); reveal(start, app); start.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10), "the started session opens, in its Studio")
+  capture("desk-started", app)
+  let call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "start"); XCTAssertEqual(call?["id"] as? String, deskID("banner").lowercased())
+  XCTAssertNil((call?["body"] as? [String:Any])?["place"], "where proposed")
+  deskTab(app).tap()
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForExistence(timeout:5))
+  XCTAssertFalse(app.buttons["desk-start-"+deskID("banner")].exists, "started, it leaves Incoming")
+ }
+ /// Change Place lists every place with its detail line; Start There then uses the one picked.
+ @MainActor func testDeskChangePlace() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let change=app.buttons["desk-change-"+deskID("banner")]
+  XCTAssertTrue(change.waitForExistence(timeout:20)); reveal(change, app); change.tap()
+  let geekify=app.buttons["desk-place-option-Geekify"]
+  XCTAssertTrue(geekify.waitForExistence(timeout:8), "the places")
+  XCTAssertTrue(app.staticTexts["3D-printed figures and crystal stands."].exists, "with what belongs there")
+  capture("desk-change-place", app)
+  let loose=app.buttons["desk-place-option-A session of its own"]
+  for _ in 0..<3 where !loose.exists { app.collectionViews.firstMatch.swipeUp() }
+  XCTAssertTrue(app.buttons["desk-place-option-Chatterbox"].exists && loose.exists, "projects and a loose session too")
+  capture("desk-change-place-all", app)
+  geekify.tap()
+  let chip=app.buttons["desk-place-"+deskID("banner")]
+  XCTAssertTrue(chip.waitForExistence(timeout:5)); XCTAssertEqual(chip.label, "Place: Geekify, changed")
+  app.buttons["desk-start-"+deskID("banner")].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Crystal concept."].waitForExistence(timeout:10), "it starts in the place picked")
+  let call=try await deskCalls().last
+  let place=(call?["body"] as? [String:Any])?["place"] as? [String:Any]
+  XCTAssertEqual(place?["name"] as? String, "Geekify"); XCTAssertEqual(place?["kind"] as? String, "studio")
+  // Nothing proposed: choose a place first, then start there.
+  deskTab(app).tap()
+  let choose=app.buttons["desk-choose-"+deskID("printer")]
+  XCTAssertTrue(choose.waitForExistence(timeout:5)); XCTAssertFalse(app.buttons["desk-start-"+deskID("printer")].isEnabled, "no Start There without a place")
+  choose.tap()
+  XCTAssertTrue(app.buttons["desk-place-option-Chatterbox"].waitForExistence(timeout:8)); app.buttons["desk-place-option-Chatterbox"].tap()
+  let startPrinter=app.buttons["desk-start-"+deskID("printer")]
+  XCTAssertTrue(app.buttons["desk-change-"+deskID("printer")].waitForExistence(timeout:5) && startPrinter.isEnabled, "placed, it can start"); startPrinter.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  let second=((try await deskCalls().last)?["body"] as? [String:Any])?["place"] as? [String:Any]
+  XCTAssertEqual(second?["name"] as? String, "Chatterbox"); XCTAssertEqual(second?["kind"] as? String, "project")
+ }
+ /// Ignore takes a request off the Desk.
+ @MainActor func testDeskIgnore() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let ignore=app.buttons["desk-ignore-"+deskID("printer")]
+  XCTAssertTrue(ignore.waitForExistence(timeout:20)); reveal(ignore, app); ignore.tap()
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForNonExistence(timeout:8), "ignored, it's gone")
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists, "the other stays")
+  let call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "ignore"); XCTAssertEqual(call?["id"] as? String, deskID("printer").lowercased())
+ }
+ /// The ask box puts a request on the Desk, with the place the Desk proposes.
+ @MainActor func testDeskAsk() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let ask=field("desk-ask",app)
+  XCTAssertTrue(ask.waitForExistence(timeout:20)); ask.tap(); ask.typeText("Order more magnet blanks")
+  capture("desk-ask", app)
+  app.buttons["desk-ask-send"].tap()
+  let text=app.staticTexts["Order more magnet blanks"]
+  XCTAssertTrue(text.waitForExistence(timeout:8), "the request shows in Incoming")
+  let call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "add")
+  XCTAssertEqual((call?["body"] as? [String:Any])?["text"] as? String, "Order more magnet blanks")
+  XCTAssertEqual((call?["body"] as? [String:Any])?["source"] as? String, "you")
+  let left=(ask.value as? String) ?? ""
+  XCTAssertTrue(left.isEmpty || left=="What needs doing?", "the box empties: \(left)")
+  let chip=app.buttons.matching(NSPredicate(format:"label == %@","Place: PlayCase Magnets")).firstMatch
+  reveal(chip, app)
+  XCTAssertTrue(chip.exists, "with its proposed place")
+  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 need you · 3 incoming · 2 working")
+  capture("desk-asked", app)
+ }
+ /// Nothing waiting: one calm line, and only what's working.
+ @MainActor func testDeskCalm() async throws {
+  try await fixture("reset"); try await fixture("desk-empty")
+  let app=deskApp(); app.launch()
+  let calm=app.staticTexts["desk-calm"]
+  XCTAssertTrue(calm.waitForExistence(timeout:20)); XCTAssertEqual(calm.label, "Nothing else needs you.")
+  XCTAssertFalse(app.staticTexts["desk-section-needs-you"].exists || app.staticTexts["desk-section-incoming"].exists, "empty sections are hidden")
+  XCTAssertTrue(app.staticTexts["desk-working"].exists)
+  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 working")
+  capture("desk-calm", app)
+ }
+ /// The Desk on its own preferences: a fresh install, which opens on it.
+ @MainActor func deskApp() -> XCUIApplication {
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411",
+                         "CHATTERBOX_PREFERENCES_SUITE":"desk-"+UUID().uuidString]
+  return app
+ }
+ /// The Desk's tab: its button (the Desk's own title is "Desk" too).
+ @MainActor func deskTab(_ app:XCUIApplication) -> XCUIElement {
+  let phone=app.tabBars.buttons["Desk"]
+  return phone.exists ? phone : app.buttons.matching(NSPredicate(format:"label == %@","Desk")).firstMatch
+ }
+ var approve: String { "desk-approve-"+deskID("approval") }
+ /// The fixture's Desk ids (server.py: uuid5(NAMESPACE_URL, "home:desk-" + name), or a chat's).
+ func deskID(_ name:String) -> String {
+  ["approval":"773D2651-D545-5E7B-A576-E90FF28EDEE7","questions":"D9A5D613-012B-5519-BD59-215AB5DB6C89",
+   "banner":"C31C4CB5-3FC1-5902-9C75-2F9B0D2AEA1E","printer":"6C35F22A-7C4E-54AD-9EFD-93BD619DC7C3",
+   "Galley":"B5BBD354-BAAF-5AB3-B7FE-3ACD63B384E2","Coach Archie":"F982B462-68F5-509B-8E10-9946C3F0A1B1"][name]!
+ }
+ func deskCalls() async throws -> [[String:Any]] { try await fixture("desk-calls",method:"GET") as? [[String:Any]] ?? [] }
+ /// Scrolls the Desk until the element is on screen.
+ @MainActor func reveal(_ element:XCUIElement,_ app:XCUIApplication) {
+  for _ in 0..<5 where !(element.exists && element.isHittable) { app.swipeUp() }
  }
  @MainActor func tab(_ name:String,_ app:XCUIApplication) -> XCUIElement {
   let phone=app.tabBars.buttons[name]

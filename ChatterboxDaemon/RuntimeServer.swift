@@ -23,6 +23,8 @@ import CoreFoundation
         runtime.onEvent={ [weak self] event in
             guard let self else{return}
             for id in self.subscribed {self.peers[id]?.send(RuntimeReply(event:event))}
+            // What needs Shelby and what's working come from sessions: the Desk looks again.
+            if Self.deskEvents.contains(event.kind) {DeskStore.shared.sessionsChanged()}
             if let chat=event.chatID.flatMap(self.runtime.session) {
                 if ["approval.waiting","question.waiting"].contains(event.kind){
                     MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.approvalState == .pending})?.text ?? "This session needs you",chat:chat.id,kind:"needs",identity:"event-\(event.sequence)")
@@ -32,6 +34,8 @@ import CoreFoundation
             }
         }
     }
+    /// Session events that can change the Desk's Needs you and Working.
+    static let deskEvents:Set<String>=["turn.started","turn.finished","approval.waiting","question.waiting","approval.resolved","question.resolved","chat.created","chat.deleted","chat.changed"]
     func stop(){source?.cancel();source=nil;if listenFD>=0{Darwin.close(listenFD);listenFD = -1};for p in peers.values{p.stop()};peers.removeAll();unlink(socketURL.path);try? runtime.flush();runtime.waitForSaves()}
     private func accept(){
         while true {
@@ -201,6 +205,13 @@ import CoreFoundation
                     await s.restartThread()
                     return ["status": s.threadRestartStatus.map(JSON.string) ?? .null]
                 }
+            case "desk":
+                // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
+                let action=r.body["action"]?.string ?? "get"
+                guard role=="ui" || ["get","places","add"].contains(action) else{throw RuntimeFailure("permission_denied")}
+                if ["get","places"].contains(action) {result=try DeskStore.shared.operation(r.body,agent:role != "ui");break}
+                let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
+                result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try DeskStore.shared.operation(r.body,agent:role != "ui")}
             case "draft":
                 let s=try chat(r.body);result=try .value(RuntimeDraft(text:s.draft,attachments:s.draftAttachments))
             case "setDraft":

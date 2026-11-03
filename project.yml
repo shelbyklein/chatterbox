@@ -283,6 +283,7 @@ targets:
     - path: Core/Chatterbox/Support/HTTPFileTransfer.swift
     - path: Core/Shared/CompanionAPI.swift
     - path: Core/Shared/CompanionRetry.swift
+    - path: Core/Shared/PlaceSuggestion.swift
     - path: ChatterboxDaemon
     - path: Core/Shared/AppPreferences.swift
     settings:

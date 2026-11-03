@@ -24,6 +24,8 @@ Task { @MainActor in
         }
         CompanionServer.shared.model=model
         if CompanionServer.shared.isEnabled {CompanionServer.shared.start()}
+        // The Desk tells the app what it shows now, whenever that changes.
+        DeskStore.shared.onChange={desk in runtime.publishUIRequest("desk.changed",payload:(try? JSON.value(desk)) ?? .null)}
         // Claude's connector: each sign-in asks the Mac app to Allow it.
         ConnectorServer.shared.onRequest={id,client in runtime.publishUIRequest("connector.request",payload:["id":.string(id.uuidString),"client":.string(client)])}
         ConnectorServer.shared.start()

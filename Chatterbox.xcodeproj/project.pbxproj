@@ -195,6 +195,7 @@
 		A8738BB6D7C07FFF63895DD6 /* MacScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */; };
 		A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */; };
 		AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
+		AAB612292B82DC6585BCF021 /* PlaceSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */; };
 		AAEBED41FF4FDC232BDAFB3B /* CompanionTransportProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */; };
 		AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CB1480DDAC4ED36BEDA1BA /* ChatDetailView.swift */; };
 		AB708721BCC8467087735CED /* ChatColumns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CB314DEA89B87998298D8B /* ChatColumns.swift */; };
@@ -1348,6 +1349,7 @@
 				ACB41DDBD0BF127A2B797F79 /* NextSteps.swift in Sources */,
 				BD0FF238483A303F2DC234E2 /* PermissionModes.swift in Sources */,
 				28DDC8A2DD7364FFD02158BC /* Pins.swift in Sources */,
+				AAB612292B82DC6585BCF021 /* PlaceSuggestion.swift in Sources */,
 				7450871D62DE9028F79DBE9A /* ProjectAutomations.swift in Sources */,
 				7674615B45429144E4FA38F6 /* Prompts.swift in Sources */,
 				77621AD5A91712017B99E80A /* ProxyQuota.swift in Sources */,

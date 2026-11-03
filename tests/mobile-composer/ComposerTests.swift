@@ -9,7 +9,8 @@ final class ComposerTests: XCTestCase {
   }
   @MainActor func open() -> XCUIApplication {
     let app = XCUIApplication()
-    app.launchArguments = ["-drafts", "{}"]
+    // A fresh install opens on the Desk; these sessions are on Projects.
+    app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
     app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19645"]
     app.launch()
     let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
@@ -47,7 +48,8 @@ final class ComposerTests: XCTestCase {
     app.buttons["Stop Reply"].tap()
     let stopped = NSPredicate { _,_ in !app.buttons["Stop"].exists }
     let check=expectation(for:stopped,evaluatedWith:nil);await fulfillment(of:[check],timeout:8)
-    app.buttons["Session Menu"].tap();app.buttons["Restart Thread"].tap()
+    app.buttons["Session Menu"].tap()
+    XCTAssertTrue(app.buttons["Restart Thread"].waitForExistence(timeout:5));app.buttons["Restart Thread"].tap()
     XCTAssertTrue(app.alerts["Restart Thread?"].waitForExistence(timeout:5))
     capture(app,"restart-confirmation")
     app.alerts.buttons["Cancel"].tap()
@@ -93,7 +95,7 @@ final class ComposerTests: XCTestCase {
     XCTAssertEqual((log["requests"] as! [[String:Any]]).count,1)
     XCTAssertEqual((log["counts"] as! [Int])[1],1)
     // Reopening restores only the new draft, never the consumed text.
-    app.terminate();app.launchArguments = [];app.launch()
+    app.terminate();app.launchArguments = ["-mobileChatListPage", "projects"];app.launch()
     let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
     XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
     XCTAssertEqual(field(app).value as? String,"Next draft")
@@ -101,7 +103,7 @@ final class ComposerTests: XCTestCase {
   @MainActor func testActivityTimeline() async throws {
     _ = try await control("reset")
     let app=XCUIApplication()
-    app.launchArguments=["-drafts","{}"]
+    app.launchArguments=["-mobileChatListPage","projects","-drafts","{}"]
     app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"19645"]
     app.launch()
     // Activity lives in the ⋯ menu.

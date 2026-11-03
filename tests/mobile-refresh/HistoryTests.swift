@@ -19,6 +19,8 @@ final class HistoryTests: XCTestCase {
   }
   @MainActor func testOpenReopenAndForegroundWithoutSending() async throws {
     let app = XCUIApplication()
+    // A fresh install opens on the Desk; this session is on Chats.
+    app.launchArguments = ["-mobileChatListPage", "chats"]
     app.launchEnvironment = [
       "CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456",
       "CHATTERBOX_TEST_PORT": "19645",
@@ -69,6 +71,8 @@ final class HistoryTests: XCTestCase {
 
   @MainActor func testInterruptedLoadRecoversAndKeepsDraft() async throws {
     let app = XCUIApplication()
+    // A fresh install opens on the Desk; this session is on Chats.
+    app.launchArguments = ["-mobileChatListPage", "chats"]
     app.launchEnvironment = [
       "CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456",
       "CHATTERBOX_TEST_PORT": "19645",
@@ -92,7 +96,9 @@ final class HistoryTests: XCTestCase {
     let back = app.navigationBars.buttons.matching(
       NSPredicate(format: "label CONTAINS %@", "Regression Mac")
     ).firstMatch
-    if back.exists { back.tap() }
+    if back.exists { back.tap() } else { app.navigationBars.buttons.element(boundBy: 0).tap() }
+    // The project session is on the Projects tab.
+    app.tabBars.buttons["Projects"].tap()
     let other = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
     XCTAssertTrue(other.waitForExistence(timeout: 3))
     other.tap()
@@ -100,7 +106,8 @@ final class HistoryTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "History ready 1"))
         .firstMatch.waitForExistence(timeout: 3), app.debugDescription)
-    if back.exists { back.tap() }
+    if back.exists { back.tap() } else { app.navigationBars.buttons.element(boundBy: 0).tap() }
+    app.tabBars.buttons["Chats"].tap()
     let state = try await control("/test/advance", post: true) as! [String: Any]
     row.tap()
     let ready = app.staticTexts.containing(
