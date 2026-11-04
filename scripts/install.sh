@@ -23,6 +23,8 @@ ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/snippet "$HOME/.local
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/sidequest "$HOME/.local/bin/sidequest"
 # …and send work to Shelby-PC with `pc-errand` (the same script, by its other name).
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/pc-errand "$HOME/.local/bin/pc-errand"
+# …and put work on the Desk with `desk` (bin/desk), for Shelby to place and start.
+ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/desk "$HOME/.local/bin/desk"
 # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
 # and `open` hands the caller's environment to the app. Launch it without any of them.
 clean_open() {
