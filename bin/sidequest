@@ -82,14 +82,15 @@ def claude_sessions():
 def current_chat(service):
     if os.environ.get("CHATTERBOX_CHAT_ID"):
         return os.environ["CHATTERBOX_CHAT_ID"]
-    chats = [c["record"] for c in service.request("list", {}) or []]
+    # Short form: the full list (every message) can be too big to send.
+    chats = [c["record"] for c in service.request("list", {"summaryOnly": True}) or []]
     # A Claude chat started before CHATTERBOX_CHAT_ID: its process names its session.
     for session in claude_sessions():
         match = [r for r in chats if r.get("claudeSessionID") == session]
         if len(match) == 1:
             return match[0]["id"]
     here = os.path.realpath(os.getcwd())
-    working = [c["record"] for c in service.request("list", {}) or [] if c.get("running")]
+    working = [c["record"] for c in service.request("list", {"workingOnly": True, "summaryOnly": True}) or [] if c.get("running")]
     matches = [r for r in working if here in folders(r)]
     if len(matches) == 1:
         return matches[0]["id"]

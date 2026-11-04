@@ -75,7 +75,8 @@ def ask(op, body):
             if reply.get("error"): raise SystemExit(1)
             return reply.get("result")
 ask("hello", {"role": "agent"})
-print(sum(1 for c in ask("list", {}) or [] if c.get("running")))
+# Only the working sessions, in short form: the full list can be too big to send.
+print(sum(1 for c in ask("list", {"workingOnly": True, "summaryOnly": True}) or [] if c.get("running")))
 PY
 }
 
