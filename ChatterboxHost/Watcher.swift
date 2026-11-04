@@ -76,7 +76,7 @@ struct Watcher {
         let escaped = text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", "display notification \"\(escaped)\" with title \"Chatterbox\""]
+        process.arguments = ["-e", "display notification \"\(escaped)\" with title \"\(Flavor.current.appName)\""]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()

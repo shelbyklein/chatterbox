@@ -40,7 +40,7 @@ struct ChatterboxMobileApp: App {
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
             .onOpenURL { url in
-                guard url.scheme == "chatterbox", url.host == "chat",
+                guard url.scheme == Flavor.current.urlScheme, url.host == "chat",
                       let id = UUID(uuidString: url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) else { return }
                 MobilePushNotifications.shared.pendingChat = id
             }

@@ -330,7 +330,8 @@ final class Host {
         log("notify: \(text)")
         guard notificationsEnabled else { return }
         let escaped = { (s: String) in s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") }
-        let script = "display notification \"\(escaped(text)). Open Chatterbox to answer.\" with title \"Chatterbox\""
+        let name = Flavor.current.appName
+        let script = "display notification \"\(escaped(text)). Open \(name) to answer.\" with title \"\(name)\""
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", script]

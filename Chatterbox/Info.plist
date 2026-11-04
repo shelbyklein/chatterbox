@@ -20,14 +20,16 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.shelbyklein.Chatterbox.chat</string>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER).chat</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>chatterbox</string>
+				<string>$(CHATTERBOX_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ChatterboxFlavor</key>
+	<string>$(CHATTERBOX_FLAVOR)</string>
 </dict>
 </plist>

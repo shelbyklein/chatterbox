@@ -3,6 +3,12 @@ options:
   bundleIdPrefix: com.shelbyklein
   deploymentTarget:
     macOS: '14.0'
+# Dev builds Chatterbox Dev, the copy that runs beside the real app (plans/dev-environment.md,
+# Core/Shared/Flavor.swift). It's Debug plus the CHATTERBOX_DEV flag and Dev's identities.
+configs:
+  Debug: debug
+  Release: release
+  Dev: debug
 packages:
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
@@ -17,6 +23,18 @@ settings:
     SWIFT_VERSION: '5.0'
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: '1'
+    # What differs between Chatterbox and Chatterbox Dev in Info.plists (code: Flavor.swift).
+    CHATTERBOX_FLAVOR: real
+    CHATTERBOX_APP_NAME: Chatterbox
+    CHATTERBOX_URL_SCHEME: chatterbox
+    CHATTERBOX_BONJOUR_TYPE: _chatterbox._tcp
+  configs:
+    Dev:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG CHATTERBOX_DEV
+      CHATTERBOX_FLAVOR: dev
+      CHATTERBOX_APP_NAME: Chatterbox Dev
+      CHATTERBOX_URL_SCHEME: chatterbox-dev
+      CHATTERBOX_BONJOUR_TYPE: _chatterbox-dev._tcp
 targets:
   Chatterbox:
     type: application
@@ -54,6 +72,26 @@ targets:
       codeSign: true
       copy:
         destination: executables
+    postBuildScripts:
+    # Chatterbox Dev's service is chatterboxd-dev, so it's never taken for the real one by name
+    # (pgrep -x chatterboxd). The embed step can only copy the product under its own name, so it
+    # is renamed here, before the app is signed; its own signature doesn't depend on its name.
+    - name: Name Chatterbox Dev's service
+      basedOnDependencyAnalysis: false
+      script: |
+        dir="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH"
+        if [ "$CHATTERBOX_FLAVOR" = dev ]; then
+          rm -f "$dir/chatterboxd-dev"
+          mv "$dir/chatterboxd" "$dir/chatterboxd-dev"
+          # Xcode's own signing of the app can skip a build that changed only the service, and
+          # it doesn't know about the new name: seal the app here too. When the app's own code
+          # was just rebuilt it isn't signed yet, and Xcode's signing, which follows, seals it.
+          codesign --force --sign "$EXPANDED_CODE_SIGN_IDENTITY" --timestamp=none \
+            --preserve-metadata=identifier,entitlements,flags,runtime "$TARGET_BUILD_DIR/$WRAPPER_NAME" 2>/dev/null \
+            || echo "note: the app's code is rebuilt; Xcode's signing step seals it"
+        else
+          rm -f "$dir/chatterboxd-dev"
+        fi
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox
@@ -66,13 +104,21 @@ targets:
         CODE_SIGN_IDENTITY: Apple Development
         DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: true
+      configs:
+        Dev:
+          PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.dev
+          PRODUCT_NAME: Chatterbox Dev
+          PRODUCT_MODULE_NAME: Chatterbox
+          INFOPLIST_KEY_CFBundleDisplayName: Chatterbox Dev
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
     info:
       path: Chatterbox/Info.plist
       properties:
+        ChatterboxFlavor: $(CHATTERBOX_FLAVOR)
         CFBundleURLTypes:
-        - CFBundleURLName: com.shelbyklein.Chatterbox.chat
+        - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER).chat
           CFBundleURLSchemes:
-          - chatterbox
+          - $(CHATTERBOX_URL_SCHEME)
   ChatterboxHost:
     type: application
     platform: macOS
@@ -82,11 +128,13 @@ targets:
       - Info.plist
     - path: Core/Chatterbox/Support/JSON.swift
     - path: Core/Chatterbox/Support/HostProtocol.swift
+    - path: Core/Shared/Flavor.swift
     info:
       path: ChatterboxHost/Info.plist
       properties:
-        CFBundleDisplayName: Chatterbox Host
-        CFBundleName: Chatterbox Host
+        CFBundleDisplayName: $(CHATTERBOX_APP_NAME) Host
+        CFBundleName: $(CHATTERBOX_APP_NAME) Host
+        ChatterboxFlavor: $(CHATTERBOX_FLAVOR)
         LSUIElement: true
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
     settings:
@@ -98,6 +146,9 @@ targets:
         DEVELOPMENT_TEAM: 9F3MKVW9C5
         ENABLE_HARDENED_RUNTIME: true
         SKIP_INSTALL: true
+      configs:
+        Dev:
+          PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.dev.Host
   ChatterboxMobile:
     type: application
     platform: iOS
@@ -116,11 +167,12 @@ targets:
       path: ChatterboxMobile/Info.plist
       properties:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleDisplayName: Chatterbox
+        CFBundleDisplayName: $(CHATTERBOX_APP_NAME)
         CFBundleURLTypes:
         - CFBundleURLName: com.shelbyklein.Chatterbox.chat
           CFBundleURLSchemes:
-          - chatterbox
+          - $(CHATTERBOX_URL_SCHEME)
+        ChatterboxFlavor: $(CHATTERBOX_FLAVOR)
         ChatterboxAPNsEnvironment: $(APNS_ENVIRONMENT)
         # Standard HTTPS only: answers TestFlight's export-compliance question, so builds reach testers.
         ITSAppUsesNonExemptEncryption: false
@@ -137,7 +189,7 @@ targets:
         NSLocalNetworkUsageDescription: Chatterbox finds and talks to Chatterbox on
           your Mac over your network.
         NSBonjourServices:
-        - _chatterbox._tcp
+        - $(CHATTERBOX_BONJOUR_TYPE)
         NSPhotoLibraryAddUsageDescription: Chatterbox saves images from your chats
           to Photos when you ask it to.
         NSAppTransportSecurity:
@@ -178,6 +230,14 @@ targets:
           APNS_ENVIRONMENT: development
         Release:
           APNS_ENVIRONMENT: production
+        # Chatterbox Dev on the phone: its own app, no widget (not embedded), no app group,
+        # no push yet (plans/dev-environment.md, D5).
+        Dev:
+          APNS_ENVIRONMENT: development
+          PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.mobile.dev
+          CODE_SIGN_ENTITLEMENTS: ChatterboxMobile/ChatterboxMobileDev.entitlements
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
+          EXCLUDED_SOURCE_FILE_NAMES: ChatterboxWidget.appex
     dependencies:
     # The Home Screen and Lock Screen widget, embedded in the app.
     - target: ChatterboxWidget
@@ -193,6 +253,7 @@ targets:
     sources:
     - path: Core/ChatterboxWidget
     - path: Core/Shared/WidgetSnapshot.swift
+    - path: Core/Shared/Flavor.swift
     info:
       path: ChatterboxWidget/Info.plist
       properties:
@@ -286,6 +347,7 @@ targets:
     - path: Core/Shared/PlaceSuggestion.swift
     - path: ChatterboxDaemon
     - path: Core/Shared/AppPreferences.swift
+    - path: Core/Shared/Flavor.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.Daemon
@@ -296,6 +358,12 @@ targets:
         ENABLE_HARDENED_RUNTIME: true
         SKIP_INSTALL: true
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) CHATTERBOX_HEADLESS
+      configs:
+        Dev:
+          PRODUCT_BUNDLE_IDENTIFIER: com.shelbyklein.Chatterbox.dev.Daemon
+          # A tool is signed under its file name ("chatterboxd", the real service's identity);
+          # Dev's gets an identity of its own, so neither trusts the other's Keychain items.
+          OTHER_CODE_SIGN_FLAGS: --identifier com.shelbyklein.Chatterbox.dev.Daemon
 schemes:
   Chatterbox:
     build:

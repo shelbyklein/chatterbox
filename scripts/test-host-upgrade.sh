@@ -21,6 +21,9 @@ if [[ "${1:-}" == --legacy ]]; then
   git -C Core show "${LEGACY_CORE_REV:-HEAD}:Chatterbox/Support/JSON.swift" > "$task_dir/legacy-src/JSON.swift"
   git -C Core show "${LEGACY_CORE_REV:-HEAD}:Chatterbox/Support/HostProtocol.swift" > "$task_dir/legacy-src/HostProtocol.swift" 2>/dev/null \
     || cp Core/Chatterbox/Support/HostProtocol.swift "$task_dir/legacy-src/"
+  # Hosts since Chatterbox Dev read their folder from Flavor.swift; older ones have none.
+  git -C Core show "${LEGACY_CORE_REV:-HEAD}:Shared/Flavor.swift" > "$task_dir/legacy-src/Flavor.swift" 2>/dev/null \
+    || rm -f "$task_dir/legacy-src/Flavor.swift"
   OLD_HOST="$task_dir/old/legacy-host"
   swiftc -O -o "$OLD_HOST" "$task_dir"/legacy-src/*.swift
   touch -t "$(date -v-1d +%Y%m%d%H%M)" "$OLD_HOST"

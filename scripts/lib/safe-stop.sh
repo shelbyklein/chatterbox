@@ -2,6 +2,7 @@
 # be hosting live chats (an old ChatterboxHost carried 8 Claude chats when one was stopped).
 #
 #   hosted_work PID   prints any Claude, Codex or Chatterbox process at or under PID
+#                     (Chatterbox Dev's too: chatterboxd-dev, its ChatterboxHost, its app)
 #   safe_stop PID     stops PID and what it started, unless hosted_work finds something
 
 _safe_tree() {
@@ -14,7 +15,7 @@ hosted_work() {
   local pid
   for pid in $(_safe_tree "$1"); do
     ps -o pid=,command= -p "$pid" 2>/dev/null \
-      | grep -E '(^|/)(claude|codex)( |$)|claude -p|app-server|ChatterboxHost|chatterboxd|/Chatterbox( |$)' \
+      | grep -E '(^|/)(claude|codex)( |$)|claude -p|app-server|ChatterboxHost|chatterboxd|/Chatterbox( |$)|/Chatterbox Dev( |$)' \
       | grep -v fake-provider
   done
 }

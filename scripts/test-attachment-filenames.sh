@@ -6,6 +6,6 @@ fixture=$(mktemp -d /tmp/chatterbox-attachment-filenames.XXXXXX)
 products=build/DerivedData/Build/Products/Debug
 mkdir -p "$products"
 swiftc -o "$products/attachment-filename-tests" \
-  Core/Chatterbox/Support/JSON.swift Core/Chatterbox/Support/Attachments.swift \
+  Core/Chatterbox/Support/JSON.swift Core/Chatterbox/Support/Attachments.swift Core/Shared/Flavor.swift \
   tests/attachment-filenames/main.swift
 CHATTERBOX_DATA_DIR="$fixture" "$products/attachment-filename-tests"

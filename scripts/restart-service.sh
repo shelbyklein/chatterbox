@@ -11,14 +11,25 @@
 #                                         Codex chat starts it fresh with current settings
 #   scripts/restart-service.sh --host     (kept for old habits) hosts now hand off by themselves
 #   scripts/restart-service.sh --delay N  start N seconds from now (so a chat's reply lands first)
+#   scripts/restart-service.sh --dev      Chatterbox Dev's service (chatterboxd-dev) instead, and
+#                                         with --app its app; the real one is left alone
 #
 # Runs detached and replaces any restart already queued, so restarts never stack up.
-# The outcome goes to ~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt.
+# The outcome goes to ~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt
+# (Chatterbox Dev: Application Support/Chatterbox Dev/Diagnostics).
 set -uo pipefail
-sup="$HOME/Library/Application Support/Chatterbox"
+dev=0
+for arg in "$@"; do [[ "$arg" == --dev ]] && dev=1; done
+if (( dev )); then
+  name="Chatterbox Dev" app_id=com.shelbyklein.Chatterbox.dev daemon=chatterboxd-dev service=com.shelbyklein.chatterboxd.dev
+  queue_label="com.shelbyklein.chatterbox.restart-service.dev"
+else
+  name=Chatterbox app_id=com.shelbyklein.Chatterbox daemon=chatterboxd service=com.shelbyklein.chatterboxd
+  queue_label="com.shelbyklein.chatterbox.restart-service"
+fi
+sup="$HOME/Library/Application Support/$name"
 report="$sup/Diagnostics/service-restart.txt"
 lock="$sup/Diagnostics/service-restart.pid"
-queue_label="com.shelbyklein.chatterbox.restart-service"
 mkdir -p "$sup/Diagnostics" || exit 1
 
 if [[ "${RESTART_SERVICE_DETACHED:-}" != 1 ]]; then
@@ -54,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --codex) codex=1 ;;
     --host) host_refresh=1 ;;
     --delay) delay=${2:-0}; shift ;;
+    --dev) ;;
   esac
   shift
 done
@@ -92,16 +104,16 @@ if (( ! now )); then
   done
 fi
 
-old=$(pgrep -x chatterboxd)
-log "restarting chatterboxd (was pid ${old:-none})"
-launchctl kickstart -k "gui/$(id -u)/com.shelbyklein.chatterboxd"
+old=$(pgrep -x "$daemon")
+log "restarting $daemon (was pid ${old:-none})"
+launchctl kickstart -k "gui/$(id -u)/$service"
 for _ in $(seq 60); do
-  new=$(pgrep -x chatterboxd); [[ -n "$new" && "$new" != "$old" ]] && break; sleep 1
+  new=$(pgrep -x "$daemon"); [[ -n "$new" && "$new" != "$old" ]] && break; sleep 1
 done
 if (( codex )); then
   # Chatterbox keeps one Codex app-server in its host and reattaches to it across restarts,
   # so a changed launch setting only applies to a fresh one. Chats keep their threads.
-  for host in $(pgrep -f "Chatterbox.app/Contents/(MacOS|Helpers/ChatterboxHost.app/Contents/MacOS)/ChatterboxHost"); do
+  for host in $(pgrep -f "$name.app/Contents/(MacOS|Helpers/ChatterboxHost.app/Contents/MacOS)/ChatterboxHost"); do
     for pid in $(pgrep -P "$host" -f "codex app-server"); do
       log "stopping Chatterbox's Codex app-server (pid $pid)"
       kill "$pid" 2>/dev/null
@@ -115,16 +127,18 @@ if (( host_refresh )); then
   log "host handoff: automatic once the service reconnects; an older host exits when its agents finish"
 fi
 if (( app )); then
-  osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null
-  for _ in $(seq 40); do pgrep -xq Chatterbox || break; sleep 0.5; done
+  # By bundle id, so the other copy is never the one asked; only when it's running, since
+  # `tell application id` would launch it first.
+  pgrep -xq "$name" && osascript -e "tell application id \"$app_id\" to quit" 2>/dev/null
+  for _ in $(seq 40); do pgrep -xq "$name" || break; sleep 0.5; done
   # Agent shells carry the service's CHATTERBOX_* variables; the app must not inherit them.
-  env $(env | sed -n 's/^\(CHATTERBOX_[A-Z_]*\)=.*/-u \1/p') open /Applications/Chatterbox.app
+  env $(env | sed -n 's/^\(CHATTERBOX_[A-Z_]*\)=.*/-u \1/p') open "/Applications/$name.app"
 fi
 sleep 10
-health=$(/usr/bin/python3 - <<'PY' 2>/dev/null || echo failed
-import socket,json,uuid,os
+health=$(/usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo failed
+import socket,json,uuid,sys
 s=socket.socket(socket.AF_UNIX); s.settimeout(20)
-s.connect(os.path.expanduser('~/Library/Application Support/Chatterbox/daemon.sock')); f=s.makefile('rwb')
+s.connect(sys.argv[1]); f=s.makefile('rwb')
 def call(op,b=None):
     k=str(uuid.uuid4()); f.write((json.dumps(dict(version=1,id=k,operation=op,body=b or {}))+'\n').encode()); f.flush()
     while True:
@@ -133,4 +147,4 @@ def call(op,b=None):
 call('hello',{'role':'agent'}); print('ok' if 'result' in call('health') else 'failed')
 PY
 )
-log "chatterboxd pid ${new:-none}, health ${health}; app pid $(pgrep -x Chatterbox || echo none)"
+log "$daemon pid ${new:-none}, health ${health}; app pid $(pgrep -x "$name" || echo none)"

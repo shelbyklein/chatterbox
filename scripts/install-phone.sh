@@ -5,10 +5,16 @@
 #
 #   scripts/install-phone.sh                 the first paired phone with Developer Mode on
 #   scripts/install-phone.sh "Shelby's Duo"  a phone by name (or its UDID)
+#   scripts/install-phone.sh --dev [PHONE]   Chatterbox Dev (com.shelbyklein.Chatterbox.mobile.dev),
+#                                            beside the real app; it finds only Chatterbox Dev
 #
 # One-time on the phone: trust this Mac, then Settings → Privacy & Security → Developer Mode.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Chatterbox Dev: the Dev configuration (Debug-based, so Mac Screen is slower there), in its own
+# build folder. The real app keeps Release in build/DerivedDataMobile.
+build_config=Release derived=build/DerivedDataMobile
+if [[ "${1:-}" == --dev ]]; then build_config=Dev derived=build/DerivedDataMobile-Dev; shift; fi
 config="$HOME/.appstoreconnect/config"
 auth=(-allowProvisioningUpdates)
 if [[ -f "$config" ]]; then
@@ -38,10 +44,14 @@ udid=${device%% *}
 [[ -f "$config" ]] && /usr/bin/python3 -I scripts/register-device.py "$udid" "${device#* }"
 echo "Building for ${device#* }…"
 # Release: Debug runs the Screen Sharing decoding and sign-in maths about 25 times slower.
-xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration Release \
-  -destination "id=$udid" -derivedDataPath build/DerivedDataMobile "${auth[@]}" \
+xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -configuration "$build_config" \
+  -destination "id=$udid" -derivedDataPath "$derived" "${auth[@]}" \
   APNS_ENVIRONMENT=development -quiet build   # Development-signed, so its push tokens are the sandbox's.
-app=$(ls -d build/DerivedDataMobile/Build/Products/Release-iphoneos/*.app | head -1)
+app=$(ls -d "$derived/Build/Products/$build_config-iphoneos/"*.app | head -1)
+if [[ "$build_config" == Dev ]]; then
+  flavor=$(/usr/libexec/PlistBuddy -c 'Print ChatterboxFlavor' "$app/Info.plist")
+  [[ "$flavor" == dev && ! -e "$app/PlugIns/ChatterboxWidget.appex" ]] || { echo "Not a Chatterbox Dev build: $app" >&2; exit 1; }
+fi
 source scripts/lib/check-embedded.sh
 check_embedded "$app"
 xcrun devicectl device install app --device "$udid" "$app" | tail -3

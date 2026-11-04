@@ -20,6 +20,24 @@ if ! git diff --quiet -- Chatterbox.xcodeproj; then
   echo "Review it, stage it (git add Chatterbox.xcodeproj) and ship again." >&2
   exit 1
 fi
+# Chatterbox Dev (plans/dev-environment.md): the Dev configuration exists, and every target that
+# names its Swift files one by one also compiles Flavor.swift, where the identities live.
+/usr/bin/python3 -I - project.yml <<'PY' || exit 1
+import re, sys
+text = open(sys.argv[1]).read()
+problems = []
+if not re.search(r'^configs:\n(  \w+: \w+\n)*  Dev: debug$', text, re.M):
+    problems.append("project.yml has no Dev configuration (configs: Dev: debug)")
+targets = text.split('\ntargets:\n', 1)[1].split('\nschemes:', 1)[0]
+for block in re.split(r'\n(?=  [A-Za-z]+:\n)', targets):
+    name = block.strip().split(':', 1)[0]
+    paths = re.findall(r'^    - path: (\S+)$', block, re.M)
+    listed = [p for p in paths if p.startswith('Core/') and p.endswith('.swift')]
+    if listed and 'Core/Shared' not in paths and 'Core/Shared/Flavor.swift' not in paths:
+        problems.append(f"{name} lists its sources but not Core/Shared/Flavor.swift")
+if problems:
+    print("\n".join(problems), file=sys.stderr); sys.exit(1)
+PY
 manifest=$(mktemp /tmp/chatterbox-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT
 ./scripts/runtime-sources.sh > "$manifest"

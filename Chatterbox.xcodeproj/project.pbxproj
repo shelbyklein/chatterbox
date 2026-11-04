@@ -73,6 +73,7 @@
 		38747DB4FA4BD1380422F7ED /* bin in Resources */ = {isa = PBXBuildFile; fileRef = 6C7A085DC138EF093037DABD /* bin */; };
 		38C35AD484F69B297C79B9B8 /* CodexAppServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 064C3FB24651A1A367B53C36 /* CodexAppServer.swift */; };
 		397690B122D0F245FAEA23D9 /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
+		3AC118A12839A9BA598D4290 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
 		3B483AADFF958E0C36577F9F /* CompanionMutationLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E57D8A0521922845EFD029A /* CompanionMutationLedger.swift */; };
 		3D9C474E0171D07BCFD3E783 /* OutputBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FACABAADB1BC61CD83F6473 /* OutputBuffer.swift */; };
 		3E2D20C60750AB355102FFE9 /* ChatHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9B9BA5000628B0F42E2188 /* ChatHomeView.swift */; };
@@ -120,6 +121,7 @@
 		5FB81543834E300F4736AFE1 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		61E2DE8E9AC65F9F834630C0 /* ChatterboxWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */; };
 		62274C8508FBA7F285193C28 /* CompanionDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */; };
+		623CF2DDA6344351CF403A8A /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
 		62A8710D3A01763ADF5B0D92 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		63AC4AD4471C0C41217C114A /* ChatSession+Sidequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E21B415D59CF10CAB07EE68E /* ChatSession+Sidequest.swift */; };
 		65DFD36FCBC41F84E758DF29 /* ConversationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB73F11534DDADDA5F5063E8 /* ConversationRuntime.swift */; };
@@ -187,6 +189,7 @@
 		9B553257496CC7A3A68206A4 /* ConnectorTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */; };
 		9B9F7310DE93EEE844226B8C /* ConnectorTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */; };
 		9BDCBB02063371D520142B8D /* ModelPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14558A0837B25DEDA47B363D /* ModelPresets.swift */; };
+		9C54FDAC108989E71F2445CB /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
 		9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */; };
 		9ED58E7DD7E344630B0255D3 /* SidequestViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B655CB0300FF39415543F26 /* SidequestViews.swift */; };
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
@@ -212,6 +215,8 @@
 		B4C0CF83925F8F0C9F708CBD /* FilePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */; };
 		B548D09F2AF1C222286B54D4 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D880F9204CBD1DAFCB11DD /* Secrets.swift */; };
 		B79ABA062171F68288AF9C7D /* ProxyQuotaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251C7FD9A35A3EF56C8496A7 /* ProxyQuotaView.swift */; };
+		B7DF907397E97087AAE0C534 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
+		B8CEA5CEFD6E03605F2809A1 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
 		B8D903B35D82ECB4C76BF4CD /* ChatColumnWidths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E57E2544477255ECD5EE480 /* ChatColumnWidths.swift */; };
 		B8F25425303EC0D5CA5A29F1 /* ClaudeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C908ABB4176D8FE6CE6F3FFE /* ClaudeModels.swift */; };
 		BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */; };
@@ -476,6 +481,7 @@
 		936BB2EAF610947326AC9E1E /* ChatSession+Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Tools.swift"; sourceTree = "<group>"; };
 		9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePeer.swift; sourceTree = "<group>"; };
 		94DF99C8BDC4707D8CC25853 /* MobilePushSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePushSettings.swift; sourceTree = "<group>"; };
+		95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Flavor.swift; sourceTree = "<group>"; };
 		975B4C8301A9C31E898E446F /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 		9C4CA0CF0AC2654218DD2FE2 /* ChatSwitchTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSwitchTransition.swift; sourceTree = "<group>"; };
 		9F0AFE1BA90D359718CB671D /* MobileNewReplies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileNewReplies.swift; sourceTree = "<group>"; };
@@ -817,6 +823,7 @@
 				0DA9F0B419529549C12E3317 /* CompanionAPI.swift */,
 				F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */,
 				7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */,
+				95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */,
 				3E506CEBABA8892B98B49AE9 /* MediaKind.swift */,
 				021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */,
 				B37F8CD28A917B63AD2EF6E1 /* ReviewNotes.swift */,
@@ -910,6 +917,7 @@
 				B89A04901CAAD54BB3EDDCD5 /* Frameworks */,
 				0B9673928E888D70EF723F3E /* Embed Dependencies */,
 				5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */,
+				789D48EA974B44A21419C601 /* Name Chatterbox Dev's service */,
 			);
 			buildRules = (
 			);
@@ -1081,12 +1089,35 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		789D48EA974B44A21419C601 /* Name Chatterbox Dev's service */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Name Chatterbox Dev's service";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "dir=\"$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH\"\nif [ \"$CHATTERBOX_FLAVOR\" = dev ]; then\n  rm -f \"$dir/chatterboxd-dev\"\n  mv \"$dir/chatterboxd\" \"$dir/chatterboxd-dev\"\n  # Xcode's own signing of the app can skip a build that changed only the service, and\n  # it doesn't know about the new name: seal the app here too. When the app's own code\n  # was just rebuilt it isn't signed yet, and Xcode's signing, which follows, seals it.\n  codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --timestamp=none \\\n    --preserve-metadata=identifier,entitlements,flags,runtime \"$TARGET_BUILD_DIR/$WRAPPER_NAME\" 2>/dev/null \\\n    || echo \"note: the app's code is rebuilt; Xcode's signing step seals it\"\nelse\n  rm -f \"$dir/chatterboxd-dev\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		1041882950B3BCD285A4ADE1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				61E2DE8E9AC65F9F834630C0 /* ChatterboxWidget.swift in Sources */,
+				3AC118A12839A9BA598D4290 /* Flavor.swift in Sources */,
 				12069144D157B29FCB0815F3 /* WidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1160,6 +1191,7 @@
 				08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */,
 				CAA043E61CFFAEBAA59152B1 /* EasyCLIProxy.swift in Sources */,
 				29FD428DBD6B91C5C6CDFB27 /* FilePaths.swift in Sources */,
+				623CF2DDA6344351CF403A8A /* Flavor.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,
@@ -1240,6 +1272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				81391861CA4A3E9466F6959F /* Child.swift in Sources */,
+				B7DF907397E97087AAE0C534 /* Flavor.swift in Sources */,
 				57D138F3E0F30EAC4F1EF78D /* Host.swift in Sources */,
 				96757C4FC62A060878D6DFCD /* HostProtocol.swift in Sources */,
 				A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */,
@@ -1267,6 +1300,7 @@
 				AAEBED41FF4FDC232BDAFB3B /* CompanionTransportProbe.swift in Sources */,
 				C571AA7E4E3DC1956AE2D81A /* ConnectView.swift in Sources */,
 				B4C0CF83925F8F0C9F708CBD /* FilePaths.swift in Sources */,
+				B8CEA5CEFD6E03605F2809A1 /* Flavor.swift in Sources */,
 				A8738BB6D7C07FFF63895DD6 /* MacScreen.swift in Sources */,
 				C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */,
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
@@ -1344,6 +1378,7 @@
 				2DBC78ADC365F4DE913ECB8E /* DeskStore.swift in Sources */,
 				BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */,
 				326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */,
+				9C54FDAC108989E71F2445CB /* Flavor.swift in Sources */,
 				3453C4E8264324D032F40A73 /* GitHub.swift in Sources */,
 				EDA06FE1F8A03C54C284197A /* GitHubIssues.swift in Sources */,
 				931CA2B4D3D160CDFB1605D8 /* HTTPFileTransfer.swift in Sources */,
@@ -1403,6 +1438,57 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		074C0204A912874730414224 /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APNS_ENVIRONMENT = development;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconDev;
+				CODE_SIGN_ENTITLEMENTS = ChatterboxMobile/ChatterboxMobileDev.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				EXCLUDED_SOURCE_FILE_NAMES = ChatterboxWidget.appex;
+				INFOPLIST_FILE = ChatterboxMobile/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.mobile.dev;
+				PRODUCT_NAME = Chatterbox;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Dev;
+		};
+		24E0DAD9568DCFDB3BBD649B /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconDev;
+				CODE_SIGN_ENTITLEMENTS = Chatterbox/Chatterbox.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Chatterbox/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Chatterbox Dev";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.dev;
+				PRODUCT_MODULE_NAME = Chatterbox;
+				PRODUCT_NAME = "Chatterbox Dev";
+				SDKROOT = macosx;
+			};
+			name = Dev;
+		};
 		421B94903CC22098B41B3851 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1427,10 +1513,82 @@
 			};
 			name = Release;
 		};
+		4C7F49212CBA5C7C90E0E48E /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CHATTERBOX_APP_NAME = "Chatterbox Dev";
+				CHATTERBOX_BONJOUR_TYPE = "_chatterbox-dev._tcp";
+				CHATTERBOX_FLAVOR = dev;
+				CHATTERBOX_URL_SCHEME = "chatterbox-dev";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG CHATTERBOX_DEV";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Dev;
+		};
 		5C23ABE6C6804C72240D2BD1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CHATTERBOX_APP_NAME = Chatterbox;
+				CHATTERBOX_BONJOUR_TYPE = _chatterbox._tcp;
+				CHATTERBOX_FLAVOR = real;
+				CHATTERBOX_URL_SCHEME = chatterbox;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1495,6 +1653,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CHATTERBOX_APP_NAME = Chatterbox;
+				CHATTERBOX_BONJOUR_TYPE = _chatterbox._tcp;
+				CHATTERBOX_FLAVOR = real;
+				CHATTERBOX_URL_SCHEME = chatterbox;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -1683,6 +1845,30 @@
 			};
 			name = Debug;
 		};
+		ADA931429FAC5013E1DA0F0F /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ChatterboxWidget/ChatterboxWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				INFOPLIST_FILE = ChatterboxWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.mobile.widget;
+				PRODUCT_NAME = ChatterboxWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Dev;
+		};
 		B97516C3142AC356BC24555F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1703,6 +1889,27 @@
 				SKIP_INSTALL = YES;
 			};
 			name = Release;
+		};
+		BB9D470959168305C50D5764 /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ChatterboxHost/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.dev.Host;
+				PRODUCT_NAME = ChatterboxHost;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Dev;
 		};
 		C426739C901FF91D4D8813A5 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1752,6 +1959,27 @@
 			};
 			name = Debug;
 		};
+		F910F5E70D7E11C0B73289FE /* Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 9F3MKVW9C5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "--identifier com.shelbyklein.Chatterbox.dev.Daemon";
+				PRODUCT_BUNDLE_IDENTIFIER = com.shelbyklein.Chatterbox.dev.Daemon;
+				PRODUCT_NAME = chatterboxd;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) CHATTERBOX_HEADLESS";
+			};
+			name = Dev;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1759,6 +1987,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A355B5C3986F01189E9C9382 /* Debug */,
+				F910F5E70D7E11C0B73289FE /* Dev */,
 				7591BD0C5BE8900E12BC4BFE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -1768,6 +1997,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5C23ABE6C6804C72240D2BD1 /* Debug */,
+				4C7F49212CBA5C7C90E0E48E /* Dev */,
 				7322F848D9955166D178D256 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -1777,6 +2007,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CBC51616A0626FAEE424102C /* Debug */,
+				24E0DAD9568DCFDB3BBD649B /* Dev */,
 				C426739C901FF91D4D8813A5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -1786,6 +2017,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				986F7A0E4A6C8F2FD2E39656 /* Debug */,
+				074C0204A912874730414224 /* Dev */,
 				9B24FA5E18C9EE622D000AD5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -1795,6 +2027,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A7002EB7138142C39D38242D /* Debug */,
+				ADA931429FAC5013E1DA0F0F /* Dev */,
 				421B94903CC22098B41B3851 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -1804,6 +2037,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7773FCC666C26A62DD9E67EE /* Debug */,
+				BB9D470959168305C50D5764 /* Dev */,
 				B97516C3142AC356BC24555F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;

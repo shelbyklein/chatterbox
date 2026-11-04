@@ -11,7 +11,7 @@ struct ChatterboxApp: App {
                 .environment(model)
                 .defaultAppStorage(AppPreferences.defaults)
                 .onOpenURL { url in
-                    guard url.scheme=="chatterbox",url.host=="chat",let id=UUID(uuidString:url.path.trimmingCharacters(in:CharacterSet(charactersIn:"/"))) else{return}
+                    guard url.scheme==Flavor.current.urlScheme,url.host=="chat",let id=UUID(uuidString:url.path.trimmingCharacters(in:CharacterSet(charactersIn:"/"))) else{return}
                     model.selectedID=id
                 }
                 .task {

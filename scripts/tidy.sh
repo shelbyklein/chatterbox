@@ -15,7 +15,7 @@ source scripts/lib/safe-stop.sh
 apply=0; [[ " $* " == *" --apply "* ]] && apply=1
 repo=$PWD
 # The only build folders scripts may use (see AGENTS.md, "Build and test hygiene").
-keep_builds="DerivedData DerivedDataMobile DerivedData-MobileTests runtime TestFlight"
+keep_builds="DerivedData DerivedDataMobile DerivedData-MobileTests runtime TestFlight DerivedData-Dev DerivedDataMobile-Dev"
 day=$((24*3600)); now=$(date +%s)
 removable=0; kept=0; other_apps=0
 
@@ -52,7 +52,7 @@ while read -r pid ppid cmd; do
   removable=$((removable+1)); listed "pid $pid: ${cmd:0:120}"
   (( apply )) && safe_stop "$pid"
 done < <(ps -axo pid=,ppid=,command= | awk '$2==1' \
-  | grep -E '/tmp/[^ ]*/fake-provider|fake-provider.py|/tmp/(chatterbox|canvas)-[^ ]*/(chatterboxd|ChatterboxHost|test)( |$)' \
+  | grep -E '/tmp/[^ ]*/fake-provider|fake-provider.py|/tmp/(chatterbox|canvas)-[^ ]*/(chatterboxd(-dev)?|ChatterboxHost|test)( |$)' \
   | grep -v grep || true)
 
 section "Test temp folders older than 2 days"
@@ -69,6 +69,8 @@ for d in build/*/; do
   if in_use "$repo/$d"; then keep "$d" "in use"; else remove "$d" "one-off build folder, $(du -sh "$d" 2>/dev/null | cut -f1)"; fi
 done
 
+# Installed apps (/Applications/Chatterbox.app and /Applications/Chatterbox Dev.app) are never
+# looked at: only temp folders and repos are searched.
 section "App copies outside /Applications and the kept build folders"
 while IFS= read -r app; do
   [[ -n "$app" ]] || continue
@@ -80,8 +82,8 @@ while IFS= read -r app; do
     /tmp/*|/private/tmp/*) remove "$app" "app copy" ;;
     *) other_apps=$((other_apps+1)) ;;
   esac
-done < <( { find /tmp /private/tmp -maxdepth 6 -name Chatterbox.app -type d -prune 2>/dev/null
-            find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o -name Chatterbox.app -type d -prune -print 2>/dev/null; } | sort -u)
+done < <( { find /tmp /private/tmp -maxdepth 6 \( -name Chatterbox.app -o -name 'Chatterbox Dev.app' \) -type d -prune 2>/dev/null
+            find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o \( -name Chatterbox.app -o -name 'Chatterbox Dev.app' \) -type d -prune -print 2>/dev/null; } | sort -u)
 
 (( other_apps )) && item "$other_apps app copies in other repos' build folders; left for that repo's own cleanup"
 
