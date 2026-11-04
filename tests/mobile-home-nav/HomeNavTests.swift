@@ -329,11 +329,21 @@ final class HomeNavTests: XCTestCase {
   capture("2-sidequest-strip", app)
   app.buttons["Session Menu"].tap()
   XCTAssertTrue(app.buttons["Session Settings"].waitForExistence(timeout: 5)); app.buttons["Session Settings"].tap()
-  // The provider, then its models; no favorites or preset tiles.
+  // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
   XCTAssertTrue(app.staticTexts["Model"].waitForExistence(timeout: 5) && app.buttons["Open models"].exists, "Session Settings lists the providers")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "no favorites")
   XCTAssertFalse(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].exists, "no preset tiles")
+  let modelRow=app.buttons["model-current"]
+  XCTAssertTrue(modelRow.waitForExistence(timeout:5), "one row for the model")
+  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Most capable", "it shows the model in use, with its detail")
+  XCTAssertFalse(modelItem("Sonnet 5",app).exists || modelItem("Haiku 5",app).exists, "only the model in use shows, not every model")
+  XCTAssertLessThan(modelRow.frame.minY, app.staticTexts["Effort"].firstMatch.frame.minY, "then the effort, right under it")
   capture("2b-chat-settings", app)
+  modelRow.tap()
+  XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5) && modelItem("Haiku 5",app).exists && modelItem("Opus 5.5",app).exists, "its menu lists the provider's models")
+  capture("phone-model-compact", app)
+  modelItem("Sonnet 5",app).tap()
+  XCTAssertTrue(modelItem("Sonnet 5",app).waitForNonExistence(timeout:5), "picking one closes the menu")
   app.navigationBars["Session Settings"].buttons["Done"].tap()
   // The strip yields while a chat is open: a left-edge swipe here mustn't switch tabs.
   // (A synthesized drag can't trigger iOS's own Back swipe; see the calibration test.)
@@ -678,20 +688,70 @@ final class HomeNavTests: XCTestCase {
   app.buttons["desk-open-"+deskID("questions")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "Open opens the session")
  }
- /// Start There: the proposed Studio; the new session opens.
+ /// Start There: its step shows the place, the sessions already there doing the same work (a
+ /// clear match chosen) and New session. Continue sends the request to that session; the Desk
+ /// stays, with a note to open it.
  @MainActor func testDeskStartThere() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
   let start=app.buttons["desk-start-"+deskID("banner")]
   XCTAssertTrue(start.waitForExistence(timeout:20)); reveal(start, app); start.tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10), "the started session opens, in its Studio")
+  XCTAssertTrue(app.navigationBars["Start There"].waitForExistence(timeout:5), "Start There opens its step, not a session")
+  let archie=app.buttons["desk-thread-"+deskID("Coach Archie")], other=app.buttons["desk-thread-963CA311-2496-5A83-9807-3AE28F7E5FB5"], fresh=app.buttons["desk-thread-new"]
+  XCTAssertTrue(archie.waitForExistence(timeout:8) && other.exists && fresh.exists, "Continue in each session like it, and New session")
+  XCTAssertTrue(app.staticTexts["Continue in Coach Archie"].exists && app.staticTexts["USA Archery"].exists, "named, in the place shown")
+  XCTAssertLessThan(archie.frame.maxY, fresh.frame.minY, "Continue in first")
+  XCTAssertTrue(archie.isSelected && !fresh.isSelected, "the clear match is chosen")
+  XCTAssertFalse(app.buttons["model-current"].exists, "continuing keeps that session's model")
+  XCTAssertEqual(app.buttons["desk-start-confirm"].label, "Continue")
+  let threads=try await deskCalls().last { ($0["action"] as? String)=="threads" }
+  XCTAssertEqual(threads?["id"] as? String, deskID("banner").lowercased()); XCTAssertEqual((threads?["place"] as? String)?.lowercased(), uuid("studio").lowercased(), "asked in the place shown")
+  capture("phone-start-sheet", app)
+  app.buttons["desk-start-confirm"].tap()
+  let note=startedNote(app)
+  XCTAssertTrue(note.waitForExistence(timeout:8), "the Desk notes it")
+  XCTAssertTrue(note.label.contains("Continued in Coach Archie"), note.label)
+  XCTAssertFalse(app.staticTexts["Hi! This is Coach Archie."].exists, "and nothing opens")
+  XCTAssertTrue(app.staticTexts["desk-summary"].exists, "the Desk stays")
   capture("desk-started", app)
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].exists)
+  XCTAssertFalse(app.buttons["desk-start-"+deskID("banner")].exists, "started, it leaves Incoming")
   let call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "start"); XCTAssertEqual(call?["id"] as? String, deskID("banner").lowercased())
-  XCTAssertNil((call?["body"] as? [String:Any])?["place"], "where proposed")
-  deskTab(app).tap()
-  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForExistence(timeout:5))
-  XCTAssertFalse(app.buttons["desk-start-"+deskID("banner")].exists, "started, it leaves Incoming")
+  let body=call?["body"] as? [String:Any]
+  XCTAssertEqual((body?["continueChat"] as? String)?.lowercased(), deskID("Coach Archie").lowercased(), "Continue sends the session")
+  XCTAssertNil(body?["place"], "where proposed"); XCTAssertNil(body?["model"], "and no model")
+  // Open, at the note's end, opens that session.
+  XCTAssertTrue(note.exists, "the note is still up")
+  note.coordinate(withNormalizedOffset:CGVector(dx:0.93,dy:0.5)).tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10), "Open opens it")
+ }
+ /// A new session instead: its model, as compact as Session Settings' (one row, a menu);
+ /// Start sends the agent and model picked, and runs it in the background.
+ @MainActor func testDeskStartPicksModel() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let start=app.buttons["desk-start-"+deskID("banner")]
+  XCTAssertTrue(start.waitForExistence(timeout:20)); reveal(start, app); start.tap()
+  let fresh=app.buttons["desk-thread-new"]
+  XCTAssertTrue(fresh.waitForExistence(timeout:8)); fresh.tap()
+  let modelRow=app.buttons["model-current"]
+  XCTAssertTrue(modelRow.waitForExistence(timeout:5), "New session: its model")
+  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Most capable", "as a new session there would start")
+  XCTAssertEqual(app.buttons["desk-start-confirm"].label, "Start")
+  modelRow.tap()
+  XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5), "the menu lists the models")
+  modelItem("Sonnet 5",app).tap()
+  let picked=expectation(for:NSPredicate(format:"label == %@","Model: Sonnet 5, Fast and capable"),evaluatedWith:modelRow)
+  await fulfillment(of:[picked],timeout:5)
+  capture("desk-start-model", app)
+  app.buttons["desk-start-confirm"].tap()
+  let note=startedNote(app)
+  XCTAssertTrue(note.waitForExistence(timeout:8) && note.label.contains("Started in USA Archery"), "started in the background: \(note.label)")
+  XCTAssertFalse(app.staticTexts["Hi! This is Coach Archie."].exists, "nothing opens")
+  let body=(try await deskCalls().last)?["body"] as? [String:Any]
+  XCTAssertEqual(body?["agent"] as? String, "claude"); XCTAssertEqual(body?["model"] as? String, "sonnet", "the model picked")
+  XCTAssertNil(body?["continueChat"], "a new session")
  }
  /// Change Place lists every place with its detail line; Start There then uses the one picked.
  @MainActor func testDeskChangePlace() async throws {
@@ -711,7 +771,11 @@ final class HomeNavTests: XCTestCase {
   let chip=app.buttons["desk-place-"+deskID("banner")]
   XCTAssertTrue(chip.waitForExistence(timeout:5)); XCTAssertEqual(chip.label, "Place: Geekify, changed")
   app.buttons["desk-start-"+deskID("banner")].tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Crystal concept."].waitForExistence(timeout:10), "it starts in the place picked")
+  // The step shows the place picked; nothing like it there, so a new session.
+  XCTAssertTrue(app.buttons["desk-start-confirm"].waitForExistence(timeout:5) && app.staticTexts["Geekify"].exists, "the step shows the place picked")
+  XCTAssertTrue(app.buttons["model-current"].waitForExistence(timeout:5) && !app.buttons["desk-thread-new"].exists, "no sessions like it there: just the model")
+  app.buttons["desk-start-confirm"].tap()
+  XCTAssertTrue(startedNote(app).waitForExistence(timeout:8) && startedNote(app).label.contains("Started in Geekify"), "it starts in the place picked, in the background")
   let call=try await deskCalls().last
   let place=(call?["body"] as? [String:Any])?["place"] as? [String:Any]
   XCTAssertEqual(place?["name"] as? String, "Geekify"); XCTAssertEqual(place?["kind"] as? String, "studio")
@@ -723,7 +787,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["desk-place-option-Chatterbox"].waitForExistence(timeout:8)); app.buttons["desk-place-option-Chatterbox"].tap()
   let startPrinter=app.buttons["desk-start-"+deskID("printer")]
   XCTAssertTrue(app.buttons["desk-change-"+deskID("printer")].waitForExistence(timeout:5) && startPrinter.isEnabled, "placed, it can start"); startPrinter.tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  XCTAssertTrue(app.buttons["desk-start-confirm"].waitForExistence(timeout:5)); app.buttons["desk-start-confirm"].tap()
+  XCTAssertTrue(startedNote(app).waitForExistence(timeout:8) && startedNote(app).label.contains("Started in Chatterbox"), startedNote(app).label)
   let second=((try await deskCalls().last)?["body"] as? [String:Any])?["place"] as? [String:Any]
   XCTAssertEqual(second?["name"] as? String, "Chatterbox"); XCTAssertEqual(second?["kind"] as? String, "project")
  }
@@ -985,6 +1050,13 @@ final class HomeNavTests: XCTestCase {
    "Galley":"B5BBD354-BAAF-5AB3-B7FE-3ACD63B384E2","Coach Archie":"F982B462-68F5-509B-8E10-9946C3F0A1B1"][name]!
  }
  func deskCalls() async throws -> [[String:Any]] { try await fixture("desk-calls",method:"GET") as? [[String:Any]] ?? [] }
+ /// A model in the model row's menu (its label may carry the detail line after the name).
+ @MainActor func modelItem(_ name:String,_ app:XCUIApplication) -> XCUIElement {
+  app.descendants(matching:.any).matching(NSPredicate(format:"(elementType == %d OR elementType == %d OR elementType == %d) AND (label == %@ OR label BEGINSWITH %@)",
+   XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.switch.rawValue, XCUIElement.ElementType.menuItem.rawValue, name, name+",")).firstMatch
+ }
+ /// The note a start leaves on the Desk: it runs in the background, with Open.
+ @MainActor func startedNote(_ app:XCUIApplication) -> XCUIElement { app.descendants(matching:.any)["desk-started"] }
  /// Scrolls the Desk until the element is on screen.
  @MainActor func reveal(_ element:XCUIElement,_ app:XCUIApplication) {
   for _ in 0..<5 where !(element.exists && element.isHittable) { app.swipeUp() }
@@ -1145,16 +1217,20 @@ final class HomeNavTests: XCTestCase {
   for _ in 0..<6 where !codexList.isHittable { app.swipeUp() }
   XCTAssertTrue(openList.exists, "open models are a provider")
   XCTAssertLessThan(codexList.frame.maxY, app.staticTexts["Effort"].firstMatch.frame.minY, "the provider comes before the effort")
-  // An open model: no effort for it.
+  // An open model: no effort for it. The row prompts for one; its menu lists them.
   openList.tap()
-  let qwen=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","qwen3.5:9b")).firstMatch
+  let modelRow=app.buttons["model-current"]
+  XCTAssertTrue(modelRow.waitForExistence(timeout:5)); XCTAssertEqual(modelRow.label, "Model: Choose an open model, Runs on the PC")
+  modelRow.tap()
+  let qwen=modelItem("qwen3.5:9b",app)
   XCTAssertTrue(qwen.waitForExistence(timeout:5), "the open models list shows")
   qwen.tap()
   let effortGone=expectation(for:NSPredicate(format:"exists == false"),evaluatedWith:app.staticTexts["Effort"].firstMatch)
   await fulfillment(of:[effortGone],timeout:5)
   // Then Codex: pick one of its models; that switches the agent.
   codexList.tap()
-  let sol=app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","GPT-6.1-Sol")).firstMatch
+  XCTAssertTrue(modelRow.waitForExistence(timeout:5)); modelRow.tap()
+  let sol=modelItem("GPT-6.1-Sol",app)
   XCTAssertTrue(sol.waitForExistence(timeout:5), "the Codex list shows")
   sol.tap()
   XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "picking another agent's model loads that agent's permissions")
@@ -1292,7 +1368,8 @@ final class HomeNavTests: XCTestCase {
  func uuid(_ name: String) -> String {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
    "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340",
-   "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD"][name]!
+   "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD",
+   "studio": "2A955822-AC32-5554-95DF-BB415831052F"][name]!
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)

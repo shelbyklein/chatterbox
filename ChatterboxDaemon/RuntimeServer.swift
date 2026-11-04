@@ -208,8 +208,8 @@ import CoreFoundation
             case "desk":
                 // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
                 let action=r.body["action"]?.string ?? "get"
-                guard role=="ui" || ["get","places","add"].contains(action) else{throw RuntimeFailure("permission_denied")}
-                if ["get","places"].contains(action) {result=try DeskStore.shared.operation(r.body,agent:role != "ui");break}
+                guard role=="ui" || ["get","places","threads","options","add"].contains(action) else{throw RuntimeFailure("permission_denied")}
+                if ["get","places","threads","options"].contains(action) {result=try DeskStore.shared.operation(r.body,agent:role != "ui");break}
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
                 result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try DeskStore.shared.operation(r.body,agent:role != "ui")}
             case "draft":

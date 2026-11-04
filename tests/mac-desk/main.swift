@@ -4,8 +4,10 @@ import SwiftUI
 // The Desk on the Mac (plans/front-desk.md, T3): Home's first page, with Needs you from this
 // Mac's sessions, Incoming and replies from a stand-in service Desk, and Working. Checks the
 // summary line, which sections show, the "desk" requests it sends (get, add, start, ignore,
-// silence, places), that Open, Approve, Ignore, Silence and Start there do what they say, that
-// cards are named as the session lists name them, and two columns on a wide window.
+// silence, places, threads, options), that Open, Approve, Ignore, Silence and Start there do
+// what they say (Start there's step: continue a session already there, or pick the model; it
+// runs in the background with a note, nothing opens), that cards are named as the session
+// lists name them, and two columns on a wide window.
 // Evidence: desk-*.png in the fixture folder.
 setbuf(stdout, nil)
 let app = NSApplication.shared
@@ -113,6 +115,20 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         .init(id: ribbons.id, chatID: ribbons.id, title: "National Event Ribbons", place: nil, kind: "reply", text: "Stale?"),
         .init(id: UUID(), chatID: UUID(), title: "Gone", place: nil, kind: "reply", text: "Gone?"),
     ], incoming: [resultsEmail, badge, order], working: [])
+    // Start there's step: sessions already in the place like the work, and a new session's options.
+    let sameWork = Companion.DeskThread(id: plan.id, title: "Mac Desk page", detail: "Add the Desk as Home's first page", settings: "Claude · Opus 5.5 · High",
+                                        updatedAt: now.addingTimeInterval(-300), isRunning: true, match: "clear")
+    let similar = Companion.DeskThread(id: sdhq.id, title: "Menu refresh", settings: "Codex · GPT-6.1-Sol", updatedAt: now.addingTimeInterval(-900), isRunning: false, match: "possible")
+    func options(_ picks: Companion.SettingsRequest) -> Companion.ChatOptions {
+        let codex = picks.backend == "codex"
+        return .init(backend: codex ? "codex" : "claude", model: picks.model ?? (codex ? "" : "opus"), effort: picks.effort ?? "medium",
+                     claudeModels: [.init(id: "opus", name: "Opus 5.5", detail: "Most capable", efforts: ["low", "medium", "high"], defaultEffort: "medium"),
+                                    .init(id: "sonnet", name: "Sonnet 5", detail: "Fast", efforts: ["low", "medium", "high"], defaultEffort: "medium")],
+                     codexModels: [.init(id: "", name: "Codex default", detail: "", efforts: [], defaultEffort: nil),
+                                   .init(id: "gpt-6.1-sol", name: "GPT-6.1-Sol", detail: "", efforts: ["low", "medium", "high"], defaultEffort: "medium")],
+                     modes: [], mode: "default", presets: [], openModels: [.init(id: "qwen3.5:9b", name: "qwen3.5:9b", detail: "On Shelby-PC", efforts: [], defaultEffort: nil)],
+                     openModel: picks.openModel)
+    }
     var sent: [JSON] = []
     let desk = DeskModel.shared
     desk.transport = { body, _ in
@@ -140,7 +156,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
             return try JSON.value(service)
         case "start":
             service.incoming.removeAll { $0.id == id }; service.revision += 1
-            return ["revision": 1, "summary": ["id": .string(startedID.uuidString), "title": "Fix the iPad sidebar badge"], "settings": "Claude", "items": [], "earlierCount": 0]
+            // Continuing answers with that session; a new one with the started session.
+            let chat = body["continueChat"]?.string ?? startedID.uuidString
+            return ["revision": 1, "summary": ["id": .string(chat), "title": "Fix the iPad sidebar badge"], "settings": "Claude", "items": [], "earlierCount": 0]
+        case "threads":
+            return try JSON.value(id == badge.id ? [sameWork, similar] : [Companion.DeskThread]())
+        case "options":
+            return try JSON.value(options((try? body["picks"]?.decode(Companion.SettingsRequest.self)) ?? .init()))
         default: throw RuntimeFailure("unsupported_operation")
         }
     }
@@ -290,23 +312,66 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(plan.pendingRequests.map(\.id) == [planItem] && plan.items[0].approvalState == .pending, "and stays pending in its session")
     try snapshot("desk-silenced")
 
-    // Change place, then Start there: {action: start, id, place}, then the new session opens once listed.
+    // Change place, then Start there: its step loads the place's sessions like the work and a
+    // new session's options, with the place chosen.
     let geekify = places[2]
     desk.choose(geekify, for: badge)
     try await Task.sleep(for: .milliseconds(300))
     try snapshot("desk-changed-place")
+    let selectedBefore = model.selectedID
     Task { @MainActor in
         try? await Task.sleep(for: .milliseconds(600))
         var started = record("Fix the iPad sidebar badge"); started.id = startedID
         _ = model.insertSession(started)
     }
-    try await click("start:\(badge.id)")
+    let step = DeskStartStep(request: badge, desk: desk)
+    try await render(AnyView(DeskStartPopover(step: step) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 400, "desk-start-continue")
+    let asked = sent.last { $0["action"]?.string == "threads" }
+    check(asked?["id"]?.string == badge.id.uuidString && (try? asked?["place"]?.decode(Companion.DeskPlace.self)) == geekify, "the step asks for threads in the place chosen")
+    check((try? sent.last { $0["action"]?.string == "options" }?["place"]?.decode(Companion.DeskPlace.self)) == geekify, "and a new session's options there")
+    check(frame("thread:\(sameWork.id)") != nil && frame("thread:\(similar.id)") != nil && frame("thread:new") != nil, "Continue in each session like the work, and New session")
+    check(step.continuing == sameWork.id && frame("startModel") == nil, "a clear match is chosen; continuing needs no model")
+    if let a = frame("thread:\(sameWork.id)"), let b = frame("thread:new") { check(a.maxY <= b.minY, "Continue in comes before New session") }
+    try await click("thread:new")
+    check(step.continuing == nil && frame("startProvider") != nil && frame("startModel") != nil, "New session: the agent and its model")
+    try snapshot("desk-start-new")
+    try await click("thread:\(sameWork.id)")
+    try await click("startConfirm")
+    for _ in 0..<20 where desk.startedNote == nil { try await Task.sleep(for: .milliseconds(100)) }
     let start = sent.last { $0["action"]?.string == "start" }
-    check(start?["id"]?.string == badge.id.uuidString && (try? start?["place"]?.decode(Companion.DeskPlace.self)) == geekify,
-          "Start there sends start with the id and the chosen place (\(String(describing: start)))")
-    for _ in 0..<30 where model.selectedID != startedID { try await Task.sleep(for: .milliseconds(100)) }
-    check(model.selectedID == startedID && !model.showingHome, "the started session opens once the app has it")
+    check(start?["id"]?.string == badge.id.uuidString && (try? start?["place"]?.decode(Companion.DeskPlace.self)) == geekify
+          && start?["continueChat"]?.string == sameWork.id.uuidString && start?["model"] == nil,
+          "Continue sends start with the id, the place and the session to continue (\(String(describing: start)))")
+    try await Task.sleep(for: .milliseconds(900))
+    check(desk.startedNote?.chat == sameWork.id && desk.startedNote?.continued == true && desk.startedNote?.name == "Mac Desk page" && model.selectedID == selectedBefore,
+          "it runs in the background: a note says where, and nothing opens")
     check(!desk.sections(in: model).incoming.contains { $0.id == badge.id }, "a started request leaves the Desk")
+    try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1080, 700, "desk-started-note")
+    check(frame("startedNote") != nil, "the Desk shows the note, with Open")
+    // A new session with the model picked: agent and model go with start.
+    let modelStep = DeskStartStep(request: resultsEmail, desk: desk)
+    try await render(AnyView(DeskStartPopover(step: modelStep) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 300, "desk-start-model")
+    check(modelStep.threads?.isEmpty == true && frame("thread:new") == nil && frame("startModel") != nil, "nothing like it already there: just the model")
+    await modelStep.pick(modelStep.change(picking: "gpt-6.1-sol", of: "codex"))
+    check(modelStep.options?.backend == "codex" && modelStep.options?.model == "gpt-6.1-sol", "picking another agent's model switches to it")
+    try await Task.sleep(for: .milliseconds(300))
+    try snapshot("desk-start-model-picked")
+    try await click("startConfirm")
+    for _ in 0..<20 where desk.startedNote?.chat != startedID { try await Task.sleep(for: .milliseconds(100)) }
+    let modelStart = sent.last { $0["action"]?.string == "start" }
+    check(modelStart?["id"]?.string == resultsEmail.id.uuidString && modelStart?["agent"]?.string == "codex" && modelStart?["model"]?.string == "gpt-6.1-sol"
+          && modelStart?["continueChat"] == nil, "Start sends the agent and model picked (\(String(describing: modelStart)))")
+    check(desk.startedNote?.chat == startedID && desk.startedNote?.continued == false && desk.startedNote?.name == "USA Archery" && model.selectedID == selectedBefore,
+          "a new session starts in the background too")
+    // Nothing changed: start sends no model, so it starts as a new session there would.
+    service.incoming.append(order)
+    desk.load(service)
+    desk.choose(usaPlace, for: order)
+    let plain = DeskStartStep(request: order, desk: desk)
+    await plain.load()
+    await plain.start()
+    let plainStart = sent.last { $0["action"]?.string == "start" }
+    check(plainStart?["id"]?.string == order.id.uuidString && plainStart?["agent"] == nil && plainStart?["model"] == nil, "untouched, start sends just the place")
 
     // The ask box: {action: add, text, source: you}.
     let added = await desk.add("  Book the venue for the 2028 Indoor Nationals  ")

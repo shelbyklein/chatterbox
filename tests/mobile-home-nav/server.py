@@ -49,6 +49,12 @@ def desk_reset(empty=False):
 def desk():
  working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n} for n in RUNNING]
  return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED}
+# Start There's step: sessions already in USA Archery like the banner request (Coach Archie, a
+# clear match, working; No image, possible). Other places and requests have none.
+def desk_threads(id,place):
+ if id.lower()!=cid('desk-banner') or (place or '').lower()!=cid('studio'):return []
+ return [{'id':cid('Coach Archie'),'title':'Coach Archie','detail':'Full USA flags on both sleeves.','settings':'Claude · Opus 5.5 · Medium','updatedAt':stamp(30),'isRunning':'Coach Archie' in RUNNING,'match':'clear'},
+  {'id':cid('No image'),'title':'No image','detail':'Text-only session.','settings':'Codex · GPT-6.1-Sol','updatedAt':stamp(600),'isRunning':False,'match':'possible'}]
 def started_chat(place):
  # The session a start opens: a fixture chat in that place.
  if not place or place.get('kind')=='loose':return 'Loose chat'
@@ -138,7 +144,7 @@ def detail(id):
  # A reply with a 3D model (an STL) to preview.
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
- options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
+ options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Most capable','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Fast and capable','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
 def stl():
  # A binary STL pyramid on a square base.
@@ -228,6 +234,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    DESK_CALLS.append({'action':action,'id':id,'body':body})
    DESK_INCOMING=[r for r in DESK_INCOMING if r['id'].lower()!=id];DESK_REVISION+=1
    if action=='ignore':return self.reply(desk())
+   # Continuing answers with that session; otherwise the one started in the place.
+   if body.get('continueChat'):return self.reply(detail(body['continueChat']))
    return self.reply(detail(cid(started_chat(body.get('place') or request['proposed']))))
   if self.path.startswith('/v1/chats/') and '/approvals/' in self.path:
    parts=self.path.split('/');chat,item=parts[3].lower(),parts[5].lower()
@@ -285,6 +293,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/automations':return self.reply(AUTOMATIONS)
   if self.path=='/v1/desk':return self.reply(desk())
   if self.path=='/v1/desk/places':return self.reply(PLACES)
+  if self.path.startswith('/v1/desk/') and self.path.split('?')[0].endswith('/threads'):
+   import urllib.parse
+   id=self.path.split('/')[3].lower();place=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query)).get('place')
+   DESK_CALLS.append({'action':'threads','id':id,'place':place})
+   return self.reply(desk_threads(id,place))
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path=='/test/briefs':return self.reply(BRIEFS)
   if self.path=='/test/renames':return self.reply(RENAMES)
@@ -309,13 +322,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/chats':
    time.sleep(LIST_DELAY);return self.reply(chats())
   if self.path=='/test/created':return self.reply(CREATED)
+  if self.path=='/test/new-chat-options':return self.reply(NEWCHAT)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path.startswith('/v1/new-chat-options'):
    import urllib.parse
    q=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
    NEWCHAT.append(q)
    o=detail(cid('SDHQ'))['options']
-   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'','systemImage':'eye','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'','systemImage':'eye','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   if q.get('model'):o['model']=q['model']
    if q.get('effort'):o['effort']=q['effort']
    if q.get('openModel'):o['openModel']=q['openModel']
    return self.reply(o)

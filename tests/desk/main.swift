@@ -56,14 +56,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     _ = try model.newSidechat(of: dogear)
 
     // The phone's routes need a paired token.
-    func request(_ method: String, _ path: String, _ body: Data = Data(), _ headers: [String: String]) -> HTTPResponse {
-        server.respond(to: HTTPRequest(method: method, path: path, query: [:], headers: headers, body: body))
+    func request(_ method: String, _ path: String, _ body: Data = Data(), _ headers: [String: String], query: [String: String] = [:]) -> HTTPResponse {
+        server.respond(to: HTTPRequest(method: method, path: path, query: query, headers: headers, body: body))
     }
     let paired = request("POST", "/v1/pair", try Companion.encoder.encode(Companion.PairRequest(code: server.pairingCode, deviceName: "Desk fixture")), [:])
     try check(paired.status == 200, "a phone pairs")
     let token = try Companion.decoder.decode(Companion.PairResponse.self, from: paired.body).token
     let auth = [Companion.tokenHeader.lowercased(): token]
-    func call(_ method: String, _ path: String, _ body: Data = Data()) -> HTTPResponse { request(method, path, body, auth) }
+    func call(_ method: String, _ path: String, _ body: Data = Data(), query: [String: String] = [:]) -> HTTPResponse { request(method, path, body, auth, query: query) }
     func encode<T: Encodable>(_ value: T) throws -> Data {
         let e = JSONEncoder(); e.outputFormatting = .sortedKeys; e.dateEncodingStrategy = .iso8601; return try e.encode(value)
     }
@@ -282,6 +282,67 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(gone.status == 404 && (try? Companion.decoder.decode(Companion.ErrorResponse.self, from: gone.body))?.error == "That Studio is gone.", "and a Studio that's gone is still refused")
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "no agent started")
 
+    // Threads: sessions already in the place doing the same work, to continue instead.
+    let elsewhereSync = try runtime.insert(record("Fix the highlight sync", studio: archery, items: [DisplayItem(kind: .user, text: "Fix the highlight sync")]))
+    var archivedSync = record("Fix the highlights sync and the bookmarks"); archivedSync.sidechatOf = dogear.id; archivedSync.archivedAt = Date()
+    _ = try runtime.insert(archivedSync)
+    let followUp = try deskOf(add("Fix the highlights sync followUp: bookmarks vanish after the book import")).incoming[0]
+    try check(followUp.proposed?.id == dogear.id, "a follow-up is proposed for the same project")
+    func threadsOf(_ response: HTTPResponse) throws -> [Companion.DeskThread] { try Companion.decoder.decode([Companion.DeskThread].self, from: response.body) }
+    let threads = try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads"))
+    try check(threads.first?.id == side.summary.id && threads.first?.match == "clear" && threads.first?.title == side.summary.title,
+              "threads: the session started for the same work first, a clear match: \(threads.map { "\($0.title) \($0.match)" })")
+    try check(threads.contains { $0.id == branch.id && $0.match == "possible" } && threads.count <= DeskStore.threadLimit,
+              "and the project's worktree doing similar work, as possible")
+    try check(!threads.contains { $0.id == elsewhereSync.id } && !threads.contains { $0.title == archivedSync.title } && !threads.contains { $0.id == phoneSide.summary.id },
+              "only the place's own open sessions that share the work: not another Studio's, an archived one, or an unrelated Sidechat")
+    try check(threads.first?.settings?.isEmpty == false && threads.first?.isRunning == false, "each says its agent and whether it's working")
+    let inArchery = try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads", query: ["place": archery.id.uuidString]))
+    try check(inArchery.map(\.id) == [elsewhereSync.id], "threads in another place chosen: that place's own")
+    try check(call("GET", "/v1/desk/\(followUp.id)/threads", query: ["place": UUID().uuidString]).status == 404 && call("GET", "/v1/desk/\(UUID())/threads").status == 404,
+              "an unknown place or request: 404")
+    try check(try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads", query: ["place": "loose"])).allSatisfy { runtime.session($0.id)?.record.studioID == nil && runtime.session($0.id)?.record.sidechatOf == nil },
+              "loose threads are loose sessions")
+    let close = try deskOf(add("Fix the highlight sync", place: "Dogear")).incoming[0]
+    let closeThreads = try threadsOf(call("GET", "/v1/desk/\(close.id)/threads"))
+    try check(closeThreads.count >= 2 && closeThreads.allSatisfy { $0.match == "possible" }, "two as likely: neither is a clear match: \(closeThreads.map { "\($0.title) \($0.match)" })")
+    let unrelated = try deskOf(add("Buy coffee filters", place: "Dogear")).incoming[0]
+    try check(try threadsOf(call("GET", "/v1/desk/\(unrelated.id)/threads")).isEmpty, "nothing like it: no threads")
+
+    // Continue: the request is that session's next message (queued while it works); nothing new starts.
+    let sideSession = runtime.session(side.summary.id)!
+    sideSession.isRunning = true
+    let before = runtime.sessions.count
+    let continued = call("POST", "/v1/desk/\(followUp.id)/start", try encode(Companion.DeskStartRequest(continueChat: side.summary.id)))
+    let continuedDetail = try Companion.decoder.decode(Companion.ChatDetail.self, from: continued.body)
+    try check(continued.status == 200 && continuedDetail.summary.id == side.summary.id && runtime.sessions.count == before,
+              "continue: that session's ChatDetail, and no new session")
+    try check(sent.last?.chat == side.summary.id && sent.last?.text == followUp.text && sideSession.items.last?.text == followUp.text,
+              "the request goes to it as its next message, while it works")
+    try check(!desk.requests.contains { $0.id == followUp.id } && sideSession.record.title == side.summary.title, "it leaves the Desk; the session keeps its name")
+    sideSession.isRunning = false
+    try check(call("POST", "/v1/desk/\(close.id)/start", try encode(Companion.DeskStartRequest(continueChat: UUID()))).status == 404
+              && desk.requests.contains { $0.id == close.id } && runtime.sessions.count == before, "continuing a session that's gone: refused, and kept")
+    // The model chosen: applied before the first message.
+    let picked = call("POST", "/v1/desk/\(close.id)/start", try encode(Companion.DeskStartRequest(place: DeskStore.loose, agent: "claude", model: "sonnet", effort: "high")))
+    let pickedChat = runtime.session(try Companion.decoder.decode(Companion.ChatDetail.self, from: picked.body).summary.id)
+    try check(picked.status == 200 && pickedChat?.record.backend == .claude && pickedChat?.record.model == "sonnet" && pickedChat?.record.effort == "high",
+              "start with a model: the new session runs it, at the effort chosen")
+    let codexPick = try deskOf(add("Rename the export menu", place: "loose")).incoming[0]
+    let codexChat = runtime.session(try Companion.decoder.decode(Companion.ChatDetail.self, from: call("POST", "/v1/desk/\(codexPick.id)/start",
+        try encode(Companion.DeskStartRequest(agent: "codex", model: "gpt-6.1-sol"))).body).summary.id)
+    try check(codexChat?.record.backend == .codex && codexChat?.record.codex?.model == "gpt-6.1-sol", "and Codex's model for a Codex session")
+    // An older phone's body, without the new fields, still starts where proposed.
+    let oldBody = try deskOf(add("Plan the archery banner print run", place: "USA Archery")).incoming[0]
+    let oldStart = call("POST", "/v1/desk/\(oldBody.id)/start", Data(#"{"agent":"claude"}"#.utf8))
+    try check(oldStart.status == 200 && runtime.session(try Companion.decoder.decode(Companion.ChatDetail.self, from: oldStart.body).summary.id)?.record.studioID == archery.id,
+              "a start without the new fields is unchanged")
+    // New chat options for a project's Sidechat, as the start step shows them.
+    let projectOptions = try Companion.decoder.decode(Companion.ChatOptions.self, from: call("GET", "/v1/new-chat-options", query: ["project": dogear.id.uuidString]).body)
+    try check(projectOptions.backend == dogear.record.backend.rawValue, "new chat options for a project: its Sidechat's agent")
+    try check(try desk.options(for: .init(kind: "project", id: dogear.id, name: "Dogear"), picks: .init(backend: "codex")).backend == "codex", "the Desk's options take the picks")
+    try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "no agent started by continuing or picking a model")
+
     // Claude's connector: propose_work puts work on the Desk from Claude.
     let (proposed, failed) = await ConnectorTools.call("propose_work", arguments: ["text": "Draft the fall camp flyers, banners and homepage copy", "note": "Camp starts in October"], token: token)
     try check(!failed && proposed.contains("Studio USA Archery") && desk.requests.first?.source == "claude" && desk.requests.first?.note == "Camp starts in October",
@@ -303,6 +364,12 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(got.revision == desk.revision && got.incoming == desk.requests, "socket get: the Desk")
     let socketPlaces = try await agent.request("desk", body: ["action": "places"]).decode([Companion.DeskPlace].self)
     try check(socketPlaces == desk.places(), "socket places")
+    let socketThreads = try await agent.request("desk", body: ["action": "threads", "id": .string(unrelated.id.uuidString),
+                                                               "place": try .value(Companion.DeskPlace(kind: "studio", id: archery.id, name: "USA Archery"))])
+    try check((try socketThreads.decode([Companion.DeskThread].self)) == (try desk.threads(for: unrelated.id, place: .init(kind: "studio", id: archery.id, name: "USA Archery"))),
+              "socket threads, in the place given (an agent may look)")
+    let socketOptions = try await ui.request("desk", body: ["action": "options", "place": try .value(DeskStore.loose), "picks": ["backend": "codex"]]).decode(Companion.ChatOptions.self)
+    try check(socketOptions.backend == "codex", "socket options: a new session's, with the picks")
     let fromAgent = try await agent.request("desk", body: ["action": "add", "text": "Tidy the PlayCase Arcade level list for TestFlight", "source": "you"]).decode(Companion.Desk.self)
     try check(fromAgent.incoming[0].source == "claude" && fromAgent.incoming[0].proposed?.id == playcase.id, "an agent's add is from Claude, never from you")
     try await wait("desk.changed after the add") { changes.contains { $0.incoming.first?.id == fromAgent.incoming[0].id } }
