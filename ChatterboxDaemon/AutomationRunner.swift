@@ -5,8 +5,13 @@ import Foundation
     static var shared: AutomationRunner?
     private let model: DaemonContext
     private var timer: Timer?
+    /// Starts a run's session and sends it its task. Tests replace it, so no agent starts.
+    var startRun: (ProjectAutomation, ChatSession, Bool) throws -> ChatSession
 
-    init(_ model: DaemonContext) { self.model = model }
+    init(_ model: DaemonContext) {
+        self.model = model
+        startRun = { automation, project, manual in try model.newAutomationRun(automation, of: project, manual: manual) }
+    }
 
     func start() {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
@@ -37,7 +42,7 @@ import Foundation
             $0.record.projectFolder == automation.projectFolder && $0.record.worktreeOf == nil && $0.record.sidechatOf == nil
                 && $0.record.archivedAt == nil
         }) else { throw RuntimeFailure("Its project isn't open in Chatterbox anymore.") }
-        let quest = try model.newAutomationRun(automation, of: project, manual: manual)
+        let quest = try startRun(automation, project, manual)
         state.lastRun = Date()
         state.threadID = quest.id
         all[automation.id.uuidString] = state

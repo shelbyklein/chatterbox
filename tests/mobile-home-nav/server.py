@@ -56,8 +56,30 @@ def started_chat(place):
  if place.get('id','').lower()==cid('studio2'):return 'Crystal concept'
  return next((n for n,*_ in PROJECTS if cid(n)==place.get('id','').lower()),'Loose chat')
 desk_reset()
+# Automations (MobileAutomations.swift): a daily routine (seven automations on the Mac), a weekly
+# one, and one switched off. Edits and runs are recorded for asserts; a run opens 'Morning run'.
+AUTOMATIONS=[];AUTOMATION_CALLS=[];AUTOMATION_RAN=False
+def automations_reset():
+ global AUTOMATIONS,AUTOMATION_CALLS,AUTOMATION_RAN
+ AUTOMATION_CALLS=[];AUTOMATION_RAN=False
+ tomorrow=(datetime.datetime.now()+datetime.timedelta(days=1)).replace(hour=8,minute=30,second=0,microsecond=0).astimezone(datetime.timezone.utc)
+ AUTOMATIONS=[
+  {'id':cid('auto-morning-1'),'ids':[cid('auto-morning-%d'%d) for d in range(1,8)],'title':'Morning priorities',
+   'instructions':'Read ClickUp and Outlook, then list today\'s priorities.','project':'Chatterbox','projectFolder':'/Users/fixture/Chatterbox',
+   'agent':'codex','model':'GPT-5.5','effort':'High','days':[1,2,3,4,5,6,7],'hour':8,'minute':30,'enabled':True,
+   'lastRunAt':stamp(120),'lastThreadID':cid('Tracker Trapper'),'lastResult':'Three priorities today: the camp banner, the SDHQ cache rules and the Galley review.',
+   'isRunning':False,'nextRunAt':tomorrow.strftime('%Y-%m-%dT%H:%M:%SZ')},
+  {'id':cid('auto-wordpress'),'ids':[cid('auto-wordpress')],'title':'WordPress updates','instructions':'Keep the site up to date, safely.',
+   'project':'SDHQ','projectFolder':'/Users/fixture/SDHQ','agent':'claude','days':[2],'hour':9,'minute':0,'enabled':True,
+   'nextRunAt':(tomorrow+datetime.timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ')},
+  {'id':cid('auto-links'),'ids':[cid('auto-links'),cid('auto-links-4'),cid('auto-links-6')],'title':'Broken links','instructions':'Crawl the store for broken links.',
+   'project':'PlayCase Magnets','projectFolder':'/Users/fixture/PlayCase Magnets','agent':'claude','days':[2,4,6],'hour':16,'minute':0,'enabled':False}]
+def automation(id):
+ return next((a for a in AUTOMATIONS if id.lower() in [i.lower() for i in a['ids']]),None)
+automations_reset()
 def reset():
  desk_reset()
+ automations_reset()
  global PINNED
  PINNED[:]=['Loose chat','SDHQ']
  global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS,LIST_DELAY
@@ -96,6 +118,10 @@ def chats():
   elif p.get('studioID'):
    next(g for g in groups if g.get('studioID','').lower()==p['studioID'].lower())['chats'].append(source)
   else:groups.append({'id':'new-studio','kind':'studio','title':p['name'],'studioID':cid('new-studio'),'chats':[source]})
+ # An automation's run: a sidequest of the Chatterbox project's session, working.
+ if AUTOMATION_RAN:
+  run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Chatterbox'),'sidequestOf':cid('Chatterbox'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
+  groups[0]['chats'].append(run)
  for g in groups:g['chats']=[c for c in g['chats'] if c['id'].lower() not in REMOVED]
  return {'revision':1,'groups':groups,'activity':ACTIVITY}
 
@@ -166,9 +192,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,AUTOMATION_RAN
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
+  if self.path.startswith('/v1/automations/'):
+   parts=self.path.split('/');routine=automation(parts[3])
+   if not routine:return self.reply({'error':'That automation is gone.'},404)
+   if len(parts)==5 and parts[4]=='run':
+    AUTOMATION_CALLS.append({'action':'run','id':parts[3].lower()})
+    AUTOMATION_RAN=True;routine.update({'lastRunAt':stamp(),'lastThreadID':cid('Morning run'),'isRunning':True,'lastResult':None})
+    return self.reply(detail(cid('Morning run')))
+   AUTOMATION_CALLS.append({'action':'edit','id':parts[3].lower(),'body':body})
+   for key in ('title','instructions','days','hour','minute','enabled','agent'):
+    if key in body:routine[key]=body[key]
+   if 'agent' in body:routine.pop('model',None);routine.pop('effort',None)
+   if 'enabled' in body and not body['enabled']:routine.pop('nextRunAt',None)
+   return self.reply(routine)
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
   if self.path=='/v1/desk':
    DESK_CALLS.append({'action':'add','body':body})
@@ -242,6 +281,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/desk-calls':return self.reply(DESK_CALLS)
+  if self.path=='/test/automation-calls':return self.reply(AUTOMATION_CALLS)
+  if self.path=='/v1/automations':return self.reply(AUTOMATIONS)
   if self.path=='/v1/desk':return self.reply(desk())
   if self.path=='/v1/desk/places':return self.reply(PLACES)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)

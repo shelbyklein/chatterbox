@@ -87,6 +87,9 @@ typealias AppModel=DaemonContext
         try? RuntimePreferences.update(["macPinnedThreads":.array(ids.map(JSON.string))])
         runtime.publishUIRequest("pins.changed",payload:.array(ids.map(JSON.string)))
     }
+    /// Automations changed or ran from the phone: the app's Automations screens reload, rather
+    /// than save over them with what they had.
+    func automationsChanged(){runtime.publishUIRequest("automations.changed",payload:.null)}
     func setInstructions(_ text:String,forStudio id:UUID){var all=runtime.studios;guard let i=all.firstIndex(where:{$0.id==id}) else{return};all[i].instructions=text;try? runtime.updateStudios(all)}
     func canFork(_ s:ChatSession)->Bool{!s.isRunning && s.record.projectFolder==nil && !s.items.isEmpty}
     func sidechats(of parent: ChatSession) -> [ChatSession] { activeSessions.filter { $0.record.sidechatOf == parent.id }.sorted { $0.record.updatedAt > $1.record.updatedAt } }

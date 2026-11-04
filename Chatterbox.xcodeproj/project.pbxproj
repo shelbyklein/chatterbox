@@ -47,6 +47,7 @@
 		216A4A576879E8065789E82E /* CompanionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA9F0B419529549C12E3317 /* CompanionAPI.swift */; };
 		22DD258AFC5A17209F364B57 /* MobilePushNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */; };
 		240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667AC120BEF5177C4AB1C659 /* MobileStore.swift */; };
+		2588794624F1D967F91D5936 /* MobileAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */; };
 		25A75E689316C0AFEEA9CE52 /* WebPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABAE1B34A7039850D52C275 /* WebPane.swift */; };
 		265E9D78EEBB723103EEF085 /* ConversationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB73F11534DDADDA5F5063E8 /* ConversationRuntime.swift */; };
 		276EB339DC400FBCFE8D603E /* WideFormStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C151709A832C444A1409D2 /* WideFormStyle.swift */; };
@@ -546,6 +547,7 @@
 		F8D7D2F235E3F6DC973ABA35 /* CommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCenter.swift; sourceTree = "<group>"; };
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
+		FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAutomations.swift; sourceTree = "<group>"; };
 		FFF0CC86D7009BBBC7D1ABD6 /* ChatPromotionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPromotionSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -675,6 +677,7 @@
 				73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */,
 				439E46ECC9B546664D7C82AC /* MobileActivityHistory.swift */,
 				77A949C2470A41ACC6F099E0 /* MobileAppearance.swift */,
+				FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */,
 				E3B7EC8F64B492CC74090091 /* MobileComposerDraft.swift */,
 				EBE917C31B8A52B7D1E9AAA8 /* MobileConversationStyle.swift */,
 				A5B20D59A3D5FC367257785A /* MobileDesk.swift */,
@@ -1263,6 +1266,7 @@
 				DA71F32B2C8680BA6727A33E /* MediaKind.swift in Sources */,
 				926883B9361BACFF072E7173 /* MobileActivityHistory.swift in Sources */,
 				E547EA430271FAE3BA043A35 /* MobileAppearance.swift in Sources */,
+				2588794624F1D967F91D5936 /* MobileAutomations.swift in Sources */,
 				6EFE3CCCF66EA7EAE0374C5A /* MobileComposerDraft.swift in Sources */,
 				8CBDCDDAC6BDFAEB488B1249 /* MobileConversationStyle.swift in Sources */,
 				7D98140779CCC373AFFFB11A /* MobileDesk.swift in Sources */,

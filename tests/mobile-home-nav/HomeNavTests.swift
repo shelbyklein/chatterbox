@@ -861,6 +861,110 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(questions.waitForNonExistence(timeout:8))
   XCTAssertTrue(approval.exists)
  }
+ // MARK: Automations (MobileAutomations.swift)
+
+ /// Automations from the ⋯ menu: each routine once (seven weekday automations read "Every
+ /// day"), with its project, agent and time; its switch turns every day on, on the Mac; its
+ /// last run opens that run's session.
+ @MainActor func testAutomationsFromMenu() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Automations"].waitForExistence(timeout:5), "Automations in the ⋯ menu"); app.buttons["Automations"].tap()
+  let morning = app.buttons["automation-"+automationID("morning")]
+  XCTAssertTrue(morning.waitForExistence(timeout:8), "the routines")
+  XCTAssertTrue(morning.label.contains("Morning priorities") && morning.label.contains("Every day at 8:30"), "seven weekday automations read as one, every day: \(morning.label)")
+  XCTAssertTrue(morning.label.contains("Chatterbox · Codex · GPT-5.5 · High"), "its project and agent")
+  XCTAssertEqual(app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'automation-' AND label CONTAINS 'Morning priorities'")).count, 1, "listed once")
+  XCTAssertTrue(app.buttons["automation-"+automationID("wordpress")].label.contains("Mondays at 9:00"), "a weekly one")
+  XCTAssertTrue(app.buttons["automation-"+automationID("links")].label.contains("Mon, Wed, Fri at 4:00"), "one on three days")
+  XCTAssertTrue(morning.frame.minY < app.buttons["automation-"+automationID("wordpress")].frame.minY, "the soonest first")
+  let last = app.buttons["automation-last-run-"+automationID("morning")]
+  XCTAssertTrue(last.exists && last.label.contains("Last run"), "its last run")
+  capture("automations-list", app)
+  // The switch: every day of the routine, on the Mac.
+  let links = app.switches["automation-switch-"+automationID("links")]
+  XCTAssertEqual(links.value as? String, "0", "switched off")
+  // On the switch itself (a hidden-label switch's frame can be its row's width).
+  links.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5)).tap()
+  let calls = try await automationCalls(atLeast:1)
+  XCTAssertEqual(calls.first?["action"] as? String, "edit")
+  XCTAssertEqual(calls.first?["id"] as? String, automationID("links").lowercased())
+  XCTAssertEqual(calls.first?["body"] as? [String:Bool], ["enabled":true], "only the switch")
+  XCTAssertEqual(links.value as? String, "1", "and it shows on")
+  // The last run opens its session.
+  last.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "the last run opens its session")
+ }
+ /// From the Desk: a routine's editor; changed instructions saved (only what changed), a day
+ /// switched off, then Save and Run Now: the run's session opens.
+ @MainActor func testAutomationEditAndRunFromDesk() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let open=app.buttons["desk-automations"]
+  XCTAssertTrue(open.waitForExistence(timeout:20), "Automations on the Desk"); open.tap()
+  let morning=app.buttons["automation-"+automationID("morning")]
+  XCTAssertTrue(morning.waitForExistence(timeout:8)); morning.tap()
+  let run=app.buttons["automation-run"]
+  XCTAssertTrue(run.waitForExistence(timeout:5), "the editor, with Run Now")
+  XCTAssertEqual(run.label, "Run Now")
+  XCTAssertEqual(field("automation-title",app).value as? String, "Morning priorities")
+  let instructions=field("automation-instructions",app)
+  XCTAssertEqual(instructions.value as? String, "Read ClickUp and Outlook, then list today's priorities.")
+  XCTAssertFalse(app.buttons["automation-save"].isEnabled, "nothing to save yet")
+  capture("automation-detail", app)
+  // Instructions: Save sends only them.
+  instructions.tap(); instructions.typeText(" Include Slack.")
+  XCTAssertEqual(run.label, "Save and Run Now")
+  app.buttons["automation-save"].tap()
+  var calls = try await automationCalls(atLeast:1)
+  let body = calls.first?["body"] as? [String:Any]
+  XCTAssertEqual(calls.first?["action"] as? String, "edit")
+  XCTAssertEqual(body.map { Array($0.keys) }, ["instructions"], "only what changed")
+  XCTAssertTrue((body?["instructions"] as? String)?.contains("Include Slack.") == true, "the new instructions")
+  await fulfillment(of:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == %@","Run Now"), object:run)], timeout:5)
+  XCTAssertFalse(app.buttons["automation-save"].isEnabled, "saved: nothing left to save")
+  capture("automation-saved", app)
+  // Sunday off, then Save and Run Now: the run's session opens.
+  let sunday=app.buttons["automation-day-1"]
+  for _ in 0..<6 where !(sunday.exists && sunday.isHittable) { app.swipeUp() }
+  XCTAssertEqual(sunday.value as? String, "On"); sunday.tap()
+  XCTAssertEqual(sunday.value as? String, "Off")
+  XCTAssertTrue(activity("Every day but Sunday at 8:30",app).exists, "the schedule says so")
+  capture("automation-days", app)
+  revealUp(run, app)
+  XCTAssertEqual(run.label, "Save and Run Now"); run.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Morning run."].waitForExistence(timeout:10), "Run Now opens the run's session")
+  capture("automation-run-session", app)
+  calls = try await automationCalls(atLeast:3)
+  XCTAssertEqual((calls[1]["body"] as? [String:Any])?["days"] as? [Int], [2,3,4,5,6,7], "saved first: Sunday off")
+  XCTAssertEqual(calls[2]["action"] as? String, "run", "then run")
+ }
+ /// Scrolls a form back up until the element is on screen (one scrolled away has no frame to test).
+ @MainActor func revealUp(_ element:XCUIElement,_ app:XCUIApplication) {
+  for _ in 0..<6 {
+   let frame=element.exists ? element.frame : .zero
+   if !frame.isEmpty, app.windows.firstMatch.frame.contains(CGPoint(x:frame.midX,y:frame.midY)), element.isHittable { return }
+   app.collectionViews.firstMatch.swipeDown()
+  }
+ }
+ /// The fixture's automations (server.py: uuid5(NAMESPACE_URL, "home:auto-" + name), a routine's first day).
+ func automationID(_ name:String) -> String {
+  ["morning":"22707547-1A2E-5702-8AA4-62C383E327A2","links":"C366CC4F-E577-590B-B3D1-4BA21010E490",
+   "wordpress":"BEE84AAD-8941-5D8C-8281-0C018701C6FD"][name]!
+ }
+ /// The fixture's recorded edits and runs, once there are at least `count`.
+ func automationCalls(atLeast count:Int) async throws -> [[String:Any]] {
+  for _ in 0..<50 {
+   let calls = try await fixture("automation-calls",method:"GET") as? [[String:Any]] ?? []
+   if calls.count >= count { return calls }
+   try await Task.sleep(for:.milliseconds(200))
+  }
+  XCTFail("expected \(count) automation calls"); return []
+ }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
   let app=XCUIApplication()
