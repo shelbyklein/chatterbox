@@ -91,3 +91,13 @@ Remove the menu item and the package; nothing on the Mac changes.
 - Scope confirmed (approach, Mac only). Mode: linear, this session (Claude Opus 5.5): one
   feature in the iPhone app, T1 decides the library.
 - Readiness: ready; the gate is the Mac password at T1, entered by Shelby.
+
+## Trying Sill (2026-11-03)
+
+Shelby tried [Sill](https://github.com/Saffsanity/sill) (Apache-2.0; ScreenCaptureKit, hardware
+HEVC, encrypted, Duo hinge layouts) on the Duo: "Sill works great. Maybe I just use that for now."
+Mac host installed via `brew install --cask saffsanity/sill/sill` (0.6.0, notarized). Measured
+while streaming: about 0.9 Mbit/s sent, Sill's process near idle (hardware encoding). Mac Screen
+stays as is; a Chatterbox video stream on Sill's pattern (ScreenCaptureKit → VideoToolbox →
+the paired connection, CGEvent input) is on hold until Shelby decides.
+
