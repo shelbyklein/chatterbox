@@ -14,8 +14,13 @@ app.setActivationPolicy(.accessory)
     func thread(_ name: String, _ backend: Backend) throws -> ChatSession {
         let folder=root.appendingPathComponent(name)
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
-        var record=ConversationRecord(model:backend == .codex ? "gpt-6.1-sol" : "opus",effort:"medium",personality:.pragmatic)
+        // As real sessions are: Claude's model in `model`, Codex's in its own settings.
+        var record=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
         record.title=name;record.projectNickname=name;record.projectFolder=folder.path;record.activeBackend=backend
+        if backend == .codex {
+            record.codex=CodexSettings(folder:folder.path,canEdit:true,mode:"fullAccess")
+            record.codex?.model="gpt-6.1-sol";record.codex?.effort="medium"
+        }
         record.items=[DisplayItem(kind:.user,text:"Can we review the latest update?",agent:backend),DisplayItem(kind:.assistant,text:"The latest update is ready for review. Your original files and conversation are preserved.\n\nWe can check the details here while the other project stays open beside it.",phase:.final)]
         return model.insertSession(record)
     }

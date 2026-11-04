@@ -28,9 +28,14 @@ Thread.detachNewThread { Thread.sleep(forTimeInterval: 180); print("FAIL timed o
     precondition(Bundle.main.bundleIdentifier != "com.shelbyklein.Chatterbox")
     let model = AppModel()
     func project(_ title: String, _ backend: Backend, _ items: [DisplayItem]) -> ChatSession {
-        var record = ConversationRecord(model: backend == .claude ? "opus" : "gpt-6.1-sol", effort: "medium", personality: .pragmatic)
+        // As real sessions are: Claude's model in `model`, Codex's in its own settings.
+        var record = ConversationRecord(model: "opus", effort: "medium", personality: .pragmatic)
         record.title = title; record.projectNickname = title; record.projectFolder = root.appendingPathComponent(title).path
         record.activeBackend = backend; record.items = items
+        if backend == .codex {
+            record.codex = CodexSettings(folder: record.projectFolder!, canEdit: true, mode: "fullAccess")
+            record.codex?.model = "gpt-6.1-sol"; record.codex?.effort = "medium"
+        }
         return model.insertSession(record)
     }
     func tool(_ text: String, _ name: String, _ state: DisplayItem.ToolState = .done) -> DisplayItem {

@@ -49,7 +49,7 @@ def desk_reset(empty=False):
  DESK_DONE=[] if empty else [
   {'id':cid('Crystal concept'),'title':'Crystal concept','place':'Geekify','completedAt':stamp(90)}]
  DESK_WAITING=[] if empty else [
-  {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','subtitle':'Cache rules','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?'},
+  {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','subtitle':'Cache rules','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?','detail':'wrangler deploy --env production'},
   {'id':cid('desk-questions'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','place':'Tracker Trapper','kind':'questions','text':'Which progress style for the menu bar: a ring or a bar?',
    'questions':[{'id':'style','header':'Style','question':'Which progress style?','options':[{'label':'Ring','detail':''},{'label':'Bar','detail':''}],'multiSelect':False,'isSecret':False}]}]
  DESK_INCOMING=[] if empty else [
@@ -160,7 +160,7 @@ def detail(id):
   def item(n,kind,text,extra=None):return dict(dict(id=cid(s['title']+'-rich-%d'%n),kind=kind,text=text,isStreaming=False,isCommentary=False,isPending=False,attachments=[],isQueued=False),**(extra or {}))
   items=[item(n,*x) for n,x in enumerate(RICH_ITEMS[s['title']])]
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
- options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Most capable','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Fast and capable','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
+ options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Best for everyday, complex tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'fable','name':'Fable 5.1','detail':'Most capable for your hardest and longest-running tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Efficient for routine tasks','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest for quick answers','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'auto','title':'Auto','detail':'Claude handles permission decisions','systemImage':'wand.and.stars','isUnrestricted':False},{'id':'default','title':'Manual','detail':'Always ask before making changes','systemImage':'hand.raised','isUnrestricted':False},{'id':'acceptEdits','title':'Accept edits','detail':'Automatically accept all file edits','systemImage':'pencil','isUnrestricted':False},{'id':'plan','title':'Plan','detail':'Create a plan before making changes','systemImage':'list.bullet.clipboard','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
 RICH_ITEMS={
  'Galley':[
@@ -272,6 +272,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
    DESK_SILENCED+=[w for w in DESK_WAITING if match(w)];DESK_WAITING=[w for w in DESK_WAITING if not match(w)];DESK_REVISION+=1
    # A ready session (its id is the session's): off the board, not archived.
    DESK_READY=[r for r in DESK_READY if not (r['id'].lower()==body.get('chatID','').lower()==body.get('id','').lower() and r['text']==body.get('text'))]
+   return self.reply(desk())
+  if self.path=='/v1/desk/unsilence':
+   # Undo, or the silenced list: back in Needs you, in its place.
+   DESK_CALLS.append({'action':'unsilence','body':body})
+   match=lambda w:w['id'].lower()==body.get('id','').lower() and w['chatID'].lower()==body.get('chatID','').lower()
+   back=[w for w in DESK_SILENCED if match(w)];DESK_SILENCED=[w for w in DESK_SILENCED if not match(w)]
+   DESK_WAITING=sorted(DESK_WAITING+back,key=lambda w:0 if w['kind']=='approval' else 1);DESK_REVISION+=1
    return self.reply(desk())
   if self.path in ('/v1/desk/complete','/v1/desk/reopen'):
    # Mark complete: from Ready to Done (archived). Reopen: out of Done, ready again.
@@ -391,7 +398,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    q=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
    NEWCHAT.append(q)
    o=detail(cid('SDHQ'))['options']
-   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'','systemImage':'eye','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'Can look at files but not change them','systemImage':'eye','isUnrestricted':False},{'id':'ask','title':'Ask for approval','detail':'Always ask to edit external files and use the internet','systemImage':'hand.raised','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted access to the internet and any file on your computer','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
    if q.get('model'):o['model']=q['model']
    if q.get('effort'):o['effort']=q['effort']
    if q.get('openModel'):o['openModel']=q['openModel']

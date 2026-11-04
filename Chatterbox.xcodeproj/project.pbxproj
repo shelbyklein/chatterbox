@@ -174,6 +174,7 @@
 		926883B9361BACFF072E7173 /* MobileActivityHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439E46ECC9B546664D7C82AC /* MobileActivityHistory.swift */; };
 		931CA2B4D3D160CDFB1605D8 /* HTTPFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8586E6B8EC11E44FC2BF92 /* HTTPFileTransfer.swift */; };
 		940BEE582E0F42AC32B5BB15 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499506AD5BC0D2785F115FFA /* Tools.swift */; };
+		941E6FB8724DFEB570698DB0 /* AttentionColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67624B5CA24DEA04249F80 /* AttentionColor.swift */; };
 		9421CB1B01955A819ECB3133 /* RuntimePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */; };
 		945F81C5BE71036A43F84B2C /* ChatterboxMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810B1E930CEA28FEE5661A03 /* ChatterboxMobileApp.swift */; };
 		94E4D8C8F174C49A974369B5 /* ChatSession+Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7786246032F89E4E0C70184 /* ChatSession+Status.swift */; };
@@ -193,6 +194,7 @@
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		A547827BF4E5714D97FD6872 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */; };
 		A5F4E7330D056D0E7F5E14EB /* DeskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093A6E7F6F501DBB039702A3 /* DeskView.swift */; };
+		A60C1AEABC98583A9DC1F806 /* AttentionColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67624B5CA24DEA04249F80 /* AttentionColor.swift */; };
 		A8738BB6D7C07FFF63895DD6 /* MacScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F60ACFF7C278E13DC8B6F4 /* MacScreen.swift */; };
 		A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */; };
 		AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
@@ -548,6 +550,7 @@
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
 		FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAutomations.swift; sourceTree = "<group>"; };
+		FD67624B5CA24DEA04249F80 /* AttentionColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttentionColor.swift; sourceTree = "<group>"; };
 		FFF0CC86D7009BBBC7D1ABD6 /* ChatPromotionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPromotionSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -809,6 +812,7 @@
 			isa = PBXGroup;
 			children = (
 				E5B972A7FDEA18389B723512 /* AppPreferences.swift */,
+				FD67624B5CA24DEA04249F80 /* AttentionColor.swift */,
 				D3AE88BF63DE274A9EC0194F /* Backend.swift */,
 				0DA9F0B419529549C12E3317 /* CompanionAPI.swift */,
 				F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */,
@@ -1096,6 +1100,7 @@
 				88E800E79DFFB6BFE106BC81 /* AppPreferences.swift in Sources */,
 				D05B92875B687F85956F41CE /* Attachments.swift in Sources */,
 				185FE4741650353C7DB76AFB /* Attention.swift in Sources */,
+				A60C1AEABC98583A9DC1F806 /* AttentionColor.swift in Sources */,
 				EB8E9F83549CA91E457A34D2 /* AutomationsSheet.swift in Sources */,
 				A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */,
 				71DCAEB20A266D8ED76B6D9A /* BackgroundServiceRestart.swift in Sources */,
@@ -1249,6 +1254,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DE95CB211CB51A27FB0D0B92 /* AppPreferences.swift in Sources */,
+				941E6FB8724DFEB570698DB0 /* AttentionColor.swift in Sources */,
 				5FB81543834E300F4736AFE1 /* Backend.swift in Sources */,
 				36C8961B485B4DB26F4B01B7 /* Cards.swift in Sources */,
 				AB00DAF2FAE7B73FD314665C /* ChatDetailView.swift in Sources */,

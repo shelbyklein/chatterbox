@@ -41,6 +41,12 @@ id as both `chatID` and `id` and its `text`; it hides it until its last reply ch
 gains `completions` (chatID, completedAt; Done is the last week's whose sessions are still
 archived). Ready also leaves out sessions with background work, and shows at most 50.
 
+UX panel fixes (design/ux-panel/SUMMARY.md): `DeskWaiting` gains `detail` (an approval's exact
+command, so the Desk's approval card shows it); new `POST /v1/desk/unsilence` (socket `desk` action
+`unsilence`, app only), the silence body, answering the Desk: Undo after silencing and the
+"N silenced" row at the foot of Needs you. Allow for Session from the Desk goes through the
+session's own approval call (`approvedForSession`), as before on the session's card.
+
 ## Built choices
 
 - The Desk tab and toolbar badge still count Needs you + To do: Ready waits on nothing urgent,
@@ -61,6 +67,27 @@ archived). Ready also leaves out sessions with background work, and shows at mos
       actions; UI tests against the fixture.
 - [x] B3 Mac: board page; render test.
 - [ ] B4 Screenshots to design/desk-board/; then into the panel's re-score.
+
+## Tasks linked to threads (Shelby, 2026-11-04)
+
+Not every thread is a task. A Desk request stays a **task** after it starts, linked to its thread,
+and moves across the board with that thread's state.
+
+- One task per thread, one thread per task. Linking a thread that already carries an open task
+  asks first and unlinks the old task (it goes back to To do).
+- Starting a task (new session or Continue in) links it. Also: "Link a thread" on a To do card
+  (sessions in its place, best matches first, as the start step ranks them), and in a session's
+  menu "Make this a task" (a new card, already linked) or "Link to a task" (pick an open one).
+  Unlink from the card's menu (the task goes back to To do).
+- Columns: To do = unlinked tasks; Working / Needs you / Ready = linked tasks by their thread's
+  state; Done = completed tasks (last 7 days). Mark complete archives the linked thread (Reopen
+  unarchives it and reopens the task).
+- Threads with no task appear only when they need you (approvals, questions), as today, marked
+  as not a task, with "Make this a task". They no longer appear in Working or Ready.
+- A linked thread that's archived or deleted outside the board: the task goes to Done (archived)
+  or back to To do (deleted).
+- Defaults chosen by Claude where Shelby didn't answer: unlinked threads in Needs you only;
+  linking from the card and the thread; complete archives the thread.
 
 ## Not changed
 

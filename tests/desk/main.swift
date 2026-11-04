@@ -132,8 +132,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let retried = desk.requests.first { $0.text == "Retry me" }!
 
     // Needs you: an approval, a plan, questions, a question in a reply; Working: what's running.
-    let approval = try runtime.insert(record("Deploy the site", studio: archery, items: [
-        DisplayItem(kind: .user, text: "Deploy"), DisplayItem(kind: .approval, text: "Run deploy.sh", approvalState: .pending)]))
+    var deployItem = DisplayItem(kind: .approval, text: "Run deploy.sh", approvalState: .pending)
+    deployItem.detail = "./deploy.sh --env production\n--force"
+    let approval = try runtime.insert(record("Deploy the site", studio: archery, items: [DisplayItem(kind: .user, text: "Deploy"), deployItem]))
     approval.isRunning = true
     let plan = try runtime.insert(record("Plan the levels", items: [
         DisplayItem(kind: .user, text: "Plan"), DisplayItem(kind: .approval, text: "Claude has a plan. Start building?", approvalState: .pending, approvalStyle: .plan)]))
@@ -155,7 +156,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     func waiting(_ chat: ChatSession) -> Companion.DeskWaiting? { now.needsYou.first { $0.chatID == chat.id } }
     try check(waiting(approval)?.kind == "approval" && waiting(approval)?.text == "Run deploy.sh" && waiting(approval)?.place == "USA Archery"
               && waiting(approval)?.id == approval.items[1].id, "needs you: a pending approval, with its place and item id")
-    try check(waiting(plan)?.kind == "plan" && waiting(plan)?.place == nil, "needs you: a plan")
+    try check(waiting(approval)?.detail == "./deploy.sh --env production\n--force", "an approval carries its exact command, lines kept")
+    try check(waiting(plan)?.kind == "plan" && waiting(plan)?.place == nil && waiting(plan)?.detail == nil, "needs you: a plan, without a command")
     try check(waiting(asking)?.kind == "questions" && waiting(asking)?.questions?.map(\.id) == ["size", "color"]
               && waiting(asking)?.questions?.first?.options.first?.label == "Wide" && waiting(asking)?.text == "Which banner size? (and 1 more)",
               "needs you: questions, with the questions to answer in place")
@@ -224,6 +226,34 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!quieter2.needsYou.contains { $0.chatID == replied.id } && quieter2.silenced?.contains { $0.chatID == replied.id && $0.kind == "reply" } == true,
               "a silenced reply leaves Needs you")
     try check(try silence(UUID(), UUID()).revision == quieter2.revision, "something not waiting: nothing changes")
+    // Unsilence (Undo, and the silenced list): back on the Desk on every device; the same body.
+    func unsilence(_ chat: UUID, _ id: UUID, _ text: String? = nil) throws -> Companion.Desk {
+        let response = call("POST", "/v1/desk/unsilence", try encode(Companion.DeskSilenceRequest(chatID: chat, id: id, text: text)))
+        try check(response.status == 200, "unsilence answers with the Desk")
+        return try deskOf(response)
+    }
+    try check(call("POST", "/v1/desk/unsilence", Data("{}".utf8)).status == 400, "unsilence needs what to unsilence")
+    let back = try unsilence(approval.id, approvalItem)
+    try check(back.needsYou.first { $0.chatID == approval.id }?.id == approvalItem && back.silenced?.contains { $0.id == approvalItem } == false
+              && desk.silences.count == 1, "an unsilenced approval is back in Needs you, off the silenced list")
+    try check(back.revision > quieter2.revision && announced.last?.revision == back.revision, "unsilencing changes the revision, and is announced")
+    try check(try unsilence(approval.id, approvalItem).revision == back.revision && (try unsilence(UUID(), UUID())).revision == back.revision,
+              "unsilencing what isn't silenced changes nothing")
+    try check(try unsilence(replied.id, replied.id, "Want me to upload it somewhere else?").silenced?.contains { $0.chatID == replied.id } == true,
+              "a reply's unsilence names what it asked")
+    // The service socket's "desk" operation (the Mac app) takes the same body.
+    let unsilencedViaSocket = try desk.operation(.object(["action": "unsilence", "chatID": .string(replied.id.uuidString), "id": .string(replied.id.uuidString),
+                                                "text": "Want me to upload it to TestFlight?"]), agent: false).decode(Companion.Desk.self)
+    try check(unsilencedViaSocket.needsYou.contains { $0.chatID == replied.id } && desk.silences.isEmpty && unsilencedViaSocket.silenced?.isEmpty == true,
+              "socket: unsilence puts a reply back")
+    var refused = false
+    do { _ = try desk.operation(.object(["action": "unsilence"]), agent: false) } catch { refused = true }
+    try check(refused, "socket: unsilence needs what to unsilence")
+    // Silenced again, as before, for what follows.
+    _ = try silence(approval.id, approvalItem)
+    _ = try desk.operation(.object(["action": "silence", "chatID": .string(replied.id.uuidString), "id": .string(replied.id.uuidString),
+                                    "text": "Want me to upload it to TestFlight?"]), agent: false)
+    try check(desk.silences.count == 2, "silenced again")
     // Kept across a reload, in desk.json; an older desk.json without silences still loads.
     let kept = DeskStore(file: file)
     try check(kept.silences == desk.silences && kept.silences.count == 2 && !kept.snapshot().needsYou.contains { $0.chatID == approval.id || $0.chatID == replied.id },
@@ -485,6 +515,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               && plan.pendingRequests.map(\.id) == [planItem], "socket silence: off the Desk, still pending")
     try await wait("desk.changed after silencing") { changes.count > heard && changes.last?.silenced?.contains { $0.id == planItem } == true }
     try check(true, "the app hears the silence")
+    // Unsilence over the socket: the same; the app's Undo.
+    let unsilenceBody: JSON = ["action": "unsilence", "chatID": .string(plan.id.uuidString), "id": .string(planItem.uuidString)]
+    do { _ = try await agent.request("desk", body: unsilenceBody); try check(false, "an agent may not unsilence") }
+    catch { try check(error.localizedDescription == "permission_denied", "an agent may not unsilence") }
+    let undone = try await ui.request("desk", body: unsilenceBody).decode(Companion.Desk.self)
+    try check(undone.needsYou.contains { $0.id == planItem } && undone.silenced?.contains { $0.id == planItem } == false, "socket unsilence: back on the Desk")
+    try await wait("desk.changed after unsilencing") { changes.last?.needsYou.contains { $0.id == planItem } == true }
+    _ = try await ui.request("desk", body: silenceBody)
     // Mark complete and Reopen over the socket: the app may, an agent may not.
     let wrapUp = try runtime.insert(record("Wrap up the camp email", items: [DisplayItem(kind: .user, text: "Wrap up"), DisplayItem(kind: .assistant, text: "Sent.", phase: .final)]))
     let completeBody: JSON = ["action": "complete", "chatID": .string(wrapUp.id.uuidString)]

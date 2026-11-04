@@ -52,6 +52,16 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     let line = DeskText.detailLine("# USA Archery\n\n- **Brand:** navy and red\n```\ncode\n```\n- Use the [2027 logo](https://x)")
     check(line == "Brand: navy and red Use the 2027 logo", "place detail as plain text: \(line ?? "nil")")
 
+    // One vocabulary (the UX panel): full model names, one effort scale.
+    let opus = ClaudeCodeModel(value: "opus", resolvedModel: "claude-opus-5-5", displayName: "Opus",
+                               detail: "Opus 5.5 \u{00B7} Best for everyday, complex tasks \u{00B7} $4/$20 per Mtok", efforts: ["low"])
+    check(opus.fullName == "Opus 5.5" && opus.summary == "Best for everyday, complex tasks \u{00B7} $4/$20 per Mtok", "a model's full name from its description: \(opus.fullName)")
+    let recommended = ClaudeCodeModel(value: "default", resolvedModel: "claude-opus-5-5", displayName: "Default (recommended)",
+                                      detail: "Use the default model (currently Opus 5.5)", efforts: [])
+    check(recommended.fullName == "Default (recommended)" && recommended.summary == recommended.detail, "a description that doesn't start with the name is kept whole")
+    check(EffortNames.label("xhigh") == "Extra High" && ChatView.effortLabel("xhigh") == "Extra High" && RuntimePaths.effortLabel("max") == "Max",
+          "one effort scale: Extra High everywhere")
+
     // MARK: Fixture sessions.
     let model = AppModel()
     func record(_ title: String, _ backend: Backend = .claude) -> ConversationRecord {
@@ -151,7 +161,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     func options(_ picks: Companion.SettingsRequest) -> Companion.ChatOptions {
         let codex = picks.backend == "codex"
         return .init(backend: codex ? "codex" : "claude", model: picks.model ?? (codex ? "" : "opus"), effort: picks.effort ?? "medium",
-                     claudeModels: [.init(id: "opus", name: "Opus 5.5", detail: "Most capable", efforts: ["low", "medium", "high"], defaultEffort: "medium"),
+                     claudeModels: [.init(id: "opus", name: "Opus 5.5", detail: "Best for everyday, complex tasks", efforts: ["low", "medium", "high"], defaultEffort: "medium"),
                                     .init(id: "sonnet", name: "Sonnet 5", detail: "Fast", efforts: ["low", "medium", "high"], defaultEffort: "medium")],
                      codexModels: [.init(id: "", name: "Codex default", detail: "", efforts: [], defaultEffort: nil),
                                    .init(id: "gpt-6.1-sol", name: "GPT-6.1-Sol", detail: "", efforts: ["low", "medium", "high"], defaultEffort: "medium")],
@@ -197,6 +207,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
             } else if let session = model.sessions.first(where: { $0.id == chat }), let item = session.pendingRequests.first(where: { $0.id == id }) {
                 service.silenced = (service.silenced ?? []) + [.init(id: item.id, chatID: session.id, title: session.title, place: nil, kind: "approval", text: item.text)]
             }
+            service.revision += 1
+            return try JSON.value(service)
+        case "unsilence":
+            // As the service does: off the silenced list; a reply it lists is back in Needs you.
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))
+            if let index = service.silenced?.firstIndex(where: { $0.id == id && $0.chatID == chat }), let item = service.silenced?.remove(at: index),
+               item.kind == "reply" { service.needsYou.insert(item, at: 0) }
             service.revision += 1
             return try JSON.value(service)
         case "start":
@@ -304,16 +321,27 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     }
     check(inside("request:\(badge.id)", "todo") && inside("working:\(sdhq.id)", "working") && inside("needs:\(approvalID)", "needsYou")
           && inside("ready:\(proofs.id)", "ready") && inside("done:\(flyers.id)", "done"), "each card in its column")
-    check(["ignore:\(badge.id)", "approve:\(approvalID)", "open:\(approvalID)", "silence:\(approvalID)", "complete:\(proofs.id)", "readySilence:\(proofs.id)", "reopen:\(flyers.id)"]
+    check(["ignore:\(badge.id)", "allow:\(approvalID)", "allowSession:\(approvalID)", "deny:\(approvalID)", "command:\(approvalID)", "open:\(approvalID)", "silence:\(approvalID)", "complete:\(proofs.id)", "readySilence:\(proofs.id)", "reopen:\(flyers.id)"]
             .allSatisfy { key in frame(key).map { button in columns.contains { $0.minX <= button.minX && button.maxX <= $0.maxX } } ?? false },
           "every card's buttons stay inside its column")
     if let deskEntry = MacHomeDebug.entries["desk"], let pinned = MacHomeDebug.entries["pinned"] {
         check(deskEntry.maxY <= pinned.minY && deskEntry.maxX <= MacHomeDebug.column.maxX + 1, "Desk is the first entry in Home's left column")
     } else { check(false, "Desk and Pinned entries in Home's column") }
     check(frame("chip:\(order.id)") != nil && frame("change:\(order.id)") == nil, "no place: Choose a place, no Change place")
-    check(frame("change:\(badge.id)") != nil && frame("approve:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "Change place, Approve and Open are there")
+    check(frame("change:\(badge.id)") != nil && frame("allow:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "Change place, Allow and Open are there")
     check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you card has Silence")
-    check(frame("subtitle:\(plan.items[0].id)") != nil && frame("subtitle:\(approvalID)") == nil, "a project's session shows its own title under the project's")
+    // The one approval card: Allow, Allow for Session, Deny, left to right, the command always shown.
+    if let allow = frame("allow:\(approvalID)"), let session = frame("allowSession:\(approvalID)"), let deny = frame("deny:\(approvalID)"),
+       let command = frame("command:\(approvalID)") {
+        check((allow.maxX <= session.minX || allow.maxY <= session.minY) && (session.maxX <= deny.minX || session.maxY <= deny.minY) && command.maxY <= allow.minY,
+              "the command, then Allow, Allow for Session and Deny in that order")
+    } else { check(false, "an approval's command and its three buttons") }
+    check(frame("allow:\(plan.items[0].id)") != nil && frame("command:\(plan.items[0].id)") == nil, "a plan: the same buttons, no command")
+    check(DeskText.context(title: "Chatterbox", place: "Chatterbox", subtitle: "Mac Desk page") == "Chatterbox \u{203A} Mac Desk page"
+          && DeskText.context(title: "2027 Indoor Magazine", place: "USA Archery", subtitle: nil) == "USA Archery \u{203A} 2027 Indoor Magazine",
+          "cards say where: place › session, a project's session by its project then its own title")
+    check(DeskText.label(kind: "approval") == "Permission" && DeskText.label(kind: "reply") == "Question" && DeskText.label(kind: "questions") == "Question"
+          && DeskText.label(kind: "plan") == "Plan", "one word per kind: Permission, Question, Plan")
     check(panel.title == "Desk", "window title on the Desk (\(panel.title))")
     let rightmost = DeskDebug.frames.values.map(\.maxX).max() ?? 0
     check(rightmost <= 2200 + 1, "nothing clips on the right (\(rightmost))")
@@ -337,11 +365,11 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     try await click("open:\(magnets.items[0].id)")
     check(model.selectedID == magnets.id && !model.showingHome, "Open selects the session")
 
-    // Approve: the session's own resolveApproval (no Claude process here, so it expires).
+    // Allow: the session's own resolveApproval (no Claude process here, so it expires).
     model.showDesk()
     try await render(AnyView(ContentView()), 2200, 1000, "desk-approve")
-    try await click("approve:\(approvalID)")
-    check(magazine.items.first { $0.id == approvalID }?.approvalState == .expired, "Approve answers the session's approval card")
+    try await click("allow:\(approvalID)")
+    check(magazine.items.first { $0.id == approvalID }?.approvalState == .expired, "Allow answers the session's approval card")
     check(!desk.sections(in: model).needsYou.contains { $0.id == approvalID }, "an answered approval leaves the Desk")
 
     // Ignore: {action: ignore, id}.
@@ -360,7 +388,30 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     let quiet = desk.sections(in: model)
     check(!quiet.needsYou.contains { $0.waiting.chatID == plan.id } && !quiet.working.contains { $0.id == plan.id }, "a silenced plan leaves Needs you, and isn't Working")
     check(plan.pendingRequests.map(\.id) == [planItem] && plan.items[0].approvalState == .pending, "and stays pending in its session")
+    check(desk.silencedNote?.id == planItem && frame("undoSilence") != nil, "after silencing: Undo, for a few seconds")
+    let listed = desk.sections(in: model).silenced
+    check(Set(listed.map(\.id)) == Set([logos.id, planItem]) && frame("silencedRow") != nil, "a quiet \"2 silenced\" row at the foot of Needs you")
     try snapshot("desk-silenced")
+    // Undo: {action: unsilence, chatID, id}; back in Needs you.
+    try await click("undoSilence")
+    check(sent.last == ["action": "unsilence", "chatID": .string(plan.id.uuidString), "id": .string(planItem.uuidString)], "Undo sends unsilence with its chat and item (\(String(describing: sent.last)))")
+    check(desk.sections(in: model).needsYou.contains { $0.id == planItem } && desk.silencedNote == nil, "undone, the plan is back in Needs you")
+    // The silenced list: opened, Unsilence a reply (with what it asks).
+    try await Task.sleep(for: .milliseconds(300))
+    try await click("silencedRow")
+    try await click("unsilence:\(logos.id)")
+    check(sent.last == ["action": "unsilence", "chatID": .string(logos.id.uuidString), "id": .string(logos.id.uuidString),
+                        "text": "Which of the two marks should I take forward?"], "Unsilence sends the reply's chat, id and question (\(String(describing: sent.last)))")
+    check(desk.sections(in: model).needsYou.contains { $0.waiting.chatID == logos.id } && desk.sections(in: model).silenced.isEmpty,
+          "unsilenced, it's back in Needs you and the silenced row goes")
+    // Allow for Session from the Desk: the session's own call, with that decision.
+    var decided: [JSON] = []
+    plan.remoteCommand = { operation, body in if operation == "approve" { decided.append(body) } }
+    try await Task.sleep(for: .milliseconds(300))
+    try await click("allowSession:\(planItem)")
+    check(decided.last?["decision"]?.string == "approvedForSession" && decided.last?["itemID"]?.string == planItem.uuidString,
+          "Allow for Session (a plan's Start and Accept Edits) carries its decision (\(String(describing: decided.last)))")
+    plan.remoteCommand = nil
 
     // Mark complete: {action: complete, chatID}; from Ready to Done. Reopen: {action: reopen, chatID}.
     try await click("complete:\(proofs.id)")

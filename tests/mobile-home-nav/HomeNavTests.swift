@@ -257,6 +257,32 @@ final class HomeNavTests: XCTestCase {
   capture("ipad-cached-refresh",app)
   XCTAssertTrue(loading.waitForNonExistence(timeout:12))
  }
+ /// The Mac stops answering: the can't-reach card says when the list was last updated and
+ /// offers Retry; Activity's working sessions stop spinning and read as last seen. Retry, once
+ /// the Mac answers, clears it.
+ @MainActor func testConnectionErrorIsHonest() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchArguments=["-mobileChatListPage","projects"]
+  app.launch()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:20))
+  let live=app.descendants(matching:.any).matching(NSPredicate(format:"label BEGINSWITH %@","Working: ")).firstMatch
+  XCTAssertTrue(live.waitForExistence(timeout:10), "Activity: working, live")
+  try await fixture("offline")
+  app.swipeDown()
+  let retry=app.buttons["problem-retry"]
+  XCTAssertTrue(retry.waitForExistence(timeout:25), "can't reach the Mac: Retry")
+  XCTAssertTrue(app.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS %@","Last updated")).firstMatch.exists, "and when it was last updated")
+  let stale=app.descendants(matching:.any).matching(NSPredicate(format:"label BEGINSWITH %@","Last seen working: ")).firstMatch
+  XCTAssertTrue(stale.waitForExistence(timeout:5), "working sessions read as last seen, not live")
+  XCTAssertFalse(live.exists, "nothing reads as working now")
+  capture("connection-error",app)
+  try await fixture("reset")
+  retry.tap()
+  XCTAssertTrue(retry.waitForNonExistence(timeout:20), "Retry, answered: the card goes")
+  XCTAssertTrue(live.waitForExistence(timeout:10), "and working is live again")
+ }
  func selected(_ app: XCUIApplication) -> String {
   app.tabBars.buttons.allElementsBoundByIndex.first { $0.isSelected }?.label ?? "?"
  }
@@ -335,7 +361,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons["Opus preset, Claude · Opus 5.5 · Medium"].exists, "no preset tiles")
   let modelRow=app.buttons["model-current"]
   XCTAssertTrue(modelRow.waitForExistence(timeout:5), "one row for the model")
-  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Most capable", "it shows the model in use, with its detail")
+  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Best for everyday, complex tasks", "it shows the model in use, with its detail")
   XCTAssertFalse(modelItem("Sonnet 5",app).exists || modelItem("Haiku 5",app).exists, "only the model in use shows, not every model")
   XCTAssertLessThan(modelRow.frame.minY, app.staticTexts["Effort"].firstMatch.frame.minY, "then the effort, right under it")
   capture("2b-chat-settings", app)
@@ -646,10 +672,16 @@ final class HomeNavTests: XCTestCase {
   if app.tabBars.buttons["Desk"].exists { XCTAssertTrue(desk.isSelected, "a fresh install opens on the Desk") }
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:10), "Needs you shows first")
   XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Ready to mark complete, 2","Done, 1"], "every column, with its count, left to right")
-  XCTAssertTrue(app.buttons[approve].exists && app.buttons["desk-deny-"+deskID("approval")].exists, "an approval: Approve and Deny in place")
+  XCTAssertTrue(app.buttons[approve].exists && app.buttons["desk-allow-session-"+deskID("approval")].exists && app.buttons["desk-deny-"+deskID("approval")].exists, "an approval: Allow, Allow for Session and Deny in place")
   XCTAssertTrue(app.buttons["desk-open-"+deskID("questions")].exists, "questions: Open")
-  XCTAssertFalse(app.buttons["desk-approve-"+deskID("questions")].exists)
+  XCTAssertFalse(app.buttons["desk-allow-"+deskID("questions")].exists)
   XCTAssertTrue(app.staticTexts["Run wrangler deploy to publish the new cache rules?"].exists, "what it asks")
+  // The one approval card: where (place › session), then the exact command, before its buttons.
+  let command=app.buttons["desk-command-"+deskID("approval")]
+  XCTAssertTrue(command.exists && command.label.contains("wrangler deploy --env production"), "the exact command, on the Desk too: \(command.label)")
+  XCTAssertTrue(app.staticTexts["SDHQ \u{203A} Cache rules"].exists, "place › session")
+  XCTAssertLessThan(command.frame.maxY, app.buttons[approve].frame.minY, "the command above Allow")
+  XCTAssertLessThanOrEqual(app.buttons[approve].frame.minX, app.buttons["desk-allow-session-"+deskID("approval")].frame.minX, "Allow first")
   capture("desk", app)
   guard deskPhone(app) else { return }
   XCTAssertTrue(app.buttons["desk-tab-needs-you"].isSelected, "opens on Needs you, which has something")
@@ -745,6 +777,48 @@ final class HomeNavTests: XCTestCase {
   app.buttons["desk-open-"+deskID("questions")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "Open opens the session")
  }
+ /// Scrolled to the end, nothing you'd tap sits under the floating tab bar: the Desk's last
+ /// card's buttons and the session list's last row end above it.
+ @MainActor func testScrollClearsTabBar() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  guard deskPhone(app), app.tabBars.firstMatch.exists else { return }
+  let bar=app.tabBars.firstMatch.frame.minY
+  for _ in 0..<4 { app.swipeUp() }
+  try await Task.sleep(for:.seconds(1))
+  let open=app.buttons["desk-open-"+deskID("questions")]
+  XCTAssertTrue(open.exists)
+  XCTAssertLessThanOrEqual(open.frame.maxY, bar, "Needs you's last button ends above the tab bar (\(open.frame.maxY) vs \(bar))")
+  capture("desk-scrolled-end", app)
+  deskColumn("todo",app)
+  for _ in 0..<4 { app.swipeUp() }
+  try await Task.sleep(for:.seconds(1))
+  let ignore=app.buttons["desk-ignore-"+deskID("printer")]
+  XCTAssertTrue(ignore.exists)
+  XCTAssertLessThanOrEqual(ignore.frame.maxY, bar, "To do's last button ends above the tab bar (\(ignore.frame.maxY) vs \(bar))")
+  tab("Projects",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:10))
+  for _ in 0..<6 { app.swipeUp() }
+  try await Task.sleep(for:.seconds(1))
+  let rows=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@","chat-")).allElementsBoundByIndex.filter { $0.exists && $0.frame.height > 0 }
+  let last=rows.max { $0.frame.maxY < $1.frame.maxY }
+  XCTAssertNotNil(last)
+  if let last { XCTAssertLessThanOrEqual(last.frame.maxY, bar + 1, "the list's last row ends above the tab bar (\(last.identifier): \(last.frame.maxY) vs \(bar))") }
+  capture("projects-scrolled-end", app)
+ }
+ /// Allow for Session on the Desk: the same call the session's card makes, with that decision.
+ @MainActor func testDeskAllowForSession() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let button=app.buttons["desk-allow-session-"+deskID("approval")]
+  XCTAssertTrue(button.waitForExistence(timeout:20)); reveal(button, app); button.tap()
+  XCTAssertTrue(button.waitForNonExistence(timeout:8), "allowed for the session, it leaves Needs you")
+  let calls=try await deskCalls()
+  XCTAssertEqual(calls.last?["action"] as? String, "decide")
+  XCTAssertEqual(calls.last?["decision"] as? String, "approvedForSession", "the decision goes along")
+  XCTAssertEqual(calls.last?["item"] as? String, deskID("approval").lowercased())
+ }
  /// Start There: its step shows the place, the sessions already there doing the same work (a
  /// clear match chosen) and New session. Continue sends the request to that session; the Desk
  /// stays, with a note to open it.
@@ -794,13 +868,15 @@ final class HomeNavTests: XCTestCase {
   let fresh=app.buttons["desk-thread-new"]
   XCTAssertTrue(fresh.waitForExistence(timeout:8)); fresh.tap()
   let modelRow=app.buttons["model-current"]
+  // A form sheet on an iPad: the row can sit below its fold.
+  for _ in 0..<2 where !modelRow.waitForExistence(timeout:4) { app.swipeUp() }
   XCTAssertTrue(modelRow.waitForExistence(timeout:5), "New session: its model")
-  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Most capable", "as a new session there would start")
+  XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Best for everyday, complex tasks", "as a new session there would start")
   XCTAssertEqual(app.buttons["desk-start-confirm"].label, "Start")
   modelRow.tap()
   XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5), "the menu lists the models")
   modelItem("Sonnet 5",app).tap()
-  let picked=expectation(for:NSPredicate(format:"label == %@","Model: Sonnet 5, Fast and capable"),evaluatedWith:modelRow)
+  let picked=expectation(for:NSPredicate(format:"label == %@","Model: Sonnet 5, Efficient for routine tasks"),evaluatedWith:modelRow)
   await fulfillment(of:[picked],timeout:5)
   capture("desk-start-model", app)
   app.buttons["desk-start-confirm"].tap()
@@ -915,7 +991,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(card.waitForExistence(timeout:20))
   guard deskPhone(app) else { return }
   // Named as the session lists name it: by its project, its own title under that.
-  XCTAssertTrue(app.staticTexts["Cache rules"].exists, "the session's own title under its project's name")
+  XCTAssertTrue(app.staticTexts["SDHQ \u{203A} Cache rules"].exists, "named by its project, then the session's own title")
   XCTAssertFalse(app.buttons["desk-silence-"+deskID("approval")].exists, "Silence stays hidden until swiped")
   card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
    .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
@@ -933,19 +1009,44 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((body?["chatID"] as? String)?.uppercased(), uuid("SDHQ"))
   XCTAssertEqual(body?["text"] as? String, "Run wrangler deploy to publish the new cache rules?")
   XCTAssertEqual(deskCounts(app)[2], "Needs you, 1", "the count goes down")
+  // A few seconds to take it back, and a quiet "1 silenced" row at the foot of Needs you.
+  let undo=app.buttons["desk-undo-silence"]
+  XCTAssertTrue(undo.waitForExistence(timeout:5), "Undo after silencing")
+  XCTAssertTrue(app.buttons["desk-silenced-row"].waitForExistence(timeout:5) && app.buttons["desk-silenced-row"].label.contains("1 silenced"), "1 silenced, listed")
   capture("desk-silenced", app)
-  // All the way across: silenced without a tap.
+  undo.tap()
+  XCTAssertTrue(card.waitForExistence(timeout:8), "undone, it's back in Needs you")
+  calls=try await deskCalls()
+  XCTAssertEqual(calls.last?["action"] as? String, "unsilence")
+  XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("approval"))
+  XCTAssertEqual(deskCounts(app)[2], "Needs you, 2")
+  XCTAssertTrue(app.buttons["desk-silenced-row"].waitForNonExistence(timeout:5), "nothing silenced: no row")
+  // All the way across: it only shows Silence; nothing is silenced without a tap.
   let questions=app.buttons["desk-waiting-"+deskID("questions")]
   XCTAssertTrue(questions.waitForExistence(timeout:5))
   questions.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5))
    .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:-0.3,dy:0.5)),withVelocity:.default,thenHoldForDuration:0.05)
-  XCTAssertTrue(questions.waitForNonExistence(timeout:8), "a full swipe silences it")
-  XCTAssertTrue(app.staticTexts["desk-empty-needs-you"].waitForExistence(timeout:5), "nothing left in Needs you, and it says so")
+  let revealed=app.buttons["desk-silence-"+deskID("questions")]
+  XCTAssertTrue(revealed.waitForExistence(timeout:5), "a full swipe shows Silence")
+  try await Task.sleep(for:.seconds(1.5))
+  XCTAssertTrue(questions.exists, "and the card stays until Silence is tapped")
+  let sentSoFar=try await deskCalls()
+  XCTAssertEqual(sentSoFar.filter { $0["action"] as? String == "silence" }.count, 1, "no silence was sent")
+  revealed.tap()
+  XCTAssertTrue(questions.waitForNonExistence(timeout:8), "tapped, it's silenced")
   XCTAssertTrue(app.buttons["desk-tab-needs-you"].isSelected, "the column stays where it was")
   calls=try await deskCalls()
-  XCTAssertEqual(calls.filter { $0["action"] as? String == "silence" }.count, 2)
   XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
-  XCTAssertEqual(deskCounts(app)[2], "Needs you, 0")
+  // The silenced list: Unsilence puts it back.
+  let row=app.buttons["desk-silenced-row"]
+  XCTAssertTrue(row.waitForExistence(timeout:5)); reveal(row, app); row.tap()
+  let unsilence=app.buttons["desk-unsilence-"+deskID("questions")]
+  XCTAssertTrue(unsilence.waitForExistence(timeout:5), "the silenced list, each with Unsilence")
+  capture("desk-silenced-list", app)
+  unsilence.tap()
+  XCTAssertTrue(questions.waitForExistence(timeout:8), "unsilenced, it's back")
+  let lastCall=try await deskCalls().last
+  XCTAssertEqual(lastCall?["action"] as? String, "unsilence")
  }
  /// Long-press a Needs-you card: Silence is in its menu too.
  @MainActor func testDeskSilenceMenu() async throws {
@@ -1138,7 +1239,7 @@ final class HomeNavTests: XCTestCase {
   let phone=app.tabBars.buttons["Desk"]
   return phone.exists ? phone : app.buttons.matching(NSPredicate(format:"label == %@","Desk")).firstMatch
  }
- var approve: String { "desk-approve-"+deskID("approval") }
+ var approve: String { "desk-allow-"+deskID("approval") }
  static let deskColumns=["todo","working","needs-you","ready","done"]
  /// The board one column at a time, under tabs (a phone), rather than side by side.
  @MainActor func deskPhone(_ app:XCUIApplication) -> Bool { app.buttons["desk-tab-todo"].exists }
@@ -1356,7 +1457,15 @@ final class HomeNavTests: XCTestCase {
   let sol=modelItem("GPT-6.1-Sol",app)
   XCTAssertTrue(sol.waitForExistence(timeout:5), "the Codex list shows")
   sol.tap()
-  XCTAssertTrue(app.staticTexts["Full access"].waitForExistence(timeout:5), "picking another agent's model loads that agent's permissions")
+  for _ in 0..<4 where !app.buttons["permission-fullAccess"].waitForExistence(timeout:2) { app.swipeUp() }
+  XCTAssertTrue(app.buttons["permission-fullAccess"].waitForExistence(timeout:5), "picking another agent's model loads that agent's permissions")
+  // Every choice has its name; the risky one, chosen, says what it means.
+  XCTAssertTrue(app.buttons["permission-readOnly"].label.contains("Read only") && app.buttons["permission-fullAccess"].label.contains("Full access"), "named choices")
+  let caution=app.descendants(matching:.any)["permissions-caution"]
+  for _ in 0..<3 where !caution.exists { app.swipeUp() }
+  XCTAssertTrue(app.buttons["permission-fullAccess"].isSelected, "Full access is the one chosen")
+  XCTAssertTrue(caution.exists, "Full access chosen: its caution shows")
+  XCTAssertFalse(app.buttons["permission-readOnly"].isSelected)
   capture("new-chat-sheet",app)
   app.buttons["new-chat-start"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")
@@ -1518,7 +1627,17 @@ final class HomeNavTests: XCTestCase {
   if card.waitForExistence(timeout:5) {
    card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
     .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
-   if app.buttons["desk-silence-"+deskID("questions")].waitForExistence(timeout:5) { try await uxShot("desk-silence-swipe", app) }
+   let silence=app.buttons["desk-silence-"+deskID("questions")]
+   if silence.waitForExistence(timeout:5) {
+    try await uxShot("desk-silence-swipe", app)
+    // Tapped: Undo for a few seconds, and the quiet silenced row at the foot of Needs you.
+    silence.tap()
+    if app.buttons["desk-undo-silence"].waitForExistence(timeout:5) {
+     try await Task.sleep(for:.milliseconds(400)); capture("ux-desk-silenced-undo", app)
+     let row=app.buttons["desk-silenced-row"]
+     if row.waitForExistence(timeout:5) { reveal(row, app); row.tap(); try await uxShot("desk-silenced-list", app) }
+    }
+   }
   }
   // The ask box, with a request typed.
   let ask=field("desk-ask",app)
@@ -1582,13 +1701,15 @@ final class HomeNavTests: XCTestCase {
   let sdhq=app.buttons["chat-"+uuid("SDHQ")]
   if sdhq.waitForExistence(timeout:10) {
    sdhq.tap()
-   if app.buttons["Allow"].waitForExistence(timeout:10) || app.staticTexts["Permission needed"].exists { try await uxShot("approval", app) }
+   if app.buttons["Allow"].waitForExistence(timeout:10) || app.buttons["approval-command"].exists { try await uxShot("approval", app) }
    if !wide { app.navigationBars.buttons.element(boundBy:0).tap() }
   }
   // Attachments: a PDF proof and a photo in a reply; comments on the photo; the message box
   // with the marked-up copy attached.
   let magnets=app.buttons["chat-"+uuid("PlayCase Magnets")]
   if magnets.waitForExistence(timeout:10) {
+   // Clear of the tab bar first: a row under it takes the tap as the bar's.
+   if app.tabBars.firstMatch.exists, magnets.frame.maxY > app.tabBars.firstMatch.frame.minY - 20 { app.swipeUp(); sleep(1) }
    magnets.tap()
    let photo=app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
    if photo.waitForExistence(timeout:10) {
@@ -1617,7 +1738,12 @@ final class HomeNavTests: XCTestCase {
   tab("Projects",app).tap()
   if app.buttons["New Chat"].firstMatch.waitForExistence(timeout:5) {
    app.buttons["New Chat"].firstMatch.tap()
-   if app.navigationBars["New Chat"].waitForExistence(timeout:5) { try await uxShot("new-chat", app) }
+   if app.navigationBars["New Chat"].waitForExistence(timeout:5) {
+    try await uxShot("new-chat", app)
+    // Its permissions: every choice named, the risky one's caution when chosen.
+    for _ in 0..<4 where !app.buttons["permission-bypassPermissions"].isHittable { app.swipeUp() }
+    try await uxShot("new-chat-permissions", app)
+   }
    uxDismiss(app)
   }
   // Automations (from the ⋯ menu): the routines, then one routine's editor.
