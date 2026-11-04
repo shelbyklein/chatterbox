@@ -24,21 +24,22 @@ def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 # The Desk (plans/front-desk.md): an approval and questions waiting, two requests to place (one
 # with a proposed Studio, one with none), and what's running. Calls are recorded for asserts.
+# The approval is a project's session: named by its project, with its own title under it.
 PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banners, flyers and social posts for USA Archery.'},
  {'kind':'studio','id':cid('studio2'),'name':'Geekify','detail':'3D-printed figures and crystal stands.'},
  {'kind':'project','id':cid('Chatterbox'),'name':'Chatterbox','detail':'The Mac and iPhone app for Claude and Codex sessions.'},
  {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
-DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1
+DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[]
 def stamp(minutes=0):
  return (datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
 def place_named(name):
  return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
 def desk_reset(empty=False):
- global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION
- DESK_CALLS=[];DESK_REVISION+=1
+ global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED
+ DESK_CALLS=[];DESK_REVISION+=1;DESK_SILENCED=[]
  DESK_WAITING=[] if empty else [
-  {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?'},
+  {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','subtitle':'Cache rules','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?'},
   {'id':cid('desk-questions'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','place':'Tracker Trapper','kind':'questions','text':'Which progress style for the menu bar: a ring or a bar?',
    'questions':[{'id':'style','header':'Style','question':'Which progress style?','options':[{'label':'Ring','detail':''},{'label':'Bar','detail':''}],'multiSelect':False,'isSecret':False}]}]
  DESK_INCOMING=[] if empty else [
@@ -47,7 +48,7 @@ def desk_reset(empty=False):
   {'id':cid('desk-printer'),'text':'Find out why the print queue stalls overnight','source':'you','createdAt':stamp(3),'proposed':None}]
 def desk():
  working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n} for n in RUNNING]
- return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working}
+ return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED}
 def started_chat(place):
  # The session a start opens: a fixture chat in that place.
  if not place or place.get('kind')=='loose':return 'Loose chat'
@@ -165,7 +166,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
@@ -175,6 +176,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
    proposed=place_named(body.get('place')) or (PLACES[0] if 'banner' in text.lower() else PLACES[3] if 'magnet' in text.lower() else None)
    DESK_INCOMING.append({'id':str(uuid.uuid4()),'text':text,'source':body.get('source') or 'you','createdAt':stamp(),'proposed':proposed,'note':body.get('note')})
    DESK_REVISION+=1;return self.reply(desk())
+  if self.path=='/v1/desk/silence':
+   # Off the Desk, still waiting in its session.
+   DESK_CALLS.append({'action':'silence','body':body})
+   match=lambda w:w['id'].lower()==body.get('id','').lower() and w['chatID'].lower()==body.get('chatID','').lower()
+   DESK_SILENCED+=[w for w in DESK_WAITING if match(w)];DESK_WAITING=[w for w in DESK_WAITING if not match(w)];DESK_REVISION+=1
+   return self.reply(desk())
   if self.path.startswith('/v1/desk/') and self.path.endswith(('/start','/ignore')):
    id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
    request=next((r for r in DESK_INCOMING if r['id'].lower()==id),None)

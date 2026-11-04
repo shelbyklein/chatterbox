@@ -771,6 +771,96 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 working")
   capture("desk-calm", app)
  }
+ /// Swipe a Needs-you card left: Silence shows, and tapping it takes the card off the Desk;
+ /// the Mac is asked to silence it (its session still waits). Swiped all the way, it goes at once.
+ @MainActor func testDeskSilence() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let card=app.buttons["desk-waiting-"+deskID("approval")]
+  XCTAssertTrue(card.waitForExistence(timeout:20))
+  // Named as the session lists name it: by its project, its own title under that.
+  XCTAssertTrue(app.staticTexts["Cache rules"].exists, "the session's own title under its project's name")
+  XCTAssertFalse(app.buttons["desk-silence-"+deskID("approval")].exists, "Silence stays hidden until swiped")
+  card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
+   .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
+  let silence=app.buttons["desk-silence-"+deskID("approval")]
+  XCTAssertTrue(silence.waitForExistence(timeout:5) && silence.isHittable, "swiping left shows Silence")
+  XCTAssertTrue(card.exists, "and the card stays until it's tapped")
+  try await Task.sleep(for:.milliseconds(400))
+  capture("desk-silence-revealed", app)
+  silence.tap()
+  XCTAssertTrue(card.waitForNonExistence(timeout:8), "silenced, it leaves Needs you")
+  var calls=try await deskCalls()
+  XCTAssertEqual(calls.last?["action"] as? String, "silence")
+  let body=calls.last?["body"] as? [String:Any]
+  XCTAssertEqual((body?["id"] as? String)?.uppercased(), deskID("approval"))
+  XCTAssertEqual((body?["chatID"] as? String)?.uppercased(), uuid("SDHQ"))
+  XCTAssertEqual(body?["text"] as? String, "Run wrangler deploy to publish the new cache rules?")
+  XCTAssertTrue(app.staticTexts["desk-summary"].label.hasPrefix("1 needs you · "), "the count goes down: \(app.staticTexts["desk-summary"].label)")
+  capture("desk-silenced", app)
+  // All the way across: silenced without a tap.
+  let questions=app.buttons["desk-waiting-"+deskID("questions")]
+  XCTAssertTrue(questions.waitForExistence(timeout:5))
+  questions.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5))
+   .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:-0.3,dy:0.5)),withVelocity:.default,thenHoldForDuration:0.05)
+  XCTAssertTrue(questions.waitForNonExistence(timeout:8), "a full swipe silences it")
+  XCTAssertTrue(app.staticTexts["desk-section-needs-you"].waitForNonExistence(timeout:5), "nothing left in Needs you")
+  calls=try await deskCalls()
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "silence" }.count, 2)
+  XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
+  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 incoming · 2 working")
+  // Scrolling still scrolls: a vertical drag over a card doesn't swipe it.
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists)
+ }
+ /// Long-press a Needs-you card: Silence is in its menu too.
+ @MainActor func testDeskSilenceMenu() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let card=app.buttons["desk-waiting-"+deskID("questions")]
+  XCTAssertTrue(card.waitForExistence(timeout:20)); card.press(forDuration:1.2)
+  let item=app.buttons["Silence"]
+  XCTAssertTrue(item.waitForExistence(timeout:5), "Silence in the card's menu")
+  item.tap()
+  XCTAssertTrue(card.waitForNonExistence(timeout:8), "silenced from the menu")
+  let calls=try await deskCalls()
+  XCTAssertEqual(calls.last?["action"] as? String, "silence")
+  XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
+  XCTAssertTrue(app.buttons["desk-waiting-"+deskID("approval")].exists, "the other stays")
+ }
+ /// Wide (an iPad, an open iPhone Duo): the cards go in two columns, side by side; one on a phone.
+ @MainActor func testDeskTwoColumns() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let approval=app.buttons["desk-waiting-"+deskID("approval")], questions=app.buttons["desk-waiting-"+deskID("questions")]
+  XCTAssertTrue(approval.waitForExistence(timeout:20) && questions.exists)
+  let banner=app.buttons["desk-place-"+deskID("banner")], printer=app.buttons["desk-place-"+deskID("printer")]
+  let width=app.windows.firstMatch.frame.width
+  guard width > 640 else {
+   XCTAssertGreaterThan(questions.frame.minY, approval.frame.maxY, "one column on a phone (\(width) points)")
+   return
+  }
+  XCTAssertEqual(approval.frame.minY, questions.frame.minY, accuracy:2, "Needs you side by side")
+  XCTAssertLessThan(approval.frame.maxX, questions.frame.minX, "two columns")
+  reveal(printer, app)
+  XCTAssertTrue(banner.exists && printer.exists)
+  XCTAssertLessThan(banner.frame.maxX, printer.frame.minX, "Incoming side by side")
+  XCTAssertEqual(banner.frame.minX, approval.frame.minX, accuracy:2, "in the same columns")
+  XCTAssertEqual(printer.frame.minX, questions.frame.minX, accuracy:2)
+  app.swipeDown(); app.swipeDown()
+  try await Task.sleep(for:.milliseconds(400))
+  capture("desk-two-column", app)
+  // Each card still swipes on its own.
+  questions.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
+   .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
+  let silence=app.buttons["desk-silence-"+deskID("questions")]
+  XCTAssertTrue(silence.waitForExistence(timeout:5), "a card in the grid swipes to Silence")
+  XCTAssertFalse(app.buttons["desk-silence-"+deskID("approval")].exists, "only that card")
+  try await Task.sleep(for:.milliseconds(400))
+  capture("desk-two-column-silence", app)
+  silence.tap()
+  XCTAssertTrue(questions.waitForNonExistence(timeout:8))
+  XCTAssertTrue(approval.exists)
+ }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
   let app=XCUIApplication()

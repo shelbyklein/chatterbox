@@ -1,8 +1,9 @@
 import Foundation
 import Darwin
 // The Desk, as the service runs it (plans/front-desk.md): proposals for Studios and projects,
-// places, ignore, desk.json across a reload, Needs you and Working from sessions, the phone's
-// routes with a paired token, the service socket's "desk" operation and desk.changed, Claude's
+// places, ignore, desk.json across a reload, Needs you and Working from sessions (named as the
+// session lists name them), silence (kept, pruned, shown again when something new waits), the
+// phone's routes with a paired token, the service socket's "desk" operation and desk.changed, Claude's
 // propose_work, and starting a request in a Studio, as a project's Sidechat, or loose. No
 // agent ever starts: the first message goes to a stand-in, and the agents' paths lead nowhere.
 func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
@@ -171,6 +172,81 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               && DeskStore.question(in: "1. One\n2. Two\n\nWhich do you want? (A or B)") == nil
               && DeskStore.question(in: "Ready. Should I open v1.2 or v2?") == "Should I open v1.2 or v2?", "a question in a reply, only at its end")
 
+    // Named as the session lists name them: a project's session by its project, its own title
+    // under that; a worktree's by its branch; others by their title.
+    var buildingRecord = record("Building Chatterbox", items: [
+        DisplayItem(kind: .user, text: "Build it"), DisplayItem(kind: .assistant, text: "The build passes. Want me to?", phase: .final)])
+    buildingRecord.projectFolder = try folder("Chatterbox"); buildingRecord.projectNickname = "Chatterbox"
+    let building = try runtime.insert(buildingRecord)
+    var branchRecord = record("Fix the highlight sync")
+    branchRecord.projectFolder = try folder("Dogear-highlights"); branchRecord.worktreeOf = dogearRecord.projectFolder
+    branchRecord.worktreeBranch = "highlights-sync"; branchRecord.projectNickname = "Dogear"
+    let branch = try runtime.insert(branchRecord)
+    branch.isRunning = true
+    let named1 = try deskOf(call("GET", "/v1/desk"))
+    let buildingWaiting = named1.needsYou.first { $0.chatID == building.id }
+    let list = try Companion.decoder.decode(Companion.ChatList.self, from: call("GET", "/v1/chats").body)
+    let listed = list.groups.flatMap(\.chats).first { $0.id == building.id }
+    try check(buildingWaiting?.title == "Chatterbox" && buildingWaiting?.subtitle == "Building Chatterbox" && buildingWaiting?.place == "Chatterbox"
+              && buildingWaiting?.text == "Want me to?" && buildingWaiting?.title == listed?.project,
+              "a project's session: its project's name, as the list has it, and its own title under it: \(String(describing: buildingWaiting))")
+    let branchWorking = named1.working.first { $0.id == branch.id }
+    try check(branchWorking?.title == "highlights-sync" && branchWorking?.subtitle == "Fix the highlight sync" && branchWorking?.place == "Dogear",
+              "a worktree's session: its branch, its own title under it: \(String(describing: branchWorking))")
+    let deploy = named1.needsYou.first { $0.chatID == approval.id }
+    try check(deploy?.title == "Deploy the site" && deploy?.subtitle == nil && deploy?.place == "USA Archery", "a Studio's session: its title, nothing under it")
+    try check(named1.needsYou.first { $0.chatID == replied.id }?.subtitle == nil, "a loose session: its title")
+    branch.isRunning = false
+
+    // Silence: off the Desk (and its counts) on every device, still waiting in its session.
+    try check(call("POST", "/v1/desk/silence", Data("{}".utf8)).status == 400, "silence needs what to silence")
+    let approvalItem = approval.items[1].id
+    func silence(_ chat: UUID, _ id: UUID, _ text: String? = nil) throws -> Companion.Desk {
+        let response = call("POST", "/v1/desk/silence", try encode(Companion.DeskSilenceRequest(chatID: chat, id: id, text: text)))
+        try check(response.status == 200, "silence answers with the Desk")
+        return try deskOf(response)
+    }
+    let beforeSilence = try deskOf(call("GET", "/v1/desk"))
+    let quiet = try silence(approval.id, approvalItem, "Run deploy.sh")
+    try check(!quiet.needsYou.contains { $0.chatID == approval.id } && quiet.needsYou.count == beforeSilence.needsYou.count - 1,
+              "a silenced approval leaves Needs you, and its count")
+    try check(quiet.silenced?.map(\.id) == [approvalItem] && approval.items[1].approvalState == .pending && approval.pendingRequests.map(\.id) == [approvalItem],
+              "listed as silenced; the approval stays pending in its session")
+    try check(approval.isRunning && !quiet.working.contains { $0.id == approval.id }, "waiting on what's silenced: not Working either")
+    try check(quiet.revision > beforeSilence.revision && announced.last?.revision == quiet.revision, "silencing changes the revision, and is announced")
+    try check(try silence(approval.id, approvalItem).revision == quiet.revision && desk.silences.count == 1, "silencing it again changes nothing")
+    // A reply: the question it asks says which one; an old copy of it silences nothing.
+    let stale = try silence(replied.id, replied.id, "Want me to upload it somewhere else?")
+    try check(stale.needsYou.contains { $0.chatID == replied.id } && desk.silences.count == 1, "a reply that's since changed isn't silenced")
+    let quieter2 = try silence(replied.id, replied.id, "Want me to upload it to TestFlight?")
+    try check(!quieter2.needsYou.contains { $0.chatID == replied.id } && quieter2.silenced?.contains { $0.chatID == replied.id && $0.kind == "reply" } == true,
+              "a silenced reply leaves Needs you")
+    try check(try silence(UUID(), UUID()).revision == quieter2.revision, "something not waiting: nothing changes")
+    // Kept across a reload, in desk.json; an older desk.json without silences still loads.
+    let kept = DeskStore(file: file)
+    try check(kept.silences == desk.silences && kept.silences.count == 2 && !kept.snapshot().needsYou.contains { $0.chatID == approval.id || $0.chatID == replied.id },
+              "silences survive a reload")
+    let older = root.appendingPathComponent("desk-older.json")
+    try Data(#"{"revision":7,"requests":[{"id":"\#(UUID().uuidString)","text":"Old request","source":"you","createdAt":"2026-11-01T10:00:00Z"}]}"#.utf8).write(to: older)
+    let olderStore = DeskStore(file: older)
+    try check(olderStore.requests.map(\.text) == ["Old request"] && olderStore.silences.isEmpty && olderStore.revision == 8, "a desk.json from before silencing loads")
+    // Something new from the same session shows again.
+    _ = replied.appendItem(DisplayItem(kind: .user, text: "Not yet"))
+    _ = replied.appendItem(DisplayItem(kind: .assistant, text: "Fine. Shall I tag the release instead?", phase: .final))
+    let newer = try deskOf(call("GET", "/v1/desk"))
+    try check(newer.needsYou.first { $0.chatID == replied.id }?.text == "Shall I tag the release instead?", "a newer reply that asks shows again")
+    try check(!desk.silences.contains { $0.chatID == replied.id } && newer.silenced?.map(\.id) == [approvalItem], "and the old reply's silence is gone")
+    _ = approval.appendItem(DisplayItem(kind: .approval, text: "Run publish.sh", approvalState: .pending))
+    let next = try deskOf(call("GET", "/v1/desk"))
+    try check(next.needsYou.first { $0.chatID == approval.id }?.text == "Run publish.sh" && next.silenced?.map(\.id) == [approvalItem],
+              "a new approval in the same session shows; the silenced one stays silenced")
+    // Answered in its session, a silenced approval's silence goes.
+    if let index = approval.record.items.firstIndex(where: { $0.id == approvalItem }) { approval.record.items[index].approvalState = .denied }
+    let answered = try deskOf(call("GET", "/v1/desk"))
+    try check(desk.silences.isEmpty && answered.silenced?.isEmpty == true && answered.needsYou.first { $0.chatID == approval.id }?.text == "Run publish.sh",
+              "silences that no longer match anything waiting are pruned")
+    try await wait("the pruned silences saved") { DeskStore(file: file).silences.isEmpty }
+
     // Start: in its Studio, as the project's Sidechat, or loose; never an agent.
     let started = call("POST", "/v1/desk/\(bannerRequest.id)/start", Data("{}".utf8))
     let detail = try Companion.decoder.decode(Companion.ChatDetail.self, from: started.body)
@@ -250,6 +326,17 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!afterIgnore.incoming.contains { $0.id == retried.id }, "socket ignore")
     do { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]); try check(false, "ignoring a gone request fails") }
     catch { try check(error.localizedDescription == "That request is gone.", "ignoring a gone request says so") }
+    // Silence over the socket: the app may, an agent may not; desk.changed says so.
+    let planItem = plan.pendingRequests[0].id
+    let silenceBody: JSON = ["action": "silence", "chatID": .string(plan.id.uuidString), "id": .string(planItem.uuidString)]
+    do { _ = try await agent.request("desk", body: silenceBody); try check(false, "an agent may not silence") }
+    catch { try check(error.localizedDescription == "permission_denied", "an agent may not silence") }
+    let heard = changes.count
+    let socketQuiet = try await ui.request("desk", body: silenceBody).decode(Companion.Desk.self)
+    try check(!socketQuiet.needsYou.contains { $0.chatID == plan.id } && socketQuiet.silenced?.contains { $0.id == planItem } == true
+              && plan.pendingRequests.map(\.id) == [planItem], "socket silence: off the Desk, still pending")
+    try await wait("desk.changed after silencing") { changes.count > heard && changes.last?.silenced?.contains { $0.id == planItem } == true }
+    try check(true, "the app hears the silence")
     // A session starting work changes Working: announced without anyone asking.
     let seen = changes.count
     busy.isRunning = false; busy.onChange?(busy)

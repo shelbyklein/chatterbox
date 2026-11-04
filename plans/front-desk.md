@@ -18,7 +18,11 @@ someone must act, a healthy state takes no space.
 ## Target
 
 - **Needs you**: sessions waiting on Shelby with what they ask (approval, plan, questions, a
-  question in a reply); approve or deny in place, or open.
+  question in a reply); approve or deny in place, open, or silence (iPhone/iPad: swipe left or
+  long-press; Mac: the bell button or right-click). Cards are named as the session lists name
+  them (worktree branch, else project, else title), the session's own title under a project's.
+- Wide (iPad, an open iPhone Duo, a Mac page over 1100 points): Needs you and Incoming in two
+  columns.
 - **Incoming**: requests with a proposed place (Studio or project, from each one's
   instructions or brief) and an optional note: Start there, Change place, Ignore.
 - **Working**: one quiet line of running sessions.
@@ -27,14 +31,19 @@ someone must act, a healthy state takes no space.
 
 ## Contract (Shared/CompanionAPI.swift: Companion.Desk and friends)
 
-- Service owns the state: `desk.json` in the data folder (incoming requests only; Needs you and
-  Working are derived from sessions).
+- Service owns the state: `desk.json` in the data folder (incoming requests and silences; Needs
+  you and Working are derived from sessions). A silence is one waiting thing (chat + approval,
+  plan or questions item; for a reply, the reply item + its question): off Needs you, the
+  counts and badges on every device, still pending in its session; something new from the same
+  session shows again; silences that match nothing waiting are pruned. `Desk.silenced` lists
+  them (the Mac filters its own sessions' approvals with it).
 - Phone and connector, companion HTTP: `GET /v1/desk` → `Desk`; `POST /v1/desk`
   (`DeskAddRequest`) → `Desk`; `POST /v1/desk/<id>/start` (`DeskStartRequest`) → `ChatDetail`
   of the started session (its first message is the request's text); `POST /v1/desk/<id>/ignore`
-  → `Desk`; `GET /v1/desk/places` → `[DeskPlace]`.
-- Mac app, service socket: operation `desk` with `action` get | add | start | ignore | places
-  and the same bodies; the service publishes `desk.changed` when the Desk changes.
+  → `Desk`; `GET /v1/desk/places` → `[DeskPlace]`; `POST /v1/desk/silence`
+  (`DeskSilenceRequest { chatID, id, text? }`) → `Desk`.
+- Mac app, service socket: operation `desk` with `action` get | add | start | ignore | silence |
+  places and the same bodies; the service publishes `desk.changed` when the Desk changes.
 - Connector: `propose_work(text, place?, note?)` puts a request on the Desk; `list_sessions`
   stays as is.
 

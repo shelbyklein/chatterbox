@@ -4,7 +4,8 @@ import SwiftUI
 // The Desk on the Mac (plans/front-desk.md, T3): Home's first page, with Needs you from this
 // Mac's sessions, Incoming and replies from a stand-in service Desk, and Working. Checks the
 // summary line, which sections show, the "desk" requests it sends (get, add, start, ignore,
-// places) and that Open, Approve, Ignore and Start there do what they say.
+// silence, places), that Open, Approve, Ignore, Silence and Start there do what they say, that
+// cards are named as the session lists name them, and two columns on a wide window.
 // Evidence: desk-*.png in the fixture folder.
 setbuf(stdout, nil)
 let app = NSApplication.shared
@@ -127,6 +128,16 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         case "ignore":
             service.incoming.removeAll { $0.id == id }; service.revision += 1
             return try JSON.value(service)
+        case "silence":
+            // As the service does: a reply it lists, or an approval in the session, goes to silenced.
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))
+            if let index = service.needsYou.firstIndex(where: { $0.id == id && $0.chatID == chat }) {
+                service.silenced = (service.silenced ?? []) + [service.needsYou.remove(at: index)]
+            } else if let session = model.sessions.first(where: { $0.id == chat }), let item = session.pendingRequests.first(where: { $0.id == id }) {
+                service.silenced = (service.silenced ?? []) + [.init(id: item.id, chatID: session.id, title: session.title, place: nil, kind: "approval", text: item.text)]
+            }
+            service.revision += 1
+            return try JSON.value(service)
         case "start":
             service.incoming.removeAll { $0.id == id }; service.revision += 1
             return ["revision": 1, "summary": ["id": .string(startedID.uuidString), "title": "Fix the iPad sidebar badge"], "settings": "Claude", "items": [], "earlierCount": 0]
@@ -156,6 +167,22 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(sections.incoming.map(\.id) == [resultsEmail.id, badge.id, order.id], "Incoming: the service's requests")
     check(sections.summary == "4 need you · 3 incoming · 2 working", "header: \(sections.summary)")
     check(desk.badgeCount(in: model) == 7, "toolbar badge: needs and incoming")
+    // Named as the session lists name them: a project's session by its project, its title under that.
+    check(byChat[plan.id]?.waiting.title == "Chatterbox" && byChat[plan.id]?.waiting.subtitle == "Mac Desk page",
+          "a project's session: its project's name, its own title under it (\(byChat[plan.id]?.waiting.title ?? ""))")
+    check(byChat[magazine.id]?.waiting.title == "2027 Indoor Magazine" && byChat[magazine.id]?.waiting.subtitle == nil
+          && byChat[logos.id]?.waiting.title == "Event Logos", "a Studio's session: its own title")
+    let menu = sections.working.first { $0.id == sdhq.id }
+    check(menu?.title == "SDHQ" && menu?.subtitle == "Menu refresh", "Working names a project's session by its project too")
+    // Silenced on another device: the service lists it, and this Mac leaves it out (not Working either).
+    var fromPhone = service
+    fromPhone.silenced = [.init(id: magnets.items[0].id, chatID: magnets.id, title: "PlayCase magnets", place: nil, kind: "questions", text: "Which magnet size?")]
+    desk.load(fromPhone)
+    let phoneSilenced = desk.sections(in: model)
+    check(!phoneSilenced.needsYou.contains { $0.waiting.chatID == magnets.id } && phoneSilenced.needsYou.count == 3
+          && !phoneSilenced.working.contains { $0.id == magnets.id } && desk.badgeCount(in: model) == 6,
+          "silenced elsewhere: off this Mac's Desk and its badge")
+    desk.load(service)
 
     // MARK: Renders.
     // A window per render: each ContentView puts its own toolbar on its window.
@@ -204,10 +231,24 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     } else { check(false, "Desk and Pinned entries in Home's column") }
     check(frame("chip:\(order.id)") != nil && frame("change:\(order.id)") == nil, "no place: Choose a place, no Change place")
     check(frame("change:\(badge.id)") != nil && frame("approve:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "Change place, Approve and Open are there")
+    check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you row has Silence")
+    check(frame("subtitle:\(plan.items[0].id)") != nil && frame("subtitle:\(approvalID)") == nil, "a project's session shows its own title under the project's")
     check(panel.title == "Desk", "window title on the Desk (\(panel.title))")
     let rightmost = DeskDebug.frames.values.map(\.maxX).max() ?? 0
     check(rightmost <= 1500 + 1, "nothing clips on the right (\(rightmost))")
     try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1080, 940, "desk-light", dark: false)
+    let first = needs[0].id, second = needs[1].id
+    if let a = frame("needs:\(first)"), let b = frame("needs:\(second)") {
+        check(b.minY >= a.maxY, "a 1080-point page: one column")
+    } else { check(false, "Needs you rows on the 1080-point page") }
+    try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1440, 900, "desk-two-column")
+    if let a = frame("needs:\(first)"), let b = frame("needs:\(second)"), let c = frame("request:\(resultsEmail.id)"), let d = frame("request:\(badge.id)") {
+        check(abs(a.minY - b.minY) < 1 && a.maxX < b.minX && abs(a.height - b.height) < 1, "a wide page: Needs you in two columns, side by side, as tall as each other")
+        check(abs(c.minY - d.minY) < 1 && c.maxX < d.minX && abs(c.minX - a.minX) < 1, "and Incoming in the same two columns")
+        check(DeskView.columns(for: 1440) == 2 && DeskView.columns(for: 1080) == 1, "two columns past 1100 points of content")
+    } else { check(false, "rows on the wide page") }
+    let wideRight = DeskDebug.frames.values.map(\.maxX).max() ?? 0
+    check(wideRight <= 1440 + 1, "two columns: nothing clips (\(wideRight))")
     try await render(AnyView(ContentView()), 900, 900, "desk-home-narrow", dark: false)
     let narrowRight = DeskDebug.frames.filter { $0.key.hasPrefix("ignore:") || $0.key.hasPrefix("open:") }.values.map(\.maxX).max() ?? 0
     check(narrowRight <= 900 + 1, "narrow window: row buttons stay inside (\(narrowRight))")
@@ -235,6 +276,19 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     try await click("ignore:\(order.id)")
     check(sent.last == ["action": "ignore", "id": .string(order.id.uuidString)], "Ignore sends ignore with the request's id (\(String(describing: sent.last)))")
     check(!desk.sections(in: model).incoming.contains { $0.id == order.id }, "an ignored request leaves the Desk")
+
+    // Silence: {action: silence, chatID, id (and a reply's question)}; off the Desk, still waiting.
+    try await click("silence:\(logos.id)")
+    check(sent.last == ["action": "silence", "chatID": .string(logos.id.uuidString), "id": .string(logos.id.uuidString),
+                        "text": "Which of the two marks should I take forward?"], "Silence sends the reply's chat, id and question (\(String(describing: sent.last)))")
+    check(!desk.sections(in: model).needsYou.contains { $0.waiting.chatID == logos.id }, "a silenced reply leaves the Desk")
+    let planItem = plan.items[0].id
+    try await click("silence:\(planItem)")
+    check(sent.last == ["action": "silence", "chatID": .string(plan.id.uuidString), "id": .string(planItem.uuidString)], "a plan's Silence sends its chat and item")
+    let quiet = desk.sections(in: model)
+    check(!quiet.needsYou.contains { $0.waiting.chatID == plan.id } && !quiet.working.contains { $0.id == plan.id }, "a silenced plan leaves Needs you, and isn't Working")
+    check(plan.pendingRequests.map(\.id) == [planItem] && plan.items[0].approvalState == .pending, "and stays pending in its session")
+    try snapshot("desk-silenced")
 
     // Change place, then Start there: {action: start, id, place}, then the new session opens once listed.
     let geekify = places[2]
