@@ -327,8 +327,8 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     if let deskEntry = MacHomeDebug.entries["desk"], let pinned = MacHomeDebug.entries["pinned"] {
         check(deskEntry.maxY <= pinned.minY && deskEntry.maxX <= MacHomeDebug.column.maxX + 1, "Desk is the first entry in Home's left column")
     } else { check(false, "Desk and Pinned entries in Home's column") }
-    check(frame("chip:\(order.id)") != nil && frame("change:\(order.id)") == nil, "no place: Choose a place, no Change place")
-    check(frame("change:\(badge.id)") != nil && frame("allow:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "Change place, Allow and Open are there")
+    check(frame("chip:\(order.id)") != nil && frame("start:\(order.id)") != nil, "no place: Choose a place, and Start (it asks for a place)")
+    check(frame("change:\(badge.id)") == nil && frame("chip:\(badge.id)") != nil && frame("allow:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "no Change place button (the chip does it); Allow and Open are there")
     check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you card has Silence")
     // The one approval card: Allow, Allow for Session, Deny, left to right, the command always shown.
     if let allow = frame("allow:\(approvalID)"), let session = frame("allowSession:\(approvalID)"), let deny = frame("deny:\(approvalID)"),

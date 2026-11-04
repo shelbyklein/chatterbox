@@ -828,7 +828,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let start=app.buttons["desk-start-"+deskID("banner")]
   XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
-  XCTAssertTrue(app.navigationBars["Start There"].waitForExistence(timeout:5), "Start There opens its step, not a session")
+  XCTAssertTrue(app.navigationBars["Start"].waitForExistence(timeout:5), "Start There opens its step, not a session")
   let archie=app.buttons["desk-thread-"+deskID("Coach Archie")], other=app.buttons["desk-thread-963CA311-2496-5A83-9807-3AE28F7E5FB5"], fresh=app.buttons["desk-thread-new"]
   XCTAssertTrue(archie.waitForExistence(timeout:8) && other.exists && fresh.exists, "Continue in each session like it, and New session")
   XCTAssertTrue(app.staticTexts["Continue in Coach Archie"].exists && app.staticTexts["USA Archery"].exists, "named, in the place shown")
@@ -887,12 +887,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(body?["agent"] as? String, "claude"); XCTAssertEqual(body?["model"] as? String, "sonnet", "the model picked")
   XCTAssertNil(body?["continueChat"], "a new session")
  }
- /// Change Place lists every place with its detail line; Start There then uses the one picked.
+ /// The place chip lists every place with its detail line; Start then uses the one picked.
  @MainActor func testDeskChangePlace() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
-  let change=app.buttons["desk-change-"+deskID("banner")]
+  let change=app.buttons["desk-place-"+deskID("banner")]
   XCTAssertTrue(change.waitForExistence(timeout:5)); reveal(change, app); change.tap()
   let geekify=app.buttons["desk-place-option-Geekify"]
   XCTAssertTrue(geekify.waitForExistence(timeout:8), "the places")
@@ -914,15 +914,14 @@ final class HomeNavTests: XCTestCase {
   let call=try await deskCalls().last
   let place=(call?["body"] as? [String:Any])?["place"] as? [String:Any]
   XCTAssertEqual(place?["name"] as? String, "Geekify"); XCTAssertEqual(place?["kind"] as? String, "studio")
-  // Nothing proposed: choose a place first, then start there.
+  // Nothing proposed: Start asks for a place first, then opens its step there.
   deskTab(app).tap()
-  let choose=app.buttons["desk-choose-"+deskID("printer")]
-  XCTAssertTrue(choose.waitForExistence(timeout:5)); XCTAssertFalse(app.buttons["desk-start-"+deskID("printer")].isEnabled, "no Start There without a place")
-  choose.tap()
-  XCTAssertTrue(app.buttons["desk-place-option-Chatterbox"].waitForExistence(timeout:8)); app.buttons["desk-place-option-Chatterbox"].tap()
   let startPrinter=app.buttons["desk-start-"+deskID("printer")]
-  XCTAssertTrue(app.buttons["desk-change-"+deskID("printer")].waitForExistence(timeout:5) && startPrinter.isEnabled, "placed, it can start"); startPrinter.tap()
-  XCTAssertTrue(app.buttons["desk-start-confirm"].waitForExistence(timeout:5)); app.buttons["desk-start-confirm"].tap()
+  XCTAssertTrue(startPrinter.waitForExistence(timeout:5)); reveal(startPrinter, app)
+  XCTAssertFalse(app.buttons["desk-change-"+deskID("printer")].exists || app.buttons["desk-choose-"+deskID("printer")].exists, "no Change Place button: the chip does it")
+  startPrinter.tap()
+  XCTAssertTrue(app.buttons["desk-place-option-Chatterbox"].waitForExistence(timeout:8), "with no place, Start asks for one"); app.buttons["desk-place-option-Chatterbox"].tap()
+  XCTAssertTrue(app.buttons["desk-start-confirm"].waitForExistence(timeout:8), "then its step opens"); app.buttons["desk-start-confirm"].tap()
   XCTAssertTrue(startedNote(app).waitForExistence(timeout:8) && startedNote(app).label.contains("Started in Chatterbox"), startedNote(app).label)
   let second=((try await deskCalls().last)?["body"] as? [String:Any])?["place"] as? [String:Any]
   XCTAssertEqual(second?["name"] as? String, "Chatterbox"); XCTAssertEqual(second?["kind"] as? String, "project")
@@ -1615,7 +1614,7 @@ final class HomeNavTests: XCTestCase {
    uxDismiss(app)
   }
   // Change Place: the places a request can go.
-  let change=app.buttons["desk-change-"+deskID("banner")]
+  let change=app.buttons["desk-place-"+deskID("banner")]
   if change.waitForExistence(timeout:5) {
    reveal(change, app); change.tap()
    if app.buttons["desk-place-option-Geekify"].waitForExistence(timeout:8) { try await uxShot("desk-change-place", app) }
