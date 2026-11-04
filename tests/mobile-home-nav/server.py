@@ -20,6 +20,10 @@ MUTATIONS=[]
 RENAMES={}
 PROMOTIONS={}
 LIST_DELAY=0
+# The UX panel tour (testUXPanelTour): fuller transcripts for Galley and SDHQ, off unless asked for.
+RICH=False
+# Its connection-error step: every /v1 reply held past the app's 6-second timeout.
+OFFLINE=False
 def completed(name):
  return {'id':str(uuid.uuid4()),'chatID':cid(name),'title':name,'backend':'claude','endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
 # The Desk (plans/front-desk.md): an approval and questions waiting, two requests to place (one
@@ -84,6 +88,8 @@ def automation(id):
  return next((a for a in AUTOMATIONS if id.lower() in [i.lower() for i in a['ids']]),None)
 automations_reset()
 def reset():
+ global RICH,OFFLINE
+ RICH=False;OFFLINE=False
  desk_reset()
  automations_reset()
  global PINNED
@@ -143,9 +149,30 @@ def detail(id):
   {'id':cid('magnet-photo'),'name':'magnet-photo.png','mediaType':'image/png','isImage':True,'revision':'1'}],'isQueued':False})
  # A reply with a 3D model (an STL) to preview.
  if s['title']=='Crystal concept':items.append({'id':cid('model-reply'),'kind':'assistant','text':'The crystal stand is ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[{'id':cid('model-file'),'name':'stand.stl','mediaType':'application/octet-stream','isImage':False}],'isQueued':False})
+ if RICH and s['title'] in RICH_ITEMS:
+  def item(n,kind,text,extra=None):return dict(dict(id=cid(s['title']+'-rich-%d'%n),kind=kind,text=text,isStreaming=False,isCommentary=False,isPending=False,attachments=[],isQueued=False),**(extra or {}))
+  items=[item(n,*x) for n,x in enumerate(RICH_ITEMS[s['title']])]
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
  options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Most capable','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Fast and capable','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'default','title':'Manual','detail':'Always ask','systemImage':'hand.raised','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
+RICH_ITEMS={
+ 'Galley':[
+  ('user','Phase 3: finish the typography engine. Hyphenation, kerning pairs and the line breaker, then run the tests.'),
+  ('thought','The line breaker still fills greedily. Knuth-Plass needs the hyphenation points first, so do those, then kerning, then the breaker.'),
+  ('tool','Read Sources/Typography/LineBreaker.swift',{'toolState':'done'}),
+  ('tool','Read Sources/Typography/Hyphenator.swift',{'toolState':'done'}),
+  ('tool','Edited Sources/Typography/LineBreaker.swift',{'toolState':'done'}),
+  ('plan','',{'planSteps':[{'step':'Hyphenation patterns','status':'completed'},{'step':'Kerning pairs from the font','status':'completed'},{'step':'Knuth-Plass line breaking','status':'completed'},{'step':'Widow and orphan control','status':'pending'}]}),
+  ('tool','Ran swift test --filter TypographyTests',{'toolState':'failed'}),
+  ('assistant','One test failed: a soft hyphen at the end of a line was kept. Fixing that now.',{'isCommentary':True}),
+  ('tool','Ran swift test --filter TypographyTests',{'toolState':'done'}),
+  ('assistant',"## Phase 3: typography engine\n\nThe line breaker now uses **Knuth-Plass** with hyphenation points, so paragraphs set evenly instead of filling line by line.\n\n- Hyphenation: Liang patterns for English, cached per word\n- Kerning: pairs read from the font's `GPOS` table\n- Line breaking: total fit, with a penalty for two hyphens in a row\n\n```swift\nlet breaker = LineBreaker(width: 420, tolerance: 2.0)\nlet lines = breaker.lines(for: paragraph, hyphenator: .english)\n```\n\n| Sample | Before | After |\n|---|---|---|\n| Body copy | 31 rivers | 4 rivers |\n| Narrow column | 12 overfull | 0 overfull |\n\n**Next:** widow and orphan control. Check the specimen PDF before I start it.",{'workedSeconds':754})],
+ 'SDHQ':[
+  ('user','Tighten the cache rules for the shop pages and publish them.'),
+  ('tool','Read wrangler.toml',{'toolState':'done'}),
+  ('tool','Ran curl -sI https://sdhq.example/shop',{'toolState':'done'}),
+  ('assistant','The shop pages were cached for 4 hours, so price changes showed late. The new rules cache product pages for 10 minutes and bypass the cache for the cart and checkout.',{'workedSeconds':96}),
+  ('approval','Run wrangler deploy to publish the new cache rules?',{'isPending':True,'detail':'wrangler deploy --env production','approval':{'isPlan':False,'state':'pending'}})]}
 def stl():
  # A binary STL pyramid on a square base.
  import struct
@@ -198,7 +225,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,AUTOMATION_RAN
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,AUTOMATION_RAN,RICH,OFFLINE
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   if self.path.startswith('/v1/automations/'):
@@ -214,6 +241,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if 'agent' in body:routine.pop('model',None);routine.pop('effort',None)
    if 'enabled' in body and not body['enabled']:routine.pop('nextRunAt',None)
    return self.reply(routine)
+  if self.path=='/test/rich':RICH=bool(body.get('value',True));return self.reply({'ok':True})
+  if self.path=='/test/offline':
+   OFFLINE=True;return self.reply({'ok':True})
+  if OFFLINE and self.path.startswith('/v1/'):time.sleep(8)
+  if self.path=='/test/appearance':
+   # The tour's light-mode captures, on the run's own simulator (the script writes its id).
+   import subprocess
+   sim=open(os.path.join(os.environ['CHATTERBOX_TEST_OUTPUT'],'simulator')).read().strip()
+   subprocess.run(['xcrun','simctl','ui',sim,'appearance',body.get('value','dark')],check=True)
+   return self.reply({'ok':True})
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
   if self.path=='/v1/desk':
    DESK_CALLS.append({'action':'add','body':body})
@@ -287,6 +324,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    REMOVED.add(self.path.split('/')[3].lower());MUTATIONS.append('delete');return self.reply({'ok':True})
   self.send_error(404)
  def do_GET(self):
+  if OFFLINE and self.path.startswith('/v1/'):time.sleep(8)
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/desk-calls':return self.reply(DESK_CALLS)
   if self.path=='/test/automation-calls':return self.reply(AUTOMATION_CALLS)

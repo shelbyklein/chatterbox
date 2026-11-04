@@ -1359,6 +1359,205 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(text.contains("1. spot at center") && text.contains(": Make the magnet red") && text.contains("Overall: Brighter background"), text)
   capture("image-review-composer",app)
  }
+ // MARK: UX panel tour (design/ux-panel/screens)
+
+ /// Not a regression check: walks the main screens against the fixture (with fuller Galley
+ /// and SDHQ transcripts) and attaches one screenshot per screen, named "ux-…", for a design
+ /// review. Waits for each screen; skips a step whose control isn't there rather than failing.
+ /// MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testUXPanelTour on iphone, ipad or duo.
+ @MainActor func testUXPanelTour() async throws {
+  try await fixture("reset"); try await fixture("rich")
+  XCUIDevice.shared.orientation = .portrait
+  // The Desk, on a fresh install (it opens there).
+  var app=deskApp(); app.launch()
+  XCTAssertTrue(app.staticTexts["desk-section-needs-you"].waitForExistence(timeout:20))
+  let wide=app.windows.firstMatch.frame.width > 640
+  try await uxShot("desk", app)
+  let working=app.staticTexts["desk-working"]
+  if !wide { reveal(working, app); try await uxShot("desk-scrolled", app); app.swipeDown(); app.swipeDown() }
+  // Start There: the step that sends a request to a session.
+  let start=app.buttons["desk-start-"+deskID("banner")]
+  if start.waitForExistence(timeout:5) {
+   reveal(start, app); start.tap()
+   if app.buttons["desk-thread-new"].waitForExistence(timeout:8) { try await uxShot("desk-start-there", app) }
+   uxDismiss(app)
+  }
+  // Change Place: the places a request can go.
+  let change=app.buttons["desk-change-"+deskID("banner")]
+  if change.waitForExistence(timeout:5) {
+   reveal(change, app); change.tap()
+   if app.buttons["desk-place-option-Geekify"].waitForExistence(timeout:8) { try await uxShot("desk-change-place", app) }
+   uxDismiss(app)
+  }
+  // A Needs-you card swiped left: Silence.
+  app.swipeDown(); app.swipeDown()
+  let card=app.buttons["desk-waiting-"+deskID("questions")]
+  if card.waitForExistence(timeout:5) {
+   card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
+    .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
+   if app.buttons["desk-silence-"+deskID("questions")].waitForExistence(timeout:5) { try await uxShot("desk-silence-swipe", app) }
+  }
+  // The ask box, with a request typed.
+  let ask=field("desk-ask",app)
+  app.terminate(); app=deskApp(); app.launch()
+  if ask.waitForExistence(timeout:20) { ask.tap(); ask.typeText("Order more magnet blanks"); try await uxShot("desk-ask", app) }
+  // Nothing waiting: the calm Desk.
+  try await fixture("desk-empty")
+  app.terminate(); app=deskApp(); app.launch()
+  if app.staticTexts["desk-calm"].waitForExistence(timeout:20) { try await uxShot("desk-calm", app) }
+  try await fixture("reset"); try await fixture("rich")
+  app.terminate()
+
+  // The session lists, on the app's own preferences (paired, as after setup).
+  app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:20)); tab("Projects",app).tap()
+  let galley=app.buttons["chat-"+deskID("Galley")]
+  XCTAssertTrue(galley.waitForExistence(timeout:15))
+  try await uxShot("projects", app)
+  if app.buttons["Connection"].exists {
+   app.buttons["Connection"].tap(); try await uxShot("menu", app)
+   // Off the menu: a tap on the title, clear of the rows under it.
+   app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.12,dy:0.115)).tap(); sleep(1)
+  }
+  tab("Studios",app).tap()
+  if app.buttons["studio-select-studio-1"].waitForExistence(timeout:10) {
+   try await uxShot("studios", app)
+   openStudio("studio-1",app)
+   if app.images["Latest image in Coach Archie"].waitForExistence(timeout:10) || true { try await uxShot("studio-usa-archery", app) }
+   if app.buttons["studios-index"].exists { app.buttons["studios-index"].tap() }
+  }
+  tab("Chats",app).tap()
+  if tab("All",app).waitForExistence(timeout:5) { tab("All",app).tap(); try await uxShot("all-sessions", app) }
+
+  // A working session with tool rows, a plan, a failed and passing test run, and a reply
+  // with a heading, list, code and a table.
+  tab("Projects",app).tap()
+  XCTAssertTrue(galley.waitForExistence(timeout:10)); galley.tap()
+  let reply=app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@","Knuth-Plass")).firstMatch
+  XCTAssertTrue(reply.waitForExistence(timeout:10))
+  try await uxShot("conversation", app)
+  app.swipeDown(); app.swipeDown()
+  try await uxShot("conversation-top", app)
+  // Session Settings, then its model menu.
+  if app.buttons["Session Menu"].exists {
+   app.buttons["Session Menu"].tap(); try await uxShot("session-menu", app)
+   if app.buttons["Session Settings"].waitForExistence(timeout:5) {
+    app.buttons["Session Settings"].tap()
+    let modelRow=app.buttons["model-current"]
+    if modelRow.waitForExistence(timeout:5) {
+     try await uxShot("session-settings", app)
+     modelRow.tap()
+     if modelItem("Sonnet 5",app).waitForExistence(timeout:5) { try await uxShot("session-settings-model-menu", app); modelItem("Opus 5.5",app).tap() }
+    }
+    if app.navigationBars["Session Settings"].buttons["Done"].exists { app.navigationBars["Session Settings"].buttons["Done"].tap() } else { uxDismiss(app) }
+   } else { uxDismiss(app) }
+  }
+  // An approval waiting in its session.
+  if !wide { app.navigationBars.buttons.element(boundBy:0).tap() }
+  let sdhq=app.buttons["chat-"+uuid("SDHQ")]
+  if sdhq.waitForExistence(timeout:10) {
+   sdhq.tap()
+   if app.buttons["Allow"].waitForExistence(timeout:10) || app.staticTexts["Permission needed"].exists { try await uxShot("approval", app) }
+   if !wide { app.navigationBars.buttons.element(boundBy:0).tap() }
+  }
+  // Attachments: a PDF proof and a photo in a reply; comments on the photo; the message box
+  // with the marked-up copy attached.
+  let magnets=app.buttons["chat-"+uuid("PlayCase Magnets")]
+  if magnets.waitForExistence(timeout:10) {
+   magnets.tap()
+   let photo=app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
+   if photo.waitForExistence(timeout:10) {
+    try await Task.sleep(for:.seconds(1.5))
+    try await uxShot("attachments", app)
+    photo.tap()
+    if app.buttons["Comment"].waitForExistence(timeout:5) {
+     app.buttons["Comment"].tap()
+     let picture=app.descendants(matching:.any)["reviewPicture"]
+     if picture.waitForExistence(timeout:5) {
+      picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+      let note=field("reviewNote-1",app)
+      if note.waitForExistence(timeout:5) { note.typeText("Make the magnet red\n") }
+      picture.coordinate(withNormalizedOffset:CGVector(dx:0.2,dy:0.15)).press(forDuration:0.1,thenDragTo:picture.coordinate(withNormalizedOffset:CGVector(dx:0.45,dy:0.35)))
+      let second=field("reviewNote-2",app)
+      if second.waitForExistence(timeout:5) { second.typeText("Brighter background here\n") }
+      try await uxShot("image-comments", app)
+      app.buttons["Add to Message"].tap()
+      if app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10) { try await uxShot("composer-attachment", app) }
+     }
+    }
+   }
+   if !wide, app.navigationBars.buttons.element(boundBy:0).exists { app.navigationBars.buttons.element(boundBy:0).tap() }
+  }
+  // New Chat: name, agent and model, effort, permissions.
+  tab("Projects",app).tap()
+  if app.buttons["New Chat"].firstMatch.waitForExistence(timeout:5) {
+   app.buttons["New Chat"].firstMatch.tap()
+   if app.navigationBars["New Chat"].waitForExistence(timeout:5) { try await uxShot("new-chat", app) }
+   uxDismiss(app)
+  }
+  // Automations (from the ⋯ menu): the routines, then one routine's editor.
+  if app.buttons["Connection"].waitForExistence(timeout:5) {
+   app.buttons["Connection"].tap()
+   if app.buttons["Automations"].waitForExistence(timeout:5) {
+    app.buttons["Automations"].tap()
+    let morning=app.buttons["automation-"+automationID("morning")]
+    if morning.waitForExistence(timeout:8) {
+     try await uxShot("automations", app)
+     morning.tap()
+     if app.buttons["automation-run"].waitForExistence(timeout:5) { try await uxShot("automation-editor", app) }
+    }
+    uxDismiss(app); uxDismiss(app)
+   } else { uxDismiss(app) }
+  }
+  // Usage (from the ⋯ menu).
+  if app.buttons["Connection"].waitForExistence(timeout:5) {
+   app.buttons["Connection"].tap()
+   if app.buttons["Usage"].waitForExistence(timeout:5) {
+    app.buttons["Usage"].tap()
+    if app.staticTexts["81% used"].waitForExistence(timeout:8) { try await uxShot("usage", app) }
+    uxDismiss(app)
+   } else { uxDismiss(app) }
+  }
+  // Light mode: the Desk and the working session.
+  try await fixture("appearance",body:["value":"light"])
+  try await Task.sleep(for:.seconds(1.5))
+  deskTab(app).tap()
+  if app.staticTexts["desk-section-needs-you"].waitForExistence(timeout:10) { try await uxShot("desk-light", app) }
+  tab("Projects",app).tap()
+  if galley.waitForExistence(timeout:10) {
+   galley.tap()
+   if reply.waitForExistence(timeout:10) { try await uxShot("conversation-light", app) }
+  }
+  try await fixture("appearance",body:["value":"dark"])
+  if !wide, app.navigationBars.buttons.element(boundBy:0).exists { app.navigationBars.buttons.element(boundBy:0).tap() }
+  // The Mac stops answering (the fixture holds every reply past the app's timeout): refresh.
+  tab("Projects",app).tap()
+  try await fixture("offline")
+  if galley.waitForExistence(timeout:5) {
+   app.swipeDown()
+   try await Task.sleep(for:.seconds(12))
+   try await uxShot("connection-error", app)
+  }
+  try await fixture("reset")
+  app.terminate()
+ }
+ /// Lets animations finish, then attaches the screen as "ux-<name>".
+ @MainActor func uxShot(_ name:String,_ app:XCUIApplication) async throws {
+  try await Task.sleep(for:.milliseconds(900))
+  capture("ux-"+name, app)
+ }
+ /// Closes the top sheet, menu or pushed screen: its Cancel, Done or Close, else a swipe down.
+ @MainActor func uxDismiss(_ app:XCUIApplication) {
+  for label in ["Cancel","Done","Close"] {
+   let button=app.navigationBars.buttons[label].firstMatch
+   if button.exists && button.isHittable { button.tap(); sleep(1); return }
+  }
+  app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.12))
+   .press(forDuration:0.05,thenDragTo:app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.95)))
+  sleep(1)
+ }
  /// A text field or text view (vertical TextFields are text views) by identifier.
  @MainActor func field(_ id:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching:.any).matching(NSPredicate(format:"identifier == %@ AND (elementType == %d OR elementType == %d)",
