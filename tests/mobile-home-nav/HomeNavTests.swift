@@ -933,11 +933,26 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let ignore=app.buttons["desk-ignore-"+deskID("printer")]
   XCTAssertTrue(ignore.waitForExistence(timeout:5)); reveal(ignore, app); ignore.tap()
-  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForNonExistence(timeout:8), "ignored, it's gone")
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForNonExistence(timeout:8), "removed, it's gone")
   XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists, "the other stays")
   XCTAssertEqual(deskCounts(app)[0], "To do, 1", "the count goes down")
   let call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "ignore"); XCTAssertEqual(call?["id"] as? String, deskID("printer").lowercased())
+  XCTAssertEqual(app.buttons["desk-ignore-"+deskID("banner")].label, "Remove")
+  // Swiped left, a To do card shows Remove; a tap takes it off too.
+  guard deskPhone(app) else { return }
+  let card=app.buttons["desk-place-"+deskID("banner")]
+  // From the line above the place chip, near the card's right edge, about halfway across.
+  let line=card.coordinate(withNormalizedOffset:CGVector(dx:0,dy:-0.6))
+  line.withOffset(CGVector(dx:290,dy:0))
+   .press(forDuration:0.05,thenDragTo:line.withOffset(CGVector(dx:120,dy:0)),withVelocity:.slow,thenHoldForDuration:0.1)
+  let remove=app.buttons["desk-swipe-remove-"+deskID("banner")]
+  XCTAssertTrue(remove.waitForExistence(timeout:5) && remove.isHittable, "swiping left shows Remove")
+  try await Task.sleep(for:.milliseconds(400))
+  remove.tap()
+  XCTAssertTrue(card.waitForNonExistence(timeout:8), "removed by swipe, it's gone")
+  let removed=try await deskCalls().last
+  XCTAssertEqual(removed?["id"] as? String, deskID("banner").lowercased())
  }
  /// The ask box (above the board) puts a request on the Desk, with the place the Desk proposes;
  /// a phone shows it in To do.
