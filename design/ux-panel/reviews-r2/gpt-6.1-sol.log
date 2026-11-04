@@ -1,0 +1,421 @@
+Reading prompt from stdin...
+OpenAI Codex v0.162.1
+--------
+workdir: /Users/shelbyklein/Vibes/Chatterbox/.claude/worktrees/ux-panel/design/ux-panel
+model: gpt-6.1-sol
+provider: cpa-gui
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a1a7d7-00a7-7110-bbc2-99a85b68aa40
+--------
+user
+# UX/UI review brief
+
+You are a senior UX/UI designer (10+ years, shipped native iOS, iPadOS and macOS products, led
+design reviews). You are one judge on an independent panel. Judge only the product in front of
+you; you have no stake in it and don't know who made it. Be candid and specific: a score that
+flatters helps nobody.
+
+## The product
+
+Read `screens-r2/INDEX.md` first: what the app is for, and one line per screenshot naming the screen,
+its state, and any interaction a picture can't show. Then look at every screenshot in `screens-r2/`.
+
+The screenshots come from the app's test harness with made-up data. Don't judge the sample
+content itself (names, text, test strings), only how the interface presents it. Don't guess at
+screens you weren't shown; if something important seems missing, say so as a gap.
+
+The users are one or a few expert users who run and supervise many AI agent sessions at once,
+from a Mac and from an iPhone/iPad away from the desk. Judge it for that job: fast triage, knowing
+what's happening, acting with confidence, and not losing track of work.
+
+## Criteria (score each 1–10; the weights give the overall score)
+
+| # | Criterion | Weight | What to look at |
+|---|---|---|---|
+| C1 | Information architecture and navigation | 15% | Is it clear where things live (Desk, sessions, Studios/projects, automations, settings) and how to get between them? Same mental model on Mac and phone? |
+| C2 | Visual hierarchy and layout | 15% | Does the eye land on what matters first? Density right for an expert? Use of space on phone, iPad/wide and Mac. |
+| C3 | Consistency and platform conventions | 15% | Consistent components, patterns and wording across screens and platforms; follows Apple's Human Interface Guidelines where it should, departs from them only for a reason. |
+| C4 | Workflow efficiency | 15% | Taps/clicks and decisions for the core jobs: triage what needs you, approve or answer, start work in the right place, switch sessions, change model. Friction, dead ends, hidden actions. |
+| C5 | Status, feedback and error handling | 10% | Can you tell what's running, waiting, done or failed at a glance? Are errors, empty and loading states clear, calm and actionable? |
+| C6 | Visual craft | 10% | Typography, color, spacing, alignment, iconography, dark-mode quality, polish. |
+| C7 | Content and microcopy | 10% | Labels, button text, explanations: plain, short, consistent, helpful. |
+| C8 | Accessibility | 10% | Contrast, touch target size, reliance on color alone, text size and Dynamic Type readiness, clear labels. |
+
+Score anchors (use the whole range):
+1–2 broken or unusable · 3–4 poor, gets in the way often · 5 works but rough · 6 decent, clear
+problems · 7 good, on par with solid shipping apps · 8 very good, few issues · 9 excellent, among
+the best in its category · 10 reference-quality, nothing meaningful to fix.
+
+## What to return
+
+1. A fenced ```json block, exactly this shape (integers 1–10):
+   `{"judge": "<your model name>", "scores": {"C1": n, "C2": n, "C3": n, "C4": n, "C5": n, "C6": n, "C7": n, "C8": n}, "overall": n}`
+   `overall` is your own holistic 1–10, not necessarily the weighted average.
+2. **One-paragraph verdict.**
+3. **Strengths**: the 3 strongest things, each tied to a screenshot filename.
+4. **Issues**: up to 10, most severe first. For each: severity (high / medium / low), the screenshot
+   filename(s), what's wrong, and why it matters for this user.
+5. **Suggestions**: up to 10 concrete changes, highest impact first. For each: what to change (specific
+   enough for a designer to draw it), which issue it fixes, expected impact (high/medium/low) and effort
+   (small/medium/large).
+6. **Quick wins**: up to 5 changes that are small effort and noticeably better.
+
+Keep it under 1,500 words.
+
+---
+# screens-r2/INDEX.md
+# Chatterbox screenshot pack, round 2 (UX/UI review)
+
+## About the app
+
+Chatterbox is a personal Mac + iPhone app for running and supervising many Claude and Codex
+coding and design agent sessions at once. The Mac runs the agents; the phone is a remote for them.
+Key concepts: **sessions** (also called chats or threads: one conversation with one agent);
+**projects** and **Studios**, the places work lives (a project is a code folder, a Studio is a
+creative workspace such as "USA Archery" holding several sessions; a session can also stand alone
+under Chats); the **Desk**, a board of five columns, left to right: **To do** (requests waiting to
+be placed and started), **Working** (sessions mid-reply), **Needs you** (approvals, plans and
+questions), **Ready to mark complete** (sessions that finished and ask nothing) and **Done**
+(marked complete this week); **automations**, scheduled routines that run a session on the Mac;
+and **approvals**, where an agent asks before running a command.
+
+All content is fixture data from the test harnesses (no real chats). Captured November 4, 2026.
+Dark mode unless noted. Same harnesses as round 1 (screens/INDEX.md); numbers 01–28 are the same
+screens as round 1 where they still exist, and 29–34 are new. Since round 1 the Desk became the
+board described above, and the panel's agreed fixes were applied (one approval card everywhere,
+contrast, naming, New Chat permissions, offline state, safer Silence, tab bar clearance, Mac
+primary buttons, Mac selection vs needs-you, the Command Center fixture).
+
+## Screens
+
+| File | Platform | Screen / state | Notes a reviewer can't see |
+|---|---|---|---|
+| 01-iphone-desk.png | iPhone 17 Pro | Desk, Needs you column: ask box, the column tabs with counts, an approval card (Permission · SDHQ › Cache rules, the ask, the command, Allow / Allow for Session / Deny) and a question card (Open) | The Desk is the first tab and where a fresh install opens. A phone shows one column at a time; it opens on Needs you when something waits, else To do. Tapping the top of a card opens its session. The Desk tab's badge counts Needs you plus To do. |
+| 02-iphone-desk-silence-swipe.png | iPhone | Needs you with the Tracker Trapper question card swiped left, showing Silence | Swiping reveals Silence; it takes a tap. A full swipe only reveals it (it stops a little past the button). Long-press also offers Silence. Silencing takes it off the Desk on every device; the session still waits. |
+| 03-iphone-desk-start-there.png | iPhone | Start There sheet for a To do request: the request, its place (USA Archery, Change), sessions already in that place, New session | Continue sends the request into the checked session as its next message; picking New session shows a model row instead. It runs in the background: the Desk stays and shows a note with Open. |
+| 04-iphone-desk-change-place.png | iPhone | Choose a Place sheet over the Desk: Studios and projects with one-line descriptions, search | Opened by Change Place / Choose Place on a To do card. The list also has "A session of its own" at the bottom. Start There is disabled until a request has a place. |
+| 05-iphone-desk-empty.png | iPhone | Desk with nothing waiting: To do column, "Nothing waiting to start." | Each empty column says so in one line. Working still has two sessions (its tab shows 2). |
+| 06-iphone-projects-list.png | iPhone | Projects tab: Activity box (working sessions, one new reply) above the project sessions | Rows show the agent mark (Claude orange, Codex green), last line, a waiting dot, a worktree branch icon (optimization) and a sidequest line under SDHQ. The ⋯ menu switches list/cards and sort. |
+| 07-iphone-studios.png | iPhone | Studios tab: Activity box, then one card per Studio | A Studio card opens that Studio's sessions as cards with the newest image as each card's thumbnail. |
+| 08-iphone-conversation.png | iPhone | A working Claude session (Galley), scrolled to the latest reply: heading, list, code block with Copy, table, "Worked for 12m 34s", Working indicator, composer | The header subtitle is the session's model and effort ("Opus 5.5 · Medium"), the same format as the Mac's model chip; tapping it opens Session Settings. A message sent while it works is queued; the round button beside the box stops the reply. |
+| 09-iphone-conversation-steps.png | iPhone | Same session scrolled up: user message, collapsed Thought, tool rows, plan checklist, a failed test run, narration, a passing run | Thought is folded until tapped. Tool rows are one line, truncated in the middle; the icon shows done, failed or running. |
+| 10-iphone-session-settings.png | iPhone | Session Settings sheet: provider (Claude / Codex / Open models), current model row, effort slider (Low · Medium · High · Extra High · Max), Permissions below | Opened from the session's ⋯ menu or its title. The model row opens a menu of that provider's models (Opus 5.5, Fable 5.1, Sonnet 5, Haiku 5), each with its description. Changes apply from the next message. |
+| 11-iphone-approval.png | iPhone | SDHQ session with a pending permission card: Permission, where (SDHQ), the ask, the command, Allow / Allow for Session / Deny | The same card as the Desk's (01), with the same labels, order and colors. The command shows on one line, cut in the middle when long; tapping it shows all of it (long-press copies it). The strip at the top is a running sidequest. |
+| 12-iphone-composer-attachment.png | iPhone | PlayCase Magnets session with the message box holding a marked-up image and generated feedback text | Produced by tapping a photo in a reply → Comment → tapping a spot and dragging an area, each with a note → Add to Message. Nothing is sent until Send. |
+| 13-iphone-new-chat.png | iPhone | New Chat sheet, top: optional name, Start in (Chats), provider and model, effort, the start of Permissions | Opened from the compose button on a list. Start creates the session and opens it. "Start in" picks a project or Studio. |
+| 14-iphone-automations.png | iPhone | Automations sheet: three routines with project, agent, model, schedule, next run; one switched off | Opened from the ⋯ menu or the Desk. The switch turns the routine on or off on the Mac (all of its days). "Last run" opens that run's session. Tapping a routine opens its editor with Run Now. |
+| 15-iphone-connection-error.png | iPhone | Projects list after the Mac stopped answering: "Can't reach Regression Mac" card with Retry and "Last updated", Activity reading "3 last seen working" with still clock icons | The fixture held replies past the app's 6-second timeout and the list was pulled to refresh. While the Mac can't be reached nothing spins: working sessions read as last seen (Activity, list rows, the Desk's Working cards). Retry tries again now; the card goes once the Mac answers. |
+| 16-iphone-desk-light.png | iPhone | Desk in light mode | Same state as 01. |
+| 19-mac-desk.png | Mac | Home on the Desk page: the five columns side by side; Needs you holds two questions, a plan (Start Building / Start and Accept Edits / Keep Planning) and a command approval (the command, Allow / Allow for Session / Deny); To do with place chips and Start there; Ready with Mark complete | The bell-slash icon silences a card; the square-arrow icon opens its session. "Choose a place" is amber when nothing is proposed, and Start there stays disabled until a place is chosen. Primary actions (Allow, Start there, Mark complete) are filled with the accent even when the window isn't frontmost. |
+| 20-mac-desk-start-there.png | Mac | Start there popover with New session chosen: place (Geekify, Change), sessions already there, provider tabs, model picker | Continuing an existing session keeps that session's model; the model controls appear only for New session. Start runs in the background with a note on the Desk. |
+| 21-mac-studio-page.png | Mac | Studio page (USA Archery): session list with status and thumbnails, filter (All / Needs you / Working), inspector with the latest image | National Event Ribbons is selected (accent-tinted row); Event Logos needs you (amber bar down its leading edge, "Needs you" under its title). Inspector tabs: Latest, All Images, Files. |
+| 22-mac-conversation.png | Mac | Main window: toolbar, Projects sidebar as cards (Galley selected, SDHQ needing you), Galley session with plan, collapsed step groups, markdown reply with code and table, composer bar | Selection is the accent tint; needs you is the amber leading bar. The composer's bottom bar holds permissions (Manual), effort slider and the model chip ("Opus 5.5 · Medium"), which opens the model popover. The right column is a rail of per-session tool buttons. The empty band above the first message is as the harness renders it. |
+| 23-mac-approval.png | Mac | SDHQ session with a pending command approval docked above the composer | The same card as the Desk's: Permission, where, the ask, the command (click to expand when long), Allow / Allow for Session / Deny. "Waiting for your approval below" marks where the turn stopped. SDHQ is both selected and needing you in the sidebar. |
+| 24-mac-studio-session.png | Mac | A Studio session (2027 Indoor Magazine): Studios column, the Studio's sessions, a reply with a rendered image | Images in replies have Copy image and Annotate (mark up and send back as feedback). |
+| 25-mac-command-center.png | Mac | Command Center: two sessions side by side, each with its own message box and settings bar | Clicking a message box focuses that session (blue outline). The Codex pane's chip reads "gpt-6.1-sol · Medium" with the Codex mark, its permissions "Full access"; the Claude pane's "Opus 5.5 · Medium", "Manual". |
+| 26-mac-automation-editor.png | Mac | Automation editor (WordPress updates): on/off switch, Run Now, name, day, time, agent, model, the instructions each run follows | Run Now is disabled in this render because the harness runs without the background service; the status line says so ("Run Now needs the background service"). Enabled, it's a regular full-strength button. |
+| 27-mac-settings-models.png | Mac | Settings → Models: default Claude model and effort, default Codex model, proxy models | Settings is a separate window; pages are listed down the left in three groups. Model descriptions come from Claude Code itself (Opus 5.5 "Best for everyday, complex tasks", Fable 5.1 "Most capable…"). |
+| 28-mac-conversation-light.png | Mac | Same as 22 in light mode | |
+| 29-iphone-desk-ready.png | iPhone | Desk, Ready column: two sessions that finished, with what they last said, Mark Complete and Open | Mark Complete archives the session into Done (Reopen brings it back); a full swipe left also marks it complete. Long-press: Open, Mark Complete, Silence. |
+| 30-iphone-desk-silenced-undo.png | iPhone | Needs you right after silencing the question: the "Silenced Tracker Trapper · Undo" note and the "1 silenced" row at the foot of the column | The note stays a few seconds. Undo puts it back on the Desk on every device. |
+| 31-iphone-desk-silenced-list.png | iPhone | Same, with the "1 silenced" row opened: the silenced question with Unsilence | Silenced items still wait in their sessions and don't count in Needs you or the badge. |
+| 32-iphone-new-chat-permissions.png | iPhone | New Chat scrolled to Permissions: Auto, Manual, Accept edits, Plan, Bypass permissions (chosen), and its caution | Every choice has its name and what it means; the chosen one is checked. Bypass permissions is the Mac's default for new chats here; chosen, its name takes the amber tint and the caution line shows. Codex sessions list Read only, Ask for approval, Approve for me, Full access. |
+| 33-mac-desk-light.png | Mac | The Desk board in light mode | Same state as 19, Desk page alone. |
+| 34-mac-desk-silenced.png | Mac | The Desk after silencing a reply and the plan: "Silenced Chatterbox › Mac Desk page · Undo" under the ask box, "2 silenced" at the foot of Needs you | The row opens to list each with Unsilence. Approvals and plans silenced on the phone are left off this Mac's Desk too. |
+
+The screenshots are attached in filename order. Judge from them and the index only; don't read any other files.
+
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shelbyklein/.codex/config.toml): `features.rmcp_client` is ignored.
+warning: Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.
+  user (/Users/shelbyklein/.codex/config.toml): `features.rmcp_client` is ignored.
+warning: failed to parse hooks config /Users/shelbyklein/.codex/hooks.json: EOF while parsing a value at line 1 column 0
+codex
+I’ll review all 32 screenshots against the index and use the impeccable skill to structure the critique. I’ll keep findings tied to visible evidence and flag anything the screenshots can’t establish.
+exec
+/bin/zsh -lc 'cat /Users/shelbyklein/.codex/skills/impeccable/SKILL.md' in /Users/shelbyklein/Vibes/Chatterbox/.claude/worktrees/ux-panel/design/ux-panel
+ succeeded in 0ms:
+---
+name: impeccable
+description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify, distill, harden, optimize, adapt, animate, colorize, extract, or otherwise improve a frontend interface. Covers websites, landing pages, dashboards, product UI, app shells, components, forms, settings, onboarding, and empty states. Handles UX review, visual hierarchy, information architecture, cognitive load, accessibility, performance, responsive behavior, theming, anti-patterns, typography, fonts, spacing, layout, alignment, color, motion, micro-interactions, UX copy, error states, edge cases, i18n, and reusable design systems or tokens. Also use for bland designs that need to become bolder or more delightful, loud designs that should become quieter, live browser iteration on UI elements, or ambitious visual effects that should feel technically extraordinary. Not for backend-only or non-UI tasks.
+metadata:
+  version: 4.4.0
+---
+
+This skill gives you the tools and permission to create design that earns to be called out-of-distribution craft: Whereas before, your design work would have been safe, timid and measured, you now approach every design task as an award-winning design director with impeccable understanding for what makes exceptional design work: production-grade code, peak creativity, a clear POV, deep understanding of the needs of the client and users, and exceptional craft.
+
+Core principles:
+- Go all out. No hedging, no shortcuts. The deliverable must be complete (except assets the user must provide).
+- Dream big and bold. Distinct, beautiful, outstanding and highly inspiring work.
+- Verify in bounded passes, not a loop, and the ceiling covers the whole cycle: screenshots, defect scans, micro-edits, and rebuilds alike. Build fully, inspect once with a batched round (desktop and mobile together on the web; the shipped device classes on a native platform), fix everything it shows in one batch, confirm with at most one more round, and stop polishing. Open-ended self-QA burns the user's money doing worse what the finish handoffs do better.
+
+## Setup
+
+1. Run `<skill-base-dir>/scripts/impeccable context` once per session, where `<skill-base-dir>` is the directory that contains this SKILL.md (the skill folder, not a plugin root two levels above it); keep cwd at the user's project. That base directory resolves every `.agents/skills/impeccable/scripts/impeccable <verb>` command in this skill and its references, and `.agents/skills/impeccable/scripts` is the fallback only when the runtime reports no base directory. On a Windows shell without `sh`, call `.agents/skills/impeccable/scripts/impeccable.cmd` instead. The launcher runs a self-contained binary that ships next to it or is downloaded once on first run; no Node or other runtime is required. Pass a named source file or route as `--target <path>`. It loads PRODUCT.md, DESIGN.md, the matching surface brief, and native-platform guidance when applicable; follow its directives and do not rerun it.
+2. Load the request's playbook: its Commands-table reference for an explicit/implied sub-command, or [reference/new-work.md](reference/new-work.md) for a new surface or replacement visual world. Inspect target and incumbent visual truth before editing. When the app cannot run, start with committed visual-regression goldens or screenshot fixtures; verify target and freshness against current tokens, CSS, components, or assets, resolve conflicts, and compare theme/variant captures.
+3. After resolving analysis and direction, read [reference/craft-floor.md](reference/craft-floor.md) immediately before any UI edit, including small refinements. It carries the quality floor, the absolute bans, and the reflexes no detector catches. Do not load it for planning-only work.
+
+**Launcher unavailable:** On refusal or failure, send a separate message **before the next tool call**: “Context loading did not run; I’ll read the existing project context directly.” Then read existing PRODUCT.md and DESIGN.md without inventing missing context, follow applicable steps 2–3, and continue through permitted tools. This applies to planning and editing; launcher failure alone does not block either.
+
+## How to design
+
+- **The brief wins.** Honor pinned aesthetics, eras, materials, fonts, and palettes even when they conflict with a saturated-pattern warning. Redirecting a clear brief toward your taste is failure.
+- **Refinement preserves; redesign replaces.** Refinement keeps the incumbent identity, behavior, copy, and everything outside scope. Ask before replacing factual copy or adding claims. Redesign keeps product truth, content, function, native affordances, and constraints, but treats the old look as evidence and anti-reference; choose a replacement world in new-work and replace DESIGN.md. Never split the difference into polish on the discarded look.
+- **Visual authority is evidence, not a filename.** Missing DESIGN.md alone does not make a project greenfield; new-work decides whether to preserve, expand, or replace the incumbent world.
+
+## Modes
+
+The mode names what the visitor's success looks like on this surface.
+
+- **Persuade:** the visitor decides and acts; design is the product. Landing pages, marketing, campaigns, pricing. Earn attention and action. Ship real imagery when the brief needs it; follow the committed world, not category habit.
+- **Operate:** the visitor completes a task. App UI, dashboards, editors, admin, settings, tools. Scanability, consistency, native expectations, and the real usage scene outrank expression. Brand lives in precise details.
+- **Read:** the visitor understands something. Docs, articles, guides, help, changelogs. Structure for comprehension, then make the reading experience worth staying in.
+- **Experience:** the visitor is inside the work itself. Portfolios, galleries, showcases. Let the artifact lead from the first viewport; the interface recedes.
+
+Choose the mode from the requested surface, not the product, and persist it only in that surface brief. A tool's landing page is still Persuade; a fashion house's documentation is still Read; a docs index is Read, not Persuade. See [new-work.md](reference/new-work.md) for new surfaces and [operate.md](reference/operate.md) for deeper Operate/Read guidance.
+
+## Commands
+
+| Command | Category | Description | Reference |
+|---|---|---|---|
+| `craft [feature]` | Build | Deprecated alias for an ordinary new-work request | [reference/craft.md](reference/craft.md) |
+| `shape [feature]` | Build | Plan UX/UI before writing code | [reference/shape.md](reference/shape.md) |
+| `init` | Build | Capture durable product context in PRODUCT.md | [reference/init.md](reference/init.md) |
+| `document` | Build | Generate DESIGN.md from existing project code | [reference/document.md](reference/document.md) |
+| `extract [target]` | Build | Pull reusable tokens and components into design system | [reference/extract.md](reference/extract.md) |
+| `critique [target]` | Evaluate | UX design review with heuristic scoring | [reference/critique.md](reference/critique.md) |
+| `audit [target]` | Evaluate | Technical quality checks (a11y, perf, responsive) | [reference/audit.md](reference/audit.md) · native: [reference/audit.native.md](reference/audit.native.md) |
+| `polish [target]` | Refine | Final quality pass before shipping | [reference/polish.md](reference/polish.md) |
+| `bolder [target]` | Refine | Amplify safe or bland designs | [reference/bolder.md](reference/bolder.md) |
+| `quieter [target]` | Refine | Tone down aggressive or overstimulating designs | [reference/quieter.md](reference/quieter.md) |
+| `distill [target]` | Refine | Strip to essence, remove complexity | [reference/distill.md](reference/distill.md) |
+| `harden [target]` | Refine | Production-ready: errors, i18n, edge cases | [reference/harden.md](reference/harden.md) |
+| `onboard [target]` | Refine | Design first-run flows, empty states, activation | [reference/onboard.md](reference/onboard.md) |
+| `animate [target]` | Enhance | Add purposeful animations and motion | [reference/animate.md](reference/animate.md) |
+| `colorize [target]` | Enhance | Add strategic color to monochromatic UIs | [reference/colorize.md](reference/colorize.md) |
+| `typeset [target]` | Enhance | Improve typography hierarchy and fonts | [reference/typeset.md](reference/typeset.md) |
+| `layout [target]` | Enhance | Fix spacing, rhythm, and visual hierarchy | [reference/layout.md](reference/layout.md) |
+| `delight [target]` | Enhance | Add personality and memorable touches | [reference/delight.md](reference/delight.md) |
+| `overdrive [target]` | Enhance | Push past conventional limits | [reference/overdrive.md](reference/overdrive.md) |
+| `clarify [target]` | Fix | Improve UX copy, labels, and error messages | [reference/clarify.md](reference/clarify.md) |
+| `adapt [target]` | Fix | Adapt for different devices and screen sizes | [reference/adapt.md](reference/adapt.md) · native: [reference/adapt.native.md](reference/adapt.native.md) |
+| `optimize [target]` | Fix | Diagnose and fix UI performance | [reference/optimize.md](reference/optimize.md) |
+| `live` | Iterate | Visual variant mode: pick elements in the browser, iterate on alternatives | [reference/live.md](reference/live.md) |
+| `generate [n] [action] [element]` | Iterate | Variants, versions, or alternatives of a named element to choose from in the live browser; no manual picking | [reference/generate.md](reference/generate.md) |
+
+Routing:
+
+- **No argument:** read [routing.md](reference/routing.md) and present its context-aware menu; never auto-run a command.
+- **Explicit or clearly implied request to run a command:** load its reference (native variant on native platforms) and follow it. Ask once if two commands fit.
+- **Workflow or command-selection question:** read [Workflow questions](reference/routing.md#workflow-questions).
+- **Otherwise:** treat the request as general design work. Missing PRODUCT.md routes a new surface or replacement world through init, then new-work; a narrow refinement of existing code proceeds on the incumbent implementation as `impeccable context` directs, offering init afterward rather than blocking on it.
+- `teach` aliases `init`. `craft` is a deprecated alias for ordinary new-work and adds nothing. `shape` owns task discovery, then enters new-work only for visual-world and surface-concept decisions.
+
+After init writes PRODUCT.md, resume without rerunning `impeccable context`; init loads the native platform reference itself when the platform it recorded is `ios`, `android`, or `adaptive`.
+
+**Pin / Unpin:** `.agents/skills/impeccable/scripts/impeccable pin <pin|unpin> <command>` creates or removes a standalone `$<command>` shortcut. Report the script's result concisely; relay stderr verbatim on error.
+
+**Hooks:** `$impeccable hooks <on|off|status|ignore-rule|ignore-file|ignore-value|reset>` manages the design detector hook for this project (auto-runs the detector after UI file edits and surfaces findings). Load [reference/hooks.md](reference/hooks.md) when the user invokes it with any argument.
+
+**Doctor:** `$impeccable doctor` reports and repairs drift between this project's Impeccable artifacts (PRODUCT.md, DESIGN.md and its sidecar, config, surface briefs, the hook) and what this version reads. Load [reference/doctor.md](reference/doctor.md) when the user invokes it, or when they ask what is out of date, stale, or needs refreshing. A `CONTEXT_STALE` directive in Setup's output is the cheap subset of the same report; act on it there per its own instructions rather than running doctor unasked.
+
+**Never repair drift as a side effect of a design task.** A `CONTEXT_STALE` finding is reported, not acted on, unless the user asks. The one exception is a finding marked `auto`, which the next write to that file performs anyway.
+exec
+/bin/zsh -lc 'cat screens-r2/INDEX.md' in /Users/shelbyklein/Vibes/Chatterbox/.claude/worktrees/ux-panel/design/ux-panel
+ succeeded in 0ms:
+# Chatterbox screenshot pack, round 2 (UX/UI review)
+
+## About the app
+
+Chatterbox is a personal Mac + iPhone app for running and supervising many Claude and Codex
+coding and design agent sessions at once. The Mac runs the agents; the phone is a remote for them.
+Key concepts: **sessions** (also called chats or threads: one conversation with one agent);
+**projects** and **Studios**, the places work lives (a project is a code folder, a Studio is a
+creative workspace such as "USA Archery" holding several sessions; a session can also stand alone
+under Chats); the **Desk**, a board of five columns, left to right: **To do** (requests waiting to
+be placed and started), **Working** (sessions mid-reply), **Needs you** (approvals, plans and
+questions), **Ready to mark complete** (sessions that finished and ask nothing) and **Done**
+(marked complete this week); **automations**, scheduled routines that run a session on the Mac;
+and **approvals**, where an agent asks before running a command.
+
+All content is fixture data from the test harnesses (no real chats). Captured November 4, 2026.
+Dark mode unless noted. Same harnesses as round 1 (screens/INDEX.md); numbers 01–28 are the same
+screens as round 1 where they still exist, and 29–34 are new. Since round 1 the Desk became the
+board described above, and the panel's agreed fixes were applied (one approval card everywhere,
+contrast, naming, New Chat permissions, offline state, safer Silence, tab bar clearance, Mac
+primary buttons, Mac selection vs needs-you, the Command Center fixture).
+
+## Screens
+
+| File | Platform | Screen / state | Notes a reviewer can't see |
+|---|---|---|---|
+| 01-iphone-desk.png | iPhone 17 Pro | Desk, Needs you column: ask box, the column tabs with counts, an approval card (Permission · SDHQ › Cache rules, the ask, the command, Allow / Allow for Session / Deny) and a question card (Open) | The Desk is the first tab and where a fresh install opens. A phone shows one column at a time; it opens on Needs you when something waits, else To do. Tapping the top of a card opens its session. The Desk tab's badge counts Needs you plus To do. |
+| 02-iphone-desk-silence-swipe.png | iPhone | Needs you with the Tracker Trapper question card swiped left, showing Silence | Swiping reveals Silence; it takes a tap. A full swipe only reveals it (it stops a little past the button). Long-press also offers Silence. Silencing takes it off the Desk on every device; the session still waits. |
+| 03-iphone-desk-start-there.png | iPhone | Start There sheet for a To do request: the request, its place (USA Archery, Change), sessions already in that place, New session | Continue sends the request into the checked session as its next message; picking New session shows a model row instead. It runs in the background: the Desk stays and shows a note with Open. |
+| 04-iphone-desk-change-place.png | iPhone | Choose a Place sheet over the Desk: Studios and projects with one-line descriptions, search | Opened by Change Place / Choose Place on a To do card. The list also has "A session of its own" at the bottom. Start There is disabled until a request has a place. |
+| 05-iphone-desk-empty.png | iPhone | Desk with nothing waiting: To do column, "Nothing waiting to start." | Each empty column says so in one line. Working still has two sessions (its tab shows 2). |
+| 06-iphone-projects-list.png | iPhone | Projects tab: Activity box (working sessions, one new reply) above the project sessions | Rows show the agent mark (Claude orange, Codex green), last line, a waiting dot, a worktree branch icon (optimization) and a sidequest line under SDHQ. The ⋯ menu switches list/cards and sort. |
+| 07-iphone-studios.png | iPhone | Studios tab: Activity box, then one card per Studio | A Studio card opens that Studio's sessions as cards with the newest image as each card's thumbnail. |
+| 08-iphone-conversation.png | iPhone | A working Claude session (Galley), scrolled to the latest reply: heading, list, code block with Copy, table, "Worked for 12m 34s", Working indicator, composer | The header subtitle is the session's model and effort ("Opus 5.5 · Medium"), the same format as the Mac's model chip; tapping it opens Session Settings. A message sent while it works is queued; the round button beside the box stops the reply. |
+| 09-iphone-conversation-steps.png | iPhone | Same session scrolled up: user message, collapsed Thought, tool rows, plan checklist, a failed test run, narration, a passing run | Thought is folded until tapped. Tool rows are one line, truncated in the middle; the icon shows done, failed or running. |
+| 10-iphone-session-settings.png | iPhone | Session Settings sheet: provider (Claude / Codex / Open models), current model row, effort slider (Low · Medium · High · Extra High · Max), Permissions below | Opened from the session's ⋯ menu or its title. The model row opens a menu of that provider's models (Opus 5.5, Fable 5.1, Sonnet 5, Haiku 5), each with its description. Changes apply from the next message. |
+| 11-iphone-approval.png | iPhone | SDHQ session with a pending permission card: Permission, where (SDHQ), the ask, the command, Allow / Allow for Session / Deny | The same card as the Desk's (01), with the same labels, order and colors. The command shows on one line, cut in the middle when long; tapping it shows all of it (long-press copies it). The strip at the top is a running sidequest. |
+| 12-iphone-composer-attachment.png | iPhone | PlayCase Magnets session with the message box holding a marked-up image and generated feedback text | Produced by tapping a photo in a reply → Comment → tapping a spot and dragging an area, each with a note → Add to Message. Nothing is sent until Send. |
+| 13-iphone-new-chat.png | iPhone | New Chat sheet, top: optional name, Start in (Chats), provider and model, effort, the start of Permissions | Opened from the compose button on a list. Start creates the session and opens it. "Start in" picks a project or Studio. |
+| 14-iphone-automations.png | iPhone | Automations sheet: three routines with project, agent, model, schedule, next run; one switched off | Opened from the ⋯ menu or the Desk. The switch turns the routine on or off on the Mac (all of its days). "Last run" opens that run's session. Tapping a routine opens its editor with Run Now. |
+| 15-iphone-connection-error.png | iPhone | Projects list after the Mac stopped answering: "Can't reach Regression Mac" card with Retry and "Last updated", Activity reading "3 last seen working" with still clock icons | The fixture held replies past the app's 6-second timeout and the list was pulled to refresh. While the Mac can't be reached nothing spins: working sessions read as last seen (Activity, list rows, the Desk's Working cards). Retry tries again now; the card goes once the Mac answers. |
+| 16-iphone-desk-light.png | iPhone | Desk in light mode | Same state as 01. |
+| 19-mac-desk.png | Mac | Home on the Desk page: the five columns side by side; Needs you holds two questions, a plan (Start Building / Start and Accept Edits / Keep Planning) and a command approval (the command, Allow / Allow for Session / Deny); To do with place chips and Start there; Ready with Mark complete | The bell-slash icon silences a card; the square-arrow icon opens its session. "Choose a place" is amber when nothing is proposed, and Start there stays disabled until a place is chosen. Primary actions (Allow, Start there, Mark complete) are filled with the accent even when the window isn't frontmost. |
+| 20-mac-desk-start-there.png | Mac | Start there popover with New session chosen: place (Geekify, Change), sessions already there, provider tabs, model picker | Continuing an existing session keeps that session's model; the model controls appear only for New session. Start runs in the background with a note on the Desk. |
+| 21-mac-studio-page.png | Mac | Studio page (USA Archery): session list with status and thumbnails, filter (All / Needs you / Working), inspector with the latest image | National Event Ribbons is selected (accent-tinted row); Event Logos needs you (amber bar down its leading edge, "Needs you" under its title). Inspector tabs: Latest, All Images, Files. |
+| 22-mac-conversation.png | Mac | Main window: toolbar, Projects sidebar as cards (Galley selected, SDHQ needing you), Galley session with plan, collapsed step groups, markdown reply with code and table, composer bar | Selection is the accent tint; needs you is the amber leading bar. The composer's bottom bar holds permissions (Manual), effort slider and the model chip ("Opus 5.5 · Medium"), which opens the model popover. The right column is a rail of per-session tool buttons. The empty band above the first message is as the harness renders it. |
+| 23-mac-approval.png | Mac | SDHQ session with a pending command approval docked above the composer | The same card as the Desk's: Permission, where, the ask, the command (click to expand when long), Allow / Allow for Session / Deny. "Waiting for your approval below" marks where the turn stopped. SDHQ is both selected and needing you in the sidebar. |
+| 24-mac-studio-session.png | Mac | A Studio session (2027 Indoor Magazine): Studios column, the Studio's sessions, a reply with a rendered image | Images in replies have Copy image and Annotate (mark up and send back as feedback). |
+| 25-mac-command-center.png | Mac | Command Center: two sessions side by side, each with its own message box and settings bar | Clicking a message box focuses that session (blue outline). The Codex pane's chip reads "gpt-6.1-sol · Medium" with the Codex mark, its permissions "Full access"; the Claude pane's "Opus 5.5 · Medium", "Manual". |
+| 26-mac-automation-editor.png | Mac | Automation editor (WordPress updates): on/off switch, Run Now, name, day, time, agent, model, the instructions each run follows | Run Now is disabled in this render because the harness runs without the background service; the status line says so ("Run Now needs the background service"). Enabled, it's a regular full-strength button. |
+| 27-mac-settings-models.png | Mac | Settings → Models: default Claude model and effort, default Codex model, proxy models | Settings is a separate window; pages are listed down the left in three groups. Model descriptions come from Claude Code itself (Opus 5.5 "Best for everyday, complex tasks", Fable 5.1 "Most capable…"). |
+| 28-mac-conversation-light.png | Mac | Same as 22 in light mode | |
+| 29-iphone-desk-ready.png | iPhone | Desk, Ready column: two sessions that finished, with what they last said, Mark Complete and Open | Mark Complete archives the session into Done (Reopen brings it back); a full swipe left also marks it complete. Long-press: Open, Mark Complete, Silence. |
+| 30-iphone-desk-silenced-undo.png | iPhone | Needs you right after silencing the question: the "Silenced Tracker Trapper · Undo" note and the "1 silenced" row at the foot of the column | The note stays a few seconds. Undo puts it back on the Desk on every device. |
+| 31-iphone-desk-silenced-list.png | iPhone | Same, with the "1 silenced" row opened: the silenced question with Unsilence | Silenced items still wait in their sessions and don't count in Needs you or the badge. |
+| 32-iphone-new-chat-permissions.png | iPhone | New Chat scrolled to Permissions: Auto, Manual, Accept edits, Plan, Bypass permissions (chosen), and its caution | Every choice has its name and what it means; the chosen one is checked. Bypass permissions is the Mac's default for new chats here; chosen, its name takes the amber tint and the caution line shows. Codex sessions list Read only, Ask for approval, Approve for me, Full access. |
+| 33-mac-desk-light.png | Mac | The Desk board in light mode | Same state as 19, Desk page alone. |
+| 34-mac-desk-silenced.png | Mac | The Desk after silencing a reply and the plan: "Silenced Chatterbox › Mac Desk page · Undo" under the ask box, "2 silenced" at the foot of Needs you | The row opens to list each with Unsilence. Approvals and plans silenced on the phone are left off this Mac's Desk too. |
+
+2026-11-04T18:35:41.761024Z ERROR codex_core::tools::router: error=collab spawn failed: no thread with id: 01a1a7d7-d7bf-7bf3-9a5d-0e4db2b7b358
+codex
+```json
+{"judge":"GPT-6","scores":{"C1":6,"C2":6,"C3":6,"C4":7,"C5":8,"C6":6,"C7":7,"C8":5},"overall":6}
+```
+
+**Verdict**
+
+Chatterbox has a useful operational foundation: actionable approvals, a shared work-state model, honest offline feedback, and independent controls for parallel sessions. It serves expert supervision better than a generic chat interface. Its main weaknesses are attention allocation and control discoverability: phone screens devote substantial space to navigation and repeated activity, while Mac screens rely heavily on small, unfamiliar icons. Permission settings also need better visibility at the moment work starts. The result is capable but uneven, with stronger workflow logic than visual hierarchy. This assessment covers all 32 supplied screenshots and their documented interactions; iPad layouts, keyboard-open states, Dynamic Type, VoiceOver, and large inventories remain evidence gaps. I have not treated the documented harness whitespace as a product defect.
+
+**Strengths**
+
+1. **The Desk supports action directly.** `01-iphone-desk.png`, `19-mac-desk.png`, `33-mac-desk-light.png`: requests, active work, decisions, reviewable results, and completed work have distinct places. Approvals expose the request, command, and actions together, reducing session hunting.
+2. **Offline feedback preserves trust.** `15-iphone-connection-error.png`: the named Mac, Retry, last-update timestamp, and “last seen working” distinguish stale information from live activity. This is particularly valuable when supervising remotely.
+3. **Parallel sessions retain clear ownership.** `25-mac-command-center.png`: separate drafts, provider/model chips, permission settings, and a focused-pane outline help users act in the intended session without closing another.
+
+**Issues — most severe first**
+
+1. **High — Permission mode is below the launch decision.** `13-iphone-new-chat.png`, `32-iphone-new-chat-permissions.png`: Start is available while the selected Bypass permissions mode and its warning sit below the initial viewport. An inherited setting with substantial consequences should be visible when starting work.
+
+2. **High — Phone overview density limits rapid scanning.** `01-iphone-desk.png`, `06-iphone-projects-list.png`, `07-iphone-studios.png`: large header areas, tall cards, and the repeated Activity block consume much of the screen. Experts supervising many sessions must scroll before comparing much of their inventory.
+
+3. **Medium — Mac navigation requires substantial icon memorization.** `22-mac-conversation.png`, `24-mac-studio-session.png`, `27-mac-settings-models.png`: the icon-only top switcher and long session-tool rail contrast with the phone’s labeled destinations. Sidebar structures also change between contexts, increasing orientation effort.
+
+4. **Medium — Silencing can conceal unresolved obligations across devices.** `30-iphone-desk-silenced-undo.png`, `31-iphone-desk-silenced-list.png`, `34-mac-desk-silenced.png`: Undo and Unsilence are good recovery mechanisms, but the visible “Needs you” count excludes requests that still wait. The compact silenced row does not distinguish a hidden approval from a lower-priority question.
+
+5. **Medium — Approval detail disclosure is insufficiently apparent.** `11-iphone-approval.png`, `19-mac-desk.png`, `23-mac-approval.png`: long commands truncate, with expansion available through an otherwise unmarked command field. “Allow for Session” also leaves its permission scope implicit. Fast approval should still support deliberate inspection.
+
+6. **Medium — Secondary information is visually weak.** `09-iphone-conversation-steps.png`, `22-mac-conversation.png`, `27-mac-settings-models.png`, `28-mac-conversation-light.png`: tool activity, supporting labels, and some controls have low visual prominence; Mac icon controls are particularly small. These details carry operational meaning, yet can resemble unavailable controls. Exact contrast compliance and accessible hit areas cannot be established from screenshots.
+
+7. **Medium — Simple questions require leaving triage.** `01-iphone-desk.png`, `19-mac-desk.png`: question cards offer only Open, while approvals and plans support direct action. Where a question has structured choices, the extra navigation slows repeated decision handling.
+
+8. **Medium — Discrete effort choices use an imprecise-looking control.** `10-iphone-session-settings.png`, `13-iphone-new-chat.png`, `32-iphone-new-chat-permissions.png`: five named levels are presented as a slider, with crowded labels and small tick marks. Users need confidence about the exact selection, especially when changing settings quickly.
+
+9. **Medium — Annotation feedback overwhelms the composer.** `12-iphone-composer-attachment.png`: generated coordinates and explanatory text occupy a large editing area alongside an attachment preview. Reviewing or adding a short instruction becomes cumbersome, and conversational context is substantially reduced.
+
+10. **Low — Shared actions have inconsistent presentation.** `03-iphone-desk-start-there.png`, `20-mac-desk-start-there.png`, `29-iphone-desk-ready.png`, `33-mac-desk-light.png`: capitalization varies, phone “Ready” becomes Mac “Ready to mark complete,” and completion is green on phone but blue on Mac. Individually minor differences collectively weaken recognition.
+
+**Suggestions — highest impact first**
+
+1. **Show a persistent launch summary beside Start.** Include destination, agent/model, and permission mode; give Bypass permissions an amber label and concise warning in the initial viewport. Keep detailed options below. **Fixes #1. Impact: high. Effort: small.**
+
+2. **Offer a compact supervision layout on phone.** Collapse the Desk’s large title after scrolling; make Activity a one-line expandable summary; offer session rows with title, latest update, state, and trailing action. Preserve image cards for visually driven Studio browsing. **Fixes #2. Impact: high. Effort: medium.**
+
+3. **Give Mac navigation a labeled structure.** Expose Desk, Projects, Studios, Chats, and Command Center in a consistent navigation area. Group the session-tool rail into fewer categories, with visible labels in its expanded state. **Fixes #3. Impact: high. Effort: medium.**
+
+4. **Keep hidden obligations legible.** Rename the disclosure to “Silenced · 2 still waiting,” show approval/question/plan counts, and offer optional timed resurfacing. Preserve the current explicit-tap swipe behavior and Undo. **Fixes #4. Impact: high. Effort: medium.**
+
+5. **Make command inspection explicit.** Add “Show full command” with a chevron; expand into wrapping, selectable monospace text. Add a short explanation of the actual scope of “Allow for Session.” **Fixes #5. Impact: high. Effort: small.**
+
+6. **Strengthen operational text and controls.** Increase secondary-label contrast in both themes; enlarge small Mac control hit areas; keep passive metadata visually distinct from disabled actions. Validate with large text and assistive technology afterward. **Fixes #6. Impact: high. Effort: medium.**
+
+7. **Render structured answers inside Desk cards.** Show supplied choices as buttons, plus “Open context.” Freeform or complex questions can retain Open as their primary action. **Fixes #7. Impact: medium. Effort: medium.**
+
+8. **Replace the effort slider with a discrete picker.** Use a labeled current-value row opening a five-option list with a checkmark and brief descriptions. **Fixes #8. Impact: medium. Effort: small.**
+
+9. **Represent annotations as an editable attachment summary.** Show the thumbnail and “2 comments,” expandable into numbered notes. Keep the ordinary message field available for additional instructions. **Fixes #9. Impact: medium. Effort: medium.**
+
+10. **Standardize shared terminology and action styling.** Use sentence case, consistent completion labels, and the same primary-action treatment across platforms. Retain green as a completion-status signal. **Fixes #10. Impact: low. Effort: small.**
+
+**Quick wins**
+
+- Surface the selected permission mode beneath the New Chat title.
+- Add an explicit expansion chevron to command fields.
+- Change “1 silenced” to “1 silenced · still waiting.”
+- Use “Ready” consistently, with explanatory text inside that column.
+- Raise the contrast of tool-history text and secondary Mac labels.
+tokens used
+107,808
+```json
+{"judge":"GPT-6","scores":{"C1":6,"C2":6,"C3":6,"C4":7,"C5":8,"C6":6,"C7":7,"C8":5},"overall":6}
+```
+
+**Verdict**
+
+Chatterbox has a useful operational foundation: actionable approvals, a shared work-state model, honest offline feedback, and independent controls for parallel sessions. It serves expert supervision better than a generic chat interface. Its main weaknesses are attention allocation and control discoverability: phone screens devote substantial space to navigation and repeated activity, while Mac screens rely heavily on small, unfamiliar icons. Permission settings also need better visibility at the moment work starts. The result is capable but uneven, with stronger workflow logic than visual hierarchy. This assessment covers all 32 supplied screenshots and their documented interactions; iPad layouts, keyboard-open states, Dynamic Type, VoiceOver, and large inventories remain evidence gaps. I have not treated the documented harness whitespace as a product defect.
+
+**Strengths**
+
+1. **The Desk supports action directly.** `01-iphone-desk.png`, `19-mac-desk.png`, `33-mac-desk-light.png`: requests, active work, decisions, reviewable results, and completed work have distinct places. Approvals expose the request, command, and actions together, reducing session hunting.
+2. **Offline feedback preserves trust.** `15-iphone-connection-error.png`: the named Mac, Retry, last-update timestamp, and “last seen working” distinguish stale information from live activity. This is particularly valuable when supervising remotely.
+3. **Parallel sessions retain clear ownership.** `25-mac-command-center.png`: separate drafts, provider/model chips, permission settings, and a focused-pane outline help users act in the intended session without closing another.
+
+**Issues — most severe first**
+
+1. **High — Permission mode is below the launch decision.** `13-iphone-new-chat.png`, `32-iphone-new-chat-permissions.png`: Start is available while the selected Bypass permissions mode and its warning sit below the initial viewport. An inherited setting with substantial consequences should be visible when starting work.
+
+2. **High — Phone overview density limits rapid scanning.** `01-iphone-desk.png`, `06-iphone-projects-list.png`, `07-iphone-studios.png`: large header areas, tall cards, and the repeated Activity block consume much of the screen. Experts supervising many sessions must scroll before comparing much of their inventory.
+
+3. **Medium — Mac navigation requires substantial icon memorization.** `22-mac-conversation.png`, `24-mac-studio-session.png`, `27-mac-settings-models.png`: the icon-only top switcher and long session-tool rail contrast with the phone’s labeled destinations. Sidebar structures also change between contexts, increasing orientation effort.
+
+4. **Medium — Silencing can conceal unresolved obligations across devices.** `30-iphone-desk-silenced-undo.png`, `31-iphone-desk-silenced-list.png`, `34-mac-desk-silenced.png`: Undo and Unsilence are good recovery mechanisms, but the visible “Needs you” count excludes requests that still wait. The compact silenced row does not distinguish a hidden approval from a lower-priority question.
+
+5. **Medium — Approval detail disclosure is insufficiently apparent.** `11-iphone-approval.png`, `19-mac-desk.png`, `23-mac-approval.png`: long commands truncate, with expansion available through an otherwise unmarked command field. “Allow for Session” also leaves its permission scope implicit. Fast approval should still support deliberate inspection.
+
+6. **Medium — Secondary information is visually weak.** `09-iphone-conversation-steps.png`, `22-mac-conversation.png`, `27-mac-settings-models.png`, `28-mac-conversation-light.png`: tool activity, supporting labels, and some controls have low visual prominence; Mac icon controls are particularly small. These details carry operational meaning, yet can resemble unavailable controls. Exact contrast compliance and accessible hit areas cannot be established from screenshots.
+
+7. **Medium — Simple questions require leaving triage.** `01-iphone-desk.png`, `19-mac-desk.png`: question cards offer only Open, while approvals and plans support direct action. Where a question has structured choices, the extra navigation slows repeated decision handling.
+
+8. **Medium — Discrete effort choices use an imprecise-looking control.** `10-iphone-session-settings.png`, `13-iphone-new-chat.png`, `32-iphone-new-chat-permissions.png`: five named levels are presented as a slider, with crowded labels and small tick marks. Users need confidence about the exact selection, especially when changing settings quickly.
+
+9. **Medium — Annotation feedback overwhelms the composer.** `12-iphone-composer-attachment.png`: generated coordinates and explanatory text occupy a large editing area alongside an attachment preview. Reviewing or adding a short instruction becomes cumbersome, and conversational context is substantially reduced.
+
+10. **Low — Shared actions have inconsistent presentation.** `03-iphone-desk-start-there.png`, `20-mac-desk-start-there.png`, `29-iphone-desk-ready.png`, `33-mac-desk-light.png`: capitalization varies, phone “Ready” becomes Mac “Ready to mark complete,” and completion is green on phone but blue on Mac. Individually minor differences collectively weaken recognition.
+
+**Suggestions — highest impact first**
+
+1. **Show a persistent launch summary beside Start.** Include destination, agent/model, and permission mode; give Bypass permissions an amber label and concise warning in the initial viewport. Keep detailed options below. **Fixes #1. Impact: high. Effort: small.**
+
+2. **Offer a compact supervision layout on phone.** Collapse the Desk’s large title after scrolling; make Activity a one-line expandable summary; offer session rows with title, latest update, state, and trailing action. Preserve image cards for visually driven Studio browsing. **Fixes #2. Impact: high. Effort: medium.**
+
+3. **Give Mac navigation a labeled structure.** Expose Desk, Projects, Studios, Chats, and Command Center in a consistent navigation area. Group the session-tool rail into fewer categories, with visible labels in its expanded state. **Fixes #3. Impact: high. Effort: medium.**
+
+4. **Keep hidden obligations legible.** Rename the disclosure to “Silenced · 2 still waiting,” show approval/question/plan counts, and offer optional timed resurfacing. Preserve the current explicit-tap swipe behavior and Undo. **Fixes #4. Impact: high. Effort: medium.**
+
+5. **Make command inspection explicit.** Add “Show full command” with a chevron; expand into wrapping, selectable monospace text. Add a short explanation of the actual scope of “Allow for Session.” **Fixes #5. Impact: high. Effort: small.**
+
+6. **Strengthen operational text and controls.** Increase secondary-label contrast in both themes; enlarge small Mac control hit areas; keep passive metadata visually distinct from disabled actions. Validate with large text and assistive technology afterward. **Fixes #6. Impact: high. Effort: medium.**
+
+7. **Render structured answers inside Desk cards.** Show supplied choices as buttons, plus “Open context.” Freeform or complex questions can retain Open as their primary action. **Fixes #7. Impact: medium. Effort: medium.**
+
+8. **Replace the effort slider with a discrete picker.** Use a labeled current-value row opening a five-option list with a checkmark and brief descriptions. **Fixes #8. Impact: medium. Effort: small.**
+
+9. **Represent annotations as an editable attachment summary.** Show the thumbnail and “2 comments,” expandable into numbered notes. Keep the ordinary message field available for additional instructions. **Fixes #9. Impact: medium. Effort: medium.**
+
+10. **Standardize shared terminology and action styling.** Use sentence case, consistent completion labels, and the same primary-action treatment across platforms. Retain green as a completion-status signal. **Fixes #10. Impact: low. Effort: small.**
+
+**Quick wins**
+
+- Surface the selected permission mode beneath the New Chat title.
+- Add an explicit expansion chevron to command fields.
+- Change “1 silenced” to “1 silenced · still waiting.”
+- Use “Ready” consistently, with explanatory text inside that column.
+- Raise the contrast of tool-history text and secondary Mac labels.
