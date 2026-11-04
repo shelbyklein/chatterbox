@@ -32,13 +32,34 @@ services keep working); `working` gains enough to show a card (title, place, las
 New `POST /v1/desk/complete { chatID }` (archives, records it as completed from the board) and
 `POST /v1/desk/reopen { chatID }`; socket `desk` actions `complete` and `reopen`.
 
+As built: `DeskReady { id (the session), title, place, subtitle, text (its last reply's first
+sentence), finishedAt }`, `DeskDone { id, title, place, subtitle, completedAt }`, `DeskWorking`
+gains `activity` (what it's doing, as the session list says it) and `since` (its reply's start).
+Bodies are `DeskSessionRequest { chatID }`; both answer the Desk. Complete refuses a working
+session (409) rather than stop it. Silencing a ready session is `POST /v1/desk/silence` with its
+id as both `chatID` and `id` and its `text`; it hides it until its last reply changes. desk.json
+gains `completions` (chatID, completedAt; Done is the last week's whose sessions are still
+archived). Ready also leaves out sessions with background work, and shows at most 50.
+
+## Built choices
+
+- The Desk tab and toolbar badge still count Needs you + To do: Ready waits on nothing urgent,
+  and counting it would keep the badge lit all week.
+- Phone: tabs (count over a short name: To do, Working, Needs you, Ready, Done) pinned above the
+  cards; it opens on Needs you when something does, else To do, then stays on the column picked
+  (adding from the ask box switches to To do). Swipe left: Silence (Needs you), Complete (Ready).
+- Wide (iPad, open Duo) and Mac: 320-point columns; the board starts scrolled to Needs you when it
+  has something and isn't fully on screen. Wide phones/iPads don't swipe cards (a sideways drag
+  scrolls the board); Silence and Mark Complete are on the buttons and the long-press menu.
+- Project sessions are included in Ready: marking one complete archives the project's session.
+
 ## Tasks
 
-- [ ] B1 Service: ready/done derivation, complete/reopen routes and socket actions, desk.json
+- [x] B1 Service: ready/done derivation, complete/reopen routes and socket actions, desk.json
       records board completions. Extend scripts/test-desk.sh.
-- [ ] B2 iPhone/iPad: board with column tabs (phone) and side-by-side columns (wide); card
+- [x] B2 iPhone/iPad: board with column tabs (phone) and side-by-side columns (wide); card
       actions; UI tests against the fixture.
-- [ ] B3 Mac: board page; render test.
+- [x] B3 Mac: board page; render test.
 - [ ] B4 Screenshots to design/desk-board/; then into the panel's re-score.
 
 ## Not changed

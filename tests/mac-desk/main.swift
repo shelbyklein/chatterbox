@@ -1,14 +1,16 @@
 @testable import ChatterboxTestEngine
 import AppKit
 import SwiftUI
-// The Desk on the Mac (plans/front-desk.md, T3): Home's first page, with Needs you from this
-// Mac's sessions, Incoming and replies from a stand-in service Desk, and Working. Checks the
-// summary line, which sections show, the "desk" requests it sends (get, add, start, ignore,
-// silence, places, threads, options), that Open, Approve, Ignore, Silence and Start there do
-// what they say (Start there's step: continue a session already there, or pick the model; it
-// runs in the background with a note, nothing opens), that cards are named as the session
-// lists name them, and two columns on a wide window.
-// Evidence: desk-*.png in the fixture folder.
+// The Desk on the Mac (plans/front-desk.md, T3; plans/desk-board.md, B3): Home's first page, a
+// board of five columns (To do, Working, Needs you, Ready to mark complete, Done) with Needs you
+// and Working from this Mac's sessions, and To do, replies, Ready and Done from a stand-in
+// service Desk. Checks the summary line, the columns and their counts and empty lines, the
+// "desk" requests it sends (get, add, start, ignore, silence, complete, reopen, places,
+// threads, options), that Open, Approve, Ignore, Silence, Mark complete, Reopen and Start there
+// do what they say (Start there's step: continue a session already there, or pick the model;
+// it runs in the background with a note, nothing opens), that cards are named as the session
+// lists name them, and that the board scrolls sideways in a narrow window.
+// Evidence: desk-*.png in the fixture folder (desk-board.png: every column with cards).
 setbuf(stdout, nil)
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
@@ -25,19 +27,21 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     defer { for key in ["macStudioSelection", "macStudioInspected"] { UserDefaults.standard.removeObject(forKey: key) } }
     let now = Date()
 
-    // MARK: Pure logic: the summary line and which sections show.
+    // MARK: Pure logic: the summary line, the columns and their counts.
     check(DeskSections.summary(needsYou: 2, incoming: 0, working: 3) == "2 need you · 3 working", "summary: 2 need you · 3 working")
-    check(DeskSections.summary(needsYou: 1, incoming: 2, working: 0) == "1 needs you · 2 incoming", "summary: singular, and incoming")
+    check(DeskSections.summary(needsYou: 1, incoming: 2, working: 0, ready: 4) == "1 needs you · 2 to do · 4 ready", "summary: singular, to do and ready")
     check(DeskSections.summary(needsYou: 0, incoming: 0, working: 0) == "All clear", "summary: nothing at all")
+    check(DeskSections.Section.allCases.map(\.rawValue) == ["To do", "Working", "Needs you", "Ready to mark complete", "Done"], "five columns, left to right")
     var logic = DeskSections()
-    check(logic.visible.isEmpty && logic.isCalm, "empty Desk: no sections, calm")
+    check(DeskSections.Section.allCases.allSatisfy { logic.count($0) == 0 } && logic.actionCount == 0, "empty Desk: every column empty")
     logic.working = [Companion.DeskWorking(id: UUID(), title: "Ribbons", place: nil)]
-    check(logic.visible == [.working] && logic.isCalm, "only Working: still calm (Nothing else needs you.)")
     let sample = Companion.DeskRequest(id: UUID(), text: "x", source: "claude", createdAt: now.addingTimeInterval(-300), proposed: nil)
     logic.incoming = [sample]
-    check(logic.visible == [.incoming, .working] && !logic.isCalm, "Incoming before Working; not calm")
     logic.needsYou = [DeskNeed(waiting: .init(id: UUID(), chatID: UUID(), title: "t", place: nil, kind: "approval", text: "a"))]
-    check(logic.visible == [.needsYou, .incoming, .working] && logic.actionCount == 2, "Needs you first; badge counts needs and incoming")
+    logic.ready = [.init(id: UUID(), title: "r", place: nil, text: "Done.", finishedAt: now)]
+    check(logic.count(.todo) == 1 && logic.count(.working) == 1 && logic.count(.ready) == 1 && logic.count(.done) == 0
+          && logic.actionCount == 2, "counts per column; the badge counts needs and to do, not ready")
+    check(DeskText.ago(now.addingTimeInterval(-300), now: now) == "5m ago" && DeskText.ago(now, now: now) == "just now", "ages: 5m ago, just now")
     let startedID = UUID()
     check(DeskModel.startedSessionID(["revision": 3, "summary": ["id": .string(startedID.uuidString), "title": "x"]]) == startedID, "start reply: ChatDetail's summary id")
     check(DeskModel.startedSessionID(["id": .string(startedID.uuidString)]) == startedID && DeskModel.startedSessionID(.string(startedID.uuidString)) == startedID, "start reply: a bare id")
@@ -92,6 +96,19 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     archivedRecord.archivedAt = now
     archivedRecord.items = [DisplayItem(kind: .approval, text: "Old request", requestID: ["id": "r9"], approvalState: .pending)]
     let archived = model.insertSession(archivedRecord)
+    // Ready to mark complete and Done (the service's), as this Mac has those sessions.
+    func finishedRecord(_ title: String, _ said: String, ago: TimeInterval) -> ConversationRecord {
+        var r = record(title)
+        r.items = [DisplayItem(kind: .user, text: "Go"), DisplayItem(kind: .assistant, timestamp: now.addingTimeInterval(-ago), text: said, phase: .final)]
+        return r
+    }
+    let proofs = model.insertSession(inStudio(finishedRecord("Banner proofs", "The three banner proofs are in the Studio folder.", ago: 1800)))
+    let lid = model.insertSession(finishedRecord("PlayCase lid fit", "The 5 mm magnets fit the current lid with room to spare.", ago: 7200))
+    var reArchived = finishedRecord("Archived since", "Done.", ago: 600); reArchived.archivedAt = now
+    let readyArchived = model.insertSession(reArchived)
+    var flyersRecord = inStudio(finishedRecord("Camp flyers", "Sent to print.", ago: 86_400)); flyersRecord.archivedAt = now.addingTimeInterval(-3600)
+    let flyers = model.insertSession(flyersRecord)
+    let reopenedElsewhere = model.insertSession(finishedRecord("Reopened elsewhere", "Done.", ago: 90_000))
     let chatterbox = Companion.DeskPlace(kind: "project", id: plan.id, name: "Chatterbox", detail: "The Chatterbox Mac app, its service, and the iPhone app.")
     let usaPlace = Companion.DeskPlace(kind: "studio", id: usa.id, name: "USA Archery",
                                        detail: "# USA Archery\n\nMarketing for USA Archery: member emails, the magazine, event graphics and ribbons.")
@@ -114,7 +131,19 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         // A reply from a session that's working again, and one for a session this Mac doesn't have.
         .init(id: ribbons.id, chatID: ribbons.id, title: "National Event Ribbons", place: nil, kind: "reply", text: "Stale?"),
         .init(id: UUID(), chatID: UUID(), title: "Gone", place: nil, kind: "reply", text: "Gone?"),
-    ], incoming: [resultsEmail, badge, order], working: [])
+    ], incoming: [resultsEmail, badge, order], working: [],
+    ready: [
+        .init(id: proofs.id, title: "Banner proofs", place: "USA Archery", text: "The three banner proofs are in the Studio folder.", finishedAt: now.addingTimeInterval(-1800)),
+        .init(id: lid.id, title: "PlayCase lid fit", place: nil, text: "The 5 mm magnets fit the current lid with room to spare.", finishedAt: now.addingTimeInterval(-7200)),
+        // Working again here, and archived here since: left out before the service says so.
+        .init(id: ribbons.id, title: "National Event Ribbons", place: "USA Archery", text: "Old.", finishedAt: now.addingTimeInterval(-9000)),
+        .init(id: readyArchived.id, title: "Archived since", place: nil, text: "Done.", finishedAt: now.addingTimeInterval(-600)),
+    ],
+    done: [
+        .init(id: flyers.id, title: "Camp flyers", place: "USA Archery", completedAt: now.addingTimeInterval(-3600)),
+        // Unarchived here since: left out.
+        .init(id: reopenedElsewhere.id, title: "Reopened elsewhere", place: nil, completedAt: now.addingTimeInterval(-7200)),
+    ])
     // Start there's step: sessions already in the place like the work, and a new session's options.
     let sameWork = Companion.DeskThread(id: plan.id, title: "Mac Desk page", detail: "Add the Desk as Home's first page", settings: "Claude · Opus 5.5 · High",
                                         updatedAt: now.addingTimeInterval(-300), isRunning: true, match: "clear")
@@ -144,10 +173,26 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         case "ignore":
             service.incoming.removeAll { $0.id == id }; service.revision += 1
             return try JSON.value(service)
+        case "complete":
+            // As the service does: archived, from Ready to Done.
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))
+            guard let index = service.ready?.firstIndex(where: { $0.id == chat }), let item = service.ready?.remove(at: index) else { throw RuntimeFailure("That session is gone.") }
+            model.sessions.first { $0.id == chat }?.record.archivedAt = Date()
+            service.done = [.init(id: item.id, title: item.title, place: item.place, completedAt: Date())] + (service.done ?? [])
+            service.revision += 1
+            return try JSON.value(service)
+        case "reopen":
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))
+            service.done?.removeAll { $0.id == chat }
+            model.sessions.first { $0.id == chat }?.record.archivedAt = nil
+            service.revision += 1
+            return try JSON.value(service)
         case "silence":
             // As the service does: a reply it lists, or an approval in the session, goes to silenced.
             let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))
-            if let index = service.needsYou.firstIndex(where: { $0.id == id && $0.chatID == chat }) {
+            if body["text"] != nil, service.ready?.contains(where: { $0.id == chat && $0.text == body["text"]?.string }) == true {
+                service.ready?.removeAll { $0.id == chat }
+            } else if let index = service.needsYou.firstIndex(where: { $0.id == id && $0.chatID == chat }) {
                 service.silenced = (service.silenced ?? []) + [service.needsYou.remove(at: index)]
             } else if let session = model.sessions.first(where: { $0.id == chat }), let item = session.pendingRequests.first(where: { $0.id == id }) {
                 service.silenced = (service.silenced ?? []) + [.init(id: item.id, chatID: session.id, title: session.title, place: nil, kind: "approval", text: item.text)]
@@ -186,8 +231,11 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(needs.firstIndex { $0.waiting.chatID == magnets.id }! < planIndex && planIndex < magazineIndex, "newest first, as the phone's Desk")
     check(Set(sections.working.map(\.id)) == Set([ribbons.id, sdhq.id]), "Working: running sessions, not ones waiting on you")
     check(sections.working.first { $0.id == sdhq.id }?.place == "SDHQ", "Working shows the place")
-    check(sections.incoming.map(\.id) == [resultsEmail.id, badge.id, order.id], "Incoming: the service's requests")
-    check(sections.summary == "4 need you · 3 incoming · 2 working", "header: \(sections.summary)")
+    check(sections.incoming.map(\.id) == [resultsEmail.id, badge.id, order.id], "To do: the service's requests")
+    check(sections.ready.map(\.id) == [proofs.id, lid.id], "Ready: the service's, less one working or archived here since (\(sections.ready.map(\.title)))")
+    check(sections.done.map(\.id) == [flyers.id], "Done: the service's, less one unarchived here since")
+    check(sections.working.first { $0.id == ribbons.id }?.activity == "Working\u{2026}", "Working says what it's doing")
+    check(sections.summary == "4 need you · 3 to do · 2 working · 2 ready", "header: \(sections.summary)")
     check(desk.badgeCount(in: model) == 7, "toolbar badge: needs and incoming")
     // Named as the session lists name them: a project's session by its project, its title under that.
     check(byChat[plan.id]?.waiting.title == "Chatterbox" && byChat[plan.id]?.waiting.subtitle == "Mac Desk page",
@@ -238,42 +286,44 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         try await Task.sleep(for: .milliseconds(500))
     }
     func frame(_ key: String) -> CGRect? { DeskDebug.frames[key] }
+    let keys = DeskSections.Section.allCases.map(\.key)
 
     // Home opens on the Desk when it's chosen; the Desk is the column's first entry.
     model.showDesk()
     check(model.showingHome && model.showingDesk && StudioSelection.saved == .desk, "Go > Desk opens Home on the Desk")
-    try await render(AnyView(ContentView()), 1500, 950, "desk-home-wide")
-    check(frame("section:needsYou") != nil && frame("section:incoming") != nil && frame("section:working") != nil && frame("calm") == nil,
-          "all three sections show, no empty state")
-    if let a = frame("section:needsYou"), let b = frame("section:incoming"), let c = frame("section:working") {
-        check(a.maxY <= b.minY && b.maxY <= c.minY, "sections in order: Needs you, Incoming, Working")
+    // Wide enough for the whole board: five columns side by side, each with its cards.
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-board")
+    let columns = keys.compactMap { frame("section:" + $0) }
+    check(columns.count == 5, "the board renders five columns (\(columns.count))")
+    check(zip(columns, columns.dropFirst()).allSatisfy { $0.maxX < $1.minX && abs($0.minY - $1.minY) < 1 }, "side by side, left to right: To do, Working, Needs you, Ready, Done")
+    check(columns.allSatisfy { abs($0.width - DeskView.columnWidth) < 1 } && columns.allSatisfy { $0.height > 600 }, "each a fixed width, the page's height (\(columns.map(\.size)))")
+    check(keys.allSatisfy { frame("count:" + $0) != nil } && keys.allSatisfy { frame("empty:" + $0) == nil }, "each with its count, none empty")
+    func inside(_ card: String, _ column: String) -> Bool {
+        guard let card = frame(card), let column = frame("section:" + column) else { return false }
+        return card.minX >= column.minX - 0.5 && card.maxX <= column.maxX + 0.5
     }
+    check(inside("request:\(badge.id)", "todo") && inside("working:\(sdhq.id)", "working") && inside("needs:\(approvalID)", "needsYou")
+          && inside("ready:\(proofs.id)", "ready") && inside("done:\(flyers.id)", "done"), "each card in its column")
+    check(["ignore:\(badge.id)", "approve:\(approvalID)", "open:\(approvalID)", "silence:\(approvalID)", "complete:\(proofs.id)", "readySilence:\(proofs.id)", "reopen:\(flyers.id)"]
+            .allSatisfy { key in frame(key).map { button in columns.contains { $0.minX <= button.minX && button.maxX <= $0.maxX } } ?? false },
+          "every card's buttons stay inside its column")
     if let deskEntry = MacHomeDebug.entries["desk"], let pinned = MacHomeDebug.entries["pinned"] {
         check(deskEntry.maxY <= pinned.minY && deskEntry.maxX <= MacHomeDebug.column.maxX + 1, "Desk is the first entry in Home's left column")
     } else { check(false, "Desk and Pinned entries in Home's column") }
     check(frame("chip:\(order.id)") != nil && frame("change:\(order.id)") == nil, "no place: Choose a place, no Change place")
     check(frame("change:\(badge.id)") != nil && frame("approve:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "Change place, Approve and Open are there")
-    check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you row has Silence")
+    check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you card has Silence")
     check(frame("subtitle:\(plan.items[0].id)") != nil && frame("subtitle:\(approvalID)") == nil, "a project's session shows its own title under the project's")
     check(panel.title == "Desk", "window title on the Desk (\(panel.title))")
     let rightmost = DeskDebug.frames.values.map(\.maxX).max() ?? 0
-    check(rightmost <= 1500 + 1, "nothing clips on the right (\(rightmost))")
-    try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1080, 940, "desk-light", dark: false)
-    let first = needs[0].id, second = needs[1].id
-    if let a = frame("needs:\(first)"), let b = frame("needs:\(second)") {
-        check(b.minY >= a.maxY, "a 1080-point page: one column")
-    } else { check(false, "Needs you rows on the 1080-point page") }
-    try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1440, 900, "desk-two-column")
-    if let a = frame("needs:\(first)"), let b = frame("needs:\(second)"), let c = frame("request:\(resultsEmail.id)"), let d = frame("request:\(badge.id)") {
-        check(abs(a.minY - b.minY) < 1 && a.maxX < b.minX && abs(a.height - b.height) < 1, "a wide page: Needs you in two columns, side by side, as tall as each other")
-        check(abs(c.minY - d.minY) < 1 && c.maxX < d.minX && abs(c.minX - a.minX) < 1, "and Incoming in the same two columns")
-        check(DeskView.columns(for: 1440) == 2 && DeskView.columns(for: 1080) == 1, "two columns past 1100 points of content")
-    } else { check(false, "rows on the wide page") }
-    let wideRight = DeskDebug.frames.values.map(\.maxX).max() ?? 0
-    check(wideRight <= 1440 + 1, "two columns: nothing clips (\(wideRight))")
-    try await render(AnyView(ContentView()), 900, 900, "desk-home-narrow", dark: false)
-    let narrowRight = DeskDebug.frames.filter { $0.key.hasPrefix("ignore:") || $0.key.hasPrefix("open:") }.values.map(\.maxX).max() ?? 0
-    check(narrowRight <= 900 + 1, "narrow window: row buttons stay inside (\(narrowRight))")
+    check(rightmost <= 2200 + 1, "nothing clips on the right (\(rightmost))")
+    try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1740, 900, "desk-light", dark: false)
+    // Narrower: the board scrolls sideways, shown at Needs you.
+    try await render(AnyView(ContentView()), 1200, 900, "desk-home-narrow")
+    if let needsColumn = frame("section:needsYou"), let todo = frame("section:todo") {
+        check(needsColumn.minX >= 0 && needsColumn.maxX <= 1200 + 1 && todo.minX < needsColumn.minX, "a narrow window scrolls the board to Needs you (\(needsColumn.minX)...\(needsColumn.maxX))")
+    } else { check(false, "columns in the narrow window") }
+
 
     // Change place: every place with what belongs there, and a loose session last.
     try await render(AnyView(DeskPlacePicker(request: badge, desk: desk) {}.background(Color(nsColor: .windowBackgroundColor))), 380, 470, "desk-places")
@@ -283,13 +333,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     // MARK: Actions.
     // Open a question: selects its session and leaves Home.
     model.showDesk()
-    try await render(AnyView(ContentView()), 1500, 950, "desk-before-actions")
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-before-actions")
     try await click("open:\(magnets.items[0].id)")
     check(model.selectedID == magnets.id && !model.showingHome, "Open selects the session")
 
     // Approve: the session's own resolveApproval (no Claude process here, so it expires).
     model.showDesk()
-    try await render(AnyView(ContentView()), 1500, 950, "desk-approve")
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-approve")
     try await click("approve:\(approvalID)")
     check(magazine.items.first { $0.id == approvalID }?.approvalState == .expired, "Approve answers the session's approval card")
     check(!desk.sections(in: model).needsYou.contains { $0.id == approvalID }, "an answered approval leaves the Desk")
@@ -311,6 +361,30 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(!quiet.needsYou.contains { $0.waiting.chatID == plan.id } && !quiet.working.contains { $0.id == plan.id }, "a silenced plan leaves Needs you, and isn't Working")
     check(plan.pendingRequests.map(\.id) == [planItem] && plan.items[0].approvalState == .pending, "and stays pending in its session")
     try snapshot("desk-silenced")
+
+    // Mark complete: {action: complete, chatID}; from Ready to Done. Reopen: {action: reopen, chatID}.
+    try await click("complete:\(proofs.id)")
+    check(sent.last == ["action": "complete", "chatID": .string(proofs.id.uuidString)], "Mark complete sends complete with the session (\(String(describing: sent.last)))")
+    let afterComplete = desk.sections(in: model)
+    check(!afterComplete.ready.contains { $0.id == proofs.id } && afterComplete.done.first?.id == proofs.id && proofs.record.archivedAt != nil,
+          "a completed session moves from Ready to Done")
+    try await Task.sleep(for: .milliseconds(300))
+    try snapshot("desk-completed")
+    try await click("reopen:\(proofs.id)")
+    check(sent.last == ["action": "reopen", "chatID": .string(proofs.id.uuidString)], "Reopen sends reopen with the session")
+    check(!desk.sections(in: model).done.contains { $0.id == proofs.id } && proofs.record.archivedAt == nil, "a reopened session leaves Done")
+    // Silence a ready session: its id and what it said; off Ready until something new happens.
+    try await click("readySilence:\(lid.id)")
+    check(sent.last == ["action": "silence", "chatID": .string(lid.id.uuidString), "id": .string(lid.id.uuidString),
+                        "text": "The 5 mm magnets fit the current lid with room to spare."], "a ready session's Silence sends its id and text")
+    check(!desk.sections(in: model).ready.contains { $0.id == lid.id } && lid.record.archivedAt == nil, "silenced, it leaves Ready (not archived)")
+    // An older service: Mark complete says so, and the rest of the Desk still works.
+    let older = DeskModel(snapshot: service, transport: { body, _ in
+        if body["action"]?.string == "complete" { throw RuntimeFailure("unsupported_operation") }
+        return try JSON.value(service)
+    })
+    await older.complete(.init(id: lid.id, title: "PlayCase lid fit", place: nil, text: "x", finishedAt: now))
+    check(older.problem?.contains("restarts") == true && !older.unsupported, "an older service: Mark complete waits for a restart, the Desk keeps working")
 
     // Change place, then Start there: its step loads the place's sessions like the work and a
     // new session's options, with the place chosen.
@@ -396,34 +470,34 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     old.runtimeEvent(RuntimeEvent(sequence: 3, revision: 0, kind: "runtime.resync")); try await Task.sleep(for: .milliseconds(200))
     check(calls == 2, "reconnecting tries again")
 
-    // MARK: Calm: nothing waits on you or to be placed; Working stays as one line.
+    // MARK: Empty columns: nothing waits on you or to be placed; Working still shows its cards.
     for session in model.sessions {
         let pending = Set(session.pendingRequests.map(\.id))
         for index in session.record.items.indices where pending.contains(session.record.items[index].id) {
             session.record.items[index].approvalState = .denied
         }
     }
-    service.needsYou = []; service.incoming = []; service.revision = 50
+    service.needsYou = []; service.incoming = []; service.ready = []; service.done = []; service.revision = 50
     desk.load(service)
     model.showDesk()
-    try await render(AnyView(ContentView()), 1500, 950, "desk-calm-working")
-    check(frame("calm") != nil && frame("section:working") != nil && frame("section:needsYou") == nil && frame("section:incoming") == nil,
-          "calm with work going: Nothing else needs you, and the Working line")
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-calm-working")
+    check(frame("empty:needsYou") != nil && frame("empty:todo") != nil && frame("empty:ready") != nil && frame("empty:done") != nil
+          && frame("empty:working") == nil && frame("working:\(sdhq.id)") != nil, "empty columns say so in a line; Working shows its cards")
     check(desk.sections(in: model).summary == "3 working", "header: 3 working, the plan's session too once answered (\(desk.sections(in: model).summary))")
     ribbons.isRunning = false; sdhq.isRunning = false; plan.isRunning = false
-    try await render(AnyView(ContentView()), 1500, 950, "desk-empty")
-    check(frame("calm") != nil && frame("section:working") == nil && desk.sections(in: model).summary == "All clear", "empty: only Nothing else needs you")
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-empty")
+    check(keys.allSatisfy { frame("empty:" + $0) != nil } && desk.sections(in: model).summary == "All clear", "nothing at all: every column empty, All clear")
 
     // Home's other pages are unchanged: Pinned still opens with its own title.
     UserDefaults.standard.set("pinned", forKey: "macStudioSelection")
     try await render(AnyView(ContentView()), 1500, 950, "studios-pinned-after-desk")
-    check(!model.showingDesk && frame("calm") == nil && panel.title == "Studios", "Pinned shows the Studios page again (\(panel.title))")
+    check(!model.showingDesk && frame("section:needsYou") == nil && panel.title == "Studios", "Pinned shows the Studios page again (\(panel.title))")
     StudioSelection.save(.desk)
     model.showStudiosOverview()
     check(StudioSelection.saved == .pinned && model.showingHome && !model.showingDesk, "Command Center's Studios opens the Studios page, not the Desk")
 
     panel.orderOut(nil)
-    print(failures == 0 ? "PASS: the Desk — summary, sections and their order, empty state, local Needs you and Working, service Incoming and replies, Open/Approve/Ignore/Start there/Add, desk.changed, older service. Proof: \(root.path)"
+    print(failures == 0 ? "PASS: the Desk — the board: five columns, counts and empty lines, local Needs you and Working, service To do, replies, Ready and Done, Open/Approve/Ignore/Silence/Mark complete/Reopen/Start there/Add, desk.changed, older service. Proof: \(root.path)"
                         : "FAIL: \(failures) checks failed. Renders: \(root.path)")
 }
 Task { @MainActor in

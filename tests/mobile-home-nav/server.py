@@ -34,14 +34,20 @@ PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banne
  {'kind':'project','id':cid('Chatterbox'),'name':'Chatterbox','detail':'The Mac and iPhone app for Claude and Codex sessions.'},
  {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
-DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[]
+DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];DESK_READY=[];DESK_DONE=[]
 def stamp(minutes=0):
  return (datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
 def place_named(name):
  return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
 def desk_reset(empty=False):
- global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED
+ global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE
  DESK_CALLS=[];DESK_REVISION+=1;DESK_SILENCED=[]
+ # The board (plans/desk-board.md): two sessions ready to mark complete, one done this week.
+ DESK_READY=[] if empty else [
+  {'id':cid('PlayCase Magnets'),'title':'PlayCase Magnets','place':'PlayCase Magnets','text':'Finished the product photos for the store.','finishedAt':stamp(40)},
+  {'id':cid('Chatterbox'),'title':'Chatterbox','subtitle':'Next Steps plugin','place':'Chatterbox','text':'Shipped the Next Steps plugin and the new message box.','finishedAt':stamp(180)}]
+ DESK_DONE=[] if empty else [
+  {'id':cid('Crystal concept'),'title':'Crystal concept','place':'Geekify','completedAt':stamp(90)}]
  DESK_WAITING=[] if empty else [
   {'id':cid('desk-approval'),'chatID':cid('SDHQ'),'title':'SDHQ','subtitle':'Cache rules','place':'SDHQ','kind':'approval','text':'Run wrangler deploy to publish the new cache rules?'},
   {'id':cid('desk-questions'),'chatID':cid('Tracker Trapper'),'title':'Tracker Trapper','place':'Tracker Trapper','kind':'questions','text':'Which progress style for the menu bar: a ring or a bar?',
@@ -51,8 +57,9 @@ def desk_reset(empty=False):
    'proposed':{k:v for k,v in PLACES[0].items() if k!='detail'},'note':'Camp graphics belong to USA Archery.'},
   {'id':cid('desk-printer'),'text':'Find out why the print queue stalls overnight','source':'you','createdAt':stamp(3),'proposed':None}]
 def desk():
- working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n} for n in RUNNING]
- return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED}
+ working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n,'since':stamp(6),
+  'activity':'Editing Sources/Typography/Engine.swift' if n=='Galley' else 'Thinking\u2026'} for n in RUNNING]
+ return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
 # Start There's step: sessions already in USA Archery like the banner request (Coach Archie, a
 # clear match, working; No image, possible). Other places and requests have none.
 def desk_threads(id,place):
@@ -225,7 +232,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,AUTOMATION_RAN,RICH,OFFLINE
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,RICH,OFFLINE
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   if self.path.startswith('/v1/automations/'):
@@ -263,7 +270,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
    DESK_CALLS.append({'action':'silence','body':body})
    match=lambda w:w['id'].lower()==body.get('id','').lower() and w['chatID'].lower()==body.get('chatID','').lower()
    DESK_SILENCED+=[w for w in DESK_WAITING if match(w)];DESK_WAITING=[w for w in DESK_WAITING if not match(w)];DESK_REVISION+=1
+   # A ready session (its id is the session's): off the board, not archived.
+   DESK_READY=[r for r in DESK_READY if not (r['id'].lower()==body.get('chatID','').lower()==body.get('id','').lower() and r['text']==body.get('text'))]
    return self.reply(desk())
+  if self.path in ('/v1/desk/complete','/v1/desk/reopen'):
+   # Mark complete: from Ready to Done (archived). Reopen: out of Done, ready again.
+   action=self.path.rsplit('/',1)[1];chat=body.get('chatID','').lower()
+   DESK_CALLS.append({'action':action,'body':body})
+   if action=='complete':
+    item=next((r for r in DESK_READY if r['id'].lower()==chat),None)
+    if not item:return self.reply({'error':'That session is gone.'},404)
+    DESK_READY=[r for r in DESK_READY if r['id'].lower()!=chat]
+    DESK_DONE=[{k:v for k,v in item.items() if k not in ('text','finishedAt')}|{'completedAt':stamp()}]+DESK_DONE
+   else:
+    item=next((d for d in DESK_DONE if d['id'].lower()==chat),None)
+    if not item:return self.reply({'error':'That session is gone.'},404)
+    DESK_DONE=[d for d in DESK_DONE if d['id'].lower()!=chat]
+    DESK_READY=[{k:v for k,v in item.items() if k!='completedAt'}|{'text':'Reopened.','finishedAt':stamp()}]+DESK_READY
+   DESK_REVISION+=1;return self.reply(desk())
   if self.path.startswith('/v1/desk/') and self.path.endswith(('/start','/ignore')):
    id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
    request=next((r for r in DESK_INCOMING if r['id'].lower()==id),None)

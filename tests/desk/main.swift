@@ -4,7 +4,9 @@ import Darwin
 // places, ignore, desk.json across a reload, Needs you and Working from sessions (named as the
 // session lists name them), silence (kept, pruned, shown again when something new waits), the
 // phone's routes with a paired token, the service socket's "desk" operation and desk.changed, Claude's
-// propose_work, and starting a request in a Studio, as a project's Sidechat, or loose. No
+// propose_work, and starting a request in a Studio, as a project's Sidechat, or loose. The board
+// (plans/desk-board.md): Ready to mark complete (a week, not sidequests or automation runs,
+// silenced until something new), Mark complete into Done, Reopen, older bodies. No
 // agent ever starts: the first message goes to a stand-in, and the agents' paths lead nowhere.
 func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     guard try ok() else { throw RuntimeFailure(text) }; print("PASS: \(text)")
@@ -142,9 +144,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
             AgentQuestion(id: "color", header: "Color", question: "Which color?", options: [.init(label: "Blue", detail: "")], multiSelect: false, isSecret: false)])]))
     let replied = try runtime.insert(record("Ship Dogear", items: [
         DisplayItem(kind: .user, text: "Get it ready"), DisplayItem(kind: .assistant, text: "Done: the build passes.\n\n**Want me to upload it to TestFlight?**", phase: .final)]))
-    _ = try runtime.insert(record("Old question", items: [
+    let oldQuestion = try runtime.insert(record("Old question", items: [
         DisplayItem(kind: .user, text: "Hi"), DisplayItem(kind: .assistant, timestamp: Date().addingTimeInterval(-3 * 86_400), text: "Shall I go on?", phase: .final)]))
-    _ = try runtime.insert(record("Finished", items: [DisplayItem(kind: .user, text: "Hi"), DisplayItem(kind: .assistant, text: "All done.", phase: .final)]))
+    let finished = try runtime.insert(record("Finished", items: [DisplayItem(kind: .user, text: "Hi"), DisplayItem(kind: .assistant, text: "All done. The flyers are in the folder.", phase: .final)]))
     let busy = try runtime.insert(record("Render the poster", studio: playcase, items: [DisplayItem(kind: .user, text: "Render")]))
     busy.isRunning = true
     let sidechat = try model.newSidechat(of: dogear)
@@ -229,7 +231,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let older = root.appendingPathComponent("desk-older.json")
     try Data(#"{"revision":7,"requests":[{"id":"\#(UUID().uuidString)","text":"Old request","source":"you","createdAt":"2026-11-01T10:00:00Z"}]}"#.utf8).write(to: older)
     let olderStore = DeskStore(file: older)
-    try check(olderStore.requests.map(\.text) == ["Old request"] && olderStore.silences.isEmpty && olderStore.revision == 8, "a desk.json from before silencing loads")
+    try check(olderStore.requests.map(\.text) == ["Old request"] && olderStore.silences.isEmpty && olderStore.completions.isEmpty && olderStore.revision == 8,
+              "a desk.json from before silencing (and the board) loads")
     // Something new from the same session shows again.
     _ = replied.appendItem(DisplayItem(kind: .user, text: "Not yet"))
     _ = replied.appendItem(DisplayItem(kind: .assistant, text: "Fine. Shall I tag the release instead?", phase: .final))
@@ -246,6 +249,84 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(desk.silences.isEmpty && answered.silenced?.isEmpty == true && answered.needsYou.first { $0.chatID == approval.id }?.text == "Run publish.sh",
               "silences that no longer match anything waiting are pruned")
     try await wait("the pruned silences saved") { DeskStore(file: file).silences.isEmpty }
+
+    // The board (plans/desk-board.md). Working says what each is doing.
+    try check(answered.working.first { $0.id == busy.id }?.activity == "Working\u{2026}", "working: what it's doing now")
+    // Ready to mark complete: idle, its last reply in the last week, asking nothing.
+    func reply(_ text: String, daysAgo: Double = 0) -> [DisplayItem] {
+        [DisplayItem(kind: .user, text: "Go"), DisplayItem(kind: .assistant, timestamp: Date().addingTimeInterval(-daysAgo * 86_400), text: text, phase: .final)]
+    }
+    let weekOld = try runtime.insert(record("Last month's flyers", items: reply("Done.", daysAgo: 8)))
+    let sixDays = try runtime.insert(record("Camp schedule", studio: archery, items: reply("The schedule is posted.", daysAgo: 6)))
+    var questRecord = record("A sidequest", items: reply("Found it.")); questRecord.sidequestOf = finished.id
+    let quest = try runtime.insert(questRecord)
+    var runRecord = record("Morning run", items: reply("Three priorities.")); runRecord.automationID = UUID()
+    let run = try runtime.insert(runRecord)
+    var shelvedRecord = record("Shelved", items: reply("Done.")); shelvedRecord.archivedAt = Date()
+    let shelved = try runtime.insert(shelvedRecord)
+    let stillGoing = try runtime.insert(record("Still going", items: reply("Halfway there.")))
+    stillGoing.isRunning = true
+    let board = try deskOf(call("GET", "/v1/desk"))
+    let ready = board.ready ?? []
+    func readyItem(_ chat: ChatSession) -> Companion.DeskReady? { ready.first { $0.id == chat.id } }
+    try check(readyItem(finished)?.text == "All done." && readyItem(finished)?.title == "Finished" && readyItem(finished)?.place == nil,
+              "ready: a finished reply, its first sentence: \(String(describing: readyItem(finished)))")
+    try check(readyItem(sixDays)?.place == "USA Archery" && readyItem(oldQuestion) != nil && readyItem(dogear)?.title == "Dogear",
+              "six days old is still ready; a question past Needs you's two days is too; named as the lists name it")
+    try check([weekOld, quest, run, shelved, stillGoing, approval, replied, plan, asking, busy].allSatisfy { readyItem($0) == nil },
+              "not over a week old, a sidequest, an automation run, archived, working, or waiting on you: \(ready.map(\.title))")
+    try check(ready.map(\.finishedAt) == ready.map(\.finishedAt).sorted(by: >) && ready.last?.id == sixDays.id, "newest first")
+    try check(board.done?.isEmpty == true, "nothing done yet")
+    // Silencing a ready session hides it until something new happens in it.
+    let staleReady = try silence(finished.id, finished.id, "Something it no longer says.")
+    try check(staleReady.ready?.contains { $0.id == finished.id } == true && desk.silences.isEmpty, "a ready session that's since changed isn't silenced")
+    let quietReady = try silence(finished.id, finished.id, "All done.")
+    try check(quietReady.ready?.contains { $0.id == finished.id } == false && desk.silences.map(\.kind) == ["ready"]
+              && quietReady.silenced?.contains { $0.chatID == finished.id } != true && finished.record.archivedAt == nil,
+              "silenced: off Ready, not archived, and not in the waiting silences")
+    try check(DeskStore(file: file).silences.map(\.kind) == ["ready"], "kept in desk.json")
+    _ = finished.appendItem(DisplayItem(kind: .user, text: "One more thing"))
+    _ = finished.appendItem(DisplayItem(kind: .assistant, text: "Added the back page too.", phase: .final))
+    let shownAgain = try deskOf(call("GET", "/v1/desk"))
+    try check(shownAgain.ready?.first { $0.id == finished.id }?.text == "Added the back page too." && desk.silences.isEmpty,
+              "something new shows it again, and the silence goes")
+    // Mark complete: archives it, into Done; refused while working.
+    try check(call("POST", "/v1/desk/complete", Data("{}".utf8)).status == 400, "complete needs a session")
+    try check(call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: UUID()))).status == 404, "a session that's gone: 404")
+    try check(call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: stillGoing.id))).status == 409 && stillGoing.record.archivedAt == nil,
+              "a working session isn't completed (or stopped)")
+    let completedResponse = call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: finished.id)))
+    let completed = try deskOf(completedResponse)
+    try check(completedResponse.status == 200 && finished.record.archivedAt != nil, "complete archives the session")
+    try check(completed.done?.map(\.id) == [finished.id] && completed.done?.first?.title == "Finished" && completed.ready?.contains { $0.id == finished.id } == false,
+              "and it moves from Ready to Done")
+    try check(completed.revision > shownAgain.revision && announced.last?.revision == completed.revision, "completing changes the revision, and is announced")
+    try check(DeskStore(file: file).completions.map(\.chatID) == [finished.id], "completions are kept in desk.json")
+    // Done is a week: an older completion (or one whose session was unarchived) goes.
+    let lastWeek = root.appendingPathComponent("desk-last-week.json")
+    let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+    var aged = saved
+    aged["completions"] = [["chatID": finished.id.uuidString, "completedAt": "2026-01-01T10:00:00Z"],
+                           ["chatID": shelved.id.uuidString, "completedAt": ISO8601DateFormatter().string(from: Date().addingTimeInterval(-6 * 86_400))]]
+    try JSONSerialization.data(withJSONObject: aged).write(to: lastWeek)
+    let agedStore = DeskStore(file: lastWeek)
+    try check(agedStore.snapshot().done?.map(\.id) == [shelved.id] && agedStore.completions.map(\.chatID) == [shelved.id],
+              "Done: completions from the last week only; older ones are pruned")
+    // Reopen: unarchived, out of Done, and ready again.
+    let reopened = try deskOf(call("POST", "/v1/desk/reopen", try encode(Companion.DeskSessionRequest(chatID: finished.id))))
+    try check(finished.record.archivedAt == nil && reopened.done?.isEmpty == true && reopened.ready?.contains { $0.id == finished.id } == true
+              && desk.completions.isEmpty, "reopen unarchives it: out of Done, back in Ready")
+    try check(call("POST", "/v1/desk/reopen", try encode(Companion.DeskSessionRequest(chatID: UUID()))).status == 404, "reopening a session that's gone: 404")
+    // Archived elsewhere (not from the board): not in Done.
+    model.archive(sixDays)
+    let elsewhereArchived = try deskOf(call("GET", "/v1/desk"))
+    try check(elsewhereArchived.done?.isEmpty == true && elsewhereArchived.ready?.contains { $0.id == sixDays.id } == false, "archived elsewhere: off Ready, not in Done")
+    // Older phones and services: bodies without the board still decode, and older ones ignore it.
+    let olderDesk = try Companion.decoder.decode(Companion.Desk.self, from: Data(#"{"revision":3,"needsYou":[],"incoming":[],"working":[{"id":"\#(UUID().uuidString)","title":"Galley","place":null}]}"#.utf8))
+    try check(olderDesk.ready == nil && olderDesk.done == nil && olderDesk.working.first?.activity == nil, "a Desk from an older service decodes, without the board's columns")
+    struct OlderDesk: Decodable { var revision: Int; var needsYou: [Companion.DeskWaiting]; var incoming: [Companion.DeskRequest]; var working: [Companion.DeskWorking] }
+    try check((try? Companion.decoder.decode(OlderDesk.self, from: call("GET", "/v1/desk").body))?.working.isEmpty == false, "an older phone reads the new Desk")
+    stillGoing.isRunning = false
 
     // Start: in its Studio, as the project's Sidechat, or loose; never an agent.
     let started = call("POST", "/v1/desk/\(bannerRequest.id)/start", Data("{}".utf8))
@@ -404,6 +485,24 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               && plan.pendingRequests.map(\.id) == [planItem], "socket silence: off the Desk, still pending")
     try await wait("desk.changed after silencing") { changes.count > heard && changes.last?.silenced?.contains { $0.id == planItem } == true }
     try check(true, "the app hears the silence")
+    // Mark complete and Reopen over the socket: the app may, an agent may not.
+    let wrapUp = try runtime.insert(record("Wrap up the camp email", items: [DisplayItem(kind: .user, text: "Wrap up"), DisplayItem(kind: .assistant, text: "Sent.", phase: .final)]))
+    let completeBody: JSON = ["action": "complete", "chatID": .string(wrapUp.id.uuidString)]
+    for body in [completeBody, ["action": "reopen", "chatID": .string(wrapUp.id.uuidString)] as JSON] {
+        do { _ = try await agent.request("desk", body: body); try check(false, "an agent may not \(body["action"]?.string ?? "")") }
+        catch { try check(error.localizedDescription == "permission_denied" && wrapUp.record.archivedAt == nil, "an agent may not \(body["action"]?.string ?? "")") }
+    }
+    let heardBefore = changes.count
+    let socketDone = try await ui.request("desk", body: completeBody).decode(Companion.Desk.self)
+    try check(wrapUp.record.archivedAt != nil && socketDone.done?.first?.id == wrapUp.id && socketDone.ready?.contains { $0.id == wrapUp.id } == false,
+              "socket complete: archived, in Done")
+    try await wait("desk.changed after completing") { changes.count > heardBefore && changes.last?.done?.first?.id == wrapUp.id }
+    try check(true, "the app hears the completion")
+    let socketReopened = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(wrapUp.id.uuidString)]).decode(Companion.Desk.self)
+    try check(wrapUp.record.archivedAt == nil && socketReopened.done?.contains { $0.id == wrapUp.id } == false && socketReopened.ready?.first?.id == wrapUp.id,
+              "socket reopen: unarchived, Ready again")
+    do { _ = try await ui.request("desk", body: ["action": "complete"]); try check(false, "complete without a session fails") }
+    catch { try check(error.localizedDescription == "Say which session.", "complete without a session says so") }
     // A session starting work changes Working: announced without anyone asking.
     let seen = changes.count
     busy.isRunning = false; busy.onChange?(busy)

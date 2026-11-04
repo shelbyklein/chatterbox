@@ -624,10 +624,11 @@ final class HomeNavTests: XCTestCase {
   promoted=try await fixture("promotions",method:"GET") as! [String:[String:Any]]
   XCTAssertNil(promoted["Loose chat"]?["newFolderName"])
  }
- // MARK: The Desk (plans/front-desk.md)
+ // MARK: The Desk (plans/front-desk.md, plans/desk-board.md)
 
- /// A fresh install opens on the Desk, the first tab: what needs you, then incoming
- /// requests (one with a proposed Studio, one with none), then one line of what's working.
+ /// A fresh install opens on the Desk, the first tab: a board. On a phone, column tabs with
+ /// counts (To do, Working, Needs you, Ready, Done), opening on Needs you; each tab shows its
+ /// column's cards. Tapping a card opens its session.
  @MainActor func testDeskFirstTab() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
@@ -643,33 +644,89 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.tabBars.buttons["More"].exists, "every tab fits the bar")
   XCTAssertFalse(app.tabBars.buttons["All"].exists)
   if app.tabBars.buttons["Desk"].exists { XCTAssertTrue(desk.isSelected, "a fresh install opens on the Desk") }
-  let needs=app.staticTexts["desk-section-needs-you"], incoming=app.staticTexts["desk-section-incoming"]
-  XCTAssertTrue(needs.waitForExistence(timeout:10) && incoming.exists, "Needs you and Incoming")
-  XCTAssertLessThan(needs.frame.minY, incoming.frame.minY, "Needs you first")
-  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 need you · 2 incoming · 2 working")
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:10), "Needs you shows first")
+  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Ready to mark complete, 2","Done, 1"], "every column, with its count, left to right")
   XCTAssertTrue(app.buttons[approve].exists && app.buttons["desk-deny-"+deskID("approval")].exists, "an approval: Approve and Deny in place")
   XCTAssertTrue(app.buttons["desk-open-"+deskID("questions")].exists, "questions: Open")
   XCTAssertFalse(app.buttons["desk-approve-"+deskID("questions")].exists)
   XCTAssertTrue(app.staticTexts["Run wrangler deploy to publish the new cache rules?"].exists, "what it asks")
+  capture("desk", app)
+  guard deskPhone(app) else { return }
+  XCTAssertTrue(app.buttons["desk-tab-needs-you"].isSelected, "opens on Needs you, which has something")
+  XCTAssertFalse(app.buttons["desk-place-"+deskID("banner")].exists, "one column at a time")
+  // To do: requests with their proposed places.
+  app.buttons["desk-tab-todo"].tap()
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].waitForExistence(timeout:5) && app.buttons["desk-tab-todo"].isSelected, "To do shows the requests")
   XCTAssertEqual(app.buttons["desk-place-"+deskID("banner")].label, "Place: USA Archery", "the proposed Studio")
   XCTAssertTrue(app.staticTexts["Camp graphics belong to USA Archery."].exists, "with its note")
   XCTAssertEqual(app.buttons["desk-place-"+deskID("printer")].label, "Choose a place", "nothing proposed")
-  XCTAssertFalse(app.staticTexts["desk-calm"].exists, "no calm line while something needs you")
-  capture("desk", app)
-  let working=app.staticTexts["desk-working"]
-  reveal(working, app)
-  XCTAssertTrue(working.exists && working.frame.minY > incoming.frame.minY, "Working last")
-  XCTAssertTrue(app.buttons["desk-working-"+deskID("Galley")].exists && app.buttons["desk-working-"+deskID("Coach Archie")].exists)
+  XCTAssertFalse(app.buttons[approve].exists, "and not Needs you's cards")
+  // Working: a card per session, with what it's doing.
+  app.buttons["desk-tab-working"].tap()
+  let galley=app.buttons["desk-working-"+deskID("Galley")]
+  XCTAssertTrue(galley.waitForExistence(timeout:5) && app.buttons["desk-working-"+deskID("Coach Archie")].exists, "Working: a card each")
+  XCTAssertTrue(galley.label.contains("Editing Sources/Typography/Engine.swift"), "with what it's doing: \(galley.label)")
   capture("desk-working", app)
+  // Ready to mark complete, and Done.
+  app.buttons["desk-tab-ready"].tap()
+  XCTAssertTrue(app.buttons["desk-complete-"+uuid("PlayCase Magnets")].waitForExistence(timeout:5) && app.buttons["desk-complete-"+uuid("Chatterbox")].exists, "Ready: Mark Complete on each")
+  XCTAssertTrue(app.staticTexts["Finished the product photos for the store."].exists, "with what it last said")
+  capture("desk-ready", app)
+  app.buttons["desk-tab-done"].tap()
+  XCTAssertTrue(app.buttons["desk-reopen-"+uuid("Crystal concept")].waitForExistence(timeout:5), "Done: Reopen")
   // Tapping a card opens its session in its own tab, as a notification does.
-  app.swipeDown(); app.swipeDown()
+  app.buttons["desk-tab-needs-you"].tap()
   app.buttons["desk-waiting-"+deskID("approval")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "the card opens the session")
   capture("desk-opened-session", app)
   deskTab(app).tap()
-  let galley=app.buttons["desk-working-"+deskID("Galley")]
-  reveal(galley, app); galley.tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Galley."].waitForExistence(timeout:10), "a working title opens its session")
+  XCTAssertTrue(app.buttons["desk-tab-needs-you"].waitForExistence(timeout:5) && app.buttons["desk-tab-needs-you"].isSelected, "back on the Desk, the same column")
+  app.buttons["desk-tab-working"].tap()
+  XCTAssertTrue(galley.waitForExistence(timeout:5)); galley.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Galley."].waitForExistence(timeout:10), "a working card opens its session")
+ }
+ /// Wide (an iPad, an open iPhone Duo): the five columns side by side, a fixed width each, the
+ /// board shown at Needs you; it scrolls sideways to the rest.
+ @MainActor func testDeskBoardWide() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  guard !deskPhone(app) else {
+   XCTAssertFalse(app.staticTexts["desk-section-todo"].exists, "a phone: tabs, not columns side by side")
+   return
+  }
+  XCTAssertFalse(app.buttons["desk-tab-todo"].exists, "no tabs when wide")
+  let ids=["todo","working","needs-you","ready","done"]
+  let headers=ids.map { deskHeader($0,app) }
+  XCTAssertTrue(headers.allSatisfy(\.exists), "five columns")
+  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Ready to mark complete, 2","Done, 1"], "each with its count")
+  for (a,b) in zip(headers,headers.dropFirst()) {
+   XCTAssertLessThan(a.frame.maxX, b.frame.minX, "side by side, left to right")
+   XCTAssertEqual(a.frame.minY, b.frame.minY, accuracy:2, "in one row")
+  }
+  let width=app.windows.firstMatch.frame.width
+  let needs=deskHeader("needs-you",app).frame
+  XCTAssertTrue(needs.minX >= 0 && needs.maxX <= width, "shown at Needs you (\(needs), \(width) wide)")
+  let approval=app.buttons["desk-waiting-"+deskID("approval")], questions=app.buttons["desk-waiting-"+deskID("questions")]
+  XCTAssertEqual(approval.frame.minX, questions.frame.minX, accuracy:2, "Needs you's cards in its column")
+  XCTAssertGreaterThan(questions.frame.minY, approval.frame.maxY - 1, "one above the other")
+  XCTAssertTrue(approval.frame.minX >= needs.minX - 20 && approval.frame.maxX <= needs.minX + 340, "inside it")
+  capture("desk-board-wide", app)
+  // Sideways to To do, and to Done.
+  deskColumn("todo",app)
+  let banner=app.buttons["desk-place-"+deskID("banner")]
+  XCTAssertTrue(banner.isHittable, "To do's requests, scrolled to")
+  deskColumn("done",app)
+  XCTAssertTrue(app.buttons["desk-reopen-"+uuid("Crystal concept")].isHittable, "Done, scrolled to")
+  XCTAssertTrue(app.buttons["desk-complete-"+uuid("PlayCase Magnets")].exists, "Ready beside it")
+  capture("desk-board-wide-done", app)
+  // Turned sideways, more of the board fits.
+  XCUIDevice.shared.orientation = .landscapeLeft
+  try await Task.sleep(for:.seconds(1.5))
+  deskColumn("todo",app)
+  XCTAssertTrue(deskHeader("needs-you",app).frame.minX+320 <= app.windows.firstMatch.frame.width,
+                "landscape: To do, Working and Needs you all on screen")
+  XCUIDevice.shared.orientation = .portrait
  }
  /// Approve in place uses the session's approval call; Open opens a session with questions.
  @MainActor func testDeskApprove() async throws {
@@ -683,7 +740,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(calls.last?["decision"] as? String, "approved")
   XCTAssertEqual(calls.last?["item"] as? String, deskID("approval").lowercased())
   XCTAssertEqual(calls.last?["chat"] as? String, uuid("SDHQ").lowercased(), "through the session's approval endpoint")
-  XCTAssertEqual(app.staticTexts["desk-summary"].label, "1 needs you · 2 incoming · 2 working")
+  XCTAssertEqual(deskCounts(app)[2], "Needs you, 1")
   capture("desk-approved", app)
   app.buttons["desk-open-"+deskID("questions")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "Open opens the session")
@@ -694,8 +751,9 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskStartThere() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let start=app.buttons["desk-start-"+deskID("banner")]
-  XCTAssertTrue(start.waitForExistence(timeout:20)); reveal(start, app); start.tap()
+  XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
   XCTAssertTrue(app.navigationBars["Start There"].waitForExistence(timeout:5), "Start There opens its step, not a session")
   let archie=app.buttons["desk-thread-"+deskID("Coach Archie")], other=app.buttons["desk-thread-963CA311-2496-5A83-9807-3AE28F7E5FB5"], fresh=app.buttons["desk-thread-new"]
   XCTAssertTrue(archie.waitForExistence(timeout:8) && other.exists && fresh.exists, "Continue in each session like it, and New session")
@@ -712,10 +770,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(note.waitForExistence(timeout:8), "the Desk notes it")
   XCTAssertTrue(note.label.contains("Continued in Coach Archie"), note.label)
   XCTAssertFalse(app.staticTexts["Hi! This is Coach Archie."].exists, "and nothing opens")
-  XCTAssertTrue(app.staticTexts["desk-summary"].exists, "the Desk stays")
+  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].exists, "the Desk stays")
   capture("desk-started", app)
-  XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].exists)
-  XCTAssertFalse(app.buttons["desk-start-"+deskID("banner")].exists, "started, it leaves Incoming")
+  XCTAssertFalse(app.buttons["desk-start-"+deskID("banner")].exists, "started, it leaves To do")
   let call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "start"); XCTAssertEqual(call?["id"] as? String, deskID("banner").lowercased())
   let body=call?["body"] as? [String:Any]
@@ -731,8 +788,9 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskStartPicksModel() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let start=app.buttons["desk-start-"+deskID("banner")]
-  XCTAssertTrue(start.waitForExistence(timeout:20)); reveal(start, app); start.tap()
+  XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
   let fresh=app.buttons["desk-thread-new"]
   XCTAssertTrue(fresh.waitForExistence(timeout:8)); fresh.tap()
   let modelRow=app.buttons["model-current"]
@@ -757,8 +815,9 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskChangePlace() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let change=app.buttons["desk-change-"+deskID("banner")]
-  XCTAssertTrue(change.waitForExistence(timeout:20)); reveal(change, app); change.tap()
+  XCTAssertTrue(change.waitForExistence(timeout:5)); reveal(change, app); change.tap()
   let geekify=app.buttons["desk-place-option-Geekify"]
   XCTAssertTrue(geekify.waitForExistence(timeout:8), "the places")
   XCTAssertTrue(app.staticTexts["3D-printed figures and crystal stands."].exists, "with what belongs there")
@@ -796,14 +855,17 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskIgnore() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let ignore=app.buttons["desk-ignore-"+deskID("printer")]
-  XCTAssertTrue(ignore.waitForExistence(timeout:20)); reveal(ignore, app); ignore.tap()
+  XCTAssertTrue(ignore.waitForExistence(timeout:5)); reveal(ignore, app); ignore.tap()
   XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForNonExistence(timeout:8), "ignored, it's gone")
   XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists, "the other stays")
+  XCTAssertEqual(deskCounts(app)[0], "To do, 1", "the count goes down")
   let call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "ignore"); XCTAssertEqual(call?["id"] as? String, deskID("printer").lowercased())
  }
- /// The ask box puts a request on the Desk, with the place the Desk proposes.
+ /// The ask box (above the board) puts a request on the Desk, with the place the Desk proposes;
+ /// a phone shows it in To do.
  @MainActor func testDeskAsk() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
@@ -811,8 +873,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(ask.waitForExistence(timeout:20)); ask.tap(); ask.typeText("Order more magnet blanks")
   capture("desk-ask", app)
   app.buttons["desk-ask-send"].tap()
+  deskColumn("todo",app)
   let text=app.staticTexts["Order more magnet blanks"]
-  XCTAssertTrue(text.waitForExistence(timeout:8), "the request shows in Incoming")
+  XCTAssertTrue(text.waitForExistence(timeout:8), "the request shows in To do")
   let call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "add")
   XCTAssertEqual((call?["body"] as? [String:Any])?["text"] as? String, "Order more magnet blanks")
@@ -822,18 +885,25 @@ final class HomeNavTests: XCTestCase {
   let chip=app.buttons.matching(NSPredicate(format:"label == %@","Place: PlayCase Magnets")).firstMatch
   reveal(chip, app)
   XCTAssertTrue(chip.exists, "with its proposed place")
-  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 need you · 3 incoming · 2 working")
+  XCTAssertEqual(deskCounts(app)[0], "To do, 3")
   capture("desk-asked", app)
  }
- /// Nothing waiting: one calm line, and only what's working.
- @MainActor func testDeskCalm() async throws {
+ /// Nothing waiting: each empty column says so in one quiet line; a phone opens on To do.
+ @MainActor func testDeskEmptyColumns() async throws {
   try await fixture("reset"); try await fixture("desk-empty")
   let app=deskApp(); app.launch()
-  let calm=app.staticTexts["desk-calm"]
-  XCTAssertTrue(calm.waitForExistence(timeout:20)); XCTAssertEqual(calm.label, "Nothing else needs you.")
-  XCTAssertFalse(app.staticTexts["desk-section-needs-you"].exists || app.staticTexts["desk-section-incoming"].exists, "empty sections are hidden")
-  XCTAssertTrue(app.staticTexts["desk-working"].exists)
-  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 working")
+  let empty=app.staticTexts["desk-empty-todo"]
+  XCTAssertTrue(empty.waitForExistence(timeout:20)); XCTAssertEqual(empty.label, "Nothing waiting to start.")
+  XCTAssertEqual(deskCounts(app), ["To do, 0","Working, 2","Needs you, 0","Ready to mark complete, 0","Done, 0"])
+  if deskPhone(app) {
+   XCTAssertTrue(app.buttons["desk-tab-todo"].isSelected, "nothing needs you: opens on To do")
+   app.buttons["desk-tab-needs-you"].tap()
+   XCTAssertEqual(app.staticTexts["desk-empty-needs-you"].label, "Nothing needs you.")
+   app.buttons["desk-tab-working"].tap()
+   XCTAssertTrue(app.buttons["desk-working-"+deskID("Galley")].waitForExistence(timeout:5) && !app.staticTexts["desk-empty-working"].exists, "Working has its cards")
+  } else {
+   XCTAssertTrue(app.staticTexts["desk-empty-needs-you"].exists && app.staticTexts["desk-empty-ready"].exists && !app.staticTexts["desk-empty-working"].exists)
+  }
   capture("desk-calm", app)
  }
  /// Swipe a Needs-you card left: Silence shows, and tapping it takes the card off the Desk;
@@ -843,6 +913,7 @@ final class HomeNavTests: XCTestCase {
   let app=deskApp(); app.launch()
   let card=app.buttons["desk-waiting-"+deskID("approval")]
   XCTAssertTrue(card.waitForExistence(timeout:20))
+  guard deskPhone(app) else { return }
   // Named as the session lists name it: by its project, its own title under that.
   XCTAssertTrue(app.staticTexts["Cache rules"].exists, "the session's own title under its project's name")
   XCTAssertFalse(app.buttons["desk-silence-"+deskID("approval")].exists, "Silence stays hidden until swiped")
@@ -861,7 +932,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((body?["id"] as? String)?.uppercased(), deskID("approval"))
   XCTAssertEqual((body?["chatID"] as? String)?.uppercased(), uuid("SDHQ"))
   XCTAssertEqual(body?["text"] as? String, "Run wrangler deploy to publish the new cache rules?")
-  XCTAssertTrue(app.staticTexts["desk-summary"].label.hasPrefix("1 needs you · "), "the count goes down: \(app.staticTexts["desk-summary"].label)")
+  XCTAssertEqual(deskCounts(app)[2], "Needs you, 1", "the count goes down")
   capture("desk-silenced", app)
   // All the way across: silenced without a tap.
   let questions=app.buttons["desk-waiting-"+deskID("questions")]
@@ -869,13 +940,12 @@ final class HomeNavTests: XCTestCase {
   questions.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5))
    .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:-0.3,dy:0.5)),withVelocity:.default,thenHoldForDuration:0.05)
   XCTAssertTrue(questions.waitForNonExistence(timeout:8), "a full swipe silences it")
-  XCTAssertTrue(app.staticTexts["desk-section-needs-you"].waitForNonExistence(timeout:5), "nothing left in Needs you")
+  XCTAssertTrue(app.staticTexts["desk-empty-needs-you"].waitForExistence(timeout:5), "nothing left in Needs you, and it says so")
+  XCTAssertTrue(app.buttons["desk-tab-needs-you"].isSelected, "the column stays where it was")
   calls=try await deskCalls()
   XCTAssertEqual(calls.filter { $0["action"] as? String == "silence" }.count, 2)
   XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
-  XCTAssertEqual(app.staticTexts["desk-summary"].label, "2 incoming · 2 working")
-  // Scrolling still scrolls: a vertical drag over a card doesn't swipe it.
-  XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists)
+  XCTAssertEqual(deskCounts(app)[2], "Needs you, 0")
  }
  /// Long-press a Needs-you card: Silence is in its menu too.
  @MainActor func testDeskSilenceMenu() async throws {
@@ -892,39 +962,65 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
   XCTAssertTrue(app.buttons["desk-waiting-"+deskID("approval")].exists, "the other stays")
  }
- /// Wide (an iPad, an open iPhone Duo): the cards go in two columns, side by side; one on a phone.
- @MainActor func testDeskTwoColumns() async throws {
+ /// Ready to mark complete: Mark Complete archives a session into Done (the Mac is asked);
+ /// on a phone a card swiped left shows Complete, and swiped all the way completes at once.
+ /// Reopen, in Done, brings one back.
+ @MainActor func testDeskMarkComplete() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
-  let approval=app.buttons["desk-waiting-"+deskID("approval")], questions=app.buttons["desk-waiting-"+deskID("questions")]
-  XCTAssertTrue(approval.waitForExistence(timeout:20) && questions.exists)
-  let banner=app.buttons["desk-place-"+deskID("banner")], printer=app.buttons["desk-place-"+deskID("printer")]
-  let width=app.windows.firstMatch.frame.width
-  guard width > 640 else {
-   XCTAssertGreaterThan(questions.frame.minY, approval.frame.maxY, "one column on a phone (\(width) points)")
-   return
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("ready",app)
+  let magnets=uuid("PlayCase Magnets"), chatterbox=uuid("Chatterbox"), crystal=uuid("Crystal concept")
+  let complete=app.buttons["desk-complete-"+magnets]
+  XCTAssertTrue(complete.waitForExistence(timeout:5)); complete.tap()
+  XCTAssertTrue(app.buttons["desk-ready-"+magnets].waitForNonExistence(timeout:8), "completed, it leaves Ready")
+  var call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "complete"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), magnets)
+  XCTAssertEqual(deskCounts(app)[3], "Ready to mark complete, 1"); XCTAssertEqual(deskCounts(app)[4], "Done, 2", "and goes to Done")
+  let card=app.buttons["desk-ready-"+chatterbox]
+  if deskPhone(app) {
+   // A partial swipe shows Complete; a full one completes.
+   card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
+    .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
+   let swiped=app.buttons["desk-swipe-complete-"+chatterbox]
+   XCTAssertTrue(swiped.waitForExistence(timeout:5) && swiped.isHittable, "swiping left shows Complete")
+   try await Task.sleep(for:.milliseconds(400))
+   capture("desk-complete-revealed", app)
+   card.tap()
+   XCTAssertTrue(swiped.waitForNonExistence(timeout:5), "a tap closes it again")
+   card.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5))
+    .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:-0.3,dy:0.5)),withVelocity:.default,thenHoldForDuration:0.05)
+   XCTAssertTrue(card.waitForNonExistence(timeout:8), "a full swipe marks it complete")
+   XCTAssertTrue(app.staticTexts["desk-empty-ready"].waitForExistence(timeout:5), "nothing left in Ready, and it says so")
+   call=try await deskCalls().last
+   XCTAssertEqual(call?["action"] as? String, "complete"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), chatterbox)
+   XCTAssertEqual(deskCounts(app)[4], "Done, 3")
   }
-  XCTAssertEqual(approval.frame.minY, questions.frame.minY, accuracy:2, "Needs you side by side")
-  XCTAssertLessThan(approval.frame.maxX, questions.frame.minX, "two columns")
-  reveal(printer, app)
-  XCTAssertTrue(banner.exists && printer.exists)
-  XCTAssertLessThan(banner.frame.maxX, printer.frame.minX, "Incoming side by side")
-  XCTAssertEqual(banner.frame.minX, approval.frame.minX, accuracy:2, "in the same columns")
-  XCTAssertEqual(printer.frame.minX, questions.frame.minX, accuracy:2)
-  app.swipeDown(); app.swipeDown()
-  try await Task.sleep(for:.milliseconds(400))
-  capture("desk-two-column", app)
-  // Each card still swipes on its own.
-  questions.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
-   .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
-  let silence=app.buttons["desk-silence-"+deskID("questions")]
-  XCTAssertTrue(silence.waitForExistence(timeout:5), "a card in the grid swipes to Silence")
-  XCTAssertFalse(app.buttons["desk-silence-"+deskID("approval")].exists, "only that card")
-  try await Task.sleep(for:.milliseconds(400))
-  capture("desk-two-column-silence", app)
-  silence.tap()
-  XCTAssertTrue(questions.waitForNonExistence(timeout:8))
-  XCTAssertTrue(approval.exists)
+  // Reopen, from Done.
+  deskColumn("done",app)
+  let reopen=app.buttons["desk-reopen-"+crystal]
+  XCTAssertTrue(reopen.waitForExistence(timeout:5) && app.buttons["desk-reopen-"+magnets].exists, "Done lists what was completed")
+  capture("desk-done", app)
+  reopen.tap()
+  XCTAssertTrue(reopen.waitForNonExistence(timeout:8), "reopened, it leaves Done")
+  call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "reopen"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), crystal)
+ }
+ /// Long-press a ready card: Open, Mark Complete and Silence (off the board, not archived).
+ @MainActor func testDeskReadySilence() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("ready",app)
+  let card=app.buttons["desk-ready-"+uuid("Chatterbox")]
+  XCTAssertTrue(card.waitForExistence(timeout:5)); card.press(forDuration:1.2)
+  XCTAssertTrue(app.buttons["Mark Complete"].waitForExistence(timeout:5) && app.buttons["Open"].exists, "the card's menu")
+  app.buttons["Silence"].tap()
+  XCTAssertTrue(card.waitForNonExistence(timeout:8), "silenced, it leaves Ready")
+  let call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "silence")
+  let body=call?["body"] as? [String:Any]
+  XCTAssertEqual((body?["id"] as? String)?.uppercased(), uuid("Chatterbox")); XCTAssertEqual((body?["chatID"] as? String)?.uppercased(), uuid("Chatterbox"))
+  XCTAssertEqual(body?["text"] as? String, "Shipped the Next Steps plugin and the new message box.")
+  XCTAssertEqual(deskCounts(app)[4], "Done, 1", "not completed")
  }
  // MARK: Automations (MobileAutomations.swift)
 
@@ -1043,6 +1139,33 @@ final class HomeNavTests: XCTestCase {
   return phone.exists ? phone : app.buttons.matching(NSPredicate(format:"label == %@","Desk")).firstMatch
  }
  var approve: String { "desk-approve-"+deskID("approval") }
+ static let deskColumns=["todo","working","needs-you","ready","done"]
+ /// The board one column at a time, under tabs (a phone), rather than side by side.
+ @MainActor func deskPhone(_ app:XCUIApplication) -> Bool { app.buttons["desk-tab-todo"].exists }
+ /// A column's header, side by side (wide).
+ @MainActor func deskHeader(_ id:String,_ app:XCUIApplication) -> XCUIElement { app.descendants(matching:.any)["desk-section-"+id] }
+ /// Each column's name and count, left to right: its tab's label on a phone, its header's when wide.
+ @MainActor func deskCounts(_ app:XCUIApplication) -> [String] {
+  let phone=deskPhone(app)
+  return Self.deskColumns.map { phone ? app.buttons["desk-tab-"+$0].label : deskHeader($0,app).label }
+ }
+ /// Shows a column: its tab on a phone; wide, the board scrolled sideways (by its header row)
+ /// until the column is on screen.
+ @MainActor func deskColumn(_ id:String,_ app:XCUIApplication) {
+  if deskPhone(app) { app.buttons["desk-tab-"+id].tap(); return }
+  let header=deskHeader(id,app), window=app.windows.firstMatch
+  for _ in 0..<8 {
+   // The header's frame is its name and count; the column is 320 points wide.
+   let frame=header.frame, width=window.frame.width, right=frame.minX+320
+   guard frame.minX < 0 || right > width else { return }
+   let y=frame.midY, toLeft=right > width
+   let from=window.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:width*(toLeft ? 0.75 : 0.25),dy:y))
+   let to=window.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:width*(toLeft ? 0.3 : 0.7),dy:y))
+   // Held before letting go: no fling past the column.
+   from.press(forDuration:0.05,thenDragTo:to,withVelocity:.slow,thenHoldForDuration:0.2)
+   usleep(400_000)
+  }
+ }
  /// The fixture's Desk ids (server.py: uuid5(NAMESPACE_URL, "home:desk-" + name), or a chat's).
  func deskID(_ name:String) -> String {
   ["approval":"773D2651-D545-5E7B-A576-E90FF28EDEE7","questions":"D9A5D613-012B-5519-BD59-215AB5DB6C89",
@@ -1370,11 +1493,11 @@ final class HomeNavTests: XCTestCase {
   XCUIDevice.shared.orientation = .portrait
   // The Desk, on a fresh install (it opens there).
   var app=deskApp(); app.launch()
-  XCTAssertTrue(app.staticTexts["desk-section-needs-you"].waitForExistence(timeout:20))
-  let wide=app.windows.firstMatch.frame.width > 640
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  let wide = !deskPhone(app)
   try await uxShot("desk", app)
-  let working=app.staticTexts["desk-working"]
-  if !wide { reveal(working, app); try await uxShot("desk-scrolled", app); app.swipeDown(); app.swipeDown() }
+  if !wide { deskColumn("working",app); try await uxShot("desk-working", app); deskColumn("ready",app); try await uxShot("desk-ready", app) }
+  deskColumn("todo",app)
   // Start There: the step that sends a request to a session.
   let start=app.buttons["desk-start-"+deskID("banner")]
   if start.waitForExistence(timeout:5) {
@@ -1389,8 +1512,8 @@ final class HomeNavTests: XCTestCase {
    if app.buttons["desk-place-option-Geekify"].waitForExistence(timeout:8) { try await uxShot("desk-change-place", app) }
    uxDismiss(app)
   }
-  // A Needs-you card swiped left: Silence.
-  app.swipeDown(); app.swipeDown()
+  // A Needs-you card swiped left: Silence (a phone; wide, a sideways drag scrolls the board).
+  deskColumn("needs-you",app)
   let card=app.buttons["desk-waiting-"+deskID("questions")]
   if card.waitForExistence(timeout:5) {
    card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
@@ -1404,7 +1527,7 @@ final class HomeNavTests: XCTestCase {
   // Nothing waiting: the calm Desk.
   try await fixture("desk-empty")
   app.terminate(); app=deskApp(); app.launch()
-  if app.staticTexts["desk-calm"].waitForExistence(timeout:20) { try await uxShot("desk-calm", app) }
+  if app.staticTexts["desk-empty-todo"].waitForExistence(timeout:20) { try await uxShot("desk-calm", app) }
   try await fixture("reset"); try await fixture("rich")
   app.terminate()
 
@@ -1524,7 +1647,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("appearance",body:["value":"light"])
   try await Task.sleep(for:.seconds(1.5))
   deskTab(app).tap()
-  if app.staticTexts["desk-section-needs-you"].waitForExistence(timeout:10) { try await uxShot("desk-light", app) }
+  if app.buttons[approve].waitForExistence(timeout:10) { try await uxShot("desk-light", app) }
   tab("Projects",app).tap()
   if galley.waitForExistence(timeout:10) {
    galley.tap()
@@ -1568,7 +1691,7 @@ final class HomeNavTests: XCTestCase {
   ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
    "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340",
    "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD",
-   "studio": "2A955822-AC32-5554-95DF-BB415831052F"][name]!
+   "studio": "2A955822-AC32-5554-95DF-BB415831052F", "Crystal concept": "7AEBD7DD-A239-547D-A2E7-BD7CA3DC8E5E"][name]!
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
