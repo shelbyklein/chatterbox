@@ -56,6 +56,12 @@ typealias AppModel=DaemonContext
         quest.beginSidequest(from:parent)
         return quest
     }
+    /// A work thread of `front` (plans/work-threads.md), built as the app builds them; its brief
+    /// is sent by whoever started it (DeskStore.startWork).
+    func newWorkThread(of front:ChatSession,title:String) throws ->ChatSession {
+        let anchor=front.record.sidechatOf.flatMap{id in sessions.first{$0.id==id}} ?? front
+        return try runtime.insert(ChatSession.workThreadRecord(of:front,anchor:anchor,title:title))
+    }
     /// A PC errand from `parent`: `files` go to the PC first, then a sidequest there on the
     /// parent's own agent (or `backend`) does the task, and its answer and files come back.
     func newPCErrand(of parent:ChatSession,task:String,files:[String],backend:Backend?) async throws ->ChatSession {

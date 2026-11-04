@@ -70,6 +70,8 @@ session's own approval call (`approvedForSession`), as before on the session's c
 
 ## Tasks linked to threads (Shelby, 2026-11-04)
 
+Built with plans/work-threads.md (W1, W4); see its "Chosen while building".
+
 Not every thread is a task. A Desk request stays a **task** after it starts, linked to its thread,
 and moves across the board with that thread's state.
 

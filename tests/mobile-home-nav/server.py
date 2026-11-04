@@ -35,6 +35,11 @@ PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banne
  {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
 DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];DESK_READY=[];DESK_DONE=[]
+# Tasks and work threads (plans/work-threads.md), off unless a test asks (/test/tasks): tasks linked
+# to the working, ready and done threads; the Chatterbox project's session as a front thread with
+# two work threads (one working, one ready). Starts and task changes are recorded in DESK_CALLS.
+TASKS=False;DESK_LINKED=[]
+WORK=[('work-columns','Desk board columns','working'),('work-tabs','Phone tabs','ready')]
 def stamp(minutes=0):
  return (datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
 def place_named(name):
@@ -59,13 +64,38 @@ def desk_reset(empty=False):
 def desk():
  working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n,'since':stamp(6),
   'activity':'Editing Sources/Typography/Engine.swift' if n=='Galley' else 'Thinking\u2026'} for n in RUNNING]
- return {'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
+ d={'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
+ if not TASKS:return d
+ def tagged(items,key):
+  out=[]
+  for item in items:
+   task=next((t for t in DESK_LINKED if t['chatID'].lower()==item[key].lower()),None)
+   out.append(item|({'task':task['id'],'taskText':task['text']} if task else {}))
+  return out
+ return d|{'needsYou':tagged(DESK_WAITING,'chatID'),'working':tagged(working,'id'),'ready':tagged(DESK_READY,'id'),'done':tagged(DESK_DONE,'id'),'linked':DESK_LINKED}
+def tasks_reset(on=False):
+ global TASKS,DESK_LINKED
+ TASKS=on
+ DESK_LINKED=[{'id':cid('task-'+n),'text':t,'chatID':cid(n)} for n,t in [('Galley','Finish the typography engine'),('Coach Archie','Coach jacket mockups'),
+  ('PlayCase Magnets','Store photos for the magnets'),('Chatterbox','Ship the Next Steps plugin')]]+[{'id':cid('task-Crystal concept'),'text':'Crystal stand concept','chatID':cid('Crystal concept'),'completedAt':stamp(90)}]
+def work_summary(key):
+ n,title,state=next(w for w in WORK if w[0]==key)
+ return {'id':cid(n),'title':title,'project':None,'subtitle':'Working on it' if state=='working' else 'Done: the columns render.','backend':'claude',
+  'isRunning':state=='working','isWaitingOnYou':False,'updatedAt':'2026-11-04T00:00:00Z','sidechatOf':cid('Chatterbox'),'workOf':cid('Chatterbox')}
 # Start There's step: sessions already in USA Archery like the banner request (Coach Archie, a
 # clear match, working; No image, possible). Other places and requests have none.
 def desk_threads(id,place):
  if id.lower()!=cid('desk-banner') or (place or '').lower()!=cid('studio'):return []
  return [{'id':cid('Coach Archie'),'title':'Coach Archie','detail':'Full USA flags on both sleeves.','settings':'Claude · Opus 5.5 · Medium','updatedAt':stamp(30),'isRunning':'Coach Archie' in RUNNING,'match':'clear'},
   {'id':cid('No image'),'title':'No image','detail':'Text-only session.','settings':'Codex · GPT-6.1-Sol','updatedAt':stamp(600),'isRunning':False,'match':'possible'}]
+# Link a thread's list (all=1): every thread in USA Archery; Coach Archie already carries a task.
+def desk_all_threads(id,place):
+ if (place or '').lower()!=cid('studio'):return []
+ threads=desk_threads(cid('desk-banner'),cid('studio'))
+ for t in threads:
+  task=next((x['text'] for x in DESK_LINKED if x['chatID'].lower()==t['id'].lower() and not x.get('completedAt')),None)
+  if task:t['task']=task
+ return threads
 def started_chat(place):
  # The session a start opens: a fixture chat in that place.
  if not place or place.get('kind')=='loose':return 'Loose chat'
@@ -97,7 +127,7 @@ automations_reset()
 def reset():
  global RICH,OFFLINE
  RICH=False;OFFLINE=False
- desk_reset()
+ desk_reset();tasks_reset()
  automations_reset()
  global PINNED
  PINNED[:]=['Loose chat','SDHQ']
@@ -145,6 +175,12 @@ def chats():
  return {'revision':1,'groups':groups,'activity':ACTIVITY}
 
 def detail(id):
+ work=next((w for w in WORK if cid(w[0])==id.lower()),None)
+ if work:
+  s=work_summary(work[0])
+  items=[{'id':cid(id+'u'),'kind':'user','text':'Brief: build the board columns from desk-board.md.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},
+         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
+  return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'workOfTitle':'Chatterbox'}
  s=next(c for g in chats()['groups'] for c in g['chats'] if c['id'].lower()==id.lower())
  items=[{'id':cid(id+'u'),'kind':'user','text':'Banner ideas for the USA Archery fall camp' if s['title']=='Loose chat' else 'Hello','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False},
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
@@ -161,7 +197,10 @@ def detail(id):
   items=[item(n,*x) for n,x in enumerate(RICH_ITEMS[s['title']])]
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
  options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Best for everyday, complex tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'fable','name':'Fable 5.1','detail':'Most capable for your hardest and longest-running tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Efficient for routine tasks','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest for quick answers','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'auto','title':'Auto','detail':'Claude handles permission decisions','systemImage':'wand.and.stars','isUnrestricted':False},{'id':'default','title':'Manual','detail':'Always ask before making changes','systemImage':'hand.raised','isUnrestricted':False},{'id':'acceptEdits','title':'Accept edits','detail':'Automatically accept all file edits','systemImage':'pencil','isUnrestricted':False},{'id':'plan','title':'Plan','detail':'Create a plan before making changes','systemImage':'list.bullet.clipboard','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
- return {'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
+ d={'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
+ if TASKS and s['title']=='Chatterbox':
+  d['work']=[{'id':cid(n),'title':t,'state':st,'task':cid('task-'+n),'backend':'claude','updatedAt':stamp(5)} for n,t,st in WORK]
+ return d
 RICH_ITEMS={
  'Galley':[
   ('user','Phase 3: finish the typography engine. Hyphenation, kerning pairs and the line breaker, then run the tests.'),
@@ -259,6 +298,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
    subprocess.run(['xcrun','simctl','ui',sim,'appearance',body.get('value','dark')],check=True)
    return self.reply({'ok':True})
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
+  if self.path=='/test/tasks':tasks_reset(True);DESK_REVISION+=1;return self.reply({'ok':True})
+  global DESK_LINKED
+  if self.path=='/v1/desk/task':
+   # Make this a task: linked at once, named for its thread.
+   DESK_CALLS.append({'action':'makeTask','body':body})
+   chat=body.get('chatID','')
+   title=next((w['title'] for w in DESK_WAITING if w['chatID'].lower()==chat.lower()),'A thread')
+   DESK_LINKED.append({'id':str(uuid.uuid4()),'text':body.get('text') or title,'chatID':chat});DESK_REVISION+=1
+   return self.reply(desk())
+  if self.path.startswith('/v1/desk/') and self.path.endswith(('/link','/unlink')):
+   id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
+   DESK_CALLS.append({'action':action,'id':id,'body':body})
+   if action=='unlink':
+    DESK_LINKED=[t for t in DESK_LINKED if t['id'].lower()!=id];DESK_REVISION+=1;return self.reply(desk())
+   chat=body.get('chatID','')
+   if any(t['chatID'].lower()==chat.lower() and not t.get('completedAt') for t in DESK_LINKED) and not body.get('replace'):
+    return self.reply({'error':'That thread already carries a task: \u201cCoach jacket mockups\u201d. Link it anyway to send that one back to To do.'},409)
+   request=next((r for r in DESK_INCOMING if r['id'].lower()==id),None)
+   DESK_LINKED=[t for t in DESK_LINKED if t['chatID'].lower()!=chat.lower()]+[{'id':id,'text':request['text'] if request else 'Task','chatID':chat}]
+   DESK_INCOMING=[r for r in DESK_INCOMING if r['id'].lower()!=id];DESK_REVISION+=1
+   return self.reply(desk())
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/work'):
+   DESK_CALLS.append({'action':'work','chat':self.path.split('/')[3].lower(),'body':body})
+   return self.reply(detail(cid('work-tabs')))
   if self.path=='/v1/desk':
    DESK_CALLS.append({'action':'add','body':body})
    text=body.get('text','')
@@ -365,8 +428,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path.startswith('/v1/desk/') and self.path.split('?')[0].endswith('/threads'):
    import urllib.parse
    id=self.path.split('/')[3].lower();place=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query)).get('place')
-   DESK_CALLS.append({'action':'threads','id':id,'place':place})
-   return self.reply(desk_threads(id,place))
+   query=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
+   DESK_CALLS.append({'action':'threads','id':id,'place':place}|({'all':True} if query.get('all')=='1' else {}))
+   return self.reply(desk_all_threads(id,place) if query.get('all')=='1' else desk_threads(id,place))
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path=='/test/briefs':return self.reply(BRIEFS)
   if self.path=='/test/renames':return self.reply(RENAMES)

@@ -25,6 +25,8 @@ ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/sidequest "$HOME/.loc
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/pc-errand "$HOME/.local/bin/pc-errand"
 # …and put work on the Desk with `desk` (bin/desk), for Shelby to place and start.
 ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/desk "$HOME/.local/bin/desk"
+# …and start work threads from a front thread with `work` (bin/work, plans/work-threads.md).
+ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/work "$HOME/.local/bin/work"
 # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
 # and `open` hands the caller's environment to the app. Launch it without any of them.
 clean_open() {

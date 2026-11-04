@@ -1241,6 +1241,100 @@ final class HomeNavTests: XCTestCase {
   }
   XCTFail("expected \(count) automation calls"); return []
  }
+ /// Tasks (plans/work-threads.md): Working, Ready and Done are tasks by their thread; Needs you
+ /// marks threads that aren't tasks, with Make this a task; a To do card links a thread (one
+ /// carrying a task asks first, then sends replace); a task card's menu unlinks.
+ @MainActor func testDeskTasks() async throws {
+  try await fixture("reset"); try await fixture("tasks")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  let sdhq=app.buttons["desk-make-task-"+uuid("SDHQ")], tracker=app.buttons["desk-make-task-1D6B8917-B3EC-5A50-ADB6-5CE3526C15EA"]
+  XCTAssertTrue(sdhq.waitForExistence(timeout:5) && tracker.exists, "threads that aren't tasks say so, with Make this a task")
+  XCTAssertTrue(app.staticTexts["Not a task"].exists)
+  capture("phone-board-tasks", app)
+  reveal(sdhq, app); sdhq.tap()
+  XCTAssertTrue(sdhq.waitForNonExistence(timeout:8), "made a task, the card carries it")
+  var call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "makeTask"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), uuid("SDHQ"))
+  // Working: tasks by their thread, each with its task.
+  deskColumn("working",app)
+  XCTAssertTrue(app.buttons["desk-working-"+deskID("Galley")].waitForExistence(timeout:5), "Working: the task's thread")
+  XCTAssertTrue(app.staticTexts["Finish the typography engine"].exists, "with its task")
+  capture("phone-board-working-tasks", app)
+  // Link a thread, from a To do card: the place's threads; one carrying a task asks first.
+  deskColumn("todo",app)
+  let link=app.buttons["desk-link-"+deskID("banner")]
+  XCTAssertTrue(link.waitForExistence(timeout:5), "a To do card with a place: Link"); reveal(link, app); link.tap()
+  let archie=app.buttons["desk-link-thread-"+deskID("Coach Archie")]
+  XCTAssertTrue(archie.waitForExistence(timeout:8) && app.buttons["desk-link-thread-963CA311-2496-5A83-9807-3AE28F7E5FB5"].exists, "every thread in USA Archery")
+  XCTAssertTrue(app.staticTexts["Best match · Has a task: Coach jacket mockups · Working now"].exists, "Coach Archie says it carries a task")
+  let all=try await deskCalls().last { ($0["action"] as? String)=="threads" }
+  XCTAssertEqual(all?["all"] as? Bool, true, "asked for every thread")
+  capture("phone-link-thread", app)
+  archie.tap()
+  XCTAssertTrue(app.alerts["Link anyway?"].waitForExistence(timeout:5), "a thread carrying a task asks first")
+  let linkedYet=try await deskCalls().contains { ($0["action"] as? String)=="link" }
+  XCTAssertFalse(linkedYet, "nothing sent yet")
+  app.alerts["Link anyway?"].buttons["Link Anyway"].tap()
+  XCTAssertTrue(link.waitForNonExistence(timeout:8), "linked, it leaves To do")
+  call=try await deskCalls().last { ($0["action"] as? String)=="link" }
+  XCTAssertEqual(call?["id"] as? String, deskID("banner").lowercased())
+  XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), deskID("Coach Archie"))
+  XCTAssertEqual((call?["body"] as? [String:Any])?["replace"] as? Bool, true, "Link Anyway sends replace")
+  // Unlink, from a Ready card's menu: back to To do.
+  deskColumn("ready",app)
+  let ready=app.buttons["desk-ready-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(ready.waitForExistence(timeout:5)); ready.press(forDuration:1.2)
+  XCTAssertTrue(app.buttons["Unlink Task"].waitForExistence(timeout:5), "a task card's menu: Unlink Task"); app.buttons["Unlink Task"].tap()
+  XCTAssertTrue(ready.waitForNonExistence(timeout:8), "unlinked, it leaves Ready")
+  call=try await deskCalls().last
+  XCTAssertEqual(call?["action"] as? String, "unlink")
+ }
+ /// Work threads (plans/work-threads.md): a front thread's Work strip lists its work threads with
+ /// their state; one opens with a header naming its front thread and a link back; the session
+ /// menu starts one (name, brief, agent) and carries the task items.
+ @MainActor func testWorkThreads() async throws {
+  try await fixture("reset"); try await fixture("tasks")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  deskColumn("ready",app)
+  let front=app.buttons["desk-ready-"+uuid("Chatterbox")]
+  XCTAssertTrue(front.waitForExistence(timeout:5)); front.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  let columns=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"], tabs=app.buttons["work-chip-CFD6F12A-EE25-5C7D-BCE0-C004F850001E"]
+  XCTAssertTrue(columns.waitForExistence(timeout:8) && tabs.exists, "the Work strip: each work thread")
+  XCTAssertEqual(columns.label, "Work thread Desk board columns, Working"); XCTAssertEqual(tabs.label, "Work thread Phone tabs, Ready", "with its state")
+  capture("phone-work-strip", app)
+  // The session menu: Start a Work Thread, and Unlink (it carries a task).
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(app.buttons["menu-start-work"].waitForExistence(timeout:5) && app.buttons["menu-unlink-task"].exists, "the menu: Start a Work Thread and Unlink from Task")
+  XCTAssertFalse(app.buttons["menu-make-task"].exists, "not Make This a Task: it is one")
+  app.buttons["menu-start-work"].tap()
+  let title=app.textFields["work-title"]
+  XCTAssertTrue(title.waitForExistence(timeout:5)); title.tap(); title.typeText("Release notes")
+  let brief=app.textViews["work-brief"].exists ? app.textViews["work-brief"] : app.textFields["work-brief"]
+  brief.tap(); brief.typeText("Write the 2.1 release notes from CHANGELOG.md.")
+  capture("phone-start-work-thread", app)
+  app.buttons["work-start"].tap()
+  XCTAssertTrue(app.buttons["work-start"].waitForNonExistence(timeout:8), "started, the sheet closes")
+  let started=try await deskCalls().last { ($0["action"] as? String)=="work" }
+  XCTAssertEqual((started?["chat"] as? String)?.uppercased(), uuid("Chatterbox"))
+  let body=started?["body"] as? [String:Any]
+  XCTAssertEqual(body?["title"] as? String, "Release notes"); XCTAssertEqual(body?["brief"] as? String, "Write the 2.1 release notes from CHANGELOG.md.")
+  XCTAssertNil(body?["agent"], "the front thread's own agent")
+  // A work thread: its header names the front thread, with a link back.
+  XCTAssertTrue(columns.waitForExistence(timeout:5)); columns.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Desk board columns."].waitForExistence(timeout:10), "a chip opens its work thread")
+  XCTAssertTrue(app.staticTexts["Work for \u{201C}Chatterbox\u{201D}. Its result goes back there."].waitForExistence(timeout:5), "its header names the front thread")
+  capture("phone-work-thread-header", app)
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(app.buttons["menu-make-task"].waitForExistence(timeout:5) || app.buttons["menu-unlink-task"].exists, "task items in its menu too")
+  XCTAssertFalse(app.buttons["menu-start-work"].exists, "a work thread can't start work threads")
+  // Closed by a tap above it.
+  app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.07)).tap()
+  XCTAssertTrue(app.buttons["work-front-open"].waitForExistence(timeout:5)); app.buttons["work-front-open"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10), "Open goes back to the front thread")
+ }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
   let app=XCUIApplication()

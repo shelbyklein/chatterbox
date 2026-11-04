@@ -34,7 +34,7 @@ app, so new work is built and tried there and the real app updates only when She
 | Restart queue / report | …restart-service, Chatterbox/Diagnostics | ….dev, Chatterbox Dev/Diagnostics |
 | App icon / menu bar | AppIcon | AppIconDev (orange DEV band), "DEV" beside the menu bar icon |
 | iPhone app | Chatterbox, …Chatterbox.mobile | Chatterbox Dev, …Chatterbox.mobile.dev (no widget) |
-| CLI links | ~/.local/bin/{desk,sidequest,…} | none (Dev chats get the bundle's bin on PATH) |
+| CLI links | ~/.local/bin/{desk,sidequest,work,…} | none (Dev chats get the bundle's bin first on PATH: BinaryLocator.devBin) |
 
 The service trusts its own flavor's UI app (RuntimePeer) and Dev never answers on the real ports.
 

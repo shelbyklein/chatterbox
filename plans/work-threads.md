@@ -52,19 +52,95 @@ plans/desk-board.md ("Tasks linked to threads").
 
 ## Tasks
 
-- [ ] W1 Service, tasks: desk.json tasks with links; start links instead of removing; link,
+- [x] W1 Service, tasks: desk.json tasks with links; start links instead of removing; link,
       unlink, make-task routes and socket actions; board derivation tasks-only for Working /
       Ready / Done; archived or deleted threads move their task (Done / back to To do).
       Backward compatible. test-desk.sh.
-- [ ] W2 Service, work threads: `workOf`; socket op `work` (start, list, report) with the
+- [x] W2 Service, work threads: `workOf`; socket op `work` (start, list, report) with the
       sidequest permission rule; the brief as the first message; report back into the front
       thread on finish or `work report`; companion routes for the phone. test.
-- [ ] W3 `bin/work` (installed with the bundle's bin like desk/sidequest), and the front-thread
+- [x] W3 `bin/work` (installed with the bundle's bin like desk/sidequest), and the front-thread
       instruction in prompts/.
-- [ ] W4 UI, Mac and phone: Work strip, work-thread header, start actions, task linking on cards
+- [x] W4 UI, Mac and phone: Work strip, work-thread header, start actions, task linking on cards
       and in thread menus, board shows tasks only (plus unlinked Needs you). Tests and screenshots.
-- [ ] W5 Install to Chatterbox Dev (Mac and Dev phone app); try a front thread starting two work
-      threads in Dev.
+- [x] W5 Install to Chatterbox Dev (Mac and Dev phone app); try a front thread starting two work
+      threads in Dev. Done 2026-11-04: installed (Dev service restarted on it, the real one
+      untouched), Dev phone app on Shelby's Duo. In Dev's project "Work threads try-out", its
+      Claude ran `work start` twice (`which work`: Dev's bundle); both work threads wrote their
+      file, reported back into the front thread, which carried on, and both tasks sit in Ready.
+
+## Decided (Shelby, 2026-11-04, before building)
+
+One task per thread (linking a thread that carries an open task asks first and sends the old one
+back to To do); threads with no task show only in Needs you; Mark complete archives the linked
+thread (Reopen unarchives it and reopens the task); work threads get a brief, on the front
+thread's agent and model unless chosen; the result posts back into the front thread when the
+work thread finishes its reply (or calls `work report`), and its task goes to Ready; agents start
+work threads only from their own running front thread (like sidequest); one level only.
+Migration: desk.json's requests become tasks to do; existing sessions are not made tasks.
+
+## Chosen while building (2026-11-04)
+
+- **Storage.** desk.json gains `tasks` (id, text, source, createdAt, proposed, note, chatID,
+  linkedAt, completedAt) and keeps writing `requests` as the tasks to do, so an older build still
+  sees To do. `completions` (the board's sessions marked complete) is no longer read: those were
+  sessions, not tasks.
+- **Board.** To do: tasks not linked, or linked to a thread that's gone (until its deletion,
+  `chat.deleted`, unlinks it for good). Working: a task's thread running or with background work.
+  Ready: a task's thread idle and asking nothing, however long ago it finished (no week window, so
+  a task never falls off the board; "No reply yet." when it hasn't answered). Done: tasks whose
+  thread is archived (from the board or elsewhere; unarchived elsewhere, the task is open again),
+  for a week, then dropped. A deleted thread's done task goes with it.
+- **A project's Start is a work thread.** Starting a To do task in a project makes a work thread
+  of the project's session (its front thread), named from the request, with the request (and
+  note) as its brief; the project's session is told, and hears the result. Studios and loose
+  sessions start as before. The start step says "New work thread for <project>".
+- **Work threads are Sidechats** of the front thread (`sidechatOf`, same folder, Studio or
+  project), plus `workOf`, `workReported` and `workReportedAt`. They get no parent context: the
+  framing (`<work_thread>`) goes with the brief, which is the first message. Their task is named
+  from the title, in the front thread's place, from the agent ("claude"/"codex") or "you".
+- **Reporting.** Each finished reply not yet reported goes to the front thread
+  (`<work_result>`, shown as "Work thread "X" finished", with Open), unless the thread waits on an
+  approval or questions, or reported with `work report` during that turn (the reply ending it is
+  then only marked reported). Later replies (Shelby carrying on in it) report too. An archived
+  front thread isn't woken; the work thread notes it. Work threads aren't archived when they
+  report: Mark complete does that.
+- **Permission.** Socket op `work`: `list` from any session; `start` from the app, or an agent
+  from its own front thread mid-reply (not a sidequest or automation run); never from a work
+  thread (`nested_work`, for the app too); `report` only from a work thread (`not_work_thread`),
+  an agent only while it's working. Desk `link`, `unlink`, `makeTask` are the app's (and the
+  phone's), not agents'.
+- **Dev chats find `work`** (and desk, sidequest) in Chatterbox Dev's own bundle: its agents'
+  PATH starts with `Contents/Resources/bin` (BinaryLocator.devBin). The real app links `work`
+  into ~/.local/bin at the next ship (install.sh).
+- **UI.** Mac: a Work strip across the top of a front thread (chips: name and state; click
+  opens), a banner in a work thread ("Work for "X"", Open X), a Start a Work Thread button in the
+  column of buttons and in the session menu (name, brief, agent), and the session menu's Make
+  This a Task / Link to a Task / Unlink. Desk cards show their task, Needs you marks "Not a task"
+  with Make this a task, To do cards have Link… (every thread in the place; one carrying a task
+  asks first), task cards' menus Unlink. Phone: the same, the strip and header above the
+  transcript, Start a Work Thread as a sheet, Link a Thread as a sheet.
+- **Instructions.** Every session's agent instructions gain a Work threads paragraph (when to
+  start one, what a brief needs, that results come back); `instructionsVersion` 13 tells chats
+  already running.
+
+## Contract (as built)
+
+- `ChatSummary.workOf`; `ChatDetail.work: [WorkThread]` (a front thread's, newest first, done
+  ones for a week) and `workOfTitle`. `WorkThread { id, title, state (working, needsYou, ready,
+  done), task, backend, updatedAt }`.
+- `GET /v1/chats/<id>/work` → `[WorkThread]`; `POST /v1/chats/<id>/work` (`WorkStartRequest {
+  title, brief, agent?, model? }`) → the work thread's ChatDetail (409 from a work thread).
+- `Desk.linked: [DeskTask { id, text, chatID, completedAt }]`; `DeskWaiting`, `DeskWorking`,
+  `DeskReady`, `DeskDone` gain `task` and `taskText`; `DeskThread.task` (the open task it
+  carries); `DeskStartRequest.replace`.
+- `POST /v1/desk/<task>/link` (`DeskLinkRequest { chatID, replace? }`, 409 when the thread
+  carries another open task), `POST /v1/desk/<task>/unlink`, `POST /v1/desk/task`
+  (`DeskTaskRequest { chatID, text? }`), `GET /v1/desk/<id>/threads?place=…&all=1`; socket `desk`
+  actions `link`, `unlink`, `makeTask`, `threads` with `all`; socket op `work` (start, list,
+  report). All answer the Desk unless said.
+- `bin/work`: `work start "TITLE" --brief TEXT|- [--agent claude|codex] [--model M]`,
+  `work list`, `work report "TEXT"`, each with `--chat ID`.
 
 ## Not changed
 

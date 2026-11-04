@@ -9,8 +9,12 @@ import SwiftUI
 // threads, options), that Open, Approve, Ignore, Silence, Mark complete, Reopen and Start there
 // do what they say (Start there's step: continue a session already there, or pick the model;
 // it runs in the background with a note, nothing opens), that cards are named as the session
-// lists name them, and that the board scrolls sideways in a narrow window.
-// Evidence: desk-*.png in the fixture folder (desk-board.png: every column with cards).
+// lists name them, and that the board scrolls sideways in a narrow window. Tasks (plans/work-threads.md):
+// Working shows only threads carrying a task, Needs you marks those that aren't (Make this a
+// task), a To do card links a thread (asking first when it carries a task), a project's Start is
+// a new work thread, and a front thread's Work strip and a work thread's header render.
+// Evidence: desk-*.png in the fixture folder (desk-board.png: every column with cards;
+// work-strip.png and work-thread.png: a front thread's Work strip and a work thread's header).
 setbuf(stdout, nil)
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
@@ -102,6 +106,8 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     sdhqRecord.projectFolder = root.appendingPathComponent("SDHQ").path; sdhqRecord.projectNickname = "SDHQ"
     let sdhq = model.insertSession(sdhqRecord)
     sdhq.isRunning = true
+    let untasked = model.insertSession(record("Running with no task"))
+    untasked.isRunning = true
     var archivedRecord = record("Archived with a question")
     archivedRecord.archivedAt = now
     archivedRecord.items = [DisplayItem(kind: .approval, text: "Old request", requestID: ["id": "r9"], approvalState: .pending)]
@@ -154,6 +160,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         // Unarchived here since: left out.
         .init(id: reopenedElsewhere.id, title: "Reopened elsewhere", place: nil, completedAt: now.addingTimeInterval(-7200)),
     ])
+    // Tasks linked to threads: the working ones, one waiting on you, the ready and done ones.
+    let magnetsTask = UUID()
+    service.linked = [.init(id: UUID(), text: "Make the national event ribbons", chatID: ribbons.id),
+                      .init(id: UUID(), text: "Refresh the SDHQ menus", chatID: sdhq.id),
+                      .init(id: magnetsTask, text: "Choose the PlayCase magnets", chatID: magnets.id),
+                      .init(id: UUID(), text: "Banner proofs", chatID: proofs.id), .init(id: UUID(), text: "Check the lid fit", chatID: lid.id),
+                      .init(id: UUID(), text: "Camp flyers", chatID: flyers.id, completedAt: now.addingTimeInterval(-3600))]
     // Start there's step: sessions already in the place like the work, and a new session's options.
     let sameWork = Companion.DeskThread(id: plan.id, title: "Mac Desk page", detail: "Add the Desk as Home's first page", settings: "Claude · Opus 5.5 · High",
                                         updatedAt: now.addingTimeInterval(-300), isRunning: true, match: "clear")
@@ -221,7 +234,29 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
             // Continuing answers with that session; a new one with the started session.
             let chat = body["continueChat"]?.string ?? startedID.uuidString
             return ["revision": 1, "summary": ["id": .string(chat), "title": "Fix the iPad sidebar badge"], "settings": "Claude", "items": [], "earlierCount": 0]
+        case "makeTask":
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))!
+            service.linked = (service.linked ?? []) + [.init(id: UUID(), text: body["text"]?.string ?? "A task", chatID: chat!)]
+            service.revision += 1
+            return try JSON.value(service)
+        case "link":
+            // As the service does: a thread carrying a task asks first.
+            let chat = body["chatID"]?.string.flatMap(UUID.init(uuidString:))!
+            if chat == sameWork.id, body["replace"]?.bool != true { throw RuntimeFailure("That thread already carries a task: \u{201C}Desk page\u{201D}.") }
+            if let request = service.incoming.first(where: { $0.id == id }) {
+                service.incoming.removeAll { $0.id == id }
+                service.linked = (service.linked ?? []).filter { $0.chatID != chat } + [.init(id: request.id, text: request.text, chatID: chat!)]
+            }
+            service.revision += 1
+            return try JSON.value(service)
+        case "unlink":
+            service.linked?.removeAll { $0.id == id }; service.revision += 1
+            return try JSON.value(service)
         case "threads":
+            if body["all"]?.bool == true {
+                var carrying = sameWork; carrying.task = "Desk page"; carrying.match = "clear"
+                return try JSON.value(id == badge.id ? [carrying, similar] : [Companion.DeskThread]())
+            }
             return try JSON.value(id == badge.id ? [sameWork, similar] : [Companion.DeskThread]())
         case "options":
             return try JSON.value(options((try? body["picks"]?.decode(Companion.SettingsRequest.self)) ?? .init()))
@@ -246,7 +281,16 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(byChat[logos.id]?.waiting.kind == "reply" && byChat[logos.id]?.canDecide == false, "reply: from the service, opened rather than approved")
     let planIndex = needs.firstIndex { $0.waiting.chatID == plan.id }!, magazineIndex = needs.firstIndex { $0.waiting.chatID == magazine.id }!
     check(needs.firstIndex { $0.waiting.chatID == magnets.id }! < planIndex && planIndex < magazineIndex, "newest first, as the phone's Desk")
-    check(Set(sections.working.map(\.id)) == Set([ribbons.id, sdhq.id]), "Working: running sessions, not ones waiting on you")
+    check(Set(sections.working.map(\.id)) == Set([ribbons.id, sdhq.id]), "Working: running threads with a task, not ones waiting on you or with no task")
+    check(sections.working.first { $0.id == sdhq.id }?.taskText == "Refresh the SDHQ menus", "Working cards carry their task")
+    check(byChat[magnets.id]?.waiting.task == magnetsTask && byChat[magnets.id]?.waiting.taskText == "Choose the PlayCase magnets"
+          && byChat[magazine.id]?.waiting.task == nil && desk.hasTasks, "Needs you: every thread, a task's marked with it, the rest as not a task")
+    check(desk.task(of: sdhq.id)?.text == "Refresh the SDHQ menus" && desk.task(of: magazine.id) == nil && desk.task(of: flyers.id) == nil,
+          "a thread's open task, for its menu")
+    var olderService = service; olderService.linked = nil
+    let olderDesk = DeskModel(snapshot: olderService)
+    check(Set(olderDesk.sections(in: model).working.map(\.id)) == Set([ribbons.id, sdhq.id, untasked.id]) && !olderDesk.hasTasks,
+          "from a service older than tasks: Working as before, and no task actions")
     check(sections.working.first { $0.id == sdhq.id }?.place == "SDHQ", "Working shows the place")
     check(sections.incoming.map(\.id) == [resultsEmail.id, badge.id, order.id], "To do: the service's requests")
     check(sections.ready.map(\.id) == [proofs.id, lid.id], "Ready: the service's, less one working or archived here since (\(sections.ready.map(\.title)))")
@@ -330,6 +374,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(frame("chip:\(order.id)") != nil && frame("start:\(order.id)") != nil, "no place: Choose a place, and Start (it asks for a place)")
     check(frame("change:\(badge.id)") == nil && frame("chip:\(badge.id)") != nil && frame("allow:\(approvalID)") != nil && frame("open:\(magnets.items[0].id)") != nil, "no Change place button (the chip does it); Allow and Open are there")
     check(needs.allSatisfy { frame("silence:\($0.id)") != nil }, "every Needs you card has Silence")
+    check(frame("makeTask:\(magazine.id)") != nil && frame("makeTask:\(logos.id)") != nil && frame("makeTask:\(magnets.id)") == nil,
+          "threads that aren't tasks offer Make this a task; one with a task doesn't")
+    check(frame("link:\(badge.id)") != nil && frame("link:\(order.id)") == nil, "a To do card with a place can Link a thread")
     // The one approval card: Allow, Allow for Session, Deny, left to right, the command always shown.
     if let allow = frame("allow:\(approvalID)"), let session = frame("allowSession:\(approvalID)"), let deny = frame("deny:\(approvalID)"),
        let command = frame("command:\(approvalID)") {
@@ -412,6 +459,40 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(decided.last?["decision"]?.string == "approvedForSession" && decided.last?["itemID"]?.string == planItem.uuidString,
           "Allow for Session (a plan's Start and Accept Edits) carries its decision (\(String(describing: decided.last)))")
     plan.remoteCommand = nil
+
+    // Make this a task: {action: makeTask, chatID}; the card then carries it.
+    model.showDesk()
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-make-task")
+    try await click("makeTask:\(logos.id)")
+    check(sent.last == ["action": "makeTask", "chatID": .string(logos.id.uuidString)], "Make this a task sends makeTask with the thread (\(String(describing: sent.last)))")
+    check(desk.task(of: logos.id) != nil && desk.sections(in: model).needsYou.first { $0.waiting.chatID == logos.id }?.waiting.task != nil,
+          "and the card carries its task")
+    // Unlink: {action: unlink, id}; the thread leaves Working.
+    let sdhqTask = desk.task(of: sdhq.id)!.id
+    await desk.unlink(sdhqTask)
+    check(sent.last == ["action": "unlink", "id": .string(sdhqTask.uuidString)] && !desk.sections(in: model).working.contains { $0.id == sdhq.id },
+          "Unlink sends unlink with the task; its thread leaves Working")
+    service.linked = (service.linked ?? []) + [.init(id: sdhqTask, text: "Refresh the SDHQ menus", chatID: sdhq.id)]; desk.load(service)
+    // Link a thread: every thread in the place; one carrying a task asks first.
+    try await render(AnyView(DeskLinkPopover(request: badge, place: chatterbox, desk: desk) {}.background(Color(nsColor: .windowBackgroundColor))), 380, 260, "desk-link")
+    check(sent.last == ["action": "threads", "id": .string(badge.id.uuidString), "all": true, "place": try JSON.value(chatterbox)],
+          "Link asks for every thread in the place (\(String(describing: sent.last)))")
+    check(frame("linkThread:\(sameWork.id)") != nil && frame("linkThread:\(similar.id)") != nil, "each thread there to pick")
+    try await click("linkThread:\(sameWork.id)")
+    check(frame("linkAnyway") != nil && !sent.contains { $0["action"]?.string == "link" }, "a thread carrying a task asks first; nothing sent yet")
+    try snapshot("desk-link-confirm")
+    try await click("linkAnyway")
+    check(sent.last == ["action": "link", "id": .string(badge.id.uuidString), "chatID": .string(sameWork.id.uuidString), "replace": true],
+          "Link Anyway sends link with replace (\(String(describing: sent.last)))")
+    check(!desk.sections(in: model).incoming.contains { $0.id == badge.id } && desk.task(of: sameWork.id)?.id == badge.id, "linked: off To do, carried by the thread")
+    service.incoming.insert(badge, at: 1); service.linked?.removeAll { $0.id == badge.id }; desk.load(service)
+    // A project's Start is a new work thread of its session.
+    let projectStep = DeskStartStep(request: badge, desk: desk)
+    check(projectStep.place == chatterbox && projectStep.newTitle == "New work thread for Chatterbox" && projectStep.newDetail.contains("goes back"),
+          "Start in a project: New work thread for it, reporting back")
+    check(DeskStartStep(request: resultsEmail, desk: desk).newTitle == "New session", "in a Studio: a new session")
+    model.showDesk()
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-after-tasks")
 
     // Mark complete: {action: complete, chatID}; from Ready to Done. Reopen: {action: reopen, chatID}.
     try await click("complete:\(proofs.id)")
@@ -534,10 +615,39 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     try await render(AnyView(ContentView()), 2200, 1000, "desk-calm-working")
     check(frame("empty:needsYou") != nil && frame("empty:todo") != nil && frame("empty:ready") != nil && frame("empty:done") != nil
           && frame("empty:working") == nil && frame("working:\(sdhq.id)") != nil, "empty columns say so in a line; Working shows its cards")
-    check(desk.sections(in: model).summary == "3 working", "header: 3 working, the plan's session too once answered (\(desk.sections(in: model).summary))")
-    ribbons.isRunning = false; sdhq.isRunning = false; plan.isRunning = false
+    check(desk.sections(in: model).summary == "2 working", "header: 2 working; the plan's session, answered, carries no task (\(desk.sections(in: model).summary))")
+    ribbons.isRunning = false; sdhq.isRunning = false; plan.isRunning = false; untasked.isRunning = false
     try await render(AnyView(ContentView()), 2200, 1000, "desk-empty")
     check(keys.allSatisfy { frame("empty:" + $0) != nil } && desk.sections(in: model).summary == "All clear", "nothing at all: every column empty, All clear")
+
+    // Work threads: a front thread's Work strip (each with its state), a work thread's header.
+    func workRecord(_ title: String, items: [DisplayItem] = [], archived: Bool = false) -> ConversationRecord {
+        var r = record(title); r.workOf = plan.id; r.sidechatOf = plan.id; r.items = items
+        if archived { r.archivedAt = now.addingTimeInterval(-600) }
+        return r
+    }
+    let workRunning = model.insertSession(workRecord("Desk board columns"))
+    workRunning.isRunning = true
+    let workWaiting = model.insertSession(workRecord("Phone tabs", items: [DisplayItem(kind: .approval, text: "Run the UI tests", requestID: ["id": "w1"], approvalState: .pending)]))
+    let workReady = model.insertSession(workRecord("Service tasks", items: [DisplayItem(kind: .user, text: "Brief"), DisplayItem(kind: .assistant, text: "Done.", phase: .final)]))
+    workReady.record.workReported = workReady.items.last?.id
+    let workDone = model.insertSession(workRecord("Plan", archived: true))
+    let strip = model.workThreads(of: plan)
+    check(Set(strip.map(\.id)) == Set([workRunning.id, workWaiting.id, workReady.id, workDone.id])
+          && [workRunning, workWaiting, workReady, workDone].map { WorkThreadState($0) } == [.working, .needsYou, .ready, .done],
+          "the Work strip: each work thread, Working, Needs you, Ready or Done")
+    check(workRunning.isWorkThread && !plan.isWorkThread, "a work thread knows it is one")
+    UserDefaults.standard.set("pinned", forKey: "macStudioSelection")
+    model.showingHome = false
+    model.selectedID = plan.id
+    try await render(AnyView(ContentView()), 1500, 900, "work-strip")
+    model.selectedID = workReady.id
+    try await render(AnyView(ContentView()), 1500, 900, "work-thread")
+    try await render(AnyView(VStack(spacing: 0) { WorkStrip(session: plan); WorkThreadBanner(session: workReady); Spacer() }
+                        .background(Color(nsColor: .windowBackgroundColor))), 900, 140, "work-strip-banner")
+    try await render(AnyView(WorkThreadForm(front: plan) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 420, "work-thread-form")
+    for session in [workRunning] { session.isRunning = false }
+    model.showDesk()
 
     // Home's other pages are unchanged: Pinned still opens with its own title.
     UserDefaults.standard.set("pinned", forKey: "macStudioSelection")

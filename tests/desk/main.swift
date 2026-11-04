@@ -4,9 +4,12 @@ import Darwin
 // places, ignore, desk.json across a reload, Needs you and Working from sessions (named as the
 // session lists name them), silence (kept, pruned, shown again when something new waits), the
 // phone's routes with a paired token, the service socket's "desk" operation and desk.changed, Claude's
-// propose_work, and starting a request in a Studio, as a project's Sidechat, or loose. The board
-// (plans/desk-board.md): Ready to mark complete (a week, not sidequests or automation runs,
-// silenced until something new), Mark complete into Done, Reopen, older bodies. No
+// propose_work, and starting a request in a Studio, as a project's work thread, or loose. The board
+// (plans/desk-board.md): Ready to mark complete (silenced until something new), Mark complete
+// into Done, Reopen, older bodies. Tasks (plans/work-threads.md): a request stays a task once
+// started, linked to its thread; Working and Ready show only threads with a task, Needs you every
+// thread; link, unlink and Make this a task (one task per thread); a thread archived elsewhere
+// completes its task, a deleted one sends it back to To do; desk.json from before tasks. No
 // agent ever starts: the first message goes to a stand-in, and the agents' paths lead nowhere.
 func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     guard try ok() else { throw RuntimeFailure(text) }; print("PASS: \(text)")
@@ -117,7 +120,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     // Kept across a reload: desk.json in the data folder.
     let file = root.appendingPathComponent("desk.json")
     let reloaded = DeskStore(file: file)
-    try check(reloaded.requests == desk.requests && reloaded.revision == desk.revision + 1, "the requests and revision survive a reload")
+    try check(reloaded.requests == desk.requests && reloaded.tasks == desk.tasks && reloaded.revision == desk.revision + 1, "the tasks and revision survive a reload")
     let bad = root.appendingPathComponent("broken.json"); try Data("not json".utf8).write(to: bad)
     try check(DeskStore(file: bad).requests.isEmpty && FileManager.default.fileExists(atPath: root.appendingPathComponent("broken.unreadable.json").path)
               && !FileManager.default.fileExists(atPath: bad.path), "an unreadable desk.json is kept aside, not overwritten")
@@ -164,14 +167,39 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(waiting(replied)?.kind == "reply" && waiting(replied)?.text == "Want me to upload it to TestFlight?" && waiting(replied)?.id == replied.id,
               "needs you: a reply that ends on a question")
     try check(now.needsYou.count == 4, "not an old question, a finished reply, or a running session: \(now.needsYou.map(\.title))")
-    try check(now.working.map(\.id).sorted { $0.uuidString < $1.uuidString } == [busy.id, sidechat.id].sorted { $0.uuidString < $1.uuidString }
-              && now.working.first { $0.id == busy.id }?.place == "PlayCase Arcade" && now.working.first { $0.id == sidechat.id }?.place == "Dogear",
-              "working: running sessions with their places, not one waiting on you")
-    try check(try deskOf(call("GET", "/v1/desk")).revision == now.revision, "nothing changed: the same revision")
+    try check(now.needsYou.allSatisfy { $0.task == nil } && now.working.isEmpty && (now.ready ?? []).isEmpty,
+              "threads with no task: only in Needs you (marked as not a task), never Working or Ready")
+    // Make this a task: a new task, already linked; then it's on the board by its thread's state.
+    func makeTask(_ chat: ChatSession, _ text: String? = nil) throws -> Companion.Desk {
+        let response = call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: chat.id, text: text)))
+        try check(response.status == 200, "make a task answers with the Desk")
+        return try deskOf(response)
+    }
+    _ = try makeTask(busy)
+    let tasked = try makeTask(sidechat, "Highlights pass")
+    try check(tasked.working.map(\.id).sorted { $0.uuidString < $1.uuidString } == [busy.id, sidechat.id].sorted { $0.uuidString < $1.uuidString }
+              && tasked.working.first { $0.id == busy.id }?.place == "PlayCase Arcade" && tasked.working.first { $0.id == sidechat.id }?.place == "Dogear",
+              "working: running threads with a task, with their places, not one waiting on you")
+    try check(tasked.working.first { $0.id == busy.id }?.taskText == "Render the poster" && tasked.working.first { $0.id == sidechat.id }?.taskText == "Highlights pass"
+              && tasked.linked?.contains { $0.chatID == sidechat.id && $0.text == "Highlights pass" } == true && !tasked.incoming.contains { $0.text == "Highlights pass" },
+              "a made task is named for its thread (or as given), linked, not to do")
+    try check(desk.tasks.first { $0.chatID == busy.id }?.proposed?.id == playcase.id && desk.tasks.first { $0.chatID == sidechat.id }?.proposed?.id == dogear.id,
+              "in its thread's place: the Studio, or the project for its Sidechat")
+    try check(call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: busy.id))).status == 409, "one task per thread: a second is refused")
+    try check(call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: UUID()))).status == 404, "a thread that's gone: 404")
+    try check(try deskOf(call("GET", "/v1/desk")).revision == tasked.revision, "nothing changed: the same revision")
     sidechat.isRunning = false
     let quieter = try deskOf(call("GET", "/v1/desk"))
-    try check(quieter.revision > now.revision && quieter.working.map(\.id) == [busy.id] && announced.last?.revision == quieter.revision,
-              "a session stopping changes the revision, and is announced")
+    try check(quieter.revision > tasked.revision && quieter.working.map(\.id) == [busy.id] && quieter.ready?.first?.id == sidechat.id
+              && quieter.ready?.first?.text == "No reply yet." && announced.last?.revision == quieter.revision,
+              "a thread stopping moves its task to Ready; the revision changes, and is announced")
+    // Unlink: back to To do; the thread carries on, off Working and Ready.
+    let sidechatTask = desk.openTask(for: sidechat.id)!.id
+    let unlinked = try deskOf(call("POST", "/v1/desk/\(sidechatTask)/unlink"))
+    try check(unlinked.incoming.first { $0.id == sidechatTask }?.text == "Highlights pass" && unlinked.ready?.contains { $0.id == sidechat.id } == false
+              && desk.openTask(for: sidechat.id) == nil, "unlink: the task goes back to To do; the thread leaves the board")
+    try check(call("POST", "/v1/desk/\(UUID())/unlink").status == 404, "unlinking a task that's gone: 404")
+    _ = try desk.ignore(sidechatTask)
     try check(DeskStore.question(in: "Here it is:\n```\nwhy?\n```") == nil && DeskStore.question(in: "All set.") == nil
               && DeskStore.question(in: "1. One\n2. Two\n\nWhich do you want? (A or B)") == nil
               && DeskStore.question(in: "Ready. Should I open v1.2 or v2?") == "Should I open v1.2 or v2?", "a question in a reply, only at its end")
@@ -187,6 +215,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     branchRecord.worktreeBranch = "highlights-sync"; branchRecord.projectNickname = "Dogear"
     let branch = try runtime.insert(branchRecord)
     branch.isRunning = true
+    _ = try makeTask(branch)
     let named1 = try deskOf(call("GET", "/v1/desk"))
     let buildingWaiting = named1.needsYou.first { $0.chatID == building.id }
     let list = try Companion.decoder.decode(Companion.ChatList.self, from: call("GET", "/v1/chats").body)
@@ -261,8 +290,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let older = root.appendingPathComponent("desk-older.json")
     try Data(#"{"revision":7,"requests":[{"id":"\#(UUID().uuidString)","text":"Old request","source":"you","createdAt":"2026-11-01T10:00:00Z"}]}"#.utf8).write(to: older)
     let olderStore = DeskStore(file: older)
-    try check(olderStore.requests.map(\.text) == ["Old request"] && olderStore.silences.isEmpty && olderStore.completions.isEmpty && olderStore.revision == 8,
-              "a desk.json from before silencing (and the board) loads")
+    try check(olderStore.requests.map(\.text) == ["Old request"] && olderStore.silences.isEmpty && olderStore.tasks.map(\.text) == ["Old request"]
+              && olderStore.tasks.allSatisfy { $0.chatID == nil && $0.isOpen } && olderStore.revision == 8,
+              "a desk.json from before silencing (and the board, and tasks) loads: its requests are tasks to do")
     // Something new from the same session shows again.
     _ = replied.appendItem(DisplayItem(kind: .user, text: "Not yet"))
     _ = replied.appendItem(DisplayItem(kind: .assistant, text: "Fine. Shall I tag the release instead?", phase: .final))
@@ -282,7 +312,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
 
     // The board (plans/desk-board.md). Working says what each is doing.
     try check(answered.working.first { $0.id == busy.id }?.activity == "Working\u{2026}", "working: what it's doing now")
-    // Ready to mark complete: idle, its last reply in the last week, asking nothing.
+    // The board's tasks done with for what follows.
+    for chat in [busy, branch] { if let task = desk.openTask(for: chat.id) { try desk.unlink(task.id); try desk.ignore(task.id) } }
+    // Ready to mark complete: a thread with a task, idle, asking nothing, however long ago.
     func reply(_ text: String, daysAgo: Double = 0) -> [DisplayItem] {
         [DisplayItem(kind: .user, text: "Go"), DisplayItem(kind: .assistant, timestamp: Date().addingTimeInterval(-daysAgo * 86_400), text: text, phase: .final)]
     }
@@ -296,18 +328,27 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let shelved = try runtime.insert(shelvedRecord)
     let stillGoing = try runtime.insert(record("Still going", items: reply("Halfway there.")))
     stillGoing.isRunning = true
+    let untasked = try deskOf(call("GET", "/v1/desk"))
+    try check(untasked.ready?.isEmpty == true && untasked.working.isEmpty, "finished threads with no task aren't Ready (or Working)")
+    for chat in [finished, weekOld, sixDays, stillGoing, dogear] { _ = try makeTask(chat) }
+    try check(call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: quest.id))).status == 409
+              && call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: run.id))).status == 409
+              && call("POST", "/v1/desk/task", try encode(Companion.DeskTaskRequest(chatID: shelved.id))).status == 404,
+              "sidequests and automation runs aren't tasks; an archived thread can't be made one")
     let board = try deskOf(call("GET", "/v1/desk"))
     let ready = board.ready ?? []
     func readyItem(_ chat: ChatSession) -> Companion.DeskReady? { ready.first { $0.id == chat.id } }
-    try check(readyItem(finished)?.text == "All done." && readyItem(finished)?.title == "Finished" && readyItem(finished)?.place == nil,
-              "ready: a finished reply, its first sentence: \(String(describing: readyItem(finished)))")
-    try check(readyItem(sixDays)?.place == "USA Archery" && readyItem(oldQuestion) != nil && readyItem(dogear)?.title == "Dogear",
-              "six days old is still ready; a question past Needs you's two days is too; named as the lists name it")
-    try check([weekOld, quest, run, shelved, stillGoing, approval, replied, plan, asking, busy].allSatisfy { readyItem($0) == nil },
-              "not over a week old, a sidequest, an automation run, archived, working, or waiting on you: \(ready.map(\.title))")
-    try check(ready.map(\.finishedAt) == ready.map(\.finishedAt).sorted(by: >) && ready.last?.id == sixDays.id, "newest first")
+    try check(readyItem(finished)?.text == "All done." && readyItem(finished)?.title == "Finished" && readyItem(finished)?.place == nil
+              && readyItem(finished)?.taskText == "Finished",
+              "ready: a finished reply, its first sentence, with its task: \(String(describing: readyItem(finished)))")
+    try check(readyItem(sixDays)?.place == "USA Archery" && readyItem(weekOld) != nil && readyItem(dogear)?.title == "Dogear",
+              "a task stays Ready however old its reply; named as the lists name it")
+    try check([quest, run, shelved, stillGoing, approval, replied, plan, asking, busy, oldQuestion].allSatisfy { readyItem($0) == nil },
+              "not a sidequest, an automation run, archived, working, waiting on you, or a thread with no task: \(ready.map(\.title))")
+    try check(board.working.map(\.id) == [stillGoing.id], "a working thread with a task is Working")
+    try check(ready.map(\.finishedAt) == ready.map(\.finishedAt).sorted(by: >) && ready.last?.id == weekOld.id, "newest first")
     try check(board.done?.isEmpty == true, "nothing done yet")
-    // Silencing a ready session hides it until something new happens in it.
+    // Silencing a ready task hides it until something new happens in its thread.
     let staleReady = try silence(finished.id, finished.id, "Something it no longer says.")
     try check(staleReady.ready?.contains { $0.id == finished.id } == true && desk.silences.isEmpty, "a ready session that's since changed isn't silenced")
     let quietReady = try silence(finished.id, finished.id, "All done.")
@@ -320,37 +361,54 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let shownAgain = try deskOf(call("GET", "/v1/desk"))
     try check(shownAgain.ready?.first { $0.id == finished.id }?.text == "Added the back page too." && desk.silences.isEmpty,
               "something new shows it again, and the silence goes")
-    // Mark complete: archives it, into Done; refused while working.
+    // Mark complete: archives the thread, its task into Done; refused while working.
     try check(call("POST", "/v1/desk/complete", Data("{}".utf8)).status == 400, "complete needs a session")
     try check(call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: UUID()))).status == 404, "a session that's gone: 404")
     try check(call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: stillGoing.id))).status == 409 && stillGoing.record.archivedAt == nil,
               "a working session isn't completed (or stopped)")
+    let finishedTask = desk.openTask(for: finished.id)!.id
     let completedResponse = call("POST", "/v1/desk/complete", try encode(Companion.DeskSessionRequest(chatID: finished.id)))
     let completed = try deskOf(completedResponse)
-    try check(completedResponse.status == 200 && finished.record.archivedAt != nil, "complete archives the session")
-    try check(completed.done?.map(\.id) == [finished.id] && completed.done?.first?.title == "Finished" && completed.ready?.contains { $0.id == finished.id } == false,
-              "and it moves from Ready to Done")
+    try check(completedResponse.status == 200 && finished.record.archivedAt != nil, "complete archives the thread")
+    try check(completed.done?.map(\.id) == [finished.id] && completed.done?.first?.title == "Finished" && completed.done?.first?.task == finishedTask
+              && completed.ready?.contains { $0.id == finished.id } == false && completed.linked?.first { $0.id == finishedTask }?.completedAt != nil,
+              "and its task moves from Ready to Done")
     try check(completed.revision > shownAgain.revision && announced.last?.revision == completed.revision, "completing changes the revision, and is announced")
-    try check(DeskStore(file: file).completions.map(\.chatID) == [finished.id], "completions are kept in desk.json")
-    // Done is a week: an older completion (or one whose session was unarchived) goes.
+    try check(DeskStore(file: file).tasks.first { $0.id == finishedTask }?.completedAt != nil, "completed tasks are kept in desk.json")
+    // Done is a week: an older completed task goes.
     let lastWeek = root.appendingPathComponent("desk-last-week.json")
-    let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
-    var aged = saved
-    aged["completions"] = [["chatID": finished.id.uuidString, "completedAt": "2026-01-01T10:00:00Z"],
-                           ["chatID": shelved.id.uuidString, "completedAt": ISO8601DateFormatter().string(from: Date().addingTimeInterval(-6 * 86_400))]]
+    var aged = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+    aged["tasks"] = (aged["tasks"] as! [[String: Any]]).map { task in
+        var task = task
+        if task["id"] as? String == finishedTask.uuidString { task["completedAt"] = "2026-01-01T10:00:00Z" }
+        return task
+    }
     try JSONSerialization.data(withJSONObject: aged).write(to: lastWeek)
     let agedStore = DeskStore(file: lastWeek)
-    try check(agedStore.snapshot().done?.map(\.id) == [shelved.id] && agedStore.completions.map(\.chatID) == [shelved.id],
-              "Done: completions from the last week only; older ones are pruned")
-    // Reopen: unarchived, out of Done, and ready again.
+    try check(agedStore.snapshot().done?.isEmpty == true && !agedStore.tasks.contains { $0.id == finishedTask },
+              "Done: tasks completed in the last week only; older ones are pruned")
+    // Reopen: unarchived, the task out of Done, and ready again.
     let reopened = try deskOf(call("POST", "/v1/desk/reopen", try encode(Companion.DeskSessionRequest(chatID: finished.id))))
     try check(finished.record.archivedAt == nil && reopened.done?.isEmpty == true && reopened.ready?.contains { $0.id == finished.id } == true
-              && desk.completions.isEmpty, "reopen unarchives it: out of Done, back in Ready")
+              && desk.openTask(for: finished.id)?.id == finishedTask, "reopen unarchives it: the task out of Done, back in Ready")
     try check(call("POST", "/v1/desk/reopen", try encode(Companion.DeskSessionRequest(chatID: UUID()))).status == 404, "reopening a session that's gone: 404")
-    // Archived elsewhere (not from the board): not in Done.
+    // Archived elsewhere (not from the board): its task is done; unarchived elsewhere, open again.
     model.archive(sixDays)
     let elsewhereArchived = try deskOf(call("GET", "/v1/desk"))
-    try check(elsewhereArchived.done?.isEmpty == true && elsewhereArchived.ready?.contains { $0.id == sixDays.id } == false, "archived elsewhere: off Ready, not in Done")
+    try check(elsewhereArchived.done?.first?.id == sixDays.id && elsewhereArchived.ready?.contains { $0.id == sixDays.id } == false,
+              "archived elsewhere: its task goes to Done")
+    sixDays.setArchived(false)
+    try check(try deskOf(call("GET", "/v1/desk")).ready?.contains { $0.id == sixDays.id } == true && desk.openTask(for: sixDays.id) != nil,
+              "unarchived elsewhere: open again, Ready")
+    // Deleted: its task goes back to To do.
+    let sixDaysTask = desk.openTask(for: sixDays.id)!.id
+    try runtime.remove(sixDays.id)
+    try check(try deskOf(call("GET", "/v1/desk")).incoming.contains { $0.id == sixDaysTask }, "a deleted thread's task shows in To do at once")
+    desk.threadDeleted(sixDays.id)
+    try check(desk.tasks.first { $0.id == sixDaysTask }?.chatID == nil && desk.requests.contains { $0.id == sixDaysTask },
+              "and its deletion unlinks it for good")
+    try desk.ignore(sixDaysTask)
+    for chat in [weekOld, dogear] { if let task = desk.openTask(for: chat.id) { try desk.unlink(task.id); try desk.ignore(task.id) } }
     // Older phones and services: bodies without the board still decode, and older ones ignore it.
     let olderDesk = try Companion.decoder.decode(Companion.Desk.self, from: Data(#"{"revision":3,"needsYou":[],"incoming":[],"working":[{"id":"\#(UUID().uuidString)","title":"Galley","place":null}]}"#.utf8))
     try check(olderDesk.ready == nil && olderDesk.done == nil && olderDesk.working.first?.activity == nil, "a Desk from an older service decodes, without the board's columns")
@@ -367,13 +425,22 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(detail.summary.title == "Banner ideas for the fall camp flyers and the\u{2026}" && sent.last?.chat == detail.summary.id
               && sent.last?.text == bannerRequest.text && detail.items.contains { $0.kind == .user && $0.text == bannerRequest.text },
               "named from the request, which is its first message: \(detail.summary.title)")
-    try check(!desk.requests.contains { $0.id == bannerRequest.id } && !(try deskOf(call("GET", "/v1/desk"))).incoming.contains { $0.id == bannerRequest.id },
-              "and the request leaves the Desk")
+    let afterStart = try deskOf(call("GET", "/v1/desk"))
+    try check(!desk.requests.contains { $0.id == bannerRequest.id } && !afterStart.incoming.contains { $0.id == bannerRequest.id },
+              "and the request leaves To do")
+    try check(desk.openTask(for: detail.summary.id)?.id == bannerRequest.id && afterStart.linked?.contains { $0.id == bannerRequest.id && $0.chatID == detail.summary.id } == true
+              && afterStart.ready?.first { $0.id == detail.summary.id }?.task == bannerRequest.id,
+              "it stays a task, linked to the session it started, and moves with it (Ready: it isn't working)")
     try check(call("POST", "/v1/desk/\(bannerRequest.id)/start", Data("{}".utf8)).status == 404, "starting it again: gone")
     let side = try Companion.decoder.decode(Companion.ChatDetail.self, from: call("POST", "/v1/desk/\(highlights.id)/start", Data("{}".utf8)).body)
     let sideChat = runtime.session(side.summary.id)
     try check(sideChat?.record.sidechatOf == dogear.id && side.summary.sidechatOf == dogear.id && sideChat?.record.projectFolder == nil
               && side.summary.title.hasPrefix("Fix the highlights sync"), "start: a project's work is a new Sidechat of it")
+    try check(sideChat?.record.workOf == dogear.id && side.summary.workOf == dogear.id && sideChat?.record.parentContext == nil
+              && sideChat?.record.pendingHandoff?.contains("<work_thread>") == true && sideChat?.record.pendingHandoff?.contains("Ship it") != true,
+              "…a work thread of the project's session, framed as one, without its transcript")
+    try check(dogear.items.last?.kind == .notice && dogear.items.last?.sidequest == side.summary.id && desk.openTask(for: side.summary.id)?.id == highlights.id,
+              "the project's session hears it started, with a way to open it; the task is linked to it")
     try check(call("POST", "/v1/desk/\(retried.id)/start", Data("{}".utf8)).status == 400 && desk.requests.contains { $0.id == retried.id },
               "no place proposed or chosen: refused, and kept")
     let loose = Companion.DeskStartRequest(place: DeskStore.loose, agent: "codex")
@@ -419,18 +486,47 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(closeThreads.count >= 2 && closeThreads.allSatisfy { $0.match == "possible" }, "two as likely: neither is a clear match: \(closeThreads.map { "\($0.title) \($0.match)" })")
     let unrelated = try deskOf(add("Buy coffee filters", place: "Dogear")).incoming[0]
     try check(try threadsOf(call("GET", "/v1/desk/\(unrelated.id)/threads")).isEmpty, "nothing like it: no threads")
+    try check(threads.first?.task == highlights.text && threads.first { $0.id == branch.id }?.task == nil, "a thread carrying an open task says which")
+    // Link a thread (from a To do card): every thread in the place, best matches first.
+    let everything = try threadsOf(call("GET", "/v1/desk/\(unrelated.id)/threads", query: ["all": "1"]))
+    try check(everything.contains { $0.id == dogear.id } && everything.contains { $0.id == phoneSide.summary.id } && everything.allSatisfy { $0.match == "other" },
+              "all=1: every open thread in the place, even with nothing in common")
+    let followUpAll = try threadsOf(call("GET", "/v1/desk/\(close.id)/threads", query: ["all": "1"]))
+    try check(followUpAll.count > closeThreads.count && Array(followUpAll.prefix(closeThreads.count)).map(\.id) == closeThreads.map(\.id)
+              && followUpAll.dropFirst(closeThreads.count).allSatisfy { $0.match == "other" }, "matches first, then the rest")
+    func link(_ task: UUID, _ chat: UUID, replace: Bool? = nil) throws -> HTTPResponse {
+        call("POST", "/v1/desk/\(task)/link", try encode(Companion.DeskLinkRequest(chatID: chat, replace: replace)))
+    }
+    let linkedDesk = try deskOf(try link(unrelated.id, phoneSide.summary.id))
+    try check(desk.openTask(for: phoneSide.summary.id)?.id == unrelated.id && !linkedDesk.incoming.contains { $0.id == unrelated.id }
+              && linkedDesk.ready?.first { $0.id == phoneSide.summary.id }?.taskText == unrelated.text, "link: the task leaves To do, on the board by its thread")
+    try check(try link(unrelated.id, phoneSide.summary.id).status == 200, "linking it again changes nothing")
+    let plants = try deskOf(add("Water the plants", place: "Dogear")).incoming[0]
+    let asks = try link(plants.id, phoneSide.summary.id)
+    try check(asks.status == 409 && desk.openTask(for: phoneSide.summary.id)?.id == unrelated.id, "one task per thread: linking a thread that carries one asks first")
+    _ = try deskOf(try link(plants.id, phoneSide.summary.id, replace: true))
+    try check(desk.openTask(for: phoneSide.summary.id)?.id == plants.id && desk.requests.contains { $0.id == unrelated.id },
+              "linked anyway: the old task goes back to To do")
+    try check(try link(UUID(), phoneSide.summary.id).status == 404 && (try link(plants.id, UUID())).status == 404, "a task or thread that's gone: 404")
+    try desk.unlink(plants.id); try desk.ignore(plants.id)
 
     // Continue: the request is that session's next message (queued while it works); nothing new starts.
     let sideSession = runtime.session(side.summary.id)!
     sideSession.isRunning = true
     let before = runtime.sessions.count
-    let continued = call("POST", "/v1/desk/\(followUp.id)/start", try encode(Companion.DeskStartRequest(continueChat: side.summary.id)))
+    let carrying = call("POST", "/v1/desk/\(followUp.id)/start", try encode(Companion.DeskStartRequest(continueChat: side.summary.id)))
+    try check(carrying.status == 409 && (try? Companion.decoder.decode(Companion.ErrorResponse.self, from: carrying.body))?.error.contains("already carries a task") == true
+              && desk.requests.contains { $0.id == followUp.id } && sent.last?.chat != side.summary.id,
+              "one task per thread: continuing a thread that carries another open task asks first")
+    let continued = call("POST", "/v1/desk/\(followUp.id)/start", try encode(Companion.DeskStartRequest(continueChat: side.summary.id, replace: true)))
     let continuedDetail = try Companion.decoder.decode(Companion.ChatDetail.self, from: continued.body)
     try check(continued.status == 200 && continuedDetail.summary.id == side.summary.id && runtime.sessions.count == before,
               "continue: that session's ChatDetail, and no new session")
     try check(sent.last?.chat == side.summary.id && sent.last?.text == followUp.text && sideSession.items.last?.text == followUp.text,
               "the request goes to it as its next message, while it works")
-    try check(!desk.requests.contains { $0.id == followUp.id } && sideSession.record.title == side.summary.title, "it leaves the Desk; the session keeps its name")
+    try check(!desk.requests.contains { $0.id == followUp.id } && sideSession.record.title == side.summary.title, "it leaves To do; the session keeps its name")
+    try check(desk.openTask(for: side.summary.id)?.id == followUp.id && desk.requests.contains { $0.id == highlights.id },
+              "linked to that thread; the task it carried goes back to To do")
     sideSession.isRunning = false
     try check(call("POST", "/v1/desk/\(close.id)/start", try encode(Companion.DeskStartRequest(continueChat: UUID()))).status == 404
               && desk.requests.contains { $0.id == close.id } && runtime.sessions.count == before, "continuing a session that's gone: refused, and kept")
@@ -462,6 +558,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(nowhereFailed && nowhereText.contains("Places:") && nowhereText.contains("Project Dogear"), "propose_work to an unknown place lists the real ones")
 
     // The service socket: the app does everything, an agent looks and proposes; desk.changed.
+    let socketTodo = try desk.add(.init(text: "Print the camp email", place: "loose"))
+    let wrapUpLater = try runtime.insert(record("Camp email", items: [DisplayItem(kind: .user, text: "Write it"), DisplayItem(kind: .assistant, text: "Written.", phase: .final)]))
     let socket = RuntimeServer(runtime: runtime)
     try socket.start()
     defer { socket.stop() }
@@ -504,6 +602,23 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!afterIgnore.incoming.contains { $0.id == retried.id }, "socket ignore")
     do { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]); try check(false, "ignoring a gone request fails") }
     catch { try check(error.localizedDescription == "That request is gone.", "ignoring a gone request says so") }
+    // Tasks over the socket: the app may make, link and unlink them; an agent may not.
+    let taskBody: JSON = ["action": "makeTask", "chatID": .string(wrapUpLater.id.uuidString), "text": "Wrap the camp email"]
+    for body in [taskBody, ["action": "link", "id": .string(socketTodo.id.uuidString), "chatID": .string(wrapUpLater.id.uuidString)] as JSON,
+                 ["action": "unlink", "id": .string(socketTodo.id.uuidString)] as JSON] {
+        do { _ = try await agent.request("desk", body: body); try check(false, "an agent may not \(body["action"]?.string ?? "")") }
+        catch { try check(error.localizedDescription == "permission_denied", "an agent may not \(body["action"]?.string ?? "")") }
+    }
+    let socketTask = try await ui.request("desk", body: taskBody).decode(Companion.Desk.self)
+    try check(socketTask.linked?.contains { $0.chatID == wrapUpLater.id && $0.text == "Wrap the camp email" } == true, "socket makeTask")
+    do { _ = try await ui.request("desk", body: ["action": "link", "id": .string(socketTodo.id.uuidString), "chatID": .string(wrapUpLater.id.uuidString)]); try check(false, "linking a carrying thread asks") }
+    catch { try check(error.localizedDescription.contains("already carries a task"), "socket link: a thread that carries a task asks first") }
+    let socketLinked = try await ui.request("desk", body: ["action": "link", "id": .string(socketTodo.id.uuidString), "chatID": .string(wrapUpLater.id.uuidString),
+                                                         "replace": true]).decode(Companion.Desk.self)
+    try check(socketLinked.linked?.first { $0.chatID == wrapUpLater.id }?.id == socketTodo.id && socketLinked.incoming.contains { $0.text == "Wrap the camp email" },
+              "socket link with replace: linked, the old task back to To do")
+    let socketUnlinked = try await ui.request("desk", body: ["action": "unlink", "id": .string(socketTodo.id.uuidString)]).decode(Companion.Desk.self)
+    try check(socketUnlinked.incoming.contains { $0.id == socketTodo.id } && desk.openTask(for: wrapUpLater.id) == nil, "socket unlink")
     // Silence over the socket: the app may, an agent may not; desk.changed says so.
     let planItem = plan.pendingRequests[0].id
     let silenceBody: JSON = ["action": "silence", "chatID": .string(plan.id.uuidString), "id": .string(planItem.uuidString)]
@@ -530,6 +645,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         do { _ = try await agent.request("desk", body: body); try check(false, "an agent may not \(body["action"]?.string ?? "")") }
         catch { try check(error.localizedDescription == "permission_denied" && wrapUp.record.archivedAt == nil, "an agent may not \(body["action"]?.string ?? "")") }
     }
+    _ = try desk.makeTask(.init(chatID: wrapUp.id))
     let heardBefore = changes.count
     let socketDone = try await ui.request("desk", body: completeBody).decode(Companion.Desk.self)
     try check(wrapUp.record.archivedAt != nil && socketDone.done?.first?.id == wrapUp.id && socketDone.ready?.contains { $0.id == wrapUp.id } == false,
@@ -537,11 +653,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try await wait("desk.changed after completing") { changes.count > heardBefore && changes.last?.done?.first?.id == wrapUp.id }
     try check(true, "the app hears the completion")
     let socketReopened = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(wrapUp.id.uuidString)]).decode(Companion.Desk.self)
-    try check(wrapUp.record.archivedAt == nil && socketReopened.done?.contains { $0.id == wrapUp.id } == false && socketReopened.ready?.first?.id == wrapUp.id,
+    try check(wrapUp.record.archivedAt == nil && socketReopened.done?.contains { $0.id == wrapUp.id } == false && socketReopened.ready?.contains { $0.id == wrapUp.id } == true,
               "socket reopen: unarchived, Ready again")
     do { _ = try await ui.request("desk", body: ["action": "complete"]); try check(false, "complete without a session fails") }
     catch { try check(error.localizedDescription == "Say which session.", "complete without a session says so") }
     // A session starting work changes Working: announced without anyone asking.
+    busy.isRunning = true
+    _ = try desk.makeTask(.init(chatID: busy.id))
+    try await wait("desk.changed with the busy task") { changes.last?.working.contains { $0.id == busy.id } == true }
     let seen = changes.count
     busy.isRunning = false; busy.onChange?(busy)
     try await wait("desk.changed when a session stops") { changes.count > seen && changes.last?.working.contains { $0.id == busy.id } == false }

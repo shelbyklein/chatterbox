@@ -34,6 +34,8 @@ Task { @MainActor in
             NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
             // A sidequest's answer goes back once the turn has settled.
             if let parent=session.record.sidequestOf {DispatchQueue.main.async{session.sidequestTurnEnded(parent:runtime.session(parent))}}
+            // …and a work thread's result goes to its front thread (plans/work-threads.md).
+            if let front=session.record.workOf {DispatchQueue.main.async{session.workTurnEnded(front:runtime.session(front))}}
         }
         print("chatterboxd ready");fflush(stdout)
     } catch {fputs("chatterboxd: \(error.localizedDescription)\n",stderr);exit(1)}

@@ -25,6 +25,8 @@ import CoreFoundation
             for id in self.subscribed {self.peers[id]?.send(RuntimeReply(event:event))}
             // What needs Shelby and what's working come from sessions: the Desk looks again.
             if Self.deskEvents.contains(event.kind) {DeskStore.shared.sessionsChanged()}
+            // A deleted thread's task goes back to To do (plans/work-threads.md).
+            if event.kind=="chat.deleted",let id=event.chatID {DeskStore.shared.threadDeleted(id)}
             if let chat=event.chatID.flatMap(self.runtime.session) {
                 if ["approval.waiting","question.waiting"].contains(event.kind){
                     MobilePush.shared.post(title:chat.title,body:chat.items.last(where:{$0.approvalState == .pending})?.text ?? "This session needs you",chat:chat.id,kind:"needs",identity:"event-\(event.sequence)")
@@ -209,9 +211,31 @@ import CoreFoundation
                 // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
                 let action=r.body["action"]?.string ?? "get"
                 guard role=="ui" || ["get","places","threads","options","add"].contains(action) else{throw RuntimeFailure("permission_denied")}
+                // link, unlink and makeTask are the app's too, with the others below.
                 if ["get","places","threads","options"].contains(action) {result=try DeskStore.shared.operation(r.body,agent:role != "ui");break}
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
                 result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try DeskStore.shared.operation(r.body,agent:role != "ui")}
+            case "work":
+                // Work threads (plans/work-threads.md): list from any session; start, as a
+                // sidequest does, only from the app or an agent's own front thread mid-reply
+                // (never a work thread: one level); report only from a work thread.
+                let action=r.body["action"]?.string ?? "list"
+                let s=try chat(r.body)
+                if action=="list" {result=try DeskStore.shared.workOperation(r.body,in:s,agent:role != "ui");break}
+                let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
+                switch action {
+                case "start":
+                    guard s.record.workOf==nil else{throw RuntimeFailure("nested_work")}
+                    guard role=="ui" || (role=="agent" && s.isRunning && !s.isSidequest && s.record.automationID==nil) else{throw RuntimeFailure("permission_denied")}
+                    result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try DeskStore.shared.workOperation(r.body,in:s,agent:role != "ui")}
+                case "report":
+                    let text=(r.body["text"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
+                    guard !text.isEmpty else{throw RuntimeFailure("invalid_report")}
+                    guard let front=s.record.workOf.flatMap(runtime.session) else{throw RuntimeFailure("not_work_thread")}
+                    guard role=="ui" || (role=="agent" && s.isRunning) else{throw RuntimeFailure("permission_denied")}
+                    result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {s.reportWork(text,to:front);return ["ok":true]}
+                default:throw RuntimeFailure("unsupported_operation")
+                }
             case "draft":
                 let s=try chat(r.body);result=try .value(RuntimeDraft(text:s.draft,attachments:s.draftAttachments))
             case "setDraft":
