@@ -138,6 +138,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try await wait("the second work thread finishes") { !art.isRunning && art.items.contains { $0.kind == .assistant && $0.phase == .final } }
     try await wait("its reply is marked reported") { art.record.workReported != nil }
     try await Task.sleep(for: .milliseconds(300))
+
     try check(front.items.filter { $0.sidequest == art.id && $0.kind == .user }.count == reports + 1, "the reply ending that turn isn't sent again")
     try await wait("the front thread settles") { !front.isRunning }
 
@@ -405,6 +406,25 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     level(4)
     try check(told.contains { $0.level == "overloaded" } && monitor.snapshot?.level == "ok" && monitor.snapshot?.waiting == 0, "back to OK, nothing held")
     try await wait("everything settles") { runtime.sessions.allSatisfy { !$0.isRunning } }
+
+    // `work done`: the front thread marks its own work threads complete (after a ship): the task
+    // goes to Done and the thread is archived. Not from the work thread, not another session's,
+    // not while the front isn't mid-reply (agents), and a thread still working is skipped.
+    try await refused("a work thread can't mark work done", "not_front_thread") {
+        try await agent.request("work", body: ["action": "done", "chatID": .string(art.id.uuidString), "ready": true])
+    }
+    try await refused("only the front thread mid-reply marks its work done", "permission_denied") {
+        try await agent.request("work", body: ["action": "done", "chatID": .string(front.id.uuidString), "threads": [.string(art.id.uuidString)]])
+    }
+    front.isRunning = true
+    try await refused("someone else's thread isn't this session's work", "not_this_sessions_work") {
+        try await agent.request("work", body: ["action": "done", "chatID": .string(front.id.uuidString), "threads": [.string(front.id.uuidString)]])
+    }
+    let marked = try await agent.request("work", body: ["action": "done", "chatID": .string(front.id.uuidString), "threads": [.string(art.id.uuidString)]])
+    front.isRunning = false
+    try check(marked["done"]?.array?.compactMap(\.string) == ["Cover art"] && art.record.archivedAt != nil
+              && DeskStore.shared.tasks.contains { $0.chatID == art.id && $0.completedAt != nil },
+              "work done: the task is complete and the thread archived")
     ui.stop(); agent.stop()
     for session in runtime.sessions { session.shutdown() }
     try runtime.flush()

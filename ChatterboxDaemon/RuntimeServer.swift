@@ -247,6 +247,24 @@ import CoreFoundation
                     guard let front=s.record.workOf.flatMap(runtime.session) else{throw RuntimeFailure("not_work_thread")}
                     guard role=="ui" || (role=="agent" && s.isRunning) else{throw RuntimeFailure("permission_denied")}
                     result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {s.reportWork(text,to:front);return ["ok":true]}
+                case "done":
+                    // Mark this front thread's own work threads complete (after a ship, say): their
+                    // tasks go to Done and the threads are archived, as Mark complete does. Only the
+                    // app or the front thread itself mid-reply; never another session's work.
+                    guard s.record.workOf==nil else{throw RuntimeFailure("not_front_thread")}
+                    guard role=="ui" || (role=="agent" && s.isRunning) else{throw RuntimeFailure("permission_denied")}
+                    let mine=runtime.sessions.filter{$0.record.workOf==s.id && $0.record.archivedAt==nil}
+                    let ids=Set((r.body["threads"]?.array ?? []).compactMap{$0.string.flatMap(UUID.init(uuidString:))})
+                    let chosen=r.body["ready"]?.bool==true ? mine.filter{!$0.isRunning} : mine.filter{ids.contains($0.id)}
+                    guard r.body["ready"]?.bool==true || ids.count==chosen.count else{throw RuntimeFailure("not_this_sessions_work")}
+                    result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {
+                        var done:[JSON]=[],skipped:[JSON]=[]
+                        for thread in chosen {
+                            do {try DeskStore.shared.complete(thread.id);done.append(.string(thread.title))}
+                            catch {skipped.append(["title":.string(thread.title),"reason":.string(error.localizedDescription)])}
+                        }
+                        return ["done":.array(done),"skipped":.array(skipped)]
+                    }
                 default:throw RuntimeFailure("unsupported_operation")
                 }
             case "draft":

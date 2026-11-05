@@ -12,6 +12,11 @@ thread) and report back to it (plans/work-threads.md).
   work report "TEXT"
                     from a work thread: send TEXT to its front thread now, as its result (the
                     reply that ends this turn isn't sent again)
+  work done ID… | --ready
+                    from the front thread: mark these work threads complete (their tasks go to
+                    Done on the Desk and the threads are archived), e.g. once their work has
+                    shipped or, for tooling that doesn't ship, landed on main. --ready marks every
+                    finished one. A thread still working is skipped and says so.
 
 While the Mac is under pressure (Chatterbox's service watches its load, memory and swap), a new
 work thread is made at once but waits to start until the Mac is OK again, and while it's
@@ -73,6 +78,8 @@ class Service:
                           "nested_work": "this is a work thread, and a work thread can't start work threads of its own. Do the work here, or report back with `work report`.",
                           "not_work_thread": "this session isn't a work thread, so it has nothing to report to.",
                           "invalid_report": "say what to report.",
+                          "not_front_thread": "this is a work thread; only its front thread marks work threads complete.",
+                          "not_this_sessions_work": "one of those isn't an open work thread of this session (see `work list`).",
                           "permission_denied": "work threads start (and report) only from a session that's working right now."}
                          .get(reply["error"], reply["error"]))
                 return reply.get("result")
@@ -165,6 +172,9 @@ def main():
     commands.add_parser("list", parents=[common], help="this session's work threads")
     report = commands.add_parser("report", parents=[common], help="from a work thread: send a result to its front thread")
     report.add_argument("text", nargs="+")
+    done = commands.add_parser("done", parents=[common], help="mark this session's work threads complete (after they ship)")
+    done.add_argument("threads", nargs="*", help="work thread ids, as `work list` shows them")
+    done.add_argument("--ready", action="store_true", help="every finished work thread of this session")
     args = parser.parse_args()
     try:
         service = Service()
@@ -221,6 +231,20 @@ def main():
         for t in threads:
             status = f": {t['status']}" if t.get("state") == "working" and t.get("status") else ""
             print(f"- {t.get('title')} [{STATES.get(t.get('state'), t.get('state'))}{status}; {t.get('backend')}] {t.get('id')}")
+    elif args.command == "done":
+        if not args.threads and not args.ready:
+            fail("name the work threads (ids from `work list`), or pass --ready for every finished one.")
+        body = {"action": "done", "chatID": chat, "threads": args.threads, "ready": args.ready}
+        try:
+            result = service.request("work", body) or {}
+        except Busy:
+            fail("the background service is busy and didn't answer in time. Check `work list` before trying again.")
+        for title in result.get("done", []):
+            print(f"Marked complete: {title}")
+        for s in result.get("skipped", []):
+            print(f"Not marked: {s.get('title')} ({s.get('reason')})")
+        if not result.get("done") and not result.get("skipped"):
+            print("No finished work threads to mark.")
     else:
         text = " ".join(args.text).strip()
         if not text:

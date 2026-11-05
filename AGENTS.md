@@ -30,6 +30,9 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 
   Add another line only for an obvious next step (`Start the next part | start the next part`).
   A button only sends text; tapping Ship is Shelby saying ship.
+- **After a ship, clear the work threads it delivered:** `work done <id>` (or `work done --ready`)
+  from their front thread, so their tasks leave the Desk's Ready column. Tooling that doesn't ship
+  is marked done once it's on main.
 - Dev never touches the real app, service, data, ports, pairings or `~/.local/bin` links. Keep it
   that way: a new identity (path, port, id, label, Keychain name) goes in `Flavor.swift` with a
   value for each copy, and `scripts/test-flavor.sh` checks the real ones haven't moved.
