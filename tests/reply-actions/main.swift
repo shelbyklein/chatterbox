@@ -14,7 +14,7 @@ struct Transcript: View {
   VStack(alignment:.leading,spacing:14) {
    ForEach(items) { ItemView(item:$0) }
   }
-  .environment(\.replyActionResolver, ReplyActionResolver(items:items) { text in items.append(DisplayItem(kind:.user,text:text)) })
+  .environment(\.replyActionResolver, ReplyActionResolver(items:items, send: { text in items.append(DisplayItem(kind:.user,text:text)) }, tint: ReaderStyle.defaults.color(for: .claude)))
  }
 }
 
