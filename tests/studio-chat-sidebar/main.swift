@@ -6,6 +6,7 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-studio-sidebar."))
  UserDefaults.standard.setVolatileDomain(["companionEnabled":false,"notifyNeeds":false,"notifyReplies":false,"mobilePushEnabled":false,"keepMacAwake":false,"macStudioSidebarCards":false,"readerBackground":"black","sidebarTagFilter":"wordpress"],forName:UserDefaults.argumentDomain)
+ UserDefaults.standard.set("list",forKey:"macPinnedLayout");AppPreferences.defaults.set("list",forKey:"macPinnedLayout")
  let model=AppModel()
  let a=Studio(name:"Playcase Studio",folder:root+"/studio-a"),b=Studio(name:"Other Studio",folder:root+"/studio-b")
  model.studios=[a,b]
@@ -51,6 +52,19 @@ let app=NSApplication.shared;app.setActivationPolicy(.accessory)
  try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/studio-sidebar.png"))
  // Pinned rows are compact, like Activity: one line each (status and title), no thumbnail.
  precondition(!SidebarDebug.pinnedRows.isEmpty && SidebarDebug.pinnedRows.values.allSatisfy { $0.height < 30 }, "pinned rows are one line: \(SidebarDebug.pinnedRows.values.map(\.height))")
+ // Pinned as cards, one column then two: each pinned thread a card, and a screenshot of each.
+ for (layout,name) in [("cards1","pinned-cards-1"),("cards2","pinned-cards-2")] {
+  UserDefaults.standard.set(layout,forKey:"macPinnedLayout");AppPreferences.defaults.set(layout,forKey:"macPinnedLayout")
+  try await Task.sleep(for:.milliseconds(700))
+  view.layoutSubtreeIfNeeded()
+  do {
+   let rect=SidebarDebug.pinned
+   let shot=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:shot)
+   try shot.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/\(name).png"))
+   precondition(rect.height > 60, "\(layout): the pinned section has room for cards (\(rect.height))")
+  }
+ }
+ UserDefaults.standard.removeObject(forKey:"macPinnedLayout");AppPreferences.defaults.removeObject(forKey:"macPinnedLayout")
  var cardPreferences=UserDefaults.standard.volatileDomain(forName:UserDefaults.argumentDomain)
  cardPreferences["macStudioSidebarCards"]=true
  UserDefaults.standard.setVolatileDomain(cardPreferences,forName:UserDefaults.argumentDomain)
