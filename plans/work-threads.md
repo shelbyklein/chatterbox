@@ -122,6 +122,19 @@ Migration: desk.json's requests become tasks to do; existing sessions are not ma
   once a pending work thread has sat idle, nothing running, for 30 minutes
   (`ChatSession.workIdleReport`). `work report` still goes at once; "during this turn" now means
   since the previous turn ended, so a background run's later result still reports.
+  **Owed wake-ups (2026-11-05, after "Keep the Mac usable…" sent "I'll pick up when they
+  finish" as its result).** A background command, Monitor or subagent that finishes while the
+  turn's last answer is being written ends (`task_updated`, `task_notification`) before the
+  turn's `result`, so nothing is running when the turn ends; Claude Code then starts a turn of
+  its own (its `result` has `origin.kind` "task-notification"; `queued_turn_count` stays 0) to
+  hand the agent the news. So a detached task that ends is owed that wake-up
+  (`ChatSession.owedWakeups`) until a turn starts, or until its `<task-notification>` is echoed
+  within the running turn; a turn that ends owing one is progress. If no turn starts within
+  `workWakeupGrace` (20 s) the reply reports. Codex starts no turns of its own, so only its
+  running commands and helpers count. Backstop: a short reply (≤ 600 characters) that only says
+  it's waiting ("I'll pick up when they finish", "Still waiting on the retest", "I'll be
+  notified…", not "…when you say ship") is held too (`ChatSession.readsAsInterim`), for jobs an
+  agent detaches itself; the 30-minute idle net reports it if nothing picks back up.
   `work start` waits 90 s for a busy service, then looks for the thread in `work list` before
   calling it a failure.
 - **Permission.** Socket op `work`: `list` from any session; `start` from the app, or an agent

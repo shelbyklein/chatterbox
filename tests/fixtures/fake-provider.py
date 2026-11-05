@@ -31,6 +31,38 @@ def background(stall):
   emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':'Suite passed: all 42 tests green.'}]}})
   emit({'type':'result','subtype':'success','is_error':False,'result':'Suite passed: all 42 tests green.'})
  threading.Timer(float(os.environ.get('FAKE_PROVIDER_BACKGROUND_SECONDS','1.5')),finish).start()
+def race(mode):
+ # As Claude Code does when a background command finishes while the turn's last answer is being
+ # written (seen 2026-11-05): the task ends (task_updated, task_notification) before the result,
+ # so nothing is running when the turn ends, but Claude Code then starts a turn of its own to hand
+ # the agent the notification ("background-race"). "background-race-stall": that turn never comes.
+ # "background-delivered": the notification reaches the agent within the turn (echoed as a
+ # message), and the turn's answer is the result.
+ task='bg-'+str(uuid.uuid4())[:8];run='run-'+task
+ emit({'type':'system','subtype':'background_tasks_changed','tasks':[{'task_id':task,'run_id':run,'task_type':'local_bash','description':'Rerun the tests'}]})
+ emit({'type':'system','subtype':'task_started','task_id':task,'run_id':run,'task_type':'local_bash','is_backgrounded':True,'description':'Rerun the tests'})
+ emit({'type':'stream_event','event':{'type':'message_start','message':{}}})
+ emit({'type':'system','subtype':'task_updated','task_id':task,'run_id':run,'patch':{'status':'completed'}})
+ emit({'type':'system','subtype':'task_notification','task_id':task,'run_id':run,'status':'completed','summary':'Background command "Rerun the tests" completed (exit code 0)'})
+ emit({'type':'system','subtype':'background_tasks_changed','tasks':[]})
+ notification='<task-notification>\n<task-id>%s</task-id>\n<status>completed</status>\n</task-notification>'%task
+ if mode=='delivered':
+  emit({'type':'user','isReplay':True,'origin':{'kind':'task-notification'},'message':{'role':'user','content':notification}})
+  text='Tests rerun: all 42 pass, and the Dev install is done.'
+ elif mode=='stall':text='Started the test rerun.'
+ else:text="Tests are rerunning in the background, with the Chatterbox Dev install queued behind them. I'll pick up when they finish."
+ emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':text}]}})
+ emit({'type':'result','subtype':'success','is_error':False,'result':text,'queued_turn_count':0})
+ if mode!='race':return
+ def wake():
+  emit({'type':'system','subtype':'init','session_id':'fixture-session','slash_commands':[]})
+  emit({'type':'stream_event','event':{'type':'message_start','message':{}}})
+  emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':'Rerun done: all 42 tests pass, Dev installed.'}]}})
+  emit({'type':'result','subtype':'success','is_error':False,'result':'Rerun done.','origin':{'kind':'task-notification','runId':run},'queued_turn_count':0})
+ threading.Timer(float(os.environ.get('FAKE_PROVIDER_WAKE_SECONDS','0.05')),wake).start()
+def say(text):
+ emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':text}]}})
+ emit({'type':'result','subtype':'success','is_error':False,'result':text})
 def note(name,value):
  # What the agent was given, for tests that check instructions and messages.
  with open(os.path.join(os.environ.get('CHATTERBOX_DATA_DIR','/tmp'),name),'a') as f:f.write(json.dumps(value)+'\n')
@@ -101,6 +133,11 @@ for line in sys.stdin:
    elif text.endswith('hold'):pending=True
    elif text.endswith('background'):background(False)
    elif text.endswith('background-stall'):background(True)
+   elif text.endswith('background-race'):race('race')
+   elif text.endswith('background-race-stall'):race('stall')
+   elif text.endswith('background-delivered'):race('delivered')
+   elif text.endswith('say-interim'):say("Rerunning now; the Dev install follows if the three tests pass. I'll continue when the notification arrives.")
+   elif text.endswith('say-result'):say('All 42 tests pass and Chatterbox Dev is installed. Committed and pushed; I\'ll continue when you say ship.')
    else:result();pending=None
   elif m.get('type')=='control_response' and pending:result();pending=None
   elif m.get('type')=='control_request':

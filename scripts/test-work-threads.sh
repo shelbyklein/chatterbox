@@ -11,7 +11,7 @@ trap 'echo "Work threads test artifacts: $task_dir"' EXIT
 export CHATTERBOX_DATA_DIR="$task_dir/data" CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export CHATTERBOX_HOST_NOTIFY=0 CHATTERBOX_HOST_IDLE_SECONDS=1 CHATTERBOX_HOST_DETACHED_IDLE_SECONDS=1
-export FAKE_PROVIDER="$PWD/tests/fixtures/fake-provider.py"
+export FAKE_PROVIDER="$PWD/tests/fixtures/fake-provider.py" FAKE_PROVIDER_WAKE_SECONDS=0.3
 export CHATTERBOX_PREFERENCES_SUITE="chatterbox.work.$(basename "$task_dir")" CHATTERBOX_COMPANION_PORT=0 CHATTERBOX_CONNECTOR_PORT=0 CHATTERBOX_TEST_TRUST_UI=1
 [[ -x "$CHATTERBOX_HOST_BINARY" ]] || { echo "No ChatterboxHost at $CHATTERBOX_HOST_BINARY: build the Mac app first." >&2; exit 1; }
 mkdir -p "$CHATTERBOX_DATA_DIR"

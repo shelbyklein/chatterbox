@@ -8,7 +8,9 @@ import Darwin
 // task on the Desk; its finished reply (or `work report`) arrives in the front thread, and its
 // task moves to Ready. A turn that ends with background work running is progress (the task stays
 // Working); the turn that ends with nothing running reports, or, if none comes, a safety net once
-// it's sat idle. The phone's routes start and list them too.
+// it's sat idle. A task that finished just as the turn ended still owes its agent the wake-up
+// Claude Code gives it, and a reply that only says it's waiting is progress too. The phone's
+// routes start and list them too.
 func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     guard try ok() else { throw RuntimeFailure(text) }; print("PASS: \(text)")
 }
@@ -212,6 +214,80 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(stallAfter == "ready", "and its task is Ready")
     runtime.reportIdleWork()
     try check(results(stall).count == 1, "the safety net reports once")
+
+    // Seen 2026-11-05 ("Keep the Mac usable…"): the background commands finished while the turn's
+    // last answer was being written, so nothing was running when the turn ended and its "I'll pick
+    // up when they finish" went back as the result; Claude Code then woke the agent with a turn of
+    // its own. A finished task is owed that wake-up until a turn starts: the turn it starts reports.
+    ChatSession.workWakeupGrace = 1.5
+    let race = runtime.session(try await start(ui, from: front, "Rerun the tests", brief: "Rerun them. background-race").summary.id)!
+    try await wait("its turn ends just after the rerun finished") { !race.isRunning && race.record.workTurnEndedAt != nil }
+    try check(!race.hasBackgroundWork && race.owedWakeups.count == 1 && race.isWorkPending && results(race).isEmpty,
+              "nothing runs, but the finished rerun is owed its wake-up: progress, nothing sent")
+    try await wait("Claude Code's own turn hands it the news, and that reply reports") { !results(race).isEmpty }
+    try check(results(race).count == 1 && results(race)[0].text.contains("Rerun done: all 42 tests pass") && !results(race)[0].text.contains("pick up")
+              && race.owedWakeups.isEmpty && !race.isWorkPending, "the result is the woken turn's reply, once")
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // The wake-up never comes: after a short grace the reply reports (it doesn't read as waiting).
+    let raceStall = runtime.session(try await start(ui, from: front, "Rerun again", brief: "Rerun them. background-race-stall").summary.id)!
+    try await wait("its turn ends just after the rerun finished") { !raceStall.isRunning && raceStall.record.workTurnEndedAt != nil }
+    try check(raceStall.isWorkPending && raceStall.owedWakeups.count == 1 && results(raceStall).isEmpty, "held for its wake-up")
+    try await wait("no turn comes: it reports after the grace", seconds: 6) { !results(raceStall).isEmpty }
+    try check(results(raceStall).count == 1 && results(raceStall)[0].text.contains("Started the test rerun.") && !raceStall.isWorkPending,
+              "the grace reports its reply, once, not stuck Working")
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // Delivered within the turn (echoed as a message): nothing's owed, so the turn's answer is the
+    // result, at once.
+    let delivered = runtime.session(try await start(ui, from: front, "Quick rerun", brief: "Rerun them. background-delivered").summary.id)!
+    try await wait("its turn ends") { !delivered.isRunning && delivered.record.workTurnEndedAt != nil }
+    try await wait("its result arrives without waiting for a grace", seconds: 0.5) { !results(delivered).isEmpty }
+    try check(results(delivered)[0].text.contains("Tests rerun: all 42 pass") && delivered.owedWakeups.isEmpty && !delivered.isWorkPending,
+              "a notification handed over within the turn isn't owed")
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // The backstop: nothing Chatterbox can see runs, but the reply says it's waiting (a job it
+    // detached itself): progress, shown as its status line, until the safety net.
+    let interim = runtime.session(try await start(ui, from: front, "Detached run", brief: "Run it. say-interim").summary.id)!
+    try await wait("its turn ends") { !interim.isRunning && interim.record.workTurnEndedAt != nil }
+    let interimListed = try await agent.request("work", body: ["action": "list", "chatID": .string(front.id.uuidString)]).decode([Companion.WorkThread].self)
+        .first { $0.id == interim.id }
+    try check(!interim.hasBackgroundWork && interim.owedWakeups.isEmpty && interim.isWorkPending && results(interim).isEmpty
+              && interimListed?.state == "working" && interimListed?.status?.contains("Rerunning now") == true,
+              "a reply that says it's waiting stays Working, as the status line: \(interimListed?.status ?? "none")")
+    try await wait("the safety net reports it", seconds: 10) { runtime.reportIdleWork(); return !results(interim).isEmpty }
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // A real result that mentions passing tests and what's next (on you) isn't held.
+    let real = runtime.session(try await start(ui, from: front, "Ship prep", brief: "Get it ready. say-result").summary.id)!
+    try await wait("its turn ends") { !real.isRunning && real.record.workTurnEndedAt != nil }
+    try await wait("a real result reports at once", seconds: 0.5) { !results(real).isEmpty }
+    try check(results(real)[0].text.contains("All 42 tests pass") && !real.isWorkPending, "a real result goes back at once")
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // The wording check on its own, against the interim replies that went back as results on
+    // 2026-11-05, and real results.
+    for text in ["Tests are rerunning in the background, with the Chatterbox Dev install queued behind them. I'll pick up when they finish.",
+                 "Rerunning now; the Dev install follows if the three tests pass. I'll continue when the notification arrives.",
+                 "The full verification chain is running on the rebased tree (Mac build, ten tests, Dev install). Nothing else can proceed until it reports; I'll continue when it finishes.",
+                 "The monitor I already have covers it, so I stopped that duplicate watcher. I'll carry on when the phone test reports.",
+                 "The first phone test passed. Waiting for the rest.",
+                 "Still queued behind the other thread's iPad run. I'll pick it up when it finishes.",
+                 "That was the stale run's exit code. Still waiting on the retest and the iOS build.",
+                 "My iPhone tests are now running on their own port, so they no longer wait on the iPad run. I\u{2019}ll report back when they finish.",
+                 "Suite running. I'll be notified when the suite finishes."] {
+        try check(ChatSession.readsAsInterim(text), "reads as waiting: \(text.prefix(50))…")
+    }
+    for text in ["All 42 tests pass. Committed abc123 and pushed to main.",
+                 "Done: the tests pass and Chatterbox Dev is installed. I'll continue when you say ship.",
+                 "Tests pass. Waiting for your go-ahead to ship to the real app.",
+                 "Fixed the sync. I'll pick up the phone half once Shelby has tried it.",
+                 "The Dev service restart is queued and waits until replies finish; tests pass.",
+                 "Both features are built and tested. " + String(repeating: "Details of what changed and how it was checked. ", count: 14) + "I'll pick up the rest when the build finishes.",
+                 "Draft card passed too.", ""] {
+        try check(!ChatSession.readsAsInterim(text), "a result: \(text.prefix(50))…")
+    }
     try await wait("everything settles") { runtime.sessions.allSatisfy { !$0.isRunning } }
     ui.stop(); agent.stop()
     for session in runtime.sessions { session.shutdown() }
