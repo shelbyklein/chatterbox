@@ -57,9 +57,11 @@ import Darwin
     }
 
     /// The installed service, on its own data folder: a test's service (CHATTERBOX_DATA_DIR
-    /// under /tmp) must never touch the Mac's simulators.
+    /// under /tmp) must never touch the Mac's simulators. The LaunchAgents set
+    /// CHATTERBOX_DATA_DIR to the flavor's own folder, so that counts as installed.
     static var isInstalledService: Bool {
-        ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"].map { $0.isEmpty } ?? true
+        SimulatorSweep.isInstalledService(dataDir: ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"],
+                                          ownDataDirectory: Flavor.current.dataDirectory.path)
     }
 
     /// Dev steps aside while the real service runs (its socket answers).

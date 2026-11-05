@@ -83,4 +83,11 @@ let json = """
 let parsed = SimulatorSweep.devices(fromSimctlJSON: Data(json.utf8))
 check(parsed == [SimulatorSweep.Device(udid: "C", name: "Chatterbox home nav regression"), SimulatorSweep.Device(udid: "A", name: "iPhone 17 Pro")], "simctl's JSON gives the booted devices, by name")
 check(SimulatorSweep.devices(fromSimctlJSON: Data("not json".utf8)).isEmpty, "unreadable output means no devices, not a crash")
+// Who may act for the Mac: the LaunchAgents pass the flavor's own data folder, tests a /tmp one.
+let own = "/Users/x/Library/Application Support/Chatterbox"
+check(SimulatorSweep.isInstalledService(dataDir: nil, ownDataDirectory: own), "no data folder given: the installed service")
+check(SimulatorSweep.isInstalledService(dataDir: own, ownDataDirectory: own), "its own data folder, as the LaunchAgent passes it: the installed service")
+check(SimulatorSweep.isInstalledService(dataDir: own + "/", ownDataDirectory: own), "a trailing slash is the same folder")
+check(!SimulatorSweep.isInstalledService(dataDir: "/tmp/chatterbox-test-desk.abc", ownDataDirectory: own), "a test's /tmp folder never acts")
+check(!SimulatorSweep.isInstalledService(dataDir: own + " Dev", ownDataDirectory: own), "another flavor's folder isn't this one's")
 print("All simulator sweep checks passed.")
