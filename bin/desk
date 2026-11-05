@@ -5,6 +5,13 @@
                     a request on the Desk; --place names a Studio or project to propose
                     (otherwise the Desk proposes one, or none); --note is a line about it
                     (where it came from, a link, a deadline). Prints where it was proposed.
+                    [--source clickup:<id or link> | email:<message id>] [--source-title T]
+                    where it came from, so its card warns when ClickUp or the email
+                    disagrees with the board (a ClickUp link in --note counts too)
+  desk source REF --status STATUS [--from NAME] [--title T]
+                    what a task's source says now: ClickUp's status ("in progress",
+                    "complete"), or an email's "new reply" (--from who wrote it),
+                    "waiting on them" or "answered"
   desk list         what's on the Desk now: requests waiting to be placed, one per line
   desk places       the Studios and projects work can go in
 
@@ -56,6 +63,13 @@ def main():
     add.add_argument("text")
     add.add_argument("--place", help="a Studio's or project's name to propose")
     add.add_argument("--note", help="a line about it: where it came from, a link, a deadline")
+    add.add_argument("--source", dest="origin", help="clickup:<task id or link>, or email:<message id>")
+    add.add_argument("--source-title", dest="origin_title", help="the ClickUp task's name or the email's subject")
+    src = commands.add_parser("source", help="report what a task's source (ClickUp, an email) says now")
+    src.add_argument("ref", help="clickup:<task id or link>, or email:<message id>")
+    src.add_argument("--status", required=True)
+    src.add_argument("--from", dest="reply_from", help="an email's new reply: who wrote it")
+    src.add_argument("--title", help="the ClickUp task's name or the email's subject")
     commands.add_parser("list", help="requests waiting on the Desk")
     commands.add_parser("places", help="Studios and projects")
     args = parser.parse_args()
@@ -70,10 +84,22 @@ def main():
             body["place"] = args.place
         if args.note:
             body["note"] = args.note
+        if args.origin:
+            body["origin"] = args.origin
+        if args.origin_title:
+            body["originTitle"] = args.origin_title
         desk = service.request("desk", body) or {}
         mine = next((r for r in desk.get("incoming", []) if r.get("text") == text), None)
         place = (mine or {}).get("proposed")
         print(f"On the Desk{', proposed for ' + place['name'] if place else ', with no place proposed (Shelby will choose)'}.")
+    elif args.command == "source":
+        body = {"action": "origin", "ref": args.ref, "status": args.status}
+        if args.reply_from:
+            body["replyFrom"] = args.reply_from
+        if args.title:
+            body["title"] = args.title
+        service.request("desk", body)
+        print(f"Noted: {args.ref} says {args.status}.")
     elif args.command == "list":
         desk = service.request("desk", {"action": "get"}) or {}
         incoming = desk.get("incoming", [])
@@ -82,6 +108,9 @@ def main():
         for r in incoming:
             place = (r.get("proposed") or {}).get("name") or "no place"
             note = f" — {r['note']}" if r.get("note") else ""
+            origin = r.get("origin")
+            if origin:
+                note += f" (source {origin.get('kind')}:{origin.get('id')}" + (f", {origin['status']}" if origin.get("status") else "") + ")"
             print(f"- {r.get('text')} [{place}; from {r.get('source')}]{note}")
     else:
         for p in service.request("desk", {"action": "places"}) or []:

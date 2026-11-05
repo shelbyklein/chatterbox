@@ -219,7 +219,7 @@ import CoreFoundation
             case "desk":
                 // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
                 let action=r.body["action"]?.string ?? "get"
-                guard role=="ui" || ["get","places","threads","options","add"].contains(action) else{throw RuntimeFailure("permission_denied")}
+                guard role=="ui" || ["get","places","threads","options","add","origin"].contains(action) else{throw RuntimeFailure("permission_denied")}
                 // link, unlink and makeTask are the app's too, with the others below.
                 if ["get","places","threads","options"].contains(action) {result=try DeskStore.shared.operation(r.body,agent:role != "ui");break}
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()

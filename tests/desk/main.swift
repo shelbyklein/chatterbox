@@ -656,6 +656,44 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(reviewAssets.map(\.kind) == ["image", "file", "link", "link"] && reviewAssets[0].title == "banner.png" && reviewAssets[3].url == "https://app.clickup.com/t/86abc"
               && !reviewAssets.contains { $0.title == "gone.txt" },
               "Review: a reply's images, files and links, in order; a missing file left out (\(reviewAssets.map(\.title)))")
+    // Sources (plans/source-linked-tasks.md): ClickUp and email tasks know where they came from;
+    // an agent reports what the source says; the card warns where the board disagrees.
+    try check(DeskOriginRules.parse("clickup:86abc")?.id == "86abc" && DeskOriginRules.parse("https://app.clickup.com/t/9011/CAMP-12")?.id == "CAMP-12"
+              && DeskOriginRules.parse("email:<m1@x>")?.kind == "email" && DeskOriginRules.parse("slack:1") == nil, "source references parse")
+    let fromClickUp = try await agent.request("desk", body: ["action": "add", "text": "Update the camp schedule", "origin": "clickup:86camp", "originTitle": "Camp schedule"]).decode(Companion.Desk.self)
+    let clickTask = fromClickUp.incoming.first { $0.text == "Update the camp schedule" }!
+    try check(clickTask.origin?.kind == "clickup" && clickTask.origin?.id == "86camp" && clickTask.origin?.title == "Camp schedule" && clickTask.check == nil,
+              "an agent adds a ClickUp task with its source; nothing reported yet, no warning")
+    let noted = try await agent.request("desk", body: ["action": "add", "text": "Fix the footer", "note": "From https://app.clickup.com/t/86foot today"]).decode(Companion.Desk.self)
+    try check(noted.incoming.first { $0.text == "Fix the footer" }?.origin?.id == "86foot", "a ClickUp link in the note is its source")
+    let closedThere = try await agent.request("desk", body: ["action": "origin", "ref": "clickup:86CAMP", "status": "complete"]).decode(Companion.Desk.self)
+    let warned = closedThere.incoming.first { $0.id == clickTask.id }
+    try check(warned?.origin?.status == "complete" && warned?.check?.warning == "ClickUp says Complete" && warned?.check?.match == "done" && warned?.check?.writeBack == nil,
+              "ClickUp closed while ours is to do: warns, offers moving to match (\(warned?.check?.warning ?? "none"))")
+    do { _ = try await agent.request("desk", body: ["action": "origin", "ref": "clickup:nope", "status": "complete"]); try check(false, "an unknown source is refused") }
+    catch { try check(error.localizedDescription.contains("No task"), "a source no task has is refused") }
+    let doneHere = try await ui.request("desk", body: ["action": "markDone", "id": .string(clickTask.id.uuidString)]).decode(Companion.Desk.self)
+    try check(doneHere.done?.first { $0.task == clickTask.id }?.check == nil, "marked done to match: the warning goes")
+    _ = try await agent.request("desk", body: ["action": "origin", "ref": "clickup:86camp", "status": "in progress"])
+    let doneDisagrees = DeskStore.shared.snapshot().done?.first { $0.task == clickTask.id }?.check
+    try check(doneDisagrees?.warning == "ClickUp still says In progress" && doneDisagrees?.writeBack == "Mark the ClickUp task complete",
+              "ours Done, ClickUp in progress: warns and offers to mark it complete there")
+    let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+    let open = Companion.DeskOrigin(kind: "clickup", id: "1", status: "to do")
+    try check(DeskOriginRules.check(open, column: .working, since: t0)?.writeBack == "Set ClickUp to In progress"
+              && DeskOriginRules.check(open, column: .todo, since: t0) == nil, "working while ClickUp says To do: offers In progress; to do agrees")
+    var mail = Companion.DeskOrigin(kind: "email", id: "m1", status: "new reply", replyFrom: "Lauren", replyAt: t0 + 60)
+    try check(DeskOriginRules.check(mail, column: .review, since: t0)?.warning == "New reply from Lauren since this was ready for review"
+              && DeskOriginRules.check(mail, column: .review, since: t0)?.writeBack == "Draft the reply to Lauren", "an email reply after Review: warns, offers a draft")
+    try check(DeskOriginRules.check(mail, column: .review, since: t0 + 120) == nil, "a reply from before it reached Review isn't news")
+    mail.status = "answered"
+    try check(DeskOriginRules.check(mail, column: .done, since: t0) == nil, "answered: no warning")
+    let mailAdd = try await agent.request("desk", body: ["action": "add", "text": "Answer Lauren about the clinic", "origin": "email:<abc@mail>"]).decode(Companion.Desk.self)
+    let mailTask = mailAdd.incoming.first { $0.text == "Answer Lauren about the clinic" }!
+    _ = try await agent.request("desk", body: ["action": "origin", "ref": "email:<abc@mail>", "status": "new reply", "replyFrom": "Lauren"])
+    let mailCard = DeskStore.shared.snapshot().incoming.first { $0.id == mailTask.id }
+    try check(mailCard?.origin?.replyFrom == "Lauren" && mailCard?.check?.warning == "New reply from Lauren", "an email task: a new reply warns on its card")
+    for id in [mailTask.id, noted.incoming.first { $0.text == "Fix the footer" }!.id] { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
     // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
     let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
     let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!
