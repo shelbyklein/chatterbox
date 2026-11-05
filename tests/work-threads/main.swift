@@ -385,8 +385,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try await wait("that turn ends") { !typed.isRunning }
     level(30)
     try check(MacPressure.current == .busy && queued.record.pressureHold == nil, "Busy again: the held turn goes")
-    let delivered = queued.items.last { $0.kind == .user }
-    try check(delivered?.text == answer.text && delivered?.automatic == true && delivered?.detail == answer.detail && delivered?.sidequest == answer.sidequest,
+    let heldTurn = queued.items.last { $0.kind == .user }
+    try check(heldTurn?.text == answer.text && heldTurn?.automatic == true && heldTurn?.detail == answer.detail && heldTurn?.sidequest == answer.sidequest,
               "delivered as it would have been, labelled")
     try check(queued.items.contains { $0.kind == .notice && $0.text.contains("The Mac is less loaded: carrying on.") }, "saying why")
     level(4)
