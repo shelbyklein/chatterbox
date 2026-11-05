@@ -88,17 +88,31 @@ pass "two slots: both builds ran together"
 echo "== xcodebuild gets -jobs capped; export and queries don't"
 mkdir -p "$fixture/bin"
 printf '#!/bin/bash\necho "$*"\n' > "$fixture/bin/xcodebuild"; chmod +x "$fixture/bin/xcodebuild"
-jobs_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -scheme Chatterbox build")
+jobs_line=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -scheme Chatterbox build")
 cores=$(sysctl -n hw.ncpu); half=$(( cores / 2 )); (( half < 2 )) && half=2
 [[ "$jobs_line" == "-jobs $half -scheme Chatterbox build" ]] || fail "build got: $jobs_line"
 export_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -exportArchive -archivePath x")
 [[ "$export_line" == "-exportArchive -archivePath x" ]] || fail "export got: $export_line"
-chosen=$(PATH="$fixture/bin:$PATH" CHATTERBOX_BUILD_JOBS=3 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
+chosen=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_JOBS=3 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
 [[ "$chosen" == "-jobs 3 build" ]] || fail "CHATTERBOX_BUILD_JOBS got: $chosen"
 pass "xcodebuild: -jobs $half added to builds, not to -exportArchive; CHATTERBOX_BUILD_JOBS wins"
 
+echo "== builds use the shared compilation cache, with this checkout's root mapped"
+cached=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -scheme Chatterbox build")
+for want in COMPILATION_CACHE_ENABLE_CACHING=YES "COMPILATION_CACHE_CAS_PATH=$HOME/Library/Caches/Chatterbox/CompilationCache" \
+    SWIFT_ENABLE_PREFIX_MAPPING=YES "SWIFT_OTHER_PREFIX_MAPPINGS=$root=/^wt" "CLANG_OTHER_PREFIX_MAPPINGS=$root=/^wt"; do
+  [[ " $cached " == *" $want "* ]] || fail "build lacks $want: $cached"
+done
+z=$(PATH="$fixture/bin:$PATH" zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
+[[ " $z " == *" COMPILATION_CACHE_ENABLE_CACHING=YES "* ]] || fail "zsh build lacks the cache: $z"
+export_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -exportArchive -archivePath x")
+[[ "$export_line" == "-exportArchive -archivePath x" ]] || fail "export got cache settings: $export_line"
+own=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build COMPILATION_CACHE_ENABLE_CACHING=NO")
+[[ "$own" == "-jobs $half build COMPILATION_CACHE_ENABLE_CACHING=NO" ]] || fail "a build's own cache setting overridden: $own"
+pass "compilation cache: on for builds (bash and zsh), off for -exportArchive, a build's own setting and CHATTERBOX_COMPILE_CACHE=0"
+
 echo "== zsh runs it too (install.sh)"
-z=$(PATH="$fixture/bin:$PATH" CHATTERBOX_BUILD_SLOTS=1 zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build; ls '$fixture/lock'")
+z=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_SLOTS=1 zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build; ls '$fixture/lock'")
 [[ "$z" == "-jobs $half build" ]] || fail "zsh got: $z"
 pass "zsh: the wrapper and the lock work, slot given back"
 echo "All build lock checks passed."

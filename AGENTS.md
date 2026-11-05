@@ -61,6 +61,13 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   behind. A worktree made another way (`--no-checkout`, a fresh clone) runs
   `scripts/warm-worktree.sh` once before its first build; `--install-hook` puts the hook back.
   Never copy build folders with plain `cp`/`rsync` (full copies, app bundles included).
+- **Compiles are shared between checkouts.** The build lock's `xcodebuild` turns on Xcode's
+  compilation cache in `~/Library/Caches/Chatterbox/CompilationCache` with paths mapped, so a
+  compile any checkout already did (same sources, same flags) is replayed, not redone. A new
+  worktree's first Mac Debug build went from 49 s to 11 s, iOS Release from 85 s to 7 s (warm
+  start plus cache; a module whose sources differ still recompiles). `CHATTERBOX_COMPILE_CACHE=0`
+  builds without it. Run `xcodebuild` by hand only after `source scripts/lib/build-lock.sh`,
+  or you miss the cache as well as the lock.
 - **C and C++ builds go through ccache**, in any project on this Mac: every zsh (so every agent
   shell) gets `CMAKE_C_COMPILER_LAUNCHER`/`CMAKE_CXX_COMPILER_LAUNCHER=ccache` and
   `CCACHE_DIR=~/Library/Caches/ccache` (20 GB) from `~/.zshenv` (`scripts/setup-ccache.sh`).

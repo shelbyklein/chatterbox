@@ -123,18 +123,42 @@ _build_lock_jobs() {
   printf '%s' "$half"
 }
 
+# Xcode's compilation cache, shared by every checkout and worktree: a compile whose inputs some
+# other build already compiled (the same sources, flags and SDK) is replayed instead of run.
+# Paths are mapped (the checkout's root to /^wt, Xcode's own maps for the project, derived and
+# product folders), so a new worktree's first build reuses what the main checkout or another
+# worktree built. Measured 2026-11-05 (16 cores, other builds running): a new worktree's first
+# Mac Debug build 49 s cold, 11 s warm-started with the cache; iOS Release 85 s, 7 s.
+#   CHATTERBOX_COMPILE_CACHE=0   build without it
+#   CHATTERBOX_COMPILE_CACHE_DIR=…  where it lives (default ~/Library/Caches/Chatterbox/CompilationCache)
+# Debug info then names sources as /^wt/…; a build that sets COMPILATION_CACHE_ENABLE_CACHING
+# itself is left as it asks.
+_build_lock_cache_args() {
+  [[ "${CHATTERBOX_COMPILE_CACHE:-1}" == 0 ]] && return 0
+  local arg
+  for arg in "$@"; do [[ "$arg" == COMPILATION_CACHE_ENABLE_CACHING=* ]] && return 0; done
+  printf '%s\n' COMPILATION_CACHE_ENABLE_CACHING=YES \
+    "COMPILATION_CACHE_CAS_PATH=${CHATTERBOX_COMPILE_CACHE_DIR:-$HOME/Library/Caches/Chatterbox/CompilationCache}" \
+    SWIFT_ENABLE_PREFIX_MAPPING=YES SWIFT_ENABLE_PROJECT_PREFIX_MAPPING=YES \
+    CLANG_ENABLE_PREFIX_MAPPING=YES CLANG_ENABLE_PROJECT_PREFIX_MAPPING=YES \
+    "SWIFT_OTHER_PREFIX_MAPPINGS=$_build_lock_root=/^wt" "CLANG_OTHER_PREFIX_MAPPINGS=$_build_lock_root=/^wt"
+}
+
 xcodebuild() {
-  local arg jobs=1 explicit=0
+  local arg jobs=1 explicit=0 cache=() line
   for arg in "$@"; do
     case "$arg" in
       -jobs) explicit=1 ;;
       -exportArchive|-version|-list|-showBuildSettings|-showsdks|-showdestinations|-resolvePackageDependencies|-help|-usage|-checkFirstLaunchStatus|-runFirstLaunch) jobs=0 ;;
     esac
   done
+  if (( jobs )); then
+    while IFS= read -r line; do [[ -n "$line" ]] && cache+=("$line"); done < <(_build_lock_cache_args "$@")
+  fi
   if (( jobs && ! explicit )); then
-    with_build_lock command xcodebuild -jobs "$(_build_lock_jobs)" "$@"
+    with_build_lock command xcodebuild -jobs "$(_build_lock_jobs)" "$@" ${cache[@]+"${cache[@]}"}
   else
-    with_build_lock command xcodebuild "$@"
+    with_build_lock command xcodebuild "$@" ${cache[@]+"${cache[@]}"}
   fi
 }
 
