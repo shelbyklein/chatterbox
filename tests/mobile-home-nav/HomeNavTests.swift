@@ -1679,6 +1679,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(desk.exists && (desk.value as? String)=="0", "Put on the Desk, off by default")
   desk.switches.firstMatch.exists ? desk.switches.firstMatch.tap() : desk.tap()
   XCTAssertEqual(desk.value as? String,"1")
+  // Scrolled back up: the name, the place and the toggle in one view.
+  for _ in 0..<3 where !app.textFields["new-chat-name"].isHittable { app.swipeDown() }
   capture("phone-new-chat-desk",app)
   app.buttons["new-chat-start"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")
