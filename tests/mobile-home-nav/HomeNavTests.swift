@@ -362,8 +362,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest isn't listed on its own")
   XCTAssertTrue(app.staticTexts["Codex: Render four ribbon options"].exists, "its chat's row names it")
   capture("1-chats-list",app)
-  // Cards, two to a row (from the ⋯ menu, with the sort).
+  // Cards, two to a row (from the ⋯ menu, with the sort). The shared test device can keep cards
+  // from an earlier run: back to the list first.
   app.buttons["Connection"].tap()
+  if app.buttons["Show as List"].waitForExistence(timeout: 2) { app.buttons["Show as List"].tap(); app.buttons["Connection"].tap() }
   app.buttons["Show as Cards"].tap()
   try await Task.sleep(for: .seconds(1))
   let first = app.buttons["chat-" + uuid("Chatterbox")], second = app.buttons["chat-" + uuid("optimization")]
@@ -379,9 +381,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
   XCTAssertTrue(app.buttons["Sidequest to Codex: Render four ribbon options, working"].waitForExistence(timeout: 5), "the chat lists its sidequest")
   capture("2-sidequest-strip", app)
-  // Session Settings, from About this session (tap the title).
-  openAbout(app)
-  XCTAssertTrue(app.buttons["about-settings"].waitForExistence(timeout: 5)); app.buttons["about-settings"].tap()
+  // Session Settings, a top-level button on the session's bar (also in About's Status).
+  XCTAssertTrue(app.buttons["rail-settings"].waitForExistence(timeout: 5)); app.buttons["rail-settings"].tap()
   // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
   XCTAssertTrue(app.staticTexts["Model"].waitForExistence(timeout: 5) && app.buttons["Open models"].exists, "Session Settings lists the providers")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "no favorites")
@@ -1480,29 +1481,64 @@ final class HomeNavTests: XCTestCase {
   // Its About data, without running work threads in the list (see server.py's ABOUT).
   try await fixture("reset"); try await fixture("about"); try await fixture("sidechat")
   XCUIDevice.shared.orientation = .portrait
-  let app = XCUIApplication()
-  // An open Duo: an iPad-sized screen that reports a compact width.
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
-                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
-  app.launch()
+  // An open Duo: an iPad-sized screen that reports a compact width. About starts closed.
+  func launch(_ arguments: [String]) -> XCUIApplication {
+   let app = XCUIApplication()
+   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                            "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
+   app.launchArguments = arguments
+   app.launch()
+   return app
+  }
+  var app = launch(["-mobileAboutColumnOpen", "NO"])
   guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else { throw XCTSkip("needs an open Duo or an iPad") }
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
-  let project=app.buttons["chat-"+uuid("Chatterbox")]
-  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
-  app.buttons["chat-title"].tap()
+  func openChatterbox() {
+   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+   let project=app.buttons["chat-"+uuid("Chatterbox")]
+   XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+   XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  }
+  openChatterbox()
+  let list=app.descendants(matching:.any)["session-sidebar-pane"]
   let column=app.descendants(matching:.any)["aboutColumn"]
-  XCTAssertTrue(column.waitForExistence(timeout:5), "About opens as a column")
-  XCTAssertFalse(app.descendants(matching:.any)["session-sidebar-pane"].exists, "in the session list's place")
-  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].exists, "beside the conversation")
-  XCTAssertTrue(app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"].waitForExistence(timeout:5), "its sections, the work threads too")
-  XCTAssertLessThan(app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"].frame.maxX, app.staticTexts["Hi! This is Chatterbox."].frame.minX, "to the left of the conversation")
+  // The session's tools on its bar: About, Session Settings, its actions, Feedback.
+  let about=app.buttons["about-rail-button"], settings=app.buttons["rail-settings"]
+  XCTAssertTrue(about.waitForExistence(timeout:5) && settings.exists && app.buttons["Session Menu"].exists, "the session's bar has About, Session Settings and its menu")
+  XCTAssertFalse(about.isSelected, "About starts closed")
+  XCTAssertFalse(column.exists)
+  about.tap()
+  XCTAssertTrue(column.waitForExistence(timeout:5), "About slides in")
+  XCTAssertTrue(list.exists, "the session list stays on the left")
+  XCTAssertGreaterThan(column.frame.minX, list.frame.maxX, "About is on the right, beside the conversation")
+  XCTAssertGreaterThan(column.frame.maxX, app.windows.firstMatch.frame.maxX - 2, "along the right edge")
+  XCTAssertTrue(app.buttons["about-rail-button"].isSelected, "its button shows as selected while it's open")
+  let chip=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"]
+  XCTAssertTrue(chip.waitForExistence(timeout:5), "its sections, the work threads too")
+  // The action buttons fit: none cut off.
+  for id in ["about-start-work","about-sidequest"] where app.buttons[id].exists {
+   XCTAssertLessThanOrEqual(app.buttons[id].frame.maxX, column.frame.maxX + 1, "\(id) fits the column")
+  }
   capture("duo-about-column", app)
-  // Its Settings row opens the session's settings over the conversation.
-  app.buttons["about-settings"].tap()
+  XCTAssertTrue(settings.isHittable && app.buttons["about-rail-button"].isHittable, "the session's bar stays in reach beside About")
+  // Session Settings, straight from the bar.
+  settings.tap()
   XCTAssertTrue(app.navigationBars["Session Settings"].waitForExistence(timeout:5)); app.navigationBars["Session Settings"].buttons["Done"].tap()
-  app.buttons["chat-title"].tap()
-  XCTAssertTrue(app.descendants(matching:.any)["session-sidebar-pane"].waitForExistence(timeout:5), "the title puts the list back")
+  // A work thread peeks in the same column; Back returns to About.
+  chip.tap()
+  let peek=app.descendants(matching:.any)["peekColumn"]
+  XCTAssertTrue(peek.waitForExistence(timeout:5), "a work thread peeks in the right-hand column")
+  XCTAssertTrue(list.exists && app.staticTexts["Hi! This is Chatterbox."].exists, "the list and the front thread stay")
+  capture("duo-peek-column", app)
+  app.buttons["peek-back"].tap()
+  XCTAssertTrue(column.waitForExistence(timeout:5), "Back returns the column to About")
+  // Remembered: a relaunch opens with About showing.
+  app.terminate()
+  app = launch([])
+  openChatterbox()
+  XCTAssertTrue(app.descendants(matching:.any)["aboutColumn"].waitForExistence(timeout:5), "About's open state is remembered")
+  app.buttons["about-column-close"].tap()
+  XCTAssertTrue(app.descendants(matching:.any)["aboutColumn"].waitForNonExistence(timeout:5), "Close hides it")
+  XCTAssertFalse(app.buttons["about-rail-button"].isSelected)
  }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
