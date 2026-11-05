@@ -105,6 +105,56 @@ app.setActivationPolicy(.accessory)
     unsetenv("CHATTERBOX_TEST_SIDEBAR_ONLY")
     parent.isRunning=false
 
+    // MARK: Thread families: work threads sit inside their front thread's card (list and cards),
+    // at most three children until Show more; a working one always shows; Activity leaves them out.
+    let works=try (1...5).map { n in try model.newWorkThread(of:parent,title:"Work thread \(n)") }
+    // lastActivity is the later of created and updated: set both.
+    side.record.createdAt=Date().addingTimeInterval(-30); side.record.updatedAt=side.record.createdAt
+    for (n,work) in works.enumerated() { work.record.createdAt=Date().addingTimeInterval(TimeInterval(-60*(n+1))); work.record.updatedAt=work.record.createdAt }
+    works[4].isRunning=true   // the oldest, but working
+    precondition(!model.sidebarProjects.contains { thread in works.contains { $0 === thread } }, "a work thread isn't a project")
+    precondition(model.sidechats(of:parent).filter { $0.record.workOf==parent.id }.count==5, "work threads are the front thread's children")
+    precondition(!Attention.shared.activityWorking(in:model).contains { $0 === works[4] } && Attention.shared.workingChats(in:model).contains { $0 === works[4] },
+                 "Activity leaves a working work thread out; the Desk still sees it")
+    let collapsed=ThreadFamilyLimit.visible(model.sidechats(of:parent),expanded:false,updatedAt:\.lastActivity) { $0.isRunning || $0.isWaitingOnYou }
+    precondition(collapsed.shown.map(\.id)==[side.id,works[0].id,works[4].id] && collapsed.hidden==3, "newest first, three shown, the working one among them")
+    setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","300",1)
+    SidebarDebug.families=[:]; SidebarDebug.rows=[:]; SidebarDebug.familyToggles=[:]; FamilyExpansion.shared.ids=[]
+    try await render(AnyView(ContentView()),300,900,"mac-list-cards")
+    guard let family=SidebarDebug.families[parent.id] else { fatalError("No family card for Chatterbox") }
+    for thread in [parent,side,works[0],works[4],branch] {
+        guard let frame=SidebarDebug.rows[thread.id] else { fatalError("Missing row \(thread.title)") }
+        precondition(family.insetBy(dx:-1,dy:-1).contains(frame), "\(thread.title) sits inside Chatterbox's card")
+    }
+    for hidden in works[1...3] { precondition(SidebarDebug.rows[hidden.id]==nil, "\(hidden.title) waits behind Show more") }
+    if let sdhq=SidebarDebug.families[other.id] { precondition(sdhq.minY >= family.maxY || sdhq.maxY <= family.minY, "each family its own card") }
+    else { fatalError("SDHQ has no card of its own") }
+    guard let toggle=SidebarDebug.familyToggles[parent.id] else { fatalError("No Show more") }
+    try await click(point(toggle))
+    try await Task.sleep(for:.milliseconds(400)); try snapshot("mac-list-cards-expanded")
+    precondition(FamilyExpansion.shared.ids.contains(parent.id), "Show more expands the family")
+    for work in works { precondition(SidebarDebug.rows[work.id].map { SidebarDebug.families[parent.id]!.insetBy(dx:-1,dy:-1).contains($0) } == true, "\(work.title) shows once expanded") }
+    // Cards: the same three inside the front thread's card, then Show more.
+    UserDefaults.standard.set(true, forKey: "macProjectsSidebarCards")
+    FamilyExpansion.shared.ids=[]; MacHomeDebug.childRows=[:]; MacHomeDebug.familyToggles=[:]
+    try await render(AnyView(ContentView()),300,900,"mac-cards-family")
+    precondition(MacHomeDebug.cards[parent.id] != nil && works.allSatisfy { MacHomeDebug.cards[$0.id]==nil }, "no card of their own")
+    precondition(Set(MacHomeDebug.childRows.keys)==Set([side.id,works[0].id,works[4].id]) && MacHomeDebug.familyToggles[parent.id] != nil,
+                 "three children in the card, then Show more: \(MacHomeDebug.childRows.count)")
+    try await click(point(MacHomeDebug.familyToggles[parent.id]!))
+    try await Task.sleep(for:.milliseconds(400)); try snapshot("mac-cards-family-expanded")
+    precondition(Set(works.map(\.id)).isSubset(of: Set(MacHomeDebug.childRows.keys)), "all of them once expanded")
+    UserDefaults.standard.set(false, forKey: "macProjectsSidebarCards")
+    // One waiting on you surfaces in Activity as its front thread's row, not its own.
+    works[1].record.items.append(DisplayItem(kind:.questions,text:"Which layout?",approvalState:.pending))
+    precondition(works[1].isWaitingOnYou && Attention.shared.workNeedingYou(in:model).map(\.id)==[works[1].id], "a work thread needing you is listed for its front thread's row")
+    try await render(AnyView(SidebarActivityStrip().frame(width:280).padding(8).background(Color(nsColor:.windowBackgroundColor))),300,220,"mac-activity-work-needs-you")
+    works[1].record.items.removeLast()
+    unsetenv("CHATTERBOX_TEST_SIDEBAR_ONLY")
+    works[4].isRunning=false
+    for work in works { model.archive(work) }
+    FamilyExpansion.shared.ids=[]
+
     // MARK: Studios page fixtures: images, statuses, pins.
     func picture(_ name: String, _ hue: CGFloat, width: Int = 2000, height: Int = 1500) -> URL {
         let rep=NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:width,pixelsHigh:height,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!

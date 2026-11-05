@@ -169,6 +169,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               "the front thread's detail lists its work threads (the Work strip)")
     let phoneList = try Companion.decoder.decode([Companion.WorkThread].self, from: request("GET", "/v1/chats/\(front.id)/work", Data(), auth).body)
     try check(phoneList.map(\.id) == frontDetail.work?.map(\.id), "GET …/work lists them")
+    // The phone's session list: the front thread is the project, its open work threads right
+    // after it as its children (the phone nests them in its card), none a project of its own.
+    let chatList = try Companion.decoder.decode(Companion.ChatList.self, from: request("GET", "/v1/chats", Data(), auth).body)
+    let projectChats = chatList.groups.first { $0.kind == .projects }?.chats ?? []
+    let openWork = Set([phoneWork.summary.id, art.id])
+    try check(projectChats.first?.id == front.id && Set(projectChats.dropFirst().map(\.id)).isSuperset(of: openWork)
+              && projectChats.filter { openWork.contains($0.id) }.allSatisfy { $0.workOf == front.id && $0.sidechatOf == front.id && $0.project == nil },
+              "the phone's list has the front thread as the project and its work threads after it, not as projects: \(projectChats.map(\.title))")
     try await wait("the phone's work thread reports back") { front.items.contains { $0.sidequest == phoneWork.summary.id && $0.kind == .user } }
 
     // A turn that ends with background work still running is progress, not the result: nothing

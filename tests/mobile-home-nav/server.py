@@ -40,6 +40,20 @@ DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];
 # two work threads (one working, one ready). Starts and task changes are recorded in DESK_CALLS.
 TASKS=False;DESK_LINKED=[]
 WORK=[('work-columns','Desk board columns','working'),('work-tabs','Phone tabs','ready')]
+# Chatterbox's work threads in the session list too, right after it (/test/work-listed): the two
+# above and three more, newest first by hour; Desk board columns (working) is the oldest, Highlights
+# sync waits on you.
+WORK_LISTED=False
+LISTED=[('work-tabs',5),('work-docs',4),('work-icons',3),('work-sync',2),('work-columns',1)]
+LISTED_ONLY={'work-docs':('Release notes','ready'),'work-icons':('App icons','ready'),'work-sync':('Highlights sync','ready')}
+def listed_summary(key,hour):
+ if key in LISTED_ONLY:
+  title,state=LISTED_ONLY[key]
+  s={'id':cid(key),'title':title,'project':None,'subtitle':'Done: '+title.lower()+'.','backend':'claude','isRunning':False,
+     'isWaitingOnYou':key=='work-sync','sidechatOf':cid('Chatterbox'),'workOf':cid('Chatterbox')}
+ else:s=work_summary(key)
+ s['updatedAt']='2026-11-04T%02d:00:00Z'%hour
+ return s
 def stamp(minutes=0):
  return (datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ')
 def place_named(name):
@@ -136,9 +150,9 @@ def pressure(level):
    else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
 
 def reset():
- global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE
+ global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE,WORK_LISTED
  PRESSURE=None
- RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False
+ RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False;WORK_LISTED=False
  desk_reset();tasks_reset()
  automations_reset()
  global PINNED
@@ -188,6 +202,9 @@ def chats():
  if AUTOMATION_RAN:
   run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Chatterbox'),'sidequestOf':cid('Chatterbox'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
   groups[0]['chats'].append(run)
+ if WORK_LISTED:
+  at=next(i for i,c in enumerate(groups[0]['chats']) if c['id']==cid('Chatterbox'))+1
+  groups[0]['chats'][at:at]=[listed_summary(k,h) for k,h in LISTED]
  for g in groups:g['chats']=[c for c in g['chats'] if c['id'].lower() not in REMOVED]
  out={'revision':1,'groups':groups,'activity':ACTIVITY}
  # The Mac's pressure (the Activity header's dot), when a test sets one.
@@ -305,7 +322,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,RICH,OFFLINE
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,RICH,OFFLINE,WORK_LISTED
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   global PRESSURE
@@ -323,6 +340,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if 'agent' in body:routine.pop('model',None);routine.pop('effort',None)
    if 'enabled' in body and not body['enabled']:routine.pop('nextRunAt',None)
    return self.reply(routine)
+  if self.path=='/test/work-listed':
+   WORK_LISTED=True;return self.reply({'ok':True})
   if self.path=='/test/rich':RICH=bool(body.get('value',True));return self.reply({'ok':True})
   # A Sidechat of the Chatterbox project's session: About's Runs here.
   if self.path=='/test/sidechat':

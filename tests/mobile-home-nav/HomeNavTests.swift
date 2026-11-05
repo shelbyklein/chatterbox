@@ -354,6 +354,11 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
+  // Starts from list mode: an earlier run on this simulator may have left cards on.
+  app.buttons["Connection"].tap()
+  if app.buttons["Show as List"].waitForExistence(timeout:2) { app.buttons["Show as List"].tap() }
+  else { app.buttons["Show as Cards"].tap(); try await Task.sleep(for: .seconds(1)); app.buttons["Connection"].tap(); app.buttons["Show as List"].tap() }
+  try await Task.sleep(for: .seconds(1))
   XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
   let activityReply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
   let activityWorking = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
@@ -1426,6 +1431,69 @@ final class HomeNavTests: XCTestCase {
   call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "unlink")
  }
+ /// Projects page: a front thread's work threads sit inside its card as rows, three until Show
+ /// more (a working one and one that needs you always among them), not as project cards of their
+ /// own; in list mode each family is a card (a section) of its own. Activity leaves work threads
+ /// out, but one waiting on you shows under its front thread's name.
+ @MainActor func testProjectsNestWorkThreads() async throws {
+  try await fixture("reset"); try await fixture("work-listed")
+  let columnsID="C4F14522-94D6-5AF4-BCF1-77AE08737652", tabsID="CFD6F12A-EE25-5C7D-BCE0-C004F850001E"
+  let sync=homeID("work-sync"), docs=homeID("work-docs"), icons=homeID("work-icons")
+  func launch(cards:Bool) -> XCUIApplication {
+   let app=XCUIApplication()
+   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+   app.launchArguments=["-mobileChatListPage","projects","-mobileChatListCards",cards ? "YES" : "NO","-mobileChatListSort","recent","-mobileActivityExpanded","YES"]
+   app.launch()
+   if tab("Projects",app).waitForExistence(timeout:15) { tab("Projects",app).tap() }
+   return app
+  }
+  var app=launch(cards:true)
+  let family=app.descendants(matching:.any)["family-"+uuid("Chatterbox")]
+  XCTAssertTrue(family.waitForExistence(timeout:15), "Chatterbox and its work threads are one card")
+  let front=app.buttons["chat-"+uuid("Chatterbox")], columns=app.buttons["chat-"+columnsID], tabs=app.buttons["chat-"+tabsID], waiting=app.buttons["chat-"+sync]
+  XCTAssertTrue(front.exists && columns.exists && tabs.exists && waiting.exists)
+  for row in [front, tabs, waiting, columns] {
+   XCTAssertTrue(family.frame.insetBy(dx:-1, dy:-1).contains(row.frame), "\(row.identifier) is inside the Chatterbox card")
+  }
+  XCTAssertFalse(app.buttons["chat-"+docs].exists || app.buttons["chat-"+icons].exists, "the rest wait behind Show more")
+  XCTAssertLessThan(tabs.frame.maxY, waiting.frame.minY + 1, "newest first"); XCTAssertLessThan(waiting.frame.maxY, columns.frame.minY + 1)
+  let more=app.buttons["family-toggle-"+uuid("Chatterbox")]
+  XCTAssertTrue(more.exists && more.label == "Show 2 more", more.label)
+  let optimization=app.buttons["chat-"+uuid("optimization")], sdhq=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(optimization.exists && sdhq.exists)
+  XCTAssertGreaterThan(family.frame.width, optimization.frame.width * 1.8, "the family card spans the page")
+  XCTAssertEqual(optimization.frame.minY, sdhq.frame.minY, accuracy: 2, "other projects still share a row")
+  XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest still isn't listed on its own")
+  // Activity: no work thread rows or counts; the one waiting on you under Chatterbox's name.
+  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5) || app.buttons["Activity, 0 new replies, 3 working"].exists, "work threads aren't counted")
+  let needs=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@", "Needs you: Chatterbox · needs you in Highlights sync")).firstMatch
+  XCTAssertTrue(needs.exists, "a work thread waiting on you shows as its front thread's row")
+  XCTAssertFalse(app.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS %@", "Desk board columns")).matching(NSPredicate(format:"label BEGINSWITH %@", "Working")).firstMatch.exists,
+                 "a working work thread isn't in Activity")
+  capture("phone-projects-nested", app)
+  more.tap()
+  XCTAssertTrue(app.buttons["chat-"+docs].waitForExistence(timeout:3) && app.buttons["chat-"+icons].exists, "Show more opens the card in place")
+  XCTAssertEqual(app.buttons["family-toggle-"+uuid("Chatterbox")].label, "Show less")
+  capture("phone-projects-nested-expanded", app)
+  app.buttons["family-toggle-"+uuid("Chatterbox")].tap()
+  XCTAssertTrue(app.buttons["chat-"+docs].waitForNonExistence(timeout:3), "Show less folds it again")
+  columns.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Desk board columns."].waitForExistence(timeout:10), "a row opens its work thread")
+  app.terminate()
+  // List mode: each family a card of its own; the work threads inside Chatterbox's, three until Show more.
+  app=launch(cards:false)
+  let frontRow=app.buttons["chat-"+uuid("Chatterbox")], columnsRow=app.buttons["chat-"+columnsID], optimizationRow=app.buttons["chat-"+uuid("optimization")]
+  XCTAssertTrue(frontRow.waitForExistence(timeout:15) && columnsRow.exists && optimizationRow.exists)
+  XCTAssertFalse(app.buttons["chat-"+docs].exists, "three until Show more in list mode too")
+  let listMore=app.buttons["family-toggle-"+uuid("Chatterbox")]
+  XCTAssertTrue(listMore.exists && listMore.label == "Show 2 more")
+  XCTAssertGreaterThan(columnsRow.frame.minY, frontRow.frame.maxY - 1, "under its front thread")
+  XCTAssertGreaterThan(optimizationRow.frame.minY - listMore.frame.maxY, 12, "a gap before the next family's card")
+  capture("phone-projects-list-cards", app)
+  listMore.tap()
+  XCTAssertTrue(app.buttons["chat-"+docs].waitForExistence(timeout:3), "Show more in list mode")
+  capture("phone-projects-list-cards-expanded", app)
+ }
  /// Work threads (plans/work-threads.md): a front thread's Work strip lists its work threads with
  /// their state; one opens with a header naming its front thread and a link back; the session
  /// menu starts one (name, brief, agent) and carries the task items.
@@ -2174,6 +2242,11 @@ final class HomeNavTests: XCTestCase {
  @MainActor func field(_ id:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching:.any).matching(NSPredicate(format:"identifier == %@ AND (elementType == %d OR elementType == %d)",
    id, XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.textView.rawValue)).firstMatch
+ }
+ /// Listed-only work threads' ids (server.py: cid(name)).
+ func homeID(_ name: String) -> String {
+  ["work-sync": "C82B082F-AB47-5F52-9741-FBED1D05E678", "work-docs": "B7B5AAE3-BD79-5B65-BE78-D7BF92EB8907",
+   "work-icons": "8472A7AE-695B-5259-BB38-15703A0C71E2"][name]!
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
