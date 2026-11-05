@@ -486,6 +486,43 @@ final class HomeNavTests: XCTestCase {
   tab("Projects",app).tap()
  }
  /// Native actions must work in both nested List and Studio's ScrollView.
+ /// The Mac under pressure (Companion.Pressure on the chat list): the Activity header shows a
+ /// dot and "Mac busy" / "Mac overloaded"; tapped, the readings and what's held back. At OK, nothing.
+ @MainActor func testPressureIndicator() async throws {
+  try await fixture("reset")
+  try await fixture("pressure/busy")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let pill = app.buttons["mac-pressure"]
+  XCTAssertTrue(pill.waitForExistence(timeout:10), "the Activity header shows the Mac's pressure")
+  XCTAssertEqual(pill.label, "Mac busy. Show readings")
+  let header = app.buttons["Activity, 1 new replies, 3 working"]
+  XCTAssertTrue(header.exists)
+  XCTAssertEqual(pill.frame.midY, header.frame.midY, accuracy: 12, "on the Activity header's line")
+  capture("pressure-1-busy-header", app)
+  pill.tap()
+  XCTAssertTrue(app.staticTexts["load 30 on 16 cores (over 1.5\u{00D7}) for 2 min"].waitForExistence(timeout:5), "tapped: why it's busy")
+  XCTAssertTrue(activity("New work threads wait to start until the Mac is OK",app).waitForExistence(timeout:3), "and what's held back")
+  XCTAssertTrue(activity("2 work threads waiting",app).exists)
+  capture("pressure-2-busy-readings", app)
+  app.buttons["Done"].tap()
+  try await fixture("pressure/overloaded")
+  XCTAssertTrue(app.buttons["Mac overloaded. Show readings"].waitForExistence(timeout:12), "follows the Mac: overloaded")
+  capture("pressure-3-overloaded-header", app)
+  app.buttons["Mac overloaded. Show readings"].tap()
+  XCTAssertTrue(activity("Work threads don't start their next turn",app).waitForExistence(timeout:5), "overloaded: what's held back")
+  capture("pressure-4-overloaded-readings", app)
+  app.buttons["Done"].tap()
+  try await fixture("pressure/ok")
+  // The list refreshes every few seconds: the indicator goes with the next one.
+  var gone = false
+  for _ in 0..<40 where !gone { try await Task.sleep(for: .milliseconds(500)); gone = !app.buttons["mac-pressure"].exists }
+  XCTAssertTrue(gone, "at OK, no indicator")
+  capture("pressure-5-ok-header", app)
+ }
+
  @MainActor func testActivityDismissalSwipes() async throws {
   try await fixture("reset")
   let app = XCUIApplication()

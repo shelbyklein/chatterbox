@@ -73,6 +73,12 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   `CCACHE_DIR=~/Library/Caches/ccache` (20 GB) from `~/.zshenv` (`scripts/setup-ccache.sh`).
   CMake reads them when it first configures a build folder; one configured before needs one
   reconfigure. `ccache -s` shows hits.
+- **The service holds Chatterbox's work back when the Mac is under pressure**
+  (plans/mac-pressure.md): at Busy builds go one at a time and new work threads wait to start; at
+  Overloaded new builds wait ("waiting: the Mac is overloaded (…)") and work threads don't start
+  their next turn. Agents run at nice +10 with build caps (`CMAKE_BUILD_PARALLEL_LEVEL`,
+  `MAKEFLAGS`, `CARGO_BUILD_JOBS`) in their environment, in any project. Don't work around it;
+  `CHATTERBOX_BUILD_IGNORE_PRESSURE=1` only when Shelby asks.
 - **Simulators: the shared test device, shut down when the run ends.** Mobile tests call
   `test_simulator iphone|ipad|duo` (test-hygiene.sh) for this Mac's one "Chatterbox test …"
   device per kind and runtime, booted under the build slot, and shut down (not deleted) on every

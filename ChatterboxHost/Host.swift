@@ -31,6 +31,10 @@ final class Host {
     /// Logs are trimmed to what the app has saved once they pass this size.
     private let logLimit = Int(Host.seconds("CHATTERBOX_HOST_LOG_LIMIT", default: Double(32 << 20)))
     private let notificationsEnabled = ProcessInfo.processInfo.environment["CHATTERBOX_HOST_NOTIFY"] != "0"
+    /// Agents (and so every shell and build they start, which inherit it) run this much nicer
+    /// than the service, the app and your own apps, so a build that fills every core doesn't
+    /// make them stall. A spawn may ask for its own ("nice"); 0 turns it off.
+    private let agentNice = Int32(max(0, min(20, Host.seconds("CHATTERBOX_AGENT_NICE", default: 10))))
 
     init(directory: URL) {
         self.directory = directory
@@ -215,10 +219,12 @@ final class Host {
         if env.isEmpty { env = ProcessInfo.processInfo.environment }
         let extraPath = ["\(NSHomeDirectory())/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         if env["PATH"] == nil { env["PATH"] = extraPath.joined(separator: ":") }
+        // Agents run nicer; other processes (none today) as asked.
+        let nice = request["nice"]?.int.map { Int32(max(0, min(20, $0))) } ?? (child.kind != nil ? agentNice : 0)
         do {
             try child.spawn(executable: executable, arguments: (request["args"]?.array ?? []).compactMap(\.string),
-                            cwd: request["cwd"]?.string, environment: env)
-            log("spawned \(id) (pid \(child.pid))")
+                            cwd: request["cwd"]?.string, environment: env, nice: nice)
+            log("spawned \(id) (pid \(child.pid)\(nice > 0 ? ", nice \(nice)" : ""))")
             client.send(["op": "spawned", "id": .string(id), "existed": false])
         } catch {
             child.failedToStart(error.localizedDescription)

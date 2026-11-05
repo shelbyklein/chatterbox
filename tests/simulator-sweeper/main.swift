@@ -53,6 +53,28 @@ decisions = sweep.evaluate(booted: [building], processArguments: [], simulatorAp
 check(decision(building, in: decisions).action == .shutDown, "and then it's shut down (30 min idle)")
 check(sweep.firstSeenIdle.isEmpty, "nothing booted and unused is left on the clock")
 
+// Under pressure (MacPressure, through SimulatorSweeper.pressureChanged): Busy waits 5 minutes,
+// Overloaded none; a device a running build or test names, one open in Simulator.app, and one a
+// test run has on record are still kept.
+check(SimulatorSweep.idleAfter(pressure: "ok") == 30 * 60 && SimulatorSweep.idleAfter(pressure: "busy") == 5 * 60
+      && SimulatorSweep.idleAfter(pressure: "overloaded") == 0, "idle times: 30 min at OK, 5 at Busy, none when Overloaded")
+var busy = SimulatorSweep(); busy.idleAfter = SimulatorSweep.idleAfter(pressure: "busy")
+let p0 = t0 + 100 * 60
+decisions = busy.evaluate(booted: [generic, stale], processArguments: [], simulatorAppPaths: [], registered: [], now: p0)
+check(decisions.allSatisfy { $0.action == .keep }, "Busy: first seen unused, kept for now")
+decisions = busy.evaluate(booted: [generic, stale], processArguments: [], simulatorAppPaths: [], registered: [], now: p0 + 5 * 60)
+check(decisions.allSatisfy { $0.action == .shutDown }, "Busy: unused for 5 min, shut down")
+var overloaded = SimulatorSweep(); overloaded.idleAfter = SimulatorSweep.idleAfter(pressure: "overloaded")
+let open = "/Users/x/Library/Developer/CoreSimulator/Devices/\(stale.udid)/data/foo"
+decisions = overloaded.evaluate(booted: [generic, stale, building, ours],
+                                processArguments: ["/usr/bin/xcodebuild test -destination platform=iOS Simulator,id=\(building.udid)"],
+                                simulatorAppPaths: [open], registered: [ours.udid], now: p0)
+check(decision(generic, in: decisions).action == .shutDown && decision(generic, in: decisions).reason.contains("0 min"),
+      "Overloaded: an unused device is shut down at the first look, no idle wait")
+check(decision(building, in: decisions).action == .keep, "Overloaded: the device a running xcodebuild targets is kept")
+check(decision(ours, in: decisions).action == .keep, "Overloaded: a device a running test registered is never shut down")
+check(decision(stale, in: decisions).action == .keep, "Overloaded: one open in a Simulator window (maybe yours) is kept")
+
 // simctl's JSON: only booted devices, by name.
 let json = """
 {"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-26-2":[{"udid":"A","name":"iPhone 17 Pro","state":"Booted"},{"udid":"B","name":"iPhone Air","state":"Shutdown"}],

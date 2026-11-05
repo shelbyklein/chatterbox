@@ -189,6 +189,9 @@ import CoreFoundation
                 let cursor=r.body["after"]?.int ?? 0;let replay=runtime.events(after:cursor)
                 subscribed.insert(peer.id)
                 result=["resync":.bool(replay.resync),"sequence":.number(Double(runtime.state.sequence)),"events":try .value(replay.events)]
+            case "pressure":
+                // How hard the Mac is working, and what's held back (PressureMonitor).
+                result=try PressureHooks.snapshot().map{try JSON.value($0)} ?? .null
             case "list":
                 let working=r.body["workingOnly"]?.bool == true
                 result=r.body["summaryOnly"]?.bool == true ? try runtime.navigationList(workingOnly:working) : try .value(runtime.snapshots(workingOnly:working))
@@ -234,6 +237,10 @@ import CoreFoundation
                     guard s.record.workOf==nil else{throw RuntimeFailure("nested_work")}
                     guard role=="ui" || (role=="agent" && s.isRunning && !s.isSidequest && s.record.automationID==nil) else{throw RuntimeFailure("permission_denied")}
                     result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try DeskStore.shared.workOperation(r.body,in:s,agent:role != "ui")}
+                case "startNow":
+                    // A work thread held while the Mac is under pressure: start it anyway (the app only).
+                    guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+                    s.startHeldNow();result=["ok":true]
                 case "report":
                     let text=(r.body["text"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
                     guard !text.isEmpty else{throw RuntimeFailure("invalid_report")}

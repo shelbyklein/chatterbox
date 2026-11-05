@@ -125,8 +125,19 @@ def automation(id):
  return next((a for a in AUTOMATIONS if id.lower() in [i.lower() for i in a['ids']]),None)
 automations_reset()
 SENT={}
+PRESSURE=None
+def pressure(level):
+ if level=='ok':return {'level':'ok','updatedAt':'2099-01-01T00:00:00Z','updated':4070908800,'summary':'load 6.0 on 16 cores','memory':'normal','swapUsedGB':1.0,'swapGrowthGB':0,'load1':6,'load5':6,'load15':6,'cores':16,'thermal':'nominal','holding':[],'waiting':0}
+ return {'level':level,'since':'2099-01-01T00:00:00Z','updatedAt':'2099-01-01T00:00:00Z','updated':4070908800,
+  'summary':'load 52 on 16 cores (over 3\u00d7) for 1 min; swap grew 1.4 GB in 5 min' if level=='overloaded' else 'load 30 on 16 cores (over 1.5\u00d7) for 2 min',
+  'reasons':[],'memory':'warning','swapUsedGB':6.2,'swapGrowthGB':1.4 if level=='overloaded' else 0.1,'compressedGB':27.0,'load1':52 if level=='overloaded' else 30,'load5':40,'load15':31,
+  'cores':16,'thermal':'nominal','waiting':2,
+  'holding':['New builds wait (running ones carry on, at lower priority)','Simulators no build or test is using are shut down',"Work threads don't start their next turn; new ones wait to start",'2 work threads waiting'] if level=='overloaded'
+   else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
+
 def reset():
- global RICH,OFFLINE,SIDECHAT,ABOUT
+ global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE
+ PRESSURE=None
  RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False
  desk_reset();tasks_reset()
  automations_reset()
@@ -178,7 +189,10 @@ def chats():
   run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Chatterbox'),'sidequestOf':cid('Chatterbox'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
   groups[0]['chats'].append(run)
  for g in groups:g['chats']=[c for c in g['chats'] if c['id'].lower() not in REMOVED]
- return {'revision':1,'groups':groups,'activity':ACTIVITY}
+ out={'revision':1,'groups':groups,'activity':ACTIVITY}
+ # The Mac's pressure (the Activity header's dot), when a test sets one.
+ if PRESSURE:out['pressure']=PRESSURE
+ return out
 
 def detail(id):
  work=next((w for w in WORK if cid(w[0])==id.lower()),None)
@@ -294,6 +308,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
   global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,RICH,OFFLINE
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
+  global PRESSURE
+  if self.path.startswith('/test/pressure/'):PRESSURE=pressure(self.path.rsplit('/',1)[1]);return self.reply({'ok':True})
   if self.path.startswith('/v1/automations/'):
    parts=self.path.split('/');routine=automation(parts[3])
    if not routine:return self.reply({'error':'That automation is gone.'},404)

@@ -24,6 +24,10 @@ Task { @MainActor in
         let automations=AutomationRunner(model);AutomationRunner.shared=automations;automations.start()
         // Booted simulators nothing has used for half an hour are shut down (the whole Mac's).
         let simulators=SimulatorSweeper();SimulatorSweeper.shared=simulators;simulators.start()
+        // How hard the Mac is working: Chatterbox holds its own work back before it's too much.
+        let pressure=PressureMonitor(runtime:runtime);PressureMonitor.shared=pressure
+        pressure.onChange={snapshot in runtime.publishUIRequest("pressure.changed",payload:(try? JSON.value(snapshot)) ?? .null)}
+        pressure.start()
         NotificationCenter.default.addObserver(forName:Notification.Name("ChatterboxRuntimeOpenPin"),object:nil,queue:.main){note in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }
@@ -41,6 +45,8 @@ Task { @MainActor in
             if let parent=session.record.sidequestOf {DispatchQueue.main.async{session.sidequestTurnEnded(parent:runtime.session(parent))}}
             // …and a work thread's result goes to its front thread (plans/work-threads.md).
             if let front=session.record.workOf {DispatchQueue.main.async{session.workTurnEnded(front:runtime.session(front))}}
+            // A work thread that has reported (a returned sidequest) lets its agent go now (ChatSession+Pressure).
+            if session.record.workOf != nil || session.record.sidequestOf != nil {DispatchQueue.main.asyncAfter(deadline:.now()+2){runtime.releaseIdleAgents()}}
         }
         print("chatterboxd ready");fflush(stdout)
         let started=Date()

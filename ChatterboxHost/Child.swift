@@ -95,7 +95,13 @@ final class Child {
 
     // MARK: - Running
 
-    func spawn(executable: String, arguments: [String], cwd: String?, environment: [String: String]) throws {
+    /// `nice` above 0 starts it through /usr/bin/nice, which raises its niceness and then becomes
+    /// it (same pid), so it's nicer from its first instruction and everything it starts inherits it.
+    func spawn(executable: String, arguments: [String], cwd: String?, environment: [String: String], nice: Int32 = 0) throws {
+        // Through nice, a missing program would only show as nice's exit: say so as before.
+        if nice > 0, !FileManager.default.isExecutableFile(atPath: executable) {
+            throw HostError("Couldn't start \(executable): \(String(cString: strerror(ENOENT)))")
+        }
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
         logHandle = try FileHandle(forWritingTo: logURL)
 
@@ -130,14 +136,16 @@ final class Child {
         sigemptyset(&unblocked)
         posix_spawnattr_setsigmask(&attrs, &unblocked)
 
-        let argv = ([executable] + arguments).map { strdup($0) } + [nil]
+        let program = nice > 0 && FileManager.default.isExecutableFile(atPath: "/usr/bin/nice") ? "/usr/bin/nice" : executable
+        let words = program == executable ? [executable] + arguments : [program, "-n", String(nice), executable] + arguments
+        let argv = words.map { strdup($0) } + [nil]
         let envp = environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
         defer {
             argv.forEach { free($0) }
             envp.forEach { free($0) }
         }
         var pid: pid_t = 0
-        let result = posix_spawn(&pid, executable, &actions, &attrs, argv, envp)
+        let result = posix_spawn(&pid, program, &actions, &attrs, argv, envp)
         close(inPipe[0]); close(outPipe[1]); close(errPipe[1])
         guard result == 0 else {
             close(inPipe[1]); close(outPipe[0]); close(errPipe[0])

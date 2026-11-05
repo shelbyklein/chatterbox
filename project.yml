@@ -292,6 +292,7 @@ targets:
     - path: Core/Chatterbox/Engine/ChatSession+Issues.swift
     - path: Core/Chatterbox/Engine/ChatSession+Sidequest.swift
     - path: Core/Chatterbox/Engine/ChatSession+Work.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Pressure.swift
     - path: Core/Chatterbox/Engine/ChatSession+Tools.swift
     - path: Core/Chatterbox/Engine/ToolScopes.swift
     - path: Core/Chatterbox/Engine/ToolDiscovery.swift
@@ -331,6 +332,7 @@ targets:
     - path: Core/ChatterboxRuntime/ChatPromotion.swift
     - path: Core/ChatterboxRuntime/RuntimePreferences.swift
     - path: Core/ChatterboxRuntime/SimulatorSweep.swift
+    - path: Core/ChatterboxRuntime/MacPressure.swift
     - path: Core/ChatterboxRuntime/RuntimePeer.swift
     - path: Core/ChatterboxRuntime/RuntimeClient.swift
     - path: Core/ChatterboxRuntime/Studio.swift

@@ -11,9 +11,18 @@
 #   build_unlock        give it back early
 #   with_build_lock CMD… run CMD under the lock
 #
-#   CHATTERBOX_BUILD_SLOTS=2     allow two builds at once (default 1)
-#   CHATTERBOX_BUILD_JOBS=N      xcodebuild -jobs (default: half the cores, at least 2)
+#   CHATTERBOX_BUILD_SLOTS=2     allow two builds at once (default 1; one while the Mac is busy)
+#   CHATTERBOX_BUILD_JOBS=N      xcodebuild -jobs (default: half the cores, a quarter while the
+#                                Mac is busy; at least 2)
 #   CHATTERBOX_BUILD_LOCK_DIR=…  where the slots live (default ~/Library/Caches/Chatterbox/build-lock)
+#
+# The Mac's pressure (the background service writes ~/Library/Caches/Chatterbox/pressure.json
+# every 10 s; ChatterboxDaemon/PressureMonitor.swift): while it's busy, one build at a time
+# whatever CHATTERBOX_BUILD_SLOTS says; while it's overloaded, new builds wait until it's less
+# loaded (running ones carry on; nothing is ever stopped). The waiting line says so. A file older
+# than a minute (the service isn't running) is ignored.
+#   CHATTERBOX_PRESSURE_FILE=…           read this instead (tests)
+#   CHATTERBOX_BUILD_IGNORE_PRESSURE=1   build whatever the pressure
 #
 # macOS has no flock(1), so a slot is a directory made with mkdir (atomic), holding the owner's
 # pid and worktree. A slot whose owner is gone is taken over: a build killed with SIGKILL leaves
@@ -22,12 +31,16 @@
 _build_lock_dir=${CHATTERBOX_BUILD_LOCK_DIR:-$HOME/Library/Caches/Chatterbox/build-lock}
 _build_lock_slots=${CHATTERBOX_BUILD_SLOTS:-1}
 _build_lock_held=''      # the slot this process holds, if any
+_build_lock_level=ok     # the Mac's pressure, as last read: ok, busy or overloaded
+_build_lock_pressure_why=''
 # The checkout this script builds in (named in the waiting line), from where this file lives.
 if [[ -n "${BASH_SOURCE:-}" ]]; then _build_lock_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 else eval '_build_lock_root=$(cd "$(dirname "${(%):-%x}")/../.." && pwd)'; fi
 
-_build_lock_pid() { command cat "$1/pid" 2>/dev/null; }
-_build_lock_worktree() { command cat "$1/worktree" 2>/dev/null; }
+# Never failing: a slot can go between being listed and being read, and a failed read in an
+# assignment would end a `set -e` script while it waits.
+_build_lock_pid() { command cat "$1/pid" 2>/dev/null || true; }
+_build_lock_worktree() { command cat "$1/worktree" 2>/dev/null || true; }
 
 # Whether a slot's owner still runs (an empty slot, mid-creation for under 5 s, counts as live).
 _build_lock_live() {
@@ -39,9 +52,48 @@ _build_lock_live() {
   kill -0 "$pid" 2>/dev/null
 }
 
+# Reads the Mac's pressure into _build_lock_level and _build_lock_pressure_why (its reasons).
+_build_lock_pressure() {
+  _build_lock_level=ok; _build_lock_pressure_why=''
+  [[ -n "${CHATTERBOX_BUILD_IGNORE_PRESSURE:-}" ]] && return 0
+  local file=${CHATTERBOX_PRESSURE_FILE:-$HOME/Library/Caches/Chatterbox/pressure.json} level updated now
+  [[ -f "$file" ]] || return 0
+  level=$(command plutil -extract level raw -o - "$file" 2>/dev/null) || return 0
+  updated=$(command plutil -extract updated raw -o - "$file" 2>/dev/null) || return 0
+  [[ "$updated" =~ ^[0-9]+$ ]] || return 0
+  now=$(date +%s)
+  (( now - updated <= 60 && updated - now <= 60 )) || return 0
+  case "$level" in
+    busy|overloaded)
+      _build_lock_level=$level
+      _build_lock_pressure_why=$(command plutil -extract summary raw -o - "$file" 2>/dev/null) ;;
+  esac
+  return 0
+}
+
+# Whether a live slot other than this script's is held (any slot, whatever the slot count).
+_build_lock_others_live() {
+  local slot
+  while IFS= read -r slot; do
+    [[ -n "$slot" && -d "$slot" ]] || continue
+    [[ "$(_build_lock_pid "$slot")" == "$$" ]] && continue
+    _build_lock_live "$slot" && return 0
+  done < <(command find "$_build_lock_dir" -maxdepth 1 -name 'slot-*' 2>/dev/null)
+  return 1
+}
+
 _build_lock_try() {  # try every slot once; sets _build_lock_held on success
-  local n slot
-  for (( n = 1; n <= _build_lock_slots; n++ )); do
+  local n slot slots=$_build_lock_slots
+  # Busy: one build at a time, however many slots are allowed (and none beside one already
+  # running in another slot).
+  if [[ "$_build_lock_level" != ok ]]; then
+    slots=1
+    if _build_lock_others_live; then
+      [[ "$(_build_lock_pid "$_build_lock_dir/slot-1")" == "$$" ]] && { _build_lock_held="$_build_lock_dir/slot-1"; return 0; }
+      return 1
+    fi
+  fi
+  for (( n = 1; n <= slots; n++ )); do
     slot="$_build_lock_dir/slot-$n"
     # Taken in a subshell of this script ($(…) runs test_simulator, say): it's ours.
     if [[ "$(_build_lock_pid "$slot")" == "$$" ]]; then _build_lock_held=$slot; return 0; fi
@@ -69,20 +121,27 @@ build_lock() {
   # A parent script already holds a slot for this run (it set the variable before starting us).
   if [[ -n "${CHATTERBOX_BUILD_LOCK_HELD:-}" ]] && kill -0 "$CHATTERBOX_BUILD_LOCK_HELD" 2>/dev/null; then return 0; fi
   command mkdir -p "$_build_lock_dir"
-  local waited=0 said=0
-  while ! _build_lock_try; do
-    if (( ! said )) || (( waited % 60 == 0 )); then
-      local n slot owners=''
-      for (( n = 1; n <= _build_lock_slots; n++ )); do
-        slot="$_build_lock_dir/slot-$n"
-        [[ -d "$slot" ]] && owners="$owners${owners:+; }pid $(_build_lock_pid "$slot"), worktree $(_build_lock_worktree "$slot")"
-      done
-      echo "waiting for another build ($owners)" >&2
-      said=1
+  local waited=0 said='' line slot owners
+  while :; do
+    _build_lock_pressure
+    if [[ "$_build_lock_level" == overloaded ]]; then
+      # Overloaded: no new build, slot or not, until it's less loaded.
+      line="waiting: the Mac is overloaded (${_build_lock_pressure_why:-see Chatterbox}); new builds wait until it's less loaded (CHATTERBOX_BUILD_IGNORE_PRESSURE=1 builds anyway)"
+    elif _build_lock_try; then
+      break
+    else
+      owners=''
+      while IFS= read -r slot; do
+        [[ -n "$slot" && -d "$slot" ]] || continue
+        owners="$owners${owners:+; }pid $(_build_lock_pid "$slot"), worktree $(_build_lock_worktree "$slot")"
+      done < <(command find "$_build_lock_dir" -maxdepth 1 -name 'slot-*' 2>/dev/null | sort)
+      line="waiting for another build ($owners)"
+      [[ "$_build_lock_level" == busy ]] && line="$line; the Mac is busy (${_build_lock_pressure_why:-see Chatterbox}), so builds go one at a time"
     fi
+    if [[ "$line" != "$said" ]] || (( waited % 60 == 0 )); then echo "$line" >&2; said=$line; fi
     sleep 2; waited=$(( waited + 2 ))
   done
-  (( said )) && echo "build slot free after ${waited}s" >&2
+  [[ -n "$said" ]] && echo "build slot free after ${waited}s" >&2
   export CHATTERBOX_BUILD_LOCK_HELD=$$
   return 0
 }
@@ -115,11 +174,14 @@ with_build_lock() {
   return $rc
 }
 
-# xcodebuild -jobs: half the cores (two at least), unless the caller chose.
+# xcodebuild -jobs: half the cores (two at least), a quarter while the Mac is under pressure,
+# unless the caller chose.
 _build_lock_jobs() {
   if [[ -n "${CHATTERBOX_BUILD_JOBS:-}" ]]; then printf '%s' "$CHATTERBOX_BUILD_JOBS"; return; fi
   local cores; cores=$(sysctl -n hw.ncpu 2>/dev/null || echo 8)
   local half=$(( cores / 2 )); (( half < 2 )) && half=2
+  _build_lock_pressure
+  if [[ "$_build_lock_level" != ok ]]; then half=$(( cores / 4 )); (( half < 2 )) && half=2; fi
   printf '%s' "$half"
 }
 

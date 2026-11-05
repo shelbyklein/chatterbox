@@ -288,6 +288,109 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
                  "Draft card passed too.", ""] {
         try check(!ChatSession.readsAsInterim(text), "a result: \(text.prefix(50))…")
     }
+    try await wait("the front thread settles after the stall") { !front.isRunning }
+
+    // Agents run below the app (the host starts them through nice) with build caps in their
+    // environment (half the cores at OK), and every shell they start inherits the priority.
+    let launches = (try? String(contentsOfFile: ProcessInfo.processInfo.environment["FAKE_PROVIDER_LAUNCHES"]!, encoding: .utf8)) ?? ""
+    let launch = launches.split(separator: "\n").compactMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }.last
+    let half = String(max(1, ProcessInfo.processInfo.activeProcessorCount / 2))
+    try check(launch?["nice"] as? Int == 10 && (launch?["childNice"] as? String) == "10", "an agent runs at nice 10, and so does a shell it starts: \(launch?["nice"] ?? "none"), \(launch?["childNice"] ?? "none")")
+    let caps = launch?["build"] as? [String: String]
+    try check(caps == ["CMAKE_BUILD_PARALLEL_LEVEL": half, "MAKEFLAGS": "-j\(half)", "CARGO_BUILD_JOBS": half], "its environment caps builds at half the cores: \(caps ?? [:])")
+
+    // Headless unless summoned: a work thread that has reported lets its agent go right away;
+    // the front thread keeps its own for the usual two minutes.
+    try check(work.releasesAgentWhenDone && art.releasesAgentWhenDone && !front.releasesAgentWhenDone, "reported work threads may let their agent go; the front thread may not")
+    runtime.releaseIdleAgents()
+    try check(work.claudeProcess == nil && suite.claudeProcess == nil && front.claudeProcess != nil,
+              "released at once after reporting (the front thread's agent is kept)")
+
+    // Pressure. A fake reader drives the service's monitor, with no sustain or calm windows.
+    var reading = MacPressure.Readings(memory: .normal, swapUsed: 1 << 30, load1: 4, load5: 4, load15: 4, cores: 16, thermal: .nominal)
+    var quick = MacPressure.Thresholds(); quick.busyLoadFor = 0; quick.overloadedLoadFor = 0; quick.stepDownAfter = 0
+    let monitor = PressureMonitor(runtime: runtime, reader: { reading }, interval: 3600, thresholds: quick)
+    monitor.actsForMac = { false }   // never the Mac's pressure.json or simulators
+    var told: [Companion.Pressure] = []
+    monitor.onChange = { told.append($0) }
+    monitor.start()
+    defer { monitor.stop(); MacPressure.current = .ok }
+    func level(_ load: Double) { reading.load1 = load; monitor.tick() }
+    level(30)
+    try check(MacPressure.current == .busy && monitor.snapshot?.level == "busy" && told.last?.level == "busy", "load 30 on 16 cores: Busy, and the app is told")
+
+    // Busy: a new work thread is made, with its task, but waits to start.
+    let briefCount = lines("claude-input.jsonl").count
+    let queued = runtime.session(try await start(ui, from: front, "Held build", brief: "Build the release while it's calm.").summary.id)!
+    try check(queued.record.pressureHold?.first == true && !queued.isRunning && !queued.items.contains { $0.kind == .user },
+              "Busy: the work thread is made but its brief isn't sent")
+    try check(queued.items.last?.kind == .notice && queued.items.last?.text.contains("Waiting to start: the Mac is busy") == true, "it says it's waiting, and why")
+    try check(desk.openTask(for: queued.id) != nil && desk.snapshot().working.contains { $0.id == queued.id }, "its task is on the Desk, Working")
+    let waitingList = try await agent.request("work", body: ["action": "list", "chatID": .string(front.id.uuidString)]).decode([Companion.WorkThread].self)
+    try check(waitingList.first { $0.id == queued.id }?.state == "working" && waitingList.first { $0.id == queued.id }?.status == "Waiting: Mac busy",
+              "the Work strip shows it Working: Waiting: Mac busy")
+    try check(monitor.snapshot?.waiting == 1 && monitor.snapshot?.holding.contains("1 work thread waiting") == true, "the reading counts it as held back")
+    try await Task.sleep(for: .milliseconds(300))
+    try check(lines("claude-input.jsonl").count == briefCount, "nothing reached its agent")
+
+    // Overloaded, then Busy again: still waiting (a first turn waits for OK), now saying overloaded.
+    level(60)
+    try check(MacPressure.current == .overloaded && queued.pressureWaitingText == "Waiting: Mac overloaded", "Overloaded: it says so")
+    level(30)
+    try check(MacPressure.current == .busy && queued.record.pressureHold != nil, "back to Busy: still waiting for OK")
+
+    // OK: it starts by itself and reports like any other.
+    level(4)
+    try check(MacPressure.current == .ok && queued.record.pressureHold == nil, "OK: the hold is let go")
+    try await wait("its brief reaches its agent") { lines("claude-input.jsonl").contains { $0.contains("Build the release while it's calm.") } }
+    try check(queued.items.contains { $0.kind == .notice && $0.text.contains("The Mac is calm again: starting.") }, "it says why it started")
+    try await wait("it reports") { !results(queued).isEmpty }
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // Start now: waiting at Busy, started anyway from the app.
+    level(30)
+    let pushed = runtime.session(try await start(ui, from: front, "Urgent fix", brief: "Fix it now.").summary.id)!
+    try check(pushed.record.pressureHold != nil, "Busy: another one waits")
+    try await refused("only the app starts one early", "permission_denied") {
+        try await agent.request("work", body: ["action": "startNow", "chatID": .string(pushed.id.uuidString)])
+    }
+    _ = try await ui.request("work", body: ["action": "startNow", "chatID": .string(pushed.id.uuidString)])
+    try check(pushed.record.pressureHold == nil && pushed.items.contains { $0.kind == .notice && $0.text.contains("Started now, as you asked") }, "Start now starts it")
+    try await wait("it reports") { !results(pushed).isEmpty }
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // Writing in a waiting work thread starts it (the brief first).
+    let typed = runtime.session(try await start(ui, from: front, "Docs pass", brief: "Tidy the docs.").summary.id)!
+    try check(typed.record.pressureHold != nil, "waiting")
+    typed.send("Go ahead, it's urgent.")
+    try check(typed.record.pressureHold == nil && typed.items.filter { $0.kind == .user }.map(\.text).first == "Tidy the docs.", "writing there starts it, the brief going first")
+    try await wait("it reports") { !results(typed).isEmpty }
+    try await wait("the front thread carries on") { !front.isRunning }
+
+    // Overloaded: a finished work thread's next turn (a sidequest's answer coming back) waits
+    // until the Mac is Busy or better, labelled as it would have been; the front thread is never held.
+    level(60)
+    try check(MacPressure.current == .overloaded, "Overloaded")
+    let answer = PressureHold.Message(text: "Codex's answer: the covers are in covers/.", automatic: true, detail: "Codex is back from its sidequest", sidequest: UUID())
+    queued.sendAutomatic(answer)
+    try check(queued.record.pressureHold?.until == "busy" && !queued.isRunning && queued.pressureWaitingText == "Waiting: Mac overloaded"
+              && queued.isWorkingOn, "Overloaded: its next turn waits, and it shows Waiting: Mac overloaded")
+    try check(front.pressureAllows(.ok), "a front thread is never held")
+    // …but not one Shelby is writing in.
+    typed.draft = "half a thought"
+    typed.sendAutomatic(.init(text: "Another answer: done.", automatic: true, detail: "Claude is back from its sidequest"))
+    try check(typed.record.pressureHold == nil && typed.items.last { $0.kind == .user }?.detail == "Claude is back from its sidequest",
+              "a thread you're writing in isn't held: the answer goes in, labelled")
+    typed.draft = ""
+    try await wait("that turn ends") { !typed.isRunning }
+    level(30)
+    try check(MacPressure.current == .busy && queued.record.pressureHold == nil, "Busy again: the held turn goes")
+    let delivered = queued.items.last { $0.kind == .user }
+    try check(delivered?.text == answer.text && delivered?.automatic == true && delivered?.detail == answer.detail && delivered?.sidequest == answer.sidequest,
+              "delivered as it would have been, labelled")
+    try check(queued.items.contains { $0.kind == .notice && $0.text.contains("The Mac is less loaded: carrying on.") }, "saying why")
+    level(4)
+    try check(told.contains { $0.level == "overloaded" } && monitor.snapshot?.level == "ok" && monitor.snapshot?.waiting == 0, "back to OK, nothing held")
     try await wait("everything settles") { runtime.sessions.allSatisfy { !$0.isRunning } }
     ui.stop(); agent.stop()
     for session in runtime.sessions { session.shutdown() }

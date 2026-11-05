@@ -7,10 +7,15 @@ thread) and report back to it (plans/work-threads.md).
                     message (it gets the brief, not this conversation), on this session's agent
                     and model unless you choose; its task goes on the Desk. Prints its id.
                     --brief - reads the brief from stdin.
-  work list         this session's work threads and their state (Working, Needs you, Ready, Done)
+  work list         this session's work threads and their state (Working, Needs you, Ready, Done),
+                    and how hard the Mac is working
   work report "TEXT"
                     from a work thread: send TEXT to its front thread now, as its result (the
                     reply that ends this turn isn't sent again)
+
+While the Mac is under pressure (Chatterbox's service watches its load, memory and swap), a new
+work thread is made at once but waits to start until the Mac is OK again, and while it's
+overloaded work threads don't start their next turn; `work start` and `work list` say so.
 
 A start waits up to 90 s for a busy service (CHATTERBOX_WORK_START_TIMEOUT); if it gets no answer,
 it looks for the thread in `work list` before saying it failed.
@@ -46,7 +51,7 @@ class Service:
         self.file = self.sock.makefile("rwb")
         self.request("hello", {"role": "agent"})
 
-    def request(self, operation, body, timeout=30):
+    def request(self, operation, body, timeout=30, quiet=False):
         rid = str(uuid.uuid4())
         self.sock.settimeout(timeout)
         self.file.write((json.dumps({"version": 1, "id": rid, "operation": operation, "body": body}) + "\n").encode())
@@ -60,6 +65,8 @@ class Service:
                 fail("the background service closed the connection.")
             reply = json.loads(line)
             if reply.get("id") == rid:
+                if reply.get("error") and quiet:
+                    return None
                 if reply.get("error"):
                     fail({"unsupported_operation": "this Chatterbox has no work threads yet; its background service needs a restart on the newer version.",
                           "chat_not_found": "that session isn't open in Chatterbox.",
@@ -87,6 +94,18 @@ def started_meanwhile(chat, title, before):
         if found or time.time() > deadline:
             return found[0] if found else None
         time.sleep(3)
+
+
+def pressure_line(service):
+    """"Mac busy: load 30 on 16 cores …", or None (OK, or an older service)."""
+    try:
+        p = service.request("pressure", {}, timeout=10, quiet=True)
+    except Busy:
+        return None
+    if not p or p.get("level") in (None, "ok"):
+        return None
+    label = {"busy": "Mac busy", "overloaded": "Mac overloaded"}.get(p["level"], p["level"])
+    return f"{label}: {p.get('summary', '')}".rstrip(": ")
 
 
 def folders(record):
@@ -177,12 +196,26 @@ def main():
             if not made:
                 fail(f"the background service didn't answer in {START_TIMEOUT:g} s, and no work thread “{title}” has appeared. Check `work list` before starting it again.")
             summary = {"id": made.get("id"), "title": made.get("title")}
-        print(f"Started work thread {summary.get('id')} “{summary.get('title', title)}”. Its result comes back to this session as a new message when it finishes.")
+        waiting = None
+        try:
+            listed = [t for t in service.request("work", {"action": "list", "chatID": chat}) or [] if t.get("id") == summary.get("id")]
+            status = (listed[0].get("status") or "") if listed else ""
+            waiting = status if status.startswith("Waiting: Mac") else None
+        except Busy:
+            pass
+        if waiting:
+            line = pressure_line(service)
+            print(f"Made work thread {summary.get('id')} “{summary.get('title', title)}”, queued: {line or waiting}. "
+                  "It starts by itself once the Mac is OK again (or Shelby taps Start now); its result comes back here as a new message when it finishes.")
+        else:
+            print(f"Started work thread {summary.get('id')} “{summary.get('title', title)}”. Its result comes back to this session as a new message when it finishes.")
     elif args.command == "list":
         try:
             threads = service.request("work", {"action": "list", "chatID": chat}) or []
         except Busy:
             fail("the background service is busy and didn't answer in time. Try again in a minute.")
+        line = pressure_line(service)
+        print(line if line else "Mac OK.")
         if not threads:
             print("No work threads.")
         for t in threads:

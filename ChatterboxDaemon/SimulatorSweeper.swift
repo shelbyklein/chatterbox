@@ -19,6 +19,9 @@ import Darwin
 
     private var sweep = SimulatorSweep()
     private var timer: Timer?
+    /// The Mac's pressure level (PressureMonitor): Busy looks every minute with a 5-minute idle
+    /// time; Overloaded shuts down unused devices at once.
+    private(set) var pressure: MacPressure.Level = .ok
     private var sweeping = false
     private let interval: TimeInterval
     private let dryRun = ProcessInfo.processInfo.environment["CHATTERBOX_SIMULATOR_SWEEP_DRY_RUN"] == "1"
@@ -29,11 +32,28 @@ import Darwin
 
     func start() {
         guard Self.isInstalledService else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
+        schedule(interval)
         // The first look a minute in, once the service has settled.
         DispatchQueue.main.asyncAfter(deadline: .now() + min(60, interval)) { [weak self] in self?.tick() }
+    }
+
+    private func schedule(_ every: TimeInterval) {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: every, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+    }
+
+    /// The Mac's pressure changed: under pressure it looks now, and every minute, with a
+    /// shorter idle time (SimulatorSweep.idleAfter(pressure:)); back to OK, every ten minutes
+    /// with half an hour.
+    func pressureChanged(_ level: MacPressure.Level) {
+        guard level != pressure else { return }
+        pressure = level
+        sweep.idleAfter = SimulatorSweep.idleAfter(pressure: level.rawValue)
+        guard Self.isInstalledService else { return }
+        schedule(level == .ok ? interval : min(60, interval))
+        if level != .ok { tick() }
     }
 
     /// The installed service, on its own data folder: a test's service (CHATTERBOX_DATA_DIR
@@ -70,7 +90,8 @@ import Darwin
 
     private func decide(booted: [SimulatorSweep.Device], arguments: [String], open: [String], registered: Set<String>) {
         let decisions = sweep.evaluate(booted: booted, processArguments: arguments, simulatorAppPaths: open, registered: registered, now: Date())
-        for decision in decisions where decision.action == .shutDown {
+        for var decision in decisions where decision.action == .shutDown {
+            if pressure != .ok { decision.reason += " (the Mac is \(pressure == .overloaded ? "overloaded" : "busy"))" }
             let device = decision.device
             if dryRun {
                 RuntimeHooks.note("Would shut down simulator \u{201C}\(device.name)\u{201D} (\(device.udid)): \(decision.reason) (dry run)")
