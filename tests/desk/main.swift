@@ -32,8 +32,11 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     server.model = model
     let desk = DeskStore.shared
     var sent: [(chat: UUID, text: String)] = []
+    // What each message went out on: switching a continued session comes first.
+    var sentOn: [String] = []
     desk.sendFirstMessage = { session, text in
         sent.append((session.id, text))
+        sentOn.append("\(session.record.backend.rawValue) \(session.record.backend == .codex ? session.record.codex?.model ?? "" : session.record.model) \(session.record.backend == .codex ? session.record.codex?.effort ?? "" : session.record.effort)")
         _ = session.appendItem(DisplayItem(kind: .user, text: text))
     }
     var announced: [Companion.Desk] = []
@@ -528,8 +531,44 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(desk.openTask(for: side.summary.id)?.id == followUp.id && desk.requests.contains { $0.id == highlights.id },
               "linked to that thread; the task it carried goes back to To do")
     sideSession.isRunning = false
+    try check(sentOn.last == "claude opus medium" && sideSession.record.model == "opus", "continuing without a model: on its own")
+
+    // Continue on another model: the step shows what the session would run on, untouched; Continue
+    // switches it (as Session Settings would) before the request is sent.
+    let exporting = try runtime.insert(record("Highlights export", items: [DisplayItem(kind: .user, text: "Export them"), DisplayItem(kind: .assistant, text: "Exported.", phase: .final)]))
+    func optionsQuery(_ query: [String: String]) throws -> Companion.ChatOptions {
+        try Companion.decoder.decode(Companion.ChatOptions.self, from: call("GET", "/v1/new-chat-options", query: query).body)
+    }
+    let own = try optionsQuery(["chat": exporting.id.uuidString])
+    try check(own.backend == "claude" && own.model == "opus" && own.effort == "medium", "options for a session: its own model (\(own.model) \(own.effort))")
+    let wouldRun = try optionsQuery(["chat": exporting.id.uuidString, "model": "sonnet", "effort": "high"])
+    try check(wouldRun.model == "sonnet" && wouldRun.effort == "high" && exporting.record.model == "opus" && exporting.record.effort == "medium" && exporting.items.count == 2,
+              "with picks: what it would run on; the session isn't changed")
+    let wouldSwitch = try optionsQuery(["chat": exporting.id.uuidString, "backend": "codex", "model": "gpt-6.1-sol"])
+    try check(wouldSwitch.backend == "codex" && wouldSwitch.model == "gpt-6.1-sol" && exporting.record.backend == .claude && exporting.record.pendingHandoff == nil,
+              "another agent's model: as switched, the session still on its own")
+    try check(call("GET", "/v1/new-chat-options", query: ["chat": UUID().uuidString]).status == 404, "options for a session that's gone: 404")
+    try check(try desk.options(for: DeskStore.loose, picks: .init(effort: "low"), chat: exporting.id).effort == "low", "the Desk's options for a session take the picks")
+    let exportTask = try deskOf(add("Tighten the highlights export", place: "loose")).incoming[0]
+    exporting.isRunning = true
+    let busyAgent = call("POST", "/v1/desk/\(exportTask.id)/start", try encode(Companion.DeskStartRequest(agent: "codex", model: "gpt-6.1-sol", continueChat: exporting.id)))
+    try check(busyAgent.status == 409 && exporting.record.backend == .claude && desk.requests.contains { $0.id == exportTask.id } && sent.last?.chat != exporting.id,
+              "working: another agent waits (409), nothing changes or is sent")
+    let switched = call("POST", "/v1/desk/\(exportTask.id)/start", try encode(Companion.DeskStartRequest(agent: "claude", model: "sonnet", effort: "high", continueChat: exporting.id)))
+    try check(switched.status == 200 && exporting.record.model == "sonnet" && exporting.record.effort == "high" && sent.last?.chat == exporting.id && sentOn.last == "claude sonnet high",
+              "continue with a model: the session switches to it before the request is sent (\(sentOn.last ?? ""))")
+    try check(desk.openTask(for: exporting.id)?.id == exportTask.id && runtime.sessions.count == before + 1, "linked to it; nothing new starts")
+    exporting.isRunning = false
+    try desk.unlink(exportTask.id); try desk.ignore(exportTask.id)
+    let idle = try runtime.insert(record("Highlights import", items: [DisplayItem(kind: .user, text: "Import them"), DisplayItem(kind: .assistant, text: "Imported.", phase: .final)]))
+    let importTask = try deskOf(add("Speed up the highlights import", place: "loose")).incoming[0]
+    let toCodex = call("POST", "/v1/desk/\(importTask.id)/start", try encode(Companion.DeskStartRequest(agent: "codex", model: "gpt-6.1-sol", continueChat: idle.id)))
+    try check(toCodex.status == 200 && idle.record.backend == .codex && idle.record.codex?.model == "gpt-6.1-sol" && sentOn.last == "codex gpt-6.1-sol "
+              && idle.record.pendingHandoff != nil, "between replies, another agent: switched (caught up), then sent (\(sentOn.last ?? ""))")
+    try desk.unlink(importTask.id); try desk.ignore(importTask.id)
+    let sessionCount = runtime.sessions.count
     try check(call("POST", "/v1/desk/\(close.id)/start", try encode(Companion.DeskStartRequest(continueChat: UUID()))).status == 404
-              && desk.requests.contains { $0.id == close.id } && runtime.sessions.count == before, "continuing a session that's gone: refused, and kept")
+              && desk.requests.contains { $0.id == close.id } && runtime.sessions.count == sessionCount, "continuing a session that's gone: refused, and kept")
     // The model chosen: applied before the first message.
     let picked = call("POST", "/v1/desk/\(close.id)/start", try encode(Companion.DeskStartRequest(place: DeskStore.loose, agent: "claude", model: "sonnet", effort: "high")))
     let pickedChat = runtime.session(try Companion.decoder.decode(Companion.ChatDetail.self, from: picked.body).summary.id)
@@ -579,6 +618,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               "socket threads, in the place given (an agent may look)")
     let socketOptions = try await ui.request("desk", body: ["action": "options", "place": try .value(DeskStore.loose), "picks": ["backend": "codex"]]).decode(Companion.ChatOptions.self)
     try check(socketOptions.backend == "codex", "socket options: a new session's, with the picks")
+    let socketChatOptions = try await ui.request("desk", body: ["action": "options", "place": try .value(DeskStore.loose), "chat": .string(dogear.id.uuidString),
+                                                                "picks": ["effort": "high"]]).decode(Companion.ChatOptions.self)
+    try check(socketChatOptions.model == dogear.record.model && socketChatOptions.effort == "high" && dogear.record.effort == "medium",
+              "socket options with chat: as that session would run, untouched")
     let fromAgent = try await agent.request("desk", body: ["action": "add", "text": "Tidy the PlayCase Arcade level list for TestFlight", "source": "you"]).decode(Companion.Desk.self)
     try check(fromAgent.incoming[0].source == "claude" && fromAgent.incoming[0].proposed?.id == playcase.id, "an agent's add is from Claude, never from you")
     try await wait("desk.changed after the add") { changes.contains { $0.incoming.first?.id == fromAgent.incoming[0].id } }

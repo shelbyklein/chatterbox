@@ -819,9 +819,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(calls.last?["decision"] as? String, "approvedForSession", "the decision goes along")
   XCTAssertEqual(calls.last?["item"] as? String, deskID("approval").lowercased())
  }
- /// Start There: its step shows the place, the sessions already there doing the same work (a
- /// clear match chosen) and New session. Continue sends the request to that session; the Desk
- /// stays, with a note to open it.
+ /// Start There: its step shows the place, the model, the sessions already there doing the same
+ /// work (a clear match chosen) and New session. The model follows the session chosen. Continue
+ /// sends the request to that session; the Desk stays, with a note to open it.
  @MainActor func testDeskStartThere() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
@@ -830,15 +830,40 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
   XCTAssertTrue(app.navigationBars["Start"].waitForExistence(timeout:5), "Start There opens its step, not a session")
   let archie=app.buttons["desk-thread-"+deskID("Coach Archie")], other=app.buttons["desk-thread-963CA311-2496-5A83-9807-3AE28F7E5FB5"], fresh=app.buttons["desk-thread-new"]
-  XCTAssertTrue(archie.waitForExistence(timeout:8) && other.exists && fresh.exists, "Continue in each session like it, and New session")
-  XCTAssertTrue(app.staticTexts["Continue in Coach Archie"].exists && app.staticTexts["USA Archery"].exists, "named, in the place shown")
+  XCTAssertTrue(archie.waitForExistence(timeout:8), "Continue in the session like it")
+  // The model first, under the place: the chosen session's own.
+  let modelRow=app.buttons["model-current"]
+  XCTAssertTrue(modelRow.waitForExistence(timeout:5), "the model shows when continuing too")
+  XCTAssertLessThan(modelRow.frame.maxY, archie.frame.minY, "under the place, above the sessions")
+  let own=expectation(for:NSPredicate(format:"label == %@","Model: Opus 5.5, Best for everyday, complex tasks"),evaluatedWith:modelRow)
+  await fulfillment(of:[own],timeout:5)
+  XCTAssertTrue(app.buttons["desk-start-effort"].exists, "and its effort, in one row")
+  let asked=try await newChatQueries().last
+  XCTAssertEqual(asked?["chat"]?.lowercased(), deskID("Coach Archie").lowercased(), "asked for as that session runs")
+  capture("phone-start-sheet", app)
+  // The sessions below it (the last may sit under the fold).
+  reveal(fresh, app)
+  XCTAssertTrue(other.exists && fresh.exists, "Continue in each session like it, and New session")
+  XCTAssertTrue(app.staticTexts["Continue in Coach Archie"].exists, "named")
   XCTAssertLessThan(archie.frame.maxY, fresh.frame.minY, "Continue in first")
   XCTAssertTrue(archie.isSelected && !fresh.isSelected, "the clear match is chosen")
-  XCTAssertFalse(app.buttons["model-current"].exists, "continuing keeps that session's model")
+  let continueNote=app.staticTexts["desk-start-continue-note"]
+  reveal(continueNote, app)
+  XCTAssertTrue(continueNote.waitForExistence(timeout:5) && continueNote.label.contains("on its own model (Opus 5.5 · High)"), continueNote.label)
+  // Choosing another session: the model follows it.
+  other.tap()
+  try await Task.sleep(for:.milliseconds(800))
+  let followed=try await newChatQueries().last
+  XCTAssertEqual(followed?["chat"]?.lowercased(), "963CA311-2496-5A83-9807-3AE28F7E5FB5".lowercased(), "the model follows the session chosen")
+  XCTAssertTrue(continueNote.label.contains("GPT-6.1-Sol"), continueNote.label)
+  archie.tap()
+  let back=expectation(for:NSPredicate(format:"label CONTAINS %@","on its own model (Opus 5.5 · High)"),evaluatedWith:continueNote)
+  await fulfillment(of:[back],timeout:5)
+  revealUp(modelRow, app)
+  XCTAssertTrue(app.staticTexts["USA Archery"].exists && modelRow.label == "Model: Opus 5.5, Best for everyday, complex tasks", "in the place shown, back on its own model")
   XCTAssertEqual(app.buttons["desk-start-confirm"].label, "Continue")
   let threads=try await deskCalls().last { ($0["action"] as? String)=="threads" }
   XCTAssertEqual(threads?["id"] as? String, deskID("banner").lowercased()); XCTAssertEqual((threads?["place"] as? String)?.lowercased(), uuid("studio").lowercased(), "asked in the place shown")
-  capture("phone-start-sheet", app)
   app.buttons["desk-start-confirm"].tap()
   let note=startedNote(app)
   XCTAssertTrue(note.waitForExistence(timeout:8), "the Desk notes it")
@@ -857,6 +882,49 @@ final class HomeNavTests: XCTestCase {
   note.coordinate(withNormalizedOffset:CGVector(dx:0.93,dy:0.5)).tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Coach Archie."].waitForExistence(timeout:10), "Open opens it")
  }
+ /// Continuing on another model: picked in the step, it stays when the choice changes, the
+ /// footer says the session switches, and Continue sends the model with the session.
+ @MainActor func testDeskContinuePicksModel() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
+  let start=app.buttons["desk-start-"+deskID("banner")]
+  XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
+  let archie=app.buttons["desk-thread-"+deskID("Coach Archie")], fresh=app.buttons["desk-thread-new"]
+  XCTAssertTrue(archie.waitForExistence(timeout:8) && archie.isSelected, "continuing the clear match")
+  let modelRow=app.buttons["model-current"]
+  let own=expectation(for:NSPredicate(format:"label == %@","Model: Opus 5.5, Best for everyday, complex tasks"),evaluatedWith:modelRow)
+  await fulfillment(of:[own],timeout:5)
+  modelRow.tap()
+  XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5), "the menu lists the models")
+  modelItem("Sonnet 5",app).tap()
+  let picked=expectation(for:NSPredicate(format:"label == %@","Model: Sonnet 5, Efficient for routine tasks"),evaluatedWith:modelRow)
+  await fulfillment(of:[picked],timeout:5)
+  let query=try await newChatQueries().last
+  XCTAssertEqual(query?["chat"]?.lowercased(), deskID("Coach Archie").lowercased()); XCTAssertEqual(query?["model"], "sonnet", "as that session would run on it")
+  try await Task.sleep(for:.milliseconds(500))
+  capture("phone-start-model", app)
+  let continueNote=app.staticTexts["desk-start-continue-note"]
+  reveal(continueNote, app)
+  let switching=expectation(for:NSPredicate(format:"label CONTAINS %@","switching it to Sonnet 5 · High"),evaluatedWith:continueNote)
+  await fulfillment(of:[switching],timeout:5)
+  capture("phone-start-model-footer", app)
+  reveal(fresh, app); fresh.tap()
+  XCTAssertTrue(fresh.isSelected, "New session chosen")
+  try await Task.sleep(for:.milliseconds(800))
+  revealUp(modelRow, app)
+  XCTAssertEqual(modelRow.label, "Model: Sonnet 5, Efficient for routine tasks", "a model picked by hand stays when the choice changes")
+  reveal(archie, app); archie.tap()
+  reveal(continueNote, app)
+  XCTAssertTrue(continueNote.waitForExistence(timeout:5) && continueNote.label.contains("switching it to Sonnet 5"), continueNote.label)
+  app.buttons["desk-start-confirm"].tap()
+  let note=startedNote(app)
+  XCTAssertTrue(note.waitForExistence(timeout:8) && note.label.contains("Continued in Coach Archie"), note.label)
+  let body=(try await deskCalls().last)?["body"] as? [String:Any]
+  XCTAssertEqual((body?["continueChat"] as? String)?.lowercased(), deskID("Coach Archie").lowercased(), "Continue sends the session")
+  XCTAssertEqual(body?["agent"] as? String, "claude"); XCTAssertEqual(body?["model"] as? String, "sonnet", "and the model picked")
+  XCTAssertEqual(body?["effort"] as? String, "high", "at the effort shown")
+ }
  /// A new session instead: its model, as compact as Session Settings' (one row, a menu);
  /// Start sends the agent and model picked, and runs it in the background.
  @MainActor func testDeskStartPicksModel() async throws {
@@ -866,10 +934,12 @@ final class HomeNavTests: XCTestCase {
   let start=app.buttons["desk-start-"+deskID("banner")]
   XCTAssertTrue(start.waitForExistence(timeout:5)); reveal(start, app); start.tap()
   let fresh=app.buttons["desk-thread-new"]
-  XCTAssertTrue(fresh.waitForExistence(timeout:8)); fresh.tap()
+  XCTAssertTrue(app.buttons["desk-thread-"+deskID("Coach Archie")].waitForExistence(timeout:8))
+  // New session sits under the model and the sessions like it: below the fold on a phone.
+  reveal(fresh, app)
+  XCTAssertTrue(fresh.exists); fresh.tap()
   let modelRow=app.buttons["model-current"]
-  // A form sheet on an iPad: the row can sit below its fold.
-  for _ in 0..<2 where !modelRow.waitForExistence(timeout:4) { app.swipeUp() }
+  revealUp(modelRow, app)
   XCTAssertTrue(modelRow.waitForExistence(timeout:5), "New session: its model")
   XCTAssertEqual(modelRow.label, "Model: Opus 5.5, Best for everyday, complex tasks", "as a new session there would start")
   XCTAssertEqual(app.buttons["desk-start-confirm"].label, "Start")
@@ -1382,6 +1452,8 @@ final class HomeNavTests: XCTestCase {
    "Galley":"B5BBD354-BAAF-5AB3-B7FE-3ACD63B384E2","Coach Archie":"F982B462-68F5-509B-8E10-9946C3F0A1B1"][name]!
  }
  func deskCalls() async throws -> [[String:Any]] { try await fixture("desk-calls",method:"GET") as? [[String:Any]] ?? [] }
+ /// Each new-chat-options query the app made, oldest first.
+ func newChatQueries() async throws -> [[String:String]] { try await fixture("new-chat-options",method:"GET") as? [[String:String]] ?? [] }
  /// A model in the model row's menu (its label may carry the detail line after the name).
  @MainActor func modelItem(_ name:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching:.any).matching(NSPredicate(format:"(elementType == %d OR elementType == %d OR elementType == %d) AND (label == %@ OR label BEGINSWITH %@)",

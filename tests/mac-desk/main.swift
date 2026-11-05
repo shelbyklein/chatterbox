@@ -171,9 +171,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     let sameWork = Companion.DeskThread(id: plan.id, title: "Mac Desk page", detail: "Add the Desk as Home's first page", settings: "Claude · Opus 5.5 · High",
                                         updatedAt: now.addingTimeInterval(-300), isRunning: true, match: "clear")
     let similar = Companion.DeskThread(id: sdhq.id, title: "Menu refresh", settings: "Codex · GPT-6.1-Sol", updatedAt: now.addingTimeInterval(-900), isRunning: false, match: "possible")
-    func options(_ picks: Companion.SettingsRequest) -> Companion.ChatOptions {
-        let codex = picks.backend == "codex"
-        return .init(backend: codex ? "codex" : "claude", model: picks.model ?? (codex ? "" : "opus"), effort: picks.effort ?? "medium",
+    // `chat`: as that session would run with the picks (its own model: the same work's Opus at High,
+    // the similar one's GPT-6.1-Sol); else a new session's.
+    func options(_ picks: Companion.SettingsRequest, chat: UUID? = nil) -> Companion.ChatOptions {
+        let own = chat == sameWork.id ? ("claude", "opus", "high") : chat == similar.id ? ("codex", "gpt-6.1-sol", "medium") : ("claude", "opus", "medium")
+        let backend = picks.backend ?? own.0
+        let codex = backend == "codex"
+        return .init(backend: backend, model: picks.model ?? (backend == own.0 ? own.1 : codex ? "" : "opus"), effort: picks.effort ?? (backend == own.0 ? own.2 : "medium"),
                      claudeModels: [.init(id: "opus", name: "Opus 5.5", detail: "Best for everyday, complex tasks", efforts: ["low", "medium", "high"], defaultEffort: "medium"),
                                     .init(id: "sonnet", name: "Sonnet 5", detail: "Fast", efforts: ["low", "medium", "high"], defaultEffort: "medium")],
                      codexModels: [.init(id: "", name: "Codex default", detail: "", efforts: [], defaultEffort: nil),
@@ -259,7 +263,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
             }
             return try JSON.value(id == badge.id ? [sameWork, similar] : [Companion.DeskThread]())
         case "options":
-            return try JSON.value(options((try? body["picks"]?.decode(Companion.SettingsRequest.self)) ?? .init()))
+            return try JSON.value(options((try? body["picks"]?.decode(Companion.SettingsRequest.self)) ?? .init(), chat: body["chat"]?.string.flatMap(UUID.init(uuidString:))))
         default: throw RuntimeFailure("unsupported_operation")
         }
     }
@@ -536,10 +540,18 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(asked?["id"]?.string == badge.id.uuidString && (try? asked?["place"]?.decode(Companion.DeskPlace.self)) == geekify, "the step asks for threads in the place chosen")
     check((try? sent.last { $0["action"]?.string == "options" }?["place"]?.decode(Companion.DeskPlace.self)) == geekify, "and a new session's options there")
     check(frame("thread:\(sameWork.id)") != nil && frame("thread:\(similar.id)") != nil && frame("thread:new") != nil, "Continue in each session like the work, and New session")
-    check(step.continuing == sameWork.id && frame("startModel") == nil, "a clear match is chosen; continuing needs no model")
+    check(step.continuing == sameWork.id && frame("startProvider") != nil && frame("startModel") != nil && frame("startEffort") != nil
+          && step.options?.model == "opus" && step.options?.effort == "high", "a clear match is chosen; the model row shows its own model and effort")
+    check(sent.last { $0["action"]?.string == "options" }?["chat"]?.string == sameWork.id.uuidString, "asked for as that session runs")
+    if let m = frame("startModel"), let t = frame("thread:\(sameWork.id)") { check(m.maxY <= t.minY, "the model sits under the place, above the sessions") }
+    check(step.continueNote == "It goes to that session as its next message, on its own model (Opus 5.5 \u{00B7} High)." && frame("startContinueNote") != nil,
+          "the footer says it goes on its own model (\(step.continueNote ?? "none"))")
     if let a = frame("thread:\(sameWork.id)"), let b = frame("thread:new") { check(a.maxY <= b.minY, "Continue in comes before New session") }
+    try await click("thread:\(similar.id)")
+    check(step.continuing == similar.id && step.options?.backend == "codex" && step.options?.model == "gpt-6.1-sol", "the model follows the session chosen")
     try await click("thread:new")
-    check(step.continuing == nil && frame("startProvider") != nil && frame("startModel") != nil, "New session: the agent and its model")
+    check(step.continuing == nil && frame("startProvider") != nil && frame("startModel") != nil && step.options?.model == "opus" && step.options?.effort == "medium"
+          && step.continueNote == nil, "New session: a new session's model there")
     try snapshot("desk-start-new")
     try await click("thread:\(sameWork.id)")
     try await click("startConfirm")
@@ -552,6 +564,30 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(desk.startedNote?.chat == sameWork.id && desk.startedNote?.continued == true && desk.startedNote?.name == "Mac Desk page" && model.selectedID == selectedBefore,
           "it runs in the background: a note says where, and nothing opens")
     check(!desk.sections(in: model).incoming.contains { $0.id == badge.id }, "a started request leaves the Desk")
+    // Continue on another model: picked here, it stays when the choice changes, and goes with start.
+    service.incoming.insert(badge, at: 1); desk.load(service)
+    let switchStep = DeskStartStep(request: badge, desk: desk)
+    try await render(AnyView(DeskStartPopover(step: switchStep) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 470, "desk-start-continue-model")
+    check(switchStep.continuing == sameWork.id && switchStep.options?.model == "opus", "continuing: its own model first")
+    await switchStep.pick(switchStep.change(picking: "gpt-6.1-sol", of: "codex"))
+    check(switchStep.blocked && switchStep.continueNote?.contains("working now") == true, "another agent for a session that's working: waits, Continue off")
+    await switchStep.pick(switchStep.change(picking: "sonnet", of: "claude"))
+    check(sent.last { $0["action"]?.string == "options" }?["chat"]?.string == sameWork.id.uuidString && switchStep.options?.model == "sonnet"
+          && !switchStep.blocked && switchStep.switching, "picking a model while continuing: as that session would run on it")
+    try await Task.sleep(for: .milliseconds(300))
+    check(switchStep.continueNote == "It goes to that session as its next message, switching it to Sonnet 5 \u{00B7} High.",
+          "the footer says it switches (\(switchStep.continueNote ?? "none"))")
+    try snapshot("desk-start-continue-model")
+    try await click("thread:new")
+    check(switchStep.continuing == nil && switchStep.options?.model == "sonnet", "a model picked by hand stays when the choice changes")
+    try await click("thread:\(sameWork.id)")
+    let startsBefore = sent.filter { $0["action"]?.string == "start" }.count
+    try await click("startConfirm")
+    for _ in 0..<20 where sent.filter({ $0["action"]?.string == "start" }).count == startsBefore { try await Task.sleep(for: .milliseconds(100)) }
+    let switchStart = sent.last { $0["action"]?.string == "start" }
+    check(switchStart?["continueChat"]?.string == sameWork.id.uuidString && switchStart?["agent"]?.string == "claude" && switchStart?["model"]?.string == "sonnet"
+          && switchStart?["effort"]?.string == "high", "Continue sends the session and the model picked (\(String(describing: switchStart)))")
+    try await Task.sleep(for: .milliseconds(300))
     try await render(AnyView(DeskView().background(Color(nsColor: .windowBackgroundColor))), 1080, 700, "desk-started-note")
     check(frame("startedNote") != nil, "the Desk shows the note, with Open")
     // A new session with the model picked: agent and model go with start.

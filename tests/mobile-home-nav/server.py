@@ -86,7 +86,7 @@ def work_summary(key):
 # clear match, working; No image, possible). Other places and requests have none.
 def desk_threads(id,place):
  if id.lower()!=cid('desk-banner') or (place or '').lower()!=cid('studio'):return []
- return [{'id':cid('Coach Archie'),'title':'Coach Archie','detail':'Full USA flags on both sleeves.','settings':'Claude · Opus 5.5 · Medium','updatedAt':stamp(30),'isRunning':'Coach Archie' in RUNNING,'match':'clear'},
+ return [{'id':cid('Coach Archie'),'title':'Coach Archie','detail':'Full USA flags on both sleeves.','settings':'Claude · Opus 5.5 · High','updatedAt':stamp(30),'isRunning':'Coach Archie' in RUNNING,'match':'clear'},
   {'id':cid('No image'),'title':'No image','detail':'Text-only session.','settings':'Codex · GPT-6.1-Sol','updatedAt':stamp(600),'isRunning':False,'match':'possible'}]
 # Link a thread's list (all=1): every thread in USA Archery; Coach Archie already carries a task.
 def desk_all_threads(id,place):
@@ -462,7 +462,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
    q=dict(urllib.parse.parse_qsl(urllib.parse.urlparse(self.path).query))
    NEWCHAT.append(q)
    o=detail(cid('SDHQ'))['options']
-   if q.get('backend')=='codex':o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'Can look at files but not change them','systemImage':'eye','isUnrestricted':False},{'id':'ask','title':'Ask for approval','detail':'Always ask to edit external files and use the internet','systemImage':'hand.raised','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted access to the internet and any file on your computer','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   # chat=<id>: as that session would run with the picks. Coach Archie runs Opus at High; No image, Codex's GPT-6.1-Sol.
+   chat=(q.get('chat') or '').lower()
+   if chat==cid('Coach Archie'):o['effort']='high'
+   own=chat==cid('No image') and not q.get('backend')
+   if q.get('backend')=='codex' or own:o.update({'backend':'codex','model':'','mode':'fullAccess','modes':[{'id':'readOnly','title':'Read only','detail':'Can look at files but not change them','systemImage':'eye','isUnrestricted':False},{'id':'ask','title':'Ask for approval','detail':'Always ask to edit external files and use the internet','systemImage':'hand.raised','isUnrestricted':False},{'id':'fullAccess','title':'Full access','detail':'Unrestricted access to the internet and any file on your computer','systemImage':'exclamationmark.shield','isUnrestricted':True}],'codexModels':[{'id':'','name':'Codex default','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}]})
+   if own:o['model']='gpt-6.1-sol'
    if q.get('model'):o['model']=q['model']
    if q.get('effort'):o['effort']=q['effort']
    if q.get('openModel'):o['openModel']=q['openModel']
