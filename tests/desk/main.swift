@@ -645,6 +645,17 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!afterIgnore.incoming.contains { $0.id == retried.id }, "socket ignore")
     do { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]); try check(false, "ignoring a gone request fails") }
     catch { try check(error.localizedDescription == "That request is gone.", "ignoring a gone request says so") }
+    // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
+    let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
+    let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!
+    do { _ = try await agent.request("desk", body: ["action": "markDone", "id": .string(doneTask.id.uuidString)]); try check(false, "an agent can't mark a task done") }
+    catch { try check(error.localizedDescription.contains("permission_denied"), "an agent can't mark a task done") }
+    let afterDone = try await ui.request("desk", body: ["action": "markDone", "id": .string(doneTask.id.uuidString)]).decode(Companion.Desk.self)
+    try check(!afterDone.incoming.contains { $0.id == doneTask.id } && afterDone.done?.contains { $0.id == doneTask.id && $0.task == doneTask.id && $0.title == "Call the venue about parking" } == true,
+              "mark done: off To do, into Done without a thread")
+    let backToDo = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(doneTask.id.uuidString)]).decode(Companion.Desk.self)
+    try check(backToDo.incoming.contains { $0.id == doneTask.id } && backToDo.done?.contains { $0.id == doneTask.id } != true, "reopen: back to To do")
+    _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(doneTask.id.uuidString)])
     // Tasks over the socket: the app may make, link and unlink them; an agent may not.
     let taskBody: JSON = ["action": "makeTask", "chatID": .string(wrapUpLater.id.uuidString), "text": "Wrap the camp email"]
     for body in [taskBody, ["action": "link", "id": .string(socketTodo.id.uuidString), "chatID": .string(wrapUpLater.id.uuidString)] as JSON,
