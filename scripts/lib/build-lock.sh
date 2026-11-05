@@ -197,6 +197,22 @@ _build_lock_run() {
   return $rc
 }
 
+# One build at a time into a given DerivedData folder: two runs from the same checkout (say two
+# phone suites side by side) would otherwise both open its build database ("unable to attach
+# DB"). A lock directory beside the folder, holding the owner's pid; a dead owner's is reclaimed.
+_build_lock_dd_take() {
+  local lock="$1.building" waited=0 owner
+  command mkdir -p "$(dirname "$1")"
+  until command mkdir "$lock" 2>/dev/null; do
+    owner=$(command cat "$lock/pid" 2>/dev/null || true)
+    if [[ -n "$owner" ]] && ! kill -0 "$owner" 2>/dev/null; then command rm -rf "$lock"; continue; fi
+    (( waited % 60 == 0 )) && echo "waiting for another build into $(basename "$1") (pid ${owner:-?})" >&2
+    sleep 2; waited=$(( waited + 2 ))
+  done
+  echo "${BASHPID:-$$}" > "$lock/pid"
+}
+_build_lock_dd_release() { [[ "$(command cat "$1.building/pid" 2>/dev/null)" == "${BASHPID:-$$}" ]] && command rm -rf "$1.building"; return 0; }
+
 # xcodebuild -jobs, once this build has its slot: the builds running share the cores,
 # max(4, cores / builds running, this one included); a quarter of the cores (4 at least) while the
 # Mac is under pressure; unless the caller chose.
@@ -244,16 +260,31 @@ xcodebuild() {
   if (( jobs )); then
     while IFS= read -r line; do [[ -n "$line" ]] && cache+=("$line"); done < <(_build_lock_cache_args "$@")
   fi
-  if (( jobs && ! explicit )); then
+  local dd='' prev=''
+  for arg in "$@"; do [[ "$prev" == -derivedDataPath ]] && dd=$arg; prev=$arg; done
+  if (( jobs )) && [[ -n "$dd" ]]; then
+    local rc=0
+    _build_lock_dd_take "$dd"
+    _build_lock_xcodebuild "$(( jobs && ! explicit ))" "$@" ${cache[@]+"${cache[@]}"} || rc=$?
+    _build_lock_dd_release "$dd"
+    return $rc
+  fi
+  _build_lock_xcodebuild "$(( jobs && ! explicit ))" "$@" ${cache[@]+"${cache[@]}"}
+}
+
+# The build itself, under a slot; `addjobs` 1 sets -jobs to the share of the cores.
+_build_lock_xcodebuild() {
+  local addjobs=$1; shift
+  if (( addjobs )); then
     # The slot first, so -jobs can count the builds running beside it.
     local had=$_build_lock_held rc=0 n
     build_lock
     n=$(_build_lock_jobs)
-    with_build_lock command xcodebuild -jobs "$n" "$@" ${cache[@]+"${cache[@]}"} || rc=$?
+    with_build_lock command xcodebuild -jobs "$n" "$@" || rc=$?
     [[ -z "$had" ]] && build_unlock
     return $rc
   else
-    with_build_lock command xcodebuild "$@" ${cache[@]+"${cache[@]}"}
+    with_build_lock command xcodebuild "$@"
   fi
 }
 

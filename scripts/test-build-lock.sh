@@ -236,4 +236,12 @@ echo "== zsh runs it too (install.sh)"
 z=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_SLOTS=1 zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build; ls '$fixture/lock'")
 [[ "$z" == "-jobs $(share 1) build" ]] || fail "zsh got: $z"
 pass "zsh: the wrapper and the lock work, slot given back"
+echo "== two builds into one DerivedData folder take turns (two phone suites from one checkout)"
+printf '#!/bin/bash\necho "start $$" >> "%s"; sleep 1; echo "end $$" >> "%s"\n' "$fixture/dd.log" "$fixture/dd.log" > "$fixture/bin/xcodebuild"; chmod +x "$fixture/bin/xcodebuild"
+: > "$fixture/dd.log"
+for _ in 1 2; do PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_SLOTS=3 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -derivedDataPath '$fixture/dd' build" 2>/dev/null & done; wait
+order=$(cut -d' ' -f1 "$fixture/dd.log" | tr '\n' ' ')
+[[ "$order" == "start end start end " ]] || fail "builds into one DerivedData overlapped: $order"
+[[ ! -e "$fixture/dd.building" ]] || fail "the DerivedData lock was left behind"
+pass "same DerivedData: one after the other, lock removed"
 echo "All build lock checks passed."
