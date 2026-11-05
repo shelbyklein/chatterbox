@@ -105,13 +105,10 @@ func run() async throws {
     toolsBridge.attach(a, owner: UUID(), issuesPanel: toolsPanel, showImages: {}, toggleTerminal: {}, chooseProject: {})
     let toolsWindow = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 560, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
     toolsWindow.appearance = NSAppearance(named: .darkAqua)
-    // The session's controls, each its own icon down the side.
-    toolsWindow.contentView = NSHostingView(rootView: VStack(alignment: .trailing, spacing: 8) {
-        ToneMenu(session: a, iconOnly: true)
-        PlaceSlot(bridge: toolsBridge, iconOnly: true)
-        RepoButton(bridge: toolsBridge)
-        ToolsButton(session: a)
-    }.padding(20).frame(maxWidth: .infinity, alignment: .trailing).environment(model).environment(\.colorScheme, .dark))
+    // The session's controls, in the thread sidebar now (they were a column of icons).
+    toolsWindow.setContentSize(NSSize(width: 320, height: 800))
+    toolsWindow.contentView = NSHostingView(rootView: ThreadSidebar(session: a, bridge: toolsBridge, modelSummary: "Opus 5.5 \u{00B7} Medium")
+        .environment(model).environment(\.colorScheme, .dark))
     toolsWindow.orderFrontRegardless()
     try await Task.sleep(for: .milliseconds(400))
     save(toolsWindow, "13-session-tools-panel", out)
@@ -119,9 +116,9 @@ func run() async throws {
     window.makeKeyAndOrderFront(nil)
     app.activate(ignoringOtherApps: true)
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(order.prefix(2) == ["title", "views"] && order.suffix(7) == ["usage", "terminal", "finished", "feedback", "NSToolbarSpaceItem", "settings", "newChat"]
+    check(order.prefix(2) == ["title", "views"] && order.suffix(8) == ["usage", "terminal", "finished", "feedback", "NSToolbarSpaceItem", "settings", "newChat", "threadSidebar"]
             && order.contains("newChat") && !order.contains("images") && !order.contains("remote"),
-          "order: title, views; usage, terminal and Feedback; Settings then New Chat (\(order))")
+          "order: title, views; usage, terminal and Feedback; Settings, New Chat, then About this Thread (\(order))")
     save(window, "1-\(a.projectName)", out)
     let baseline = Attention.shared.viewCounts(in: model)
     func fixture(_ title: String, project: Bool = false, studio: Bool = false, pending: Bool = false) -> ChatSession {

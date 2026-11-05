@@ -16,9 +16,9 @@ final class ConversationTests: XCTestCase {
   XCTAssertTrue(app.buttons["Copy"].exists)
   XCTAssertTrue(app.buttons["Send"].exists)
   do {
-   app.buttons["Session Menu"].tap()
-   let cog = app.buttons["Session Settings"]
-   XCTAssertTrue(cog.exists); cog.tap()
+   app.buttons["chat-title"].tap()
+   let cog = app.buttons["about-settings"]
+   XCTAssertTrue(cog.waitForExistence(timeout: 5)); cog.tap()
    XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 3)); capture("codex-settings", app)
    app.navigationBars["Session Settings"].buttons["Done"].tap()
    XCTAssertTrue(app.staticTexts["Reading the mobile layout"].exists)

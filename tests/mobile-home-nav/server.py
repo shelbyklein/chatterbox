@@ -126,8 +126,8 @@ def automation(id):
 automations_reset()
 SENT={}
 def reset():
- global RICH,OFFLINE
- RICH=False;OFFLINE=False
+ global RICH,OFFLINE,SIDECHAT,ABOUT
+ RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False
  desk_reset();tasks_reset()
  automations_reset()
  global PINNED
@@ -153,6 +153,7 @@ def summary(name,line,branch=None,waiting=False):
  if name in PINNED:s['pinnedRank']=PINNED.index(name)
  return s
 PINNED=['Loose chat','SDHQ']
+SIDECHAT=False;ABOUT=False
 def chats():
  global READS,ACTIVITY
  READS+=1
@@ -169,6 +170,9 @@ def chats():
   elif p.get('studioID'):
    next(g for g in groups if g.get('studioID','').lower()==p['studioID'].lower())['chats'].append(source)
   else:groups.append({'id':'new-studio','kind':'studio','title':p['name'],'studioID':cid('new-studio'),'chats':[source]})
+ if SIDECHAT:
+  side=summary('Release checklist','Checking the 2.1 release list');side.update({'project':None,'sidechatOf':cid('Chatterbox')})
+  groups[0]['chats'].append(side)
  # An automation's run: a sidequest of the Chatterbox project's session, working.
  if AUTOMATION_RAN:
   run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Chatterbox'),'sidequestOf':cid('Chatterbox'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
@@ -205,8 +209,17 @@ def detail(id):
  presets=[{'id':cid('preset-'+t),'title':t,'backend':b,'isActive':t=='Opus','provider':b,'summary':m} for t,b,m in [('Sol','codex','Codex · GPT-6.1-Sol · Low'),('Opus','claude','Claude · Opus 5.5 · Medium'),('Fable','claude','Claude · Fable 5.1'),('Maestro','codex','Codex · GPT-6-Luna')]]
  options={'backend':'claude','model':'opus','effort':'medium','mode':'bypassPermissions','claudeModels':[{'id':'opus','name':'Opus 5.5','detail':'Best for everyday, complex tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'fable','name':'Fable 5.1','detail':'Most capable for your hardest and longest-running tasks','efforts':['low','medium','high','xhigh','max'],'defaultEffort':'medium'},{'id':'sonnet','name':'Sonnet 5','detail':'Efficient for routine tasks','efforts':['low','medium','high'],'defaultEffort':'medium'},{'id':'haiku','name':'Haiku 5','detail':'Fastest for quick answers','efforts':[],'defaultEffort':None}],'codexModels':[{'id':'gpt-6.1-sol','name':'GPT-6.1-Sol','detail':'','efforts':['low','medium','high'],'defaultEffort':'medium'}],'modes':[{'id':'auto','title':'Auto','detail':'Claude handles permission decisions','systemImage':'wand.and.stars','isUnrestricted':False},{'id':'default','title':'Manual','detail':'Always ask before making changes','systemImage':'hand.raised','isUnrestricted':False},{'id':'acceptEdits','title':'Accept edits','detail':'Automatically accept all file edits','systemImage':'pencil','isUnrestricted':False},{'id':'plan','title':'Plan','detail':'Create a plan before making changes','systemImage':'list.bullet.clipboard','isUnrestricted':False},{'id':'bypassPermissions','title':'Bypass permissions','detail':'Accepts all permissions','systemImage':'exclamationmark.shield','isUnrestricted':True}],'presets':[],'openModels':[{'id':'qwen3.5:9b','name':'qwen3.5:9b','detail':'On Shelby-PC','efforts':[]}]}
  d={'revision':1,'summary':s,'settings':'Claude · Opus','items':items,'earlierCount':0,'options':options}
- if TASKS and s['title']=='Chatterbox':
+ # ABOUT: the same thread's About data, without the work threads in the list (whose running rows
+ # spin the wide list's Activity table: a known layout loop, MobileActivityRows).
+ if (TASKS or ABOUT) and s['title']=='Chatterbox':
   d['work']=[{'id':cid(n),'title':t,'state':st,'task':cid('task-'+n),'backend':'claude','updatedAt':stamp(5)} for n,t,st in WORK]
+  # About this thread: where it works, its tools, how full its context is, and what it made
+  # (a picture, a PDF, a published page and a draft).
+  d.update(folder='/Users/fixture/Projects/Chatterbox',branch='thread-sidebar',contextFraction=0.42,
+           tools=[{'name':'graft','kind':'server','isOn':True},{'name':'mirroir','kind':'server','isOn':True},{'name':'cinema4d','kind':'server','isOn':False},{'name':'Gmail','kind':'connector','isOn':False}])
+  d['items'].append({'id':cid('about-outputs'),'kind':'assistant','text':"The board is live: https://snippets.shelbyklein.com/chatterbox/desk-board.html\n\n```draft\nSubject: Desk board\n\nHi team, the board is ready.\n```",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[
+   {'id':cid('magnet-proof'),'name':'Board spec.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PROOF)},
+   {'id':cid('magnet-photo'),'name':'desk-board.png','mediaType':'image/png','isImage':True,'revision':'1'}],'isQueued':False})
  return d
 RICH_ITEMS={
  'Galley':[
@@ -295,6 +308,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if 'enabled' in body and not body['enabled']:routine.pop('nextRunAt',None)
    return self.reply(routine)
   if self.path=='/test/rich':RICH=bool(body.get('value',True));return self.reply({'ok':True})
+  # A Sidechat of the Chatterbox project's session: About's Runs here.
+  if self.path=='/test/sidechat':
+   global SIDECHAT
+   SIDECHAT=True;return self.reply({'ok':True})
+  if self.path=='/test/about':
+   global ABOUT
+   ABOUT=True;return self.reply({'ok':True})
   if self.path=='/test/offline':
    OFFLINE=True;return self.reply({'ok':True})
   if OFFLINE and self.path.startswith('/v1/'):time.sleep(8)

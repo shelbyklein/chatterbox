@@ -379,8 +379,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
   XCTAssertTrue(app.buttons["Sidequest to Codex: Render four ribbon options, working"].waitForExistence(timeout: 5), "the chat lists its sidequest")
   capture("2-sidequest-strip", app)
-  app.buttons["Session Menu"].tap()
-  XCTAssertTrue(app.buttons["Session Settings"].waitForExistence(timeout: 5)); app.buttons["Session Settings"].tap()
+  // Session Settings, from About this session (tap the title).
+  openAbout(app)
+  XCTAssertTrue(app.buttons["about-settings"].waitForExistence(timeout: 5)); app.buttons["about-settings"].tap()
   // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
   XCTAssertTrue(app.staticTexts["Model"].waitForExistence(timeout: 5) && app.buttons["Open models"].exists, "Session Settings lists the providers")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "no favorites")
@@ -455,18 +456,19 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["The crystal stand is ready."].waitForExistence(timeout:10))
   sleep(12)
   capture("model-preview",app)
-  // The session's Brief, from its menu.
-  app.buttons["Session Menu"].tap()
-  XCTAssertTrue(app.buttons["Brief…"].waitForExistence(timeout:5));app.buttons["Brief…"].tap()
+  // The session's Brief, from About (its Notes).
+  openAbout(app)
+  XCTAssertTrue(app.buttons["about-brief"].waitForExistence(timeout:5));XCTAssertEqual(app.buttons["about-brief"].label,"Brief, not set")
+  app.buttons["about-brief"].tap()
   let briefText=app.textViews["brief-text"]
   XCTAssertTrue(briefText.waitForExistence(timeout:5));briefText.tap();briefText.typeText("Keep the crystal facets sharp.")
   capture("brief-editor",app)
   app.navigationBars["Session Brief"].buttons["Save"].tap()
   let briefs=try await fixture("briefs",method:"GET") as? [String:String]
   XCTAssertEqual(briefs?["Crystal concept"],"Keep the crystal facets sharp.","the Brief reaches the Mac")
-  app.buttons["Session Menu"].tap()
-  XCTAssertTrue(app.buttons["Edit Brief…"].waitForExistence(timeout:5),"a set Brief shows as Edit Brief")
-  app.buttons["Edit Brief…"].tap();app.navigationBars["Session Brief"].buttons["Cancel"].tap()
+  openAbout(app)
+  XCTAssertTrue(app.buttons["Brief: Keep the crystal facets sharp."].waitForExistence(timeout:5),"About shows the Brief that was set")
+  app.buttons["about-brief"].tap();app.navigationBars["Session Brief"].buttons["Cancel"].tap()
   app.navigationBars.buttons.element(boundBy:0).tap()
   app.buttons["studios-index"].tap()
   openStudio("studio-1",app)
@@ -1390,17 +1392,43 @@ final class HomeNavTests: XCTestCase {
  /// their state; one opens with a header naming its front thread and a link back; the session
  /// menu starts one (name, brief, agent) and carries the task items.
  @MainActor func testWorkThreads() async throws {
-  try await fixture("reset"); try await fixture("tasks")
+  try await fixture("reset"); try await fixture("tasks"); try await fixture("sidechat")
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
   deskColumn("ready",app)
   let front=app.buttons["desk-ready-"+uuid("Chatterbox")]
   XCTAssertTrue(front.waitForExistence(timeout:5)); front.tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  // No Work strip: a pill under the title counts the running work threads.
+  XCTAssertTrue(app.descendants(matching:.any)["workingPill"].waitForExistence(timeout:8), "the title's pill: work threads running")
+  XCTAssertFalse(app.descendants(matching:.any)["work-strip"].exists, "no Work strip above the transcript")
+  // About (the title): each work thread with its state, among the sections.
+  openAbout(app)
   let columns=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"], tabs=app.buttons["work-chip-CFD6F12A-EE25-5C7D-BCE0-C004F850001E"]
-  XCTAssertTrue(columns.waitForExistence(timeout:8) && tabs.exists, "the Work strip: each work thread")
+  XCTAssertTrue(columns.waitForExistence(timeout:8) && tabs.exists, "About lists each work thread")
   XCTAssertEqual(columns.label, "Work thread Desk board columns, Working"); XCTAssertEqual(tabs.label, "Work thread Phone tabs, Ready", "with its state")
-  capture("phone-work-strip", app)
+  for section in ["status","place","work","outputs","notes","tools","runs"] {
+   XCTAssertTrue(app.descendants(matching:.any)["about-section-"+section].exists, "About shows its "+section+" section")
+  }
+  XCTAssertTrue(app.descendants(matching:.any)["about-context"].exists, "a context bar: the Mac reported how full it is")
+  XCTAssertTrue(app.staticTexts["thread-sidebar"].exists && app.staticTexts["This Mac"].exists, "where: its branch and machine")
+  XCTAssertTrue(app.descendants(matching:.any)["about-output-pdf"].exists && app.descendants(matching:.any)["about-output-link"].exists
+                && app.descendants(matching:.any)["about-output-draft"].exists && app.buttons["about-thumbnail"].exists, "outputs: an image, a PDF, a published page and a draft")
+  XCTAssertTrue(app.staticTexts["graft, MCP server, on"].exists && app.staticTexts["cinema4d, MCP server, off"].exists, "tools as chips, the off one too")
+  XCTAssertTrue(app.descendants(matching:.any)["about-model-row"].exists && app.buttons["model-current"].exists, "the compact model picker")
+  capture("phone-about", app)
+  // Dragged down: the whole screen.
+  let handle=app.descendants(matching:.any)["about-handle"]
+  XCTAssertTrue(handle.exists); let before=handle.frame.minY
+  handle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.1, thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.98)))
+  try await Task.sleep(for:.seconds(1))
+  XCTAssertGreaterThan(handle.frame.minY, before+80, "dragged, About fills the screen")
+  capture("phone-about-full", app)
+  // The model row opens the picker's menu.
+  app.buttons["model-current"].tap()
+  XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5), "the model row lists the models")
+  modelItem("Opus 5.5",app).tap()
+  // A sparse thread hides what it doesn't have: no Tools or Runs here in a plain work thread (checked below).
   // The session menu: Start a Work Thread, and Unlink (it carries a task).
   app.buttons["Session Menu"].tap()
   XCTAssertTrue(app.buttons["menu-start-work"].waitForExistence(timeout:5) && app.buttons["menu-unlink-task"].exists, "the menu: Start a Work Thread and Unlink from Task")
@@ -1419,10 +1447,18 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(body?["title"] as? String, "Release notes"); XCTAssertEqual(body?["brief"] as? String, "Write the 2.1 release notes from CHANGELOG.md.")
   XCTAssertNil(body?["agent"], "the front thread's own agent")
   // A work thread: its header names the front thread, with a link back.
+  openAbout(app)
   XCTAssertTrue(columns.waitForExistence(timeout:5)); columns.tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Desk board columns."].waitForExistence(timeout:10), "a chip opens its work thread")
   XCTAssertTrue(app.staticTexts["Work for \u{201C}Chatterbox\u{201D}. Its result goes back there."].waitForExistence(timeout:5), "its header names the front thread")
   capture("phone-work-thread-header", app)
+  openAbout(app)
+  XCTAssertTrue(app.buttons["about-front"].waitForExistence(timeout:5), "About links back to its front thread")
+  XCTAssertFalse(app.descendants(matching:.any)["about-section-tools"].exists || app.descendants(matching:.any)["about-section-runs"].exists
+                 || app.descendants(matching:.any)["about-section-outputs"].exists, "empty sections are hidden")
+  XCTAssertFalse(app.descendants(matching:.any)["about-context"].exists, "no context bar without a real number")
+  app.buttons["chat-title"].tap()
+  XCTAssertTrue(app.descendants(matching:.any)["aboutPanel"].waitForNonExistence(timeout:5), "the title closes it again")
   app.buttons["Session Menu"].tap()
   XCTAssertTrue(app.buttons["menu-make-task"].waitForExistence(timeout:5) || app.buttons["menu-unlink-task"].exists, "task items in its menu too")
   XCTAssertFalse(app.buttons["menu-start-work"].exists, "a work thread can't start work threads")
@@ -1430,6 +1466,43 @@ final class HomeNavTests: XCTestCase {
   app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.07)).tap()
   XCTAssertTrue(app.buttons["work-front-open"].waitForExistence(timeout:5)); app.buttons["work-front-open"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10), "Open goes back to the front thread")
+ }
+ /// About this session: tap the open session's title (a drop-down, or a column when wide).
+ @MainActor func openAbout(_ app:XCUIApplication) {
+  let title=app.buttons["chat-title"]
+  XCTAssertTrue(title.waitForExistence(timeout:8))
+  if !app.descendants(matching:.any)["aboutPanel"].exists { title.tap() }
+  XCTAssertTrue(app.descendants(matching:.any)["aboutPanel"].waitForExistence(timeout:5), "the title opens About")
+ }
+ /// Wide (an open iPhone Duo, an iPad): About is a column in the session list's place, beside the
+ /// conversation, toggled from the title.
+ @MainActor func testAboutColumnOnWideLayout() async throws {
+  // Its About data, without running work threads in the list (see server.py's ABOUT).
+  try await fixture("reset"); try await fixture("about"); try await fixture("sidechat")
+  XCUIDevice.shared.orientation = .portrait
+  let app = XCUIApplication()
+  // An open Duo: an iPad-sized screen that reports a compact width.
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+                           "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
+  app.launch()
+  guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else { throw XCTSkip("needs an open Duo or an iPad") }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let project=app.buttons["chat-"+uuid("Chatterbox")]
+  XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
+  app.buttons["chat-title"].tap()
+  let column=app.descendants(matching:.any)["aboutColumn"]
+  XCTAssertTrue(column.waitForExistence(timeout:5), "About opens as a column")
+  XCTAssertFalse(app.descendants(matching:.any)["session-sidebar-pane"].exists, "in the session list's place")
+  XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].exists, "beside the conversation")
+  XCTAssertTrue(app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"].waitForExistence(timeout:5), "its sections, the work threads too")
+  XCTAssertLessThan(app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"].frame.maxX, app.staticTexts["Hi! This is Chatterbox."].frame.minX, "to the left of the conversation")
+  capture("duo-about-column", app)
+  // Its Settings row opens the session's settings over the conversation.
+  app.buttons["about-settings"].tap()
+  XCTAssertTrue(app.navigationBars["Session Settings"].waitForExistence(timeout:5)); app.navigationBars["Session Settings"].buttons["Done"].tap()
+  app.buttons["chat-title"].tap()
+  XCTAssertTrue(app.descendants(matching:.any)["session-sidebar-pane"].waitForExistence(timeout:5), "the title puts the list back")
  }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
@@ -1900,9 +1973,10 @@ final class HomeNavTests: XCTestCase {
   try await uxShot("conversation-top", app)
   // Session Settings, then its model menu.
   if app.buttons["Session Menu"].exists {
-   app.buttons["Session Menu"].tap(); try await uxShot("session-menu", app)
-   if app.buttons["Session Settings"].waitForExistence(timeout:5) {
-    app.buttons["Session Settings"].tap()
+   app.buttons["Session Menu"].tap(); try await uxShot("session-menu", app); app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+   app.buttons["chat-title"].tap(); try await uxShot("about", app)
+   if app.buttons["about-settings"].waitForExistence(timeout:5) {
+    app.buttons["about-settings"].tap()
     let modelRow=app.buttons["model-current"]
     if modelRow.waitForExistence(timeout:5) {
      try await uxShot("session-settings", app)

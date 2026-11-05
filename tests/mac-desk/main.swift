@@ -673,7 +673,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     let strip = model.workThreads(of: plan)
     check(Set(strip.map(\.id)) == Set([workRunning.id, workWaiting.id, workReady.id, workDone.id])
           && [workRunning, workWaiting, workReady, workDone].map { WorkThreadState($0) } == [.working, .needsYou, .ready, .done],
-          "the Work strip: each work thread, Working, Needs you, Ready or Done")
+          "the thread sidebar's Task & work: each work thread, Working, Needs you, Ready or Done")
     check(workRunning.isWorkThread && !plan.isWorkThread, "a work thread knows it is one")
     UserDefaults.standard.set("pinned", forKey: "macStudioSelection")
     model.showingHome = false
@@ -681,8 +681,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     try await render(AnyView(ContentView()), 1500, 900, "work-strip")
     model.selectedID = workReady.id
     try await render(AnyView(ContentView()), 1500, 900, "work-thread")
-    try await render(AnyView(VStack(spacing: 0) { WorkStrip(session: plan); WorkThreadBanner(session: workReady); Spacer() }
-                        .background(Color(nsColor: .windowBackgroundColor))), 900, 140, "work-strip-banner")
+    try await render(AnyView(VStack(alignment: .leading, spacing: 0) { WorkThreadBanner(session: workReady)
+                        ForEach(strip) { WorkThreadRow(thread: $0) }.padding(.horizontal, 12); Spacer() }
+                        .background(Color(nsColor: .windowBackgroundColor))), 900, 220, "work-threads-banner")
     try await render(AnyView(WorkThreadForm(front: plan) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 420, "work-thread-form")
 
     // The peek view (plans/work-threads.md, Next): a click on a work thread from its front thread
