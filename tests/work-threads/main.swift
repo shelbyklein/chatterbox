@@ -295,9 +295,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let launches = (try? String(contentsOfFile: ProcessInfo.processInfo.environment["FAKE_PROVIDER_LAUNCHES"]!, encoding: .utf8)) ?? ""
     let launch = launches.split(separator: "\n").compactMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }.last
     let half = String(max(1, ProcessInfo.processInfo.activeProcessorCount / 2))
-    try check(launch?["nice"] as? Int == 10 && (launch?["childNice"] as? String) == "10", "an agent runs at nice 10, and so does a shell it starts: \(launch?["nice"] ?? "none"), \(launch?["childNice"] ?? "none")")
+    // Nice adds to the test's own priority (an agent shell running this test is already nicer).
+    let niced = min(20, Int(getpriority(PRIO_PROCESS, 0)) + 10)
+    try check(launch?["nice"] as? Int == niced && (launch?["childNice"] as? String) == String(niced), "an agent runs 10 nicer (\(niced)), and so does a shell it starts: \(launch?["nice"] ?? "none"), \(launch?["childNice"] ?? "none")")
     let caps = launch?["build"] as? [String: String]
-    try check(caps == ["CMAKE_BUILD_PARALLEL_LEVEL": half, "MAKEFLAGS": "-j\(half)", "CARGO_BUILD_JOBS": half], "its environment caps builds at half the cores: \(caps ?? [:])")
+    // The caps follow the Mac's real pressure at launch: half the cores at OK, a quarter under pressure.
+    let jobs = String(MacPressure.buildJobs(level: MacPressure.current, cores: ProcessInfo.processInfo.activeProcessorCount))
+    try check(caps == ["CMAKE_BUILD_PARALLEL_LEVEL": jobs, "MAKEFLAGS": "-j\(jobs)", "CARGO_BUILD_JOBS": jobs] && (MacPressure.current != .ok || jobs == half),
+              "its environment caps builds for the Mac's pressure (\(MacPressure.current), \(jobs) jobs): \(caps ?? [:])")
 
     // Headless unless summoned: a work thread that has reported lets its agent go right away;
     // the front thread keeps its own for the usual two minutes.

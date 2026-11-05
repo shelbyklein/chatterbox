@@ -14,7 +14,7 @@ if os.environ.get('FAKE_PROVIDER_LAUNCHES'):
  child=subprocess.run(['/bin/sh','-c','ps -o nice= -p $$'],capture_output=True,text=True).stdout.strip()
  build={k:os.environ.get(k) for k in ('CMAKE_BUILD_PARALLEL_LEVEL','MAKEFLAGS','CARGO_BUILD_JOBS')}
  with open(os.environ['FAKE_PROVIDER_LAUNCHES'],'a') as f:f.write(json.dumps({'pid':os.getpid(),'cwd':os.getcwd(),'argv':sys.argv[1:],'chat':os.environ.get('CHATTERBOX_CHAT_ID'),'base':os.environ.get('ANTHROPIC_BASE_URL'),
-  'nice':os.nice(0),'childNice':child,'build':build})+'\n')
+  'nice':os.getpriority(os.PRIO_PROCESS,0),'childNice':child,'build':build})+'\n')
 thread='fixture-thread';turn='fixture-turn';pending=None;fail_unsubscribe=False
 
 lock=threading.Lock()
