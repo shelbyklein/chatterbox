@@ -49,7 +49,7 @@ enum PressureNames {
     let busy=try await render(MacPressureBadge(),"toolbar-busy",root)
     model.show(reading("overloaded"))
     let over=try await render(MacPressureBadge(),"toolbar-overloaded",root)
-    check(ok.width<busy.width && busy.width<over.width,"OK is a dot; Busy and Overloaded add their label (\(ok.width), \(busy.width), \(over.width))")
+    check(ok.width<busy.width && busy.width<over.width,"OK shows its load reading; Busy and Overloaded add their label (\(ok.width), \(busy.width), \(over.width))")
     check(reading("busy").label=="Mac busy" && reading("overloaded").label=="Mac overloaded" && reading("ok").label=="Mac OK","labels")
     let details=try await render(MacPressureDetails(pressure:reading("overloaded")).frame(width:320),"popover-overloaded",root,width:340)
     check(details.height>150,"the popover lists readings and what's held back (\(details))")
