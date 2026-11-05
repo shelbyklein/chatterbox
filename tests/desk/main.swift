@@ -5,7 +5,7 @@ import Darwin
 // session lists name them), silence (kept, pruned, shown again when something new waits), the
 // phone's routes with a paired token, the service socket's "desk" operation and desk.changed, Claude's
 // propose_work, and starting a request in a Studio, as a project's work thread, or loose. The board
-// (plans/desk-board.md): Ready to mark complete (silenced until something new), Mark complete
+// (plans/desk-board.md): Review (silenced until something new), Mark complete
 // into Done, Reopen, older bodies. Tasks (plans/work-threads.md): a request stays a task once
 // started, linked to its thread; Working and Ready show only threads with a task, Needs you every
 // thread; link, unlink and Make this a task (one task per thread); a thread archived elsewhere
@@ -317,7 +317,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(answered.working.first { $0.id == busy.id }?.activity == "Working\u{2026}", "working: what it's doing now")
     // The board's tasks done with for what follows.
     for chat in [busy, branch] { if let task = desk.openTask(for: chat.id) { try desk.unlink(task.id); try desk.ignore(task.id) } }
-    // Ready to mark complete: a thread with a task, idle, asking nothing, however long ago.
+    // Review: a thread with a task, idle, asking nothing, however long ago.
     func reply(_ text: String, daysAgo: Double = 0) -> [DisplayItem] {
         [DisplayItem(kind: .user, text: "Go"), DisplayItem(kind: .assistant, timestamp: Date().addingTimeInterval(-daysAgo * 86_400), text: text, phase: .final)]
     }
@@ -645,6 +645,17 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!afterIgnore.incoming.contains { $0.id == retried.id }, "socket ignore")
     do { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]); try check(false, "ignoring a gone request fails") }
     catch { try check(error.localizedDescription == "That request is gone.", "ignoring a gone request says so") }
+    // Review: what a finished reply made or points to (files that exist, images, web links), at most six.
+    let reviewFolder = NSTemporaryDirectory() + "desk-review-\(UUID().uuidString)"
+    try FileManager.default.createDirectory(atPath: reviewFolder, withIntermediateDirectories: true)
+    FileManager.default.createFile(atPath: reviewFolder + "/banner.png", contents: Data([0x89, 0x50, 0x4E, 0x47]))
+    FileManager.default.createFile(atPath: reviewFolder + "/notes.pdf", contents: Data("%PDF".utf8))
+    var reviewReply = DisplayItem(kind: .assistant, text: "Done: `\(reviewFolder)/banner.png` and `\(reviewFolder)/notes.pdf`, published at https://snippets.shelbyklein.com/x/page.html; task https://app.clickup.com/t/86abc. Missing `\(reviewFolder)/gone.txt`.")
+    reviewReply.phase = .final
+    let reviewAssets = DeskStore.assets(of: reviewReply, folder: reviewFolder)
+    try check(reviewAssets.map(\.kind) == ["image", "file", "link", "link"] && reviewAssets[0].title == "banner.png" && reviewAssets[3].url == "https://app.clickup.com/t/86abc"
+              && !reviewAssets.contains { $0.title == "gone.txt" },
+              "Review: a reply's images, files and links, in order; a missing file left out (\(reviewAssets.map(\.title)))")
     // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
     let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
     let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!

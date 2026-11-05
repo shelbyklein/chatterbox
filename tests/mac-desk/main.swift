@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 // The Desk on the Mac (plans/front-desk.md, T3; plans/desk-board.md, B3): Home's first page, a
-// board of five columns (To do, Working, Needs you, Ready to mark complete, Done) with Needs you
+// board of five columns (To do, Working, Needs you, Review, Done) with Needs you
 // and Working from this Mac's sessions, and To do, replies, Ready and Done from a stand-in
 // service Desk. Checks the summary line, the columns and their counts and empty lines, the
 // "desk" requests it sends (get, add, start, ignore, silence, complete, reopen, places,
@@ -37,7 +37,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(DeskSections.summary(needsYou: 2, incoming: 0, working: 3) == "2 need you · 3 working", "summary: 2 need you · 3 working")
     check(DeskSections.summary(needsYou: 1, incoming: 2, working: 0, ready: 4) == "1 needs you · 2 to do · 4 ready", "summary: singular, to do and ready")
     check(DeskSections.summary(needsYou: 0, incoming: 0, working: 0) == "All clear", "summary: nothing at all")
-    check(DeskSections.Section.allCases.map(\.rawValue) == ["To do", "Working", "Needs you", "Ready to mark complete", "Done"], "five columns, left to right")
+    check(DeskSections.Section.allCases.map(\.rawValue) == ["To do", "Working", "Needs you", "Review", "Done"], "five columns, left to right")
     var logic = DeskSections()
     check(DeskSections.Section.allCases.allSatisfy { logic.count($0) == 0 } && logic.actionCount == 0, "empty Desk: every column empty")
     logic.working = [Companion.DeskWorking(id: UUID(), title: "Ribbons", place: nil)]
@@ -114,7 +114,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     archivedRecord.archivedAt = now
     archivedRecord.items = [DisplayItem(kind: .approval, text: "Old request", requestID: ["id": "r9"], approvalState: .pending)]
     let archived = model.insertSession(archivedRecord)
-    // Ready to mark complete and Done (the service's), as this Mac has those sessions.
+    // Review and Done (the service's), as this Mac has those sessions.
     func finishedRecord(_ title: String, _ said: String, ago: TimeInterval) -> ConversationRecord {
         var r = record(title)
         r.items = [DisplayItem(kind: .user, text: "Go"), DisplayItem(kind: .assistant, timestamp: now.addingTimeInterval(-ago), text: said, phase: .final)]

@@ -106,7 +106,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               "the reply is recorded as reported; the work thread stays open (Mark complete archives it)")
     let board = desk.snapshot()
     try check(board.ready?.first { $0.id == work.id }?.task == task?.id && board.ready?.first { $0.id == work.id }?.place == "Dogear"
-              && !board.incoming.contains { $0.id == task?.id }, "its task is Ready to mark complete")
+              && !board.incoming.contains { $0.id == task?.id }, "its task is Review")
     try check(!(board.ready ?? []).contains { $0.id == front.id } && !board.working.contains { $0.id == front.id },
               "the front thread, with no task of its own, isn't on the board")
 

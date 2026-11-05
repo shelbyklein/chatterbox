@@ -745,7 +745,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.tabBars.buttons["All"].exists)
   if app.tabBars.buttons["Desk"].exists { XCTAssertTrue(desk.isSelected, "a fresh install opens on the Desk") }
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:10), "Needs you shows first")
-  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Ready to mark complete, 2","Done, 1"], "every column, with its count, left to right")
+  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Review, 2","Done, 1"], "every column, with its count, left to right")
   XCTAssertTrue(app.buttons[approve].exists && app.buttons["desk-allow-session-"+deskID("approval")].exists && app.buttons["desk-deny-"+deskID("approval")].exists, "an approval: Allow, Allow for Session and Deny in place")
   XCTAssertTrue(app.buttons["desk-open-"+deskID("questions")].exists, "questions: Open")
   XCTAssertFalse(app.buttons["desk-allow-"+deskID("questions")].exists)
@@ -773,7 +773,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(galley.waitForExistence(timeout:5) && app.buttons["desk-working-"+deskID("Coach Archie")].exists, "Working: a card each")
   XCTAssertTrue(galley.label.contains("Editing Sources/Typography/Engine.swift"), "with what it's doing: \(galley.label)")
   capture("desk-working", app)
-  // Ready to mark complete, and Done.
+  // Review, and Done.
   app.buttons["desk-tab-ready"].tap()
   XCTAssertTrue(app.buttons["desk-complete-"+uuid("PlayCase Magnets")].waitForExistence(timeout:5) && app.buttons["desk-complete-"+uuid("Chatterbox")].exists, "Ready: Mark Complete on each")
   XCTAssertTrue(app.staticTexts["Finished the product photos for the store."].exists, "with what it last said")
@@ -805,7 +805,7 @@ final class HomeNavTests: XCTestCase {
   let ids=["todo","working","needs-you","ready","done"]
   let headers=ids.map { deskHeader($0,app) }
   XCTAssertTrue(headers.allSatisfy(\.exists), "five columns")
-  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Ready to mark complete, 2","Done, 1"], "each with its count")
+  XCTAssertEqual(deskCounts(app), ["To do, 2","Working, 2","Needs you, 2","Review, 2","Done, 1"], "each with its count")
   for (a,b) in zip(headers,headers.dropFirst()) {
    XCTAssertLessThan(a.frame.maxX, b.frame.minX, "side by side, left to right")
    XCTAssertEqual(a.frame.minY, b.frame.minY, accuracy:2, "in one row")
@@ -1128,7 +1128,7 @@ final class HomeNavTests: XCTestCase {
   let app=deskApp(); app.launch()
   let empty=app.staticTexts["desk-empty-todo"]
   XCTAssertTrue(empty.waitForExistence(timeout:20)); XCTAssertEqual(empty.label, "Nothing waiting to start.")
-  XCTAssertEqual(deskCounts(app), ["To do, 0","Working, 2","Needs you, 0","Ready to mark complete, 0","Done, 0"])
+  XCTAssertEqual(deskCounts(app), ["To do, 0","Working, 2","Needs you, 0","Review, 0","Done, 0"])
   if deskPhone(app) {
    XCTAssertTrue(app.buttons["desk-tab-todo"].isSelected, "nothing needs you: opens on To do")
    app.buttons["desk-tab-needs-you"].tap()
@@ -1221,7 +1221,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
   XCTAssertTrue(app.buttons["desk-waiting-"+deskID("approval")].exists, "the other stays")
  }
- /// Ready to mark complete: Mark Complete archives a session into Done (the Mac is asked);
+ /// Review: Mark Complete archives a session into Done (the Mac is asked);
  /// on a phone a card swiped left shows Complete, and swiped all the way completes at once.
  /// Reopen, in Done, brings one back.
  @MainActor func testDeskMarkComplete() async throws {
@@ -1234,7 +1234,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["desk-ready-"+magnets].waitForNonExistence(timeout:8), "completed, it leaves Ready")
   var call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "complete"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), magnets)
-  XCTAssertEqual(deskCounts(app)[3], "Ready to mark complete, 1"); XCTAssertEqual(deskCounts(app)[4], "Done, 2", "and goes to Done")
+  XCTAssertEqual(deskCounts(app)[3], "Review, 1"); XCTAssertEqual(deskCounts(app)[4], "Done, 2", "and goes to Done")
   let card=app.buttons["desk-ready-"+chatterbox]
   if deskPhone(app) {
    // A partial swipe shows Complete; a full one completes.
