@@ -16,11 +16,9 @@ cleanup() {
 }
 trap cleanup EXIT
 export CHATTERBOX_TEST_OUTPUT="$artifacts"
-/usr/bin/python3 tests/mobile-refresh/server.py > "$artifacts/server.log" 2>&1 &
-server_pid=$!
-sleep 0.3
-# A busy test port is an error; never fall back to the live companion server.
-kill -0 "$server_pid"
+# The fixture server, on a free port of this run's own (test-hygiene.sh): runs never collide.
+start_test_server "$artifacts/server.log" /usr/bin/python3 tests/mobile-refresh/server.py
+server_pid=$test_server_pid
 /usr/bin/python3 - "$root" "$artifacts" <<'PY'
 from pathlib import Path
 import plistlib,sys
@@ -75,9 +73,16 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
-simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
+# Built under the build slot into this run's own test products, then run on a device of its
+# own under a simulator slot, so the build slot is free while the tests drive the app
+# (test-hygiene.sh). The test products are the run's: another run's build can't replace them.
+# Only this Mac's architecture: a generic destination would build x86_64 as well.
+products="$artifacts/tests.xctestproducts"; rm -rf "$products"
 xcodebuild -project "$artifacts/MobileRefreshRegression.xcodeproj" -scheme Regression \
-  -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" test
+  -configuration Debug -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -testProductsPath "$products" ARCHS="$(uname -m)" build-for-testing
+# A test device of this run's own (test-hygiene.sh), shut down when the run ends.
+simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
+xcodebuild -testProductsPath "$products" -destination "platform=iOS Simulator,id=$simulator" \
+  -resultBundlePath "$artifacts/results.xcresult" test-without-building
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"

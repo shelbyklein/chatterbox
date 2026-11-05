@@ -1,6 +1,6 @@
 # Initial mobile history regression
 
-`Main.swift` hosts the real `ChatDetailView` and its navigation-owned `MobileChatHistory` with an inactive scene, as can occur during navigation/foreground transitions. It pairs to `server.py`, a local fixture server on port 19645. No real agent is contacted and the server rejects chat mutations.
+`Main.swift` hosts the real `ChatDetailView` and its navigation-owned `MobileChatHistory` with an inactive scene, as can occur during navigation/foreground transitions. It pairs to `server.py`, a local fixture server on port 19645 (or `CHATTERBOX_TEST_PORT`; 0 picks a free one and writes it to `CHATTERBOX_TEST_PORT_FILE`). No real agent is contacted and the server rejects chat mutations.
 
 The original regression left the view on its spinner because the scene was inactive. The parent now starts the load explicitly, as selecting a chat does in production; it receives an unconditional detail GET and displays “History loaded without sending a message.” Polling should remain suspended while the scene is inactive.
 

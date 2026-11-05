@@ -42,4 +42,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   for i,ident in enumerate(IDS):
    if self.path.startswith('/v1/chats/'+ident):return self.reply(detail(i))
   self.send_error(404)
-http.server.ThreadingHTTPServer(('127.0.0.1',19645),Handler).serve_forever()
+# The port: CHATTERBOX_TEST_PORT, or 0 for a free one (start_test_server, test-hygiene.sh);
+# the one it got goes to CHATTERBOX_TEST_PORT_FILE once it's listening.
+server=http.server.ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('CHATTERBOX_TEST_PORT','19645'))),Handler)
+PORT=server.server_address[1]
+if os.environ.get('CHATTERBOX_TEST_PORT_FILE'):
+ open(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp','w').write(str(PORT));os.rename(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp',os.environ['CHATTERBOX_TEST_PORT_FILE'])
+print('listening on 127.0.0.1:%d'%PORT,flush=True)
+server.serve_forever()

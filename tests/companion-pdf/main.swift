@@ -27,12 +27,12 @@ app.setActivationPolicy(.prohibited)
  precondition(relative.text.contains("chatterbox-document://"))
  // Paired like a phone, over the phone port.
  try await Task.sleep(for:.milliseconds(500))
- var pair=URLRequest(url:URL(string:"http://127.0.0.1:19648/v1/pair")!);pair.httpMethod="POST"
+ var pair=URLRequest(url:URL(string:"http://127.0.0.1:\(CompanionServer.port)/v1/pair")!);pair.httpMethod="POST"
  pair.httpBody=try Companion.encoder.encode(Companion.PairRequest(code:CompanionServer.shared.pairingCode,deviceName:"PDF fixture"))
  let (paired,_)=try await URLSession.shared.data(for:pair)
  let token=try Companion.decoder.decode(Companion.PairResponse.self,from:paired).token
  func request(_ path:String,authenticated:Bool=true) async throws -> (Data,Int) {
-  var r=URLRequest(url:URL(string:"http://127.0.0.1:19648"+path)!)
+  var r=URLRequest(url:URL(string:"http://127.0.0.1:\(CompanionServer.port)"+path)!)
   if authenticated {r.setValue(token,forHTTPHeaderField:Companion.tokenHeader)}
   let (data,response)=try await URLSession.shared.data(for:r);return (data,(response as! HTTPURLResponse).statusCode)
  }

@@ -221,6 +221,17 @@ own=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh
 [[ "$own" == "-jobs $(share 1) build COMPILATION_CACHE_ENABLE_CACHING=NO" ]] || fail "a build's own cache setting overridden: $own"
 pass "compilation cache: on for builds (bash and zsh), off for -exportArchive, a build's own setting and CHATTERBOX_COMPILE_CACHE=0"
 
+echo "== xcodebuild test-without-building runs beside a build: no build slot"
+# Another script holds the only slot; running already-built tests neither waits nor takes one.
+mkdir -p "$fixture/lock/slot-1"; echo $$ > "$fixture/lock/slot-1/pid"; echo /elsewhere > "$fixture/lock/slot-1/worktree"
+( PATH="$fixture/bin:$PATH" CHATTERBOX_BUILD_SLOTS=1 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -testProductsPath p test-without-building; ls '$fixture/lock'" > "$fixture/twb.out" 2>&1 & pid=$!
+  for _ in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$pid" 2>/dev/null; then pkill -P "$pid"; kill "$pid"; echo "waited for the build slot" >> "$fixture/twb.out"; fi )
+twb=$(cat "$fixture/twb.out")
+[[ "$twb" == $'-testProductsPath p test-without-building\nslot-1' ]] || fail "test-without-building got: $twb"
+rm -rf "$fixture/lock/slot-1"
+pass "test-without-building: ran at once, no -jobs, the other script's slot untouched"
+
 echo "== zsh runs it too (install.sh)"
 z=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_SLOTS=1 zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build; ls '$fixture/lock'")
 [[ "$z" == "-jobs $(share 1) build" ]] || fail "zsh got: $z"

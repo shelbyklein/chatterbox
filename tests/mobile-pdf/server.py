@@ -39,4 +39,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path.startswith('/v1/chats/'+CHAT+'?since=1'):return self.reply({'unchanged':True,'revision':1})
   if self.path.startswith('/v1/chats/'+CHAT):return self.reply({'revision':1,'summary':summary,'settings':'Codex','items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':f'Your proof is ready. [Review PDF](chatterbox-document://{FILE})','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[file],'isQueued':False}],'earlierCount':0})
   self.send_error(404)
-http.server.ThreadingHTTPServer(('127.0.0.1',19647),Handler).serve_forever()
+# The port: CHATTERBOX_TEST_PORT, or 0 for a free one (start_test_server, test-hygiene.sh);
+# the one it got goes to CHATTERBOX_TEST_PORT_FILE once it's listening.
+server=http.server.ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('CHATTERBOX_TEST_PORT','19647'))),Handler)
+PORT=server.server_address[1]
+if os.environ.get('CHATTERBOX_TEST_PORT_FILE'):
+ open(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp','w').write(str(PORT));os.rename(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp',os.environ['CHATTERBOX_TEST_PORT_FILE'])
+print('listening on 127.0.0.1:%d'%PORT,flush=True)
+server.serve_forever()

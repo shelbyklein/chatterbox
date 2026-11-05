@@ -1,6 +1,6 @@
 # Composer send regressions
 
-Run `scripts/test-mobile-composer.sh iphone` (or `ipad` for tablet layout), using an isolated simulator, fixture token and server port19645. Never connects to the live companion. `DraftLifecycle.swift` also runs the production generic draft state without UIKit to verify synchronous persistence, text/image snapshots, concurrent-send guard, new content preservation, rejected-send recovery and ignored stale completion.
+Run `scripts/test-mobile-composer.sh iphone` (or `ipad` for tablet layout), using an isolated simulator, fixture token and a free server port of the run's own. Never connects to the live companion. `DraftLifecycle.swift` also runs the production generic draft state without UIKit to verify synchronous persistence, text/image snapshots, concurrent-send guard, new content preservation, rejected-send recovery and ignored stale completion.
 
 UI tests use actual composer text entry and Send taps, not a submission hook. The threaded fixture accepts one authoritative UUID user item and can hold its acknowledgment while GET polling sees that item. Verify the composer is empty before acknowledgment; type the next draft and check it survives acknowledgment and app reopening. Ordinary intentional identical sends remain two separate requests/items. A500 rejected send restores its draft. Screenshots and request logs stay in the printed temporary artifact folder.
 

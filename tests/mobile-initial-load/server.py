@@ -1,4 +1,4 @@
-import http.server,json,uuid
+import os,http.server,json,uuid
 ID='11111111-1111-1111-1111-111111111111'
 chat={'id':ID,'title':'History fixture','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 item={'id':'22222222-2222-2222-2222-222222222222','kind':'assistant','text':'History loaded without sending a message. This is the initial-load regression test.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}
@@ -15,4 +15,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
   elif self.path.startswith('/v1/chats/'+ID):self.reply({'unchanged':True,'revision':0} if '?since=0' in self.path else detail)
   elif self.path=='/v1/addresses':self.reply({'addresses':['127.0.0.1']})
   else:self.send_error(404)
-http.server.ThreadingHTTPServer(('127.0.0.1',19645),Handler).serve_forever()
+# The port: CHATTERBOX_TEST_PORT, or 0 for a free one (start_test_server, test-hygiene.sh);
+# the one it got goes to CHATTERBOX_TEST_PORT_FILE once it's listening.
+server=http.server.ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('CHATTERBOX_TEST_PORT','19645'))),Handler)
+PORT=server.server_address[1]
+if os.environ.get('CHATTERBOX_TEST_PORT_FILE'):
+ open(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp','w').write(str(PORT));os.rename(os.environ['CHATTERBOX_TEST_PORT_FILE']+'.tmp',os.environ['CHATTERBOX_TEST_PORT_FILE'])
+print('listening on 127.0.0.1:%d'%PORT,flush=True)
+server.serve_forever()

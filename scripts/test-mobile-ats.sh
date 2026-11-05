@@ -4,7 +4,10 @@ source "$(dirname "$0")/lib/test-hygiene.sh"
 # Usage: scripts/test-mobile-ats.sh 100.x.y.z [LAN-IP]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-probe_host=${1:?Pass the Mac numeric Tailscale IPv4 address}
+# An explicit check: `${1:?}` ends the script before test-hygiene.sh's cleanup sees a failure,
+# and the run would count as passed without running.
+if [[ -z "${1:-}" ]]; then echo 'Usage: scripts/test-mobile-ats.sh 100.x.y.z [LAN-IP] (needs the Mac'"'"'s Tailscale IPv4 address; not run)' >&2; exit 2; fi
+probe_host=$1
 probe_lan=${2:-}
 artifacts=$(mktemp -d /tmp/chatterbox-ats.XXXXXX)
 cleanup() {
@@ -13,7 +16,10 @@ cleanup() {
 trap cleanup EXIT
 xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -sdk iphonesimulator \
   -configuration Debug -derivedDataPath "$PWD/build/DerivedData-MobileTests" CODE_SIGNING_ALLOWED=NO build > "$artifacts/build.log" 2>&1
-app="$PWD/build/DerivedData-MobileTests/Build/Products/Debug-iphonesimulator/Chatterbox.app"
+# This run's own copies: the device is booted after the build slot goes back, and another run's
+# build could replace the shared one meanwhile.
+cp -R "$PWD/build/DerivedData-MobileTests/Build/Products/Debug-iphonesimulator/Chatterbox.app" "$artifacts/after.app"
+app="$artifacts/after.app"
 cp -R "$app" "$artifacts/before.app"
 /usr/bin/python3 - "$artifacts/before.app/Info.plist" <<'PY'
 import plistlib,sys
@@ -21,7 +27,7 @@ path=sys.argv[1];p=plistlib.load(open(path,'rb'))
 p['NSAppTransportSecurity']={'NSAllowsLocalNetworking':True}
 plistlib.dump(p,open(path,'wb'))
 PY
-# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+# A test device of this run's own (test-hygiene.sh), shut down when the run ends.
 simulator=$(test_simulator iphone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 for policy in before after; do
   if [[ "$policy" == before ]]; then candidate="$artifacts/before.app"; else candidate="$app"; fi

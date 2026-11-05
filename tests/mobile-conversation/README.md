@@ -1,7 +1,7 @@
 # Mobile conversation checks
 
 Run `scripts/test-mobile-conversation.sh iphone` or `scripts/test-mobile-conversation.sh ipad`.
-The script creates a separate simulator and bundle ID and serves synthetic chats on localhost port 19646. It never connects to the installed Mac app, sends a chat message, or reads real conversations. A busy port fails the run.
+The script creates a separate simulator and bundle ID and serves synthetic chats on a free localhost port of the run's own. It never connects to the installed Mac app, sends a chat message, or reads real conversations.
 
 The UI test opens the Codex fixture chat through the chat list and checks settings access, steps, Send/Copy availability and Send enablement after typing. It then checks that a list, code fence containing a blank line, and table render as three intact bubbles, and opens a Claude project for the orange styling capture. Dark and light captures are exported from the xcresult into the printed artifact directory. A fresh fixture is required for each run.
 

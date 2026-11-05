@@ -1,4 +1,7 @@
 import XCTest
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 47411 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "47411"
 final class HomeNavTests: XCTestCase {
  override func setUp() { super.setUp(); continueAfterFailure = false }
  /// An open foldable (iPhone Duo) in portrait reports a compact width, like a phone, but has an
@@ -7,7 +10,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   XCUIDevice.shared.orientation = .portrait
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
   app.launch()
   let screen = app.windows.firstMatch.frame.size
@@ -25,7 +28,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   XCUIDevice.shared.orientation = .portrait
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_BOTTOM_OCCLUSION":"540"]
   app.launch()
   guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else { throw XCTSkip("open screen only") }
@@ -49,7 +52,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   XCUIDevice.shared.orientation = .portrait
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort,
                          "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
   app.launch()
   guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)>=600 else {throw XCTSkip("open screen only")}
@@ -71,7 +74,7 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.terminate()
   XCUIDevice.shared.orientation = .portrait
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_TEST_COMPACT_WIDTH":"1", "CHATTERBOX_TEST_SESSION_DIVISION":"0.68", "CHATTERBOX_TEST_SESSION_DIVISION_MARGIN":"40"]
   app.launch()
   guard min(app.windows.firstMatch.frame.width, app.windows.firstMatch.frame.height) >= 600 else {
@@ -99,7 +102,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   XCUIDevice.shared.orientation = .portrait
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   guard min(app.windows.firstMatch.frame.width,app.windows.firstMatch.frame.height)<600 else { throw XCTSkip("closed phone only") }
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
@@ -120,7 +123,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDraftCard() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
@@ -147,7 +150,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testReplyActionButtons() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
@@ -164,7 +167,7 @@ final class HomeNavTests: XCTestCase {
   await fulfillment(of:[used],timeout:5)
   XCTAssertTrue(app.staticTexts["Sent"].exists, "the row says it was sent")
   capture("phone-ship-button-used",app)
-  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:47411/test/sent")!)
+  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:\(fixturePort)/test/sent")!)
   let sent=try JSONSerialization.jsonObject(with:data) as! [String:[String]]
   XCTAssertEqual(sent[uuid("Loose chat").lowercased()],["ship"],"sent once, to this chat")
  }
@@ -172,7 +175,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testPlaceSuggestion() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
@@ -182,7 +185,7 @@ final class HomeNavTests: XCTestCase {
   capture("place-suggestion",app)
   move.tap()
   let gone=expectation(for:NSPredicate(format:"exists == false"),evaluatedWith:move); await fulfillment(of:[gone],timeout:8)
-  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:47411/test/promotions")!)
+  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:\(fixturePort)/test/promotions")!)
   let moved=(try JSONSerialization.jsonObject(with:data) as? [String:Any])?["Loose chat"] as? [String:Any]
   XCTAssertEqual(moved?["kind"] as? String,"studio"); XCTAssertNotNil(moved?["studioID"], "moved into the existing Studio")
  }
@@ -190,7 +193,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testArchiveClearsTheSession() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   let screen = app.windows.firstMatch.frame.size
   guard min(screen.width, screen.height) >= 600 else { throw XCTSkip("needs the list beside the session") }
@@ -217,7 +220,7 @@ final class HomeNavTests: XCTestCase {
   XCUIDevice.shared.orientation = .portrait
   defer { XCUIDevice.shared.orientation = .portrait }
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   let quest = activity("Working: SDHQ · Sidequest",app)
@@ -265,7 +268,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   try await fixture("list-delay",body:["seconds":5])
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411", "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort, "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
   // The session list's own loading line: open on Projects, not the Desk (the first tab).
   app.launchArguments=["-mobileChatListPage","projects"]
   app.launch()
@@ -289,7 +292,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testConnectionErrorIsHonest() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launchArguments=["-mobileChatListPage","projects"]
   app.launch()
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:20))
@@ -327,7 +330,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testSystemBackSwipeWithoutStrips() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort, "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
   // The bar keeps to five tabs with the Desk first: All is Chats' other half.
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
@@ -348,7 +351,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testEdgeSwipeAndCards() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort]
   if ProcessInfo.processInfo.environment["NO_EDGE"] != nil { app.launchEnvironment["CHATTERBOX_TEST_NO_EDGE_SWIPE"] = "1" }
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
@@ -421,7 +424,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testStudioCardThumbnails() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
@@ -497,7 +500,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   try await fixture("pressure/busy")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47411", "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort, "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   let pill = app.buttons["mac-pressure"]
@@ -531,7 +534,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testActivityDismissalSwipes() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
@@ -573,7 +576,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testActivityManagementSwipes() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
@@ -618,7 +621,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testRenameFromListsAndActivity() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
   tab("Projects",app).tap()
@@ -653,7 +656,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testPromoteChats() async throws {
   continueAfterFailure=false
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   func start() async throws {
    app.terminate();try await fixture("reset");app.launch()
    XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15));tab("Chats",app).tap()
@@ -1286,7 +1289,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testAutomationsFromMenu() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   app.buttons["Connection"].tap()
@@ -1589,7 +1592,7 @@ final class HomeNavTests: XCTestCase {
   // An open Duo: an iPad-sized screen that reports a compact width. About starts closed.
   func launch(_ arguments: [String]) -> XCUIApplication {
    let app = XCUIApplication()
-   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                             "CHATTERBOX_TEST_COMPACT_WIDTH":"1"]
    app.launchArguments = arguments
    app.launch()
@@ -1648,7 +1651,7 @@ final class HomeNavTests: XCTestCase {
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort,
                          "CHATTERBOX_PREFERENCES_SUITE":"desk-"+UUID().uuidString]
   return app
  }
@@ -1721,7 +1724,7 @@ final class HomeNavTests: XCTestCase {
   start.press(forDuration:0.05,thenDragTo:end,withVelocity:.slow,thenHoldForDuration:0.2)
  }
  @discardableResult func fixture(_ path:String,method:String="POST",body:[String:Any]=[:]) async throws -> Any {
-  var request=URLRequest(url:URL(string:"http://127.0.0.1:47411/test/"+path)!)
+  var request=URLRequest(url:URL(string:"http://127.0.0.1:\(fixturePort)/test/"+path)!)
   request.httpMethod=method
   if method != "GET" {request.httpBody=try JSONSerialization.data(withJSONObject:body)}
   let (data,response)=try await URLSession.shared.data(for:request)
@@ -1732,7 +1735,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testPinnedTab() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   capture("activity-compact",app)
@@ -1758,7 +1761,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testFeedback() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Studios",app).tap()
   XCTAssertTrue(app.buttons["Feedback"].firstMatch.waitForExistence(timeout:5), "Feedback in the top bar"); app.buttons["Feedback"].firstMatch.tap()
@@ -1773,7 +1776,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testMacScreenAsksToSignIn() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   app.buttons["Connection"].tap()
@@ -1790,7 +1793,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testMacScreenLaptopLayout() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_TEST_MAC_SCREEN":"1"]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
@@ -1833,7 +1836,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testUsage() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
   app.buttons["Connection"].tap()
@@ -1846,7 +1849,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testNewChatPicksSettingsFirst() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
@@ -1898,7 +1901,7 @@ final class HomeNavTests: XCTestCase {
   capture("phone-new-chat-desk",app)
   app.buttons["new-chat-start"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")
-  let url=URL(string:"http://127.0.0.1:47411/test/created")!
+  let url=URL(string:"http://127.0.0.1:\(fixturePort)/test/created")!
   let (data,_)=try await URLSession.shared.data(from:url)
   let created=try JSONSerialization.jsonObject(with:data) as! [[String:Any]]
   XCTAssertEqual(created.last?["backend"] as? String,"codex")
@@ -1914,7 +1917,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   let app = XCUIApplication()
   // Its own preferences: no draft left in the session by another test.
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_PREFERENCES_SUITE":"comments-"+UUID().uuidString]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
@@ -1997,7 +2000,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   let app = XCUIApplication()
   // Its own preferences: no draft left in the session by another test.
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"47411",
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
                            "CHATTERBOX_PREFERENCES_SUITE":"comments-"+UUID().uuidString]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
@@ -2082,7 +2085,7 @@ final class HomeNavTests: XCTestCase {
 
   // The session lists, on the app's own preferences (paired, as after setup).
   app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:20)); tab("Projects",app).tap()
   let galley=app.buttons["chat-"+deskID("Galley")]

@@ -7,7 +7,8 @@ export CHATTERBOX_DATA_DIR="$task_dir/data"
 export CHATTERBOX_HOST_DIR="$task_dir/host"
 export CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost"
 export
-export CHATTERBOX_COMPANION_PORT=19650
+# A free port of this run's own (test-hygiene.sh), so two runs never collide.
+export CHATTERBOX_COMPANION_PORT=$(free_port)
 mkdir -p "$CHATTERBOX_DATA_DIR"
 find -L Chatterbox ChatterboxRuntime Shared -name '*.swift' ! -name 'ChatterboxApp.swift' | sort > "$task_dir/files.txt"
 engine_key=$({ swiftc --version; cat "$task_dir/files.txt"; while IFS= read -r source; do cat "$source"; done < "$task_dir/files.txt"; } | shasum -a 256 | cut -c 1-16)

@@ -35,7 +35,7 @@ app.setActivationPolicy(.accessory)
     CompanionServer.shared.setEnabled(true)
     try await Task.sleep(for:.milliseconds(400))
     func call(_ path:String,method:String="POST",body:Data?=nil,token:String?=nil) async throws -> (Data,Int) {
-        var r=URLRequest(url:URL(string:"http://127.0.0.1:19650"+path)!);r.httpMethod=method;r.httpBody=body
+        var r=URLRequest(url:URL(string:"http://127.0.0.1:\(CompanionServer.port)"+path)!);r.httpMethod=method;r.httpBody=body
         if let token {r.setValue(token,forHTTPHeaderField:Companion.tokenHeader)}
         let (data,response)=try await URLSession.shared.data(for:r);return(data,(response as! HTTPURLResponse).statusCode)
     }

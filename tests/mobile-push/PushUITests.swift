@@ -1,8 +1,11 @@
 import XCTest
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 19646 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "19646"
 final class PushUITests: XCTestCase {
  @MainActor func testPushChatNavigationAndSettings() throws {
   let app=XCUIApplication()
-  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"19646","CHATTERBOX_TEST_PUSH_CHAT":"33333333-3333-3333-3333-333333333333"]
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort,"CHATTERBOX_TEST_PUSH_CHAT":"33333333-3333-3333-3333-333333333333"]
   app.launch()
   XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@","I reviewed the layout")).firstMatch.waitForExistence(timeout:20))
   capture("push-opens-target-chat",app)

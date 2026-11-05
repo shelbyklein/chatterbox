@@ -38,6 +38,15 @@ for block in re.split(r'\n(?=  [A-Za-z]+:\n)', targets):
 if problems:
     print("\n".join(problems), file=sys.stderr); sys.exit(1)
 PY
+# Test ports are per run (AGENTS.md, "Test ports: one per run"): a phone test that names a fixed
+# port would reach another run's fixture server, or none.
+fixed=$(grep -nE '"CHATTERBOX_TEST_PORT" *: *"[0-9]+"|"http://127\.0\.0\.1:[0-9]{2,5}|ThreadingHTTPServer\(\(.127\.0\.0\.1., *[0-9]' \
+  tests/mobile-*/*.swift tests/mobile-*/server.py 2>/dev/null || true)
+if [[ -n "$fixed" ]]; then
+  echo "Phone tests name a fixed test port; use fixturePort / CHATTERBOX_TEST_PORT (start_test_server):" >&2
+  echo "$fixed" >&2
+  exit 1
+fi
 manifest=$(mktemp /tmp/chatterbox-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT
 ./scripts/runtime-sources.sh > "$manifest"

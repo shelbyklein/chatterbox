@@ -12,7 +12,11 @@
 #    ~/Library/Caches/Chatterbox/simulators/<udid> (pid, script, artifact folder), and
 #    scripts/tidy.sh shuts down the ones whose run is gone.
 #  - builds wait for the shared build slot (scripts/lib/build-lock.sh): `xcodebuild`, `swiftc`
-#    and `swift build` in the test take it, and the slot goes back on exit.
+#    and `swift build` in the test take it for as long as they run. `xcodebuild
+#    test-without-building` doesn't: it runs on a device test_simulator booted under a
+#    simulator slot (scripts/lib/sim-lock.sh, two at once), which goes back on exit.
+#  - start_test_server starts a run's fixture server on a free port of its own, so two runs of
+#    the same suite never collide on the test port.
 #
 # The script's own `trap '…' EXIT` keeps working: this file runs it first, then cleans up.
 # KEEP_TEST_BUILDS=1 keeps the app bundles too, for debugging a failed run.
@@ -29,6 +33,7 @@ _hygiene_script=${BASH_SOURCE[1]:-$0}
 # The build lock's own EXIT trap would be replaced by ours below; cleanup releases the slot.
 _build_lock_no_trap=1
 source "$(dirname "${BASH_SOURCE[0]}")/build-lock.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/sim-lock.sh"
 
 # Collect EXIT traps instead of letting each replace the last (or this file's). A script's own
 # INT/TERM/HUP trap runs before the cleanup those signals trigger here.
@@ -62,13 +67,16 @@ mktemp() {
 # MARK: Simulators
 
 # test_simulator iphone|ipad|duo [DEVICE_TYPE [RUNTIME]]
-#   Prints the UDID of this Mac's one test simulator of that kind and runtime, booted:
+#   Prints the UDID of a test simulator of that kind and runtime, booted:
 #   "Chatterbox test iPhone 26.2" (iPhone 17 Pro), "Chatterbox test iPad …" (iPad mini A17 Pro)
 #   or "Chatterbox test iPhone Duo …", on the newest iOS runtime for the device unless one is
 #   named. Tests reuse it run after run instead of making a device each; a device of another
-#   type under the name is replaced. Booting takes the build slot for the rest of the run, so two
-#   tests never share the device; a device left booted by a run that died is taken over and shut
-#   down with this one.
+#   type under the name is replaced. Booting takes a simulator slot (sim-lock.sh) for the rest of
+#   the run, and the slot picks the device: slot 1 the name above, slot 2 "… 26.2 #2". So two
+#   runs at once each have a device of their own, and never share one; a device left booted by a
+#   run that died is taken over and shut down with this one. Build the tests first
+#   (xcodebuild build-for-testing), then call this, so a run doesn't hold a device while it
+#   waits for the build slot.
 test_simulator() {
   local kind=$1 device_type=${2:-} runtime=${3:-} name udid state
   case "$kind" in
@@ -79,7 +87,8 @@ test_simulator() {
   esac
   [[ -n "$runtime" ]] || runtime=$(_hygiene_newest_ios_runtime "$device_type") || return 1
   name="$name ${runtime##*iOS-}"; name=${name//-/.}
-  build_lock
+  sim_lock
+  [[ "$_sim_lock_number" == 1 ]] || name="$name #$_sim_lock_number"
   # The existing device under this name, if it's the same device type on the same runtime.
   udid=$(xcrun simctl list devices -j | /usr/bin/python3 -c '
 import json, sys
@@ -153,6 +162,39 @@ _hygiene_shutdown_simulators() {
   _hygiene_simulators=''
 }
 
+# MARK: Test ports
+
+# start_test_server LOG CMD…
+#   Starts a run's fixture server (tests/mobile-*/server.py) in the background on a free port of
+#   its own: the server binds port 0 and writes the port it got to $CHATTERBOX_TEST_PORT_FILE.
+#   Sets test_server_pid and test_port, and exports CHATTERBOX_TEST_PORT and
+#   TEST_RUNNER_CHATTERBOX_TEST_PORT (xcodebuild hands TEST_RUNNER_* to the XCUITest runner,
+#   which passes the port on to the app it launches). Call it directly, not in `$(…)`. The
+#   server is a child of the run, so cleanup stops it.
+start_test_server() {
+  local log=$1 file="$1.port" waited=0; shift
+  command rm -f "$file"
+  CHATTERBOX_TEST_PORT=0 CHATTERBOX_TEST_PORT_FILE="$file" "$@" > "$log" 2>&1 &
+  test_server_pid=$!
+  while [[ ! -s "$file" ]]; do
+    if ! kill -0 "$test_server_pid" 2>/dev/null; then
+      echo "start_test_server: the fixture server ended before it was listening (log: $log)" >&2
+      command cat "$log" >&2 2>/dev/null; return 1
+    fi
+    (( waited >= 300 )) && { echo "start_test_server: no port from the fixture server after 30 s (log: $log)" >&2; return 1; }
+    sleep 0.1; waited=$(( waited + 1 ))
+  done
+  test_port=$(command cat "$file")
+  export CHATTERBOX_TEST_PORT=$test_port TEST_RUNNER_CHATTERBOX_TEST_PORT=$test_port
+  echo "fixture server on 127.0.0.1:$test_port (pid $test_server_pid)" >&2
+}
+
+# free_port: a port nothing listens on now, for a test that has to name its port before
+# starting the server that binds it (CHATTERBOX_COMPANION_PORT for an engine under test).
+free_port() {
+  /usr/bin/python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
+}
+
 # MARK: Cleanup
 
 _hygiene_descendants() {
@@ -180,11 +222,12 @@ _hygiene_cleanup() {
     kill -9 $pids 2>/dev/null || true
   fi
   _hygiene_shutdown_simulators
+  sim_unlock
   build_unlock
   if [[ "${KEEP_TEST_BUILDS:-0}" != 1 ]]; then
     while IFS= read -r dir; do
       [[ -n "$dir" && -d "$dir" ]] || continue
-      find "$dir" \( -name '*.app' -o -name DerivedData -o -name '*.xcarchive' \) -prune \
+      find "$dir" \( -name '*.app' -o -name DerivedData -o -name '*.xcarchive' -o -name '*.xctestproducts' \) -prune \
         -exec rm -rf {} + 2>/dev/null || true
     done <<< "$dirs"
   fi
@@ -208,8 +251,8 @@ _hygiene_signal_trap() { builtin trap "_hygiene_on_signal $1" "$1"; }
 _hygiene_signal_trap INT; _hygiene_signal_trap TERM; _hygiene_signal_trap HUP
 
 # When the run is killed outright (SIGKILL, or the shell torn down with it), no trap runs: this
-# watcher, on its own, shuts down the simulators on record for the run and gives its build slot
-# back once the run's pid is gone. A normal cleanup stops it with the run's other children.
+# watcher, on its own, shuts down the simulators on record for the run and gives its build and
+# simulator slots back once the run's pid is gone. A normal cleanup stops it with the run's other children.
 ( while kill -0 $$ 2>/dev/null; do sleep 2; done
   for entry in "$_hygiene_sim_registry"/*; do
     [[ -f "$entry" ]] && grep -qx "pid $$" "$entry" || continue
@@ -218,6 +261,6 @@ _hygiene_signal_trap INT; _hygiene_signal_trap TERM; _hygiene_signal_trap HUP
   done
   while IFS= read -r slot; do
     [[ "$(command cat "$slot/pid" 2>/dev/null)" == "$$" ]] && command rm -rf "$slot"
-  done < <(command find "$_build_lock_dir" -maxdepth 1 -name 'slot-*' 2>/dev/null)
+  done < <(command find "$_build_lock_dir" "$_sim_lock_dir" -maxdepth 1 -name 'slot-*' 2>/dev/null)
 ) >/dev/null 2>&1 &
 disown $! 2>/dev/null || true   # out of the job table: no "Killed" notice when cleanup stops it

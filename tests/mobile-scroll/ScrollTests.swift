@@ -1,7 +1,10 @@
 import XCTest
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 47410 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "47410"
 final class ScrollTests: XCTestCase {
  override func setUp() { continueAfterFailure = false }
- let base = "http://127.0.0.1:47410"
+ let base = "http://127.0.0.1:\(fixturePort)"
  let chat = "chat-33333333-3333-3333-3333-333333333333"
  func control(_ path: String, body: [String: Any] = [:]) async throws {
   var request = URLRequest(url: URL(string: base + "/test/" + path)!)
@@ -12,7 +15,7 @@ final class ScrollTests: XCTestCase {
  @MainActor func openChat() -> XCUIApplication {
   let app = XCUIApplication()
   app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47410"]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort]
   app.launch()
   let row = app.buttons[chat]
   XCTAssertTrue(row.waitForExistence(timeout: 15)); row.tap()

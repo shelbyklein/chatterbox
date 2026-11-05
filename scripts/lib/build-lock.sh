@@ -8,6 +8,9 @@
 # before running (a visible "waiting for another build (pid N, worktree X)" line), and
 # xcodebuild gets `-jobs` set so the builds running share the cores: max(4, cores / builds
 # running), counting itself (16 cores: 16 alone, 8 beside one other, 5 beside two; 4 while busy).
+# `xcodebuild test-without-building` builds nothing and doesn't wait: simulator test runs build
+# with build-for-testing (under the slot), then run on a device booted under a simulator slot
+# (sim-lock.sh), so the build slot is free while XCUITests drive the app.
 #
 #   build_lock          take a slot (held until the script exits); prints the waiting line
 #   build_unlock        give it back early
@@ -176,6 +179,13 @@ build_unlock() {
 with_build_lock() {
   local had=$_build_lock_held rc=0
   build_lock
+  _build_lock_run "$@" || rc=$?
+  [[ -z "$had" ]] && build_unlock
+  return $rc
+}
+
+_build_lock_run() {
+  local rc=0
   if type _hygiene_on_signal >/dev/null 2>&1; then
     # Under test-hygiene.sh: in the background and waited for, so a signal to the test runs its
     # cleanup at once (bash runs a trap only once a foreground command ends; a build can take
@@ -184,7 +194,6 @@ with_build_lock() {
   else
     "$@" || rc=$?
   fi
-  [[ -z "$had" ]] && build_unlock
   return $rc
 }
 
@@ -226,6 +235,8 @@ xcodebuild() {
   local arg jobs=1 explicit=0 cache=() line
   for arg in "$@"; do
     case "$arg" in
+      # Runs tests already built: no build slot (the device's simulator slot is the limit).
+      test-without-building) _build_lock_run command xcodebuild "$@"; return ;;
       -jobs) explicit=1 ;;
       -exportArchive|-version|-list|-showBuildSettings|-showsdks|-showdestinations|-resolvePackageDependencies|-help|-usage|-checkFirstLaunchStatus|-runFirstLaunch) jobs=0 ;;
     esac

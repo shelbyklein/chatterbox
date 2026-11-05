@@ -83,14 +83,27 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   their next turn. Agents run at nice +10 with build caps (`CMAKE_BUILD_PARALLEL_LEVEL`,
   `MAKEFLAGS`, `CARGO_BUILD_JOBS`) in their environment, in any project. Don't work around it;
   `CHATTERBOX_BUILD_IGNORE_PRESSURE=1` only when Shelby asks.
-- **Simulators: the shared test device, shut down when the run ends.** Mobile tests call
-  `test_simulator iphone|ipad|duo` (test-hygiene.sh) for this Mac's one "Chatterbox test …"
-  device per kind and runtime, booted under the build slot, and shut down (not deleted) on every
-  way out, a SIGKILL included (a watcher process). Booted devices are on record in
+- **Simulators: a simulator slot and a device per run, shut down when the run ends.** Phone
+  suites build with `xcodebuild build-for-testing -testProductsPath "$artifacts/…"` under the
+  build slot, then call `test_simulator iphone|duo` (test-hygiene.sh; iPhone and Mac only, no
+  iPad runs) and run `xcodebuild test-without-building -testProductsPath …`, which takes no
+  build slot. Booting takes a simulator slot (`scripts/lib/sim-lock.sh`,
+  `~/Library/Caches/Chatterbox/simulator-lock`): two runs at once (`CHATTERBOX_SIM_SLOTS=N`),
+  one while the Mac is busy and none new while it's overloaded (pressure.json), with the same
+  dead-owner takeover and "waiting for a simulator slot (pid N, worktree X)" line as builds. The slot picks the device, "Chatterbox test iPhone 26.2" for slot 1 and "… 26.2 #2"
+  for slot 2, reused run after run and shut down (not deleted) on every way out, a SIGKILL
+  included (a watcher process). Build before booting, never the other way round, so no run
+  holds a device while it waits to build. Booted devices are on record in
   `~/Library/Caches/Chatterbox/simulators/<udid>`; `scripts/tidy.sh --simulators` shuts down the
   ones whose run is gone and stops runtime processes of devices that aren't booted. The service
   also shuts down any booted simulator on the Mac that nothing has used for 30 minutes
   (Settings → Background service; `SimulatorSweeper`), never one on record.
+- **Test ports: one per run.** Fixture servers (`tests/mobile-*/server.py`) bind port 0 and
+  report the port they got; scripts start them with `start_test_server LOG CMD…`
+  (test-hygiene.sh), which exports `CHATTERBOX_TEST_PORT` and `TEST_RUNNER_CHATTERBOX_TEST_PORT`
+  (xcodebuild hands `TEST_RUNNER_*` to the XCUITests, which pass it to the app as
+  `fixturePort`). Engine tests that serve the companion take `CHATTERBOX_COMPANION_PORT=$(free_port)`.
+  Never hard-code a test port: two worktrees run the same suite at once.
 - **Test scripts clean up after themselves.** Every `scripts/test-*.sh` starts with
   `source "$(dirname "$0")/lib/test-hygiene.sh"`; new ones must too. On exit it stops what the run
   started and deletes app bundles in its temp folders, keeping logs and screenshots.

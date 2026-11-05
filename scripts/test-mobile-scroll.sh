@@ -17,11 +17,9 @@ cleanup() {
 }
 trap cleanup EXIT
 export CHATTERBOX_TEST_OUTPUT="$artifacts"
-/usr/bin/python3 tests/mobile-scroll/server.py > "$artifacts/server.log" 2>&1 &
-server_pid=$!
-sleep 0.3
-# A busy test port is an error; never fall back to the live companion server.
-kill -0 "$server_pid"
+# The fixture server, on a free port of this run's own (test-hygiene.sh): runs never collide.
+start_test_server "$artifacts/server.log" /usr/bin/python3 tests/mobile-scroll/server.py
+server_pid=$test_server_pid
 /usr/bin/python3 - "$root" "$artifacts" <<'PY'
 from pathlib import Path
 import plistlib,sys
@@ -30,6 +28,10 @@ y='''name: MobileScrollRegression
 options:
   deploymentTarget:
     iOS: '17.0'
+packages:
+  RoyalVNC:
+    url: https://github.com/royalapplications/royalvnc
+    revision: 92d4427c73817d8f849bb289ff190aa4b40c44ea
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -51,6 +53,10 @@ y+='''    settings:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: Isolated test server
         TARGETED_DEVICE_FAMILY: '1,2'
         INFOPLIST_FILE: Regression-Info.plist
+    dependencies:
+      - package: RoyalVNC
+        product: RoyalVNCKit
+        embed: true
   ScrollTests:
     type: bundle.ui-testing
     platform: iOS
@@ -68,15 +74,22 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+# Built under the build slot into this run's own test products, then run on a device of its
+# own under a simulator slot, so the build slot is free while the tests drive the app
+# (test-hygiene.sh). The test products are the run's: another run's build can't replace them.
+# Only this Mac's architecture: a generic destination would build x86_64 as well.
+products="$artifacts/tests.xctestproducts"; rm -rf "$products"
+xcodebuild -project "$artifacts/MobileScrollRegression.xcodeproj" -scheme Regression \
+  -configuration Debug -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -testProductsPath "$products" ARCHS="$(uname -m)" build-for-testing
+# A test device of this run's own (test-hygiene.sh), shut down when the run ends.
 simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 status=0
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
 selection=("-only-testing:ScrollTests")
 if [[ -n "${MOBILE_SCROLL_ONLY:-}" ]]; then selection=("-only-testing:ScrollTests/ScrollTests/$MOBILE_SCROLL_ONLY"); fi
-xcodebuild -project "$artifacts/MobileScrollRegression.xcodeproj" -scheme Regression \
-  -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
-  -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$artifacts/results.xcresult" "${selection[@]}" test || status=$?
+xcodebuild -testProductsPath "$products" -destination "platform=iOS Simulator,id=$simulator" \
+  -resultBundlePath "$artifacts/results.xcresult" "${selection[@]}" test-without-building || status=$?
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"
 exit "${status:-0}"

@@ -1,9 +1,12 @@
 import XCTest
 import UIKit
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 19645 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "19645"
 final class ComposerTests: XCTestCase {
   override func setUp() { continueAfterFailure = false }
   func control(_ path: String, post: Bool = true) async throws -> [String:Any] {
-    var r = URLRequest(url: URL(string:"http://127.0.0.1:19645/test/"+path)!)
+    var r = URLRequest(url: URL(string:"http://127.0.0.1:\(fixturePort)/test/"+path)!)
     if post { r.httpMethod = "POST" }
     return try JSONSerialization.jsonObject(with: await URLSession.shared.data(for:r).0) as! [String:Any]
   }
@@ -11,7 +14,7 @@ final class ComposerTests: XCTestCase {
     let app = XCUIApplication()
     // A fresh install opens on the Desk; these sessions are on Projects.
     app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
-    app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":"19645"]
+    app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
     app.launch()
     let row=app.buttons["chat-33333333-3333-3333-3333-333333333333"]
     XCTAssertTrue(row.waitForExistence(timeout:15));row.tap()
@@ -104,7 +107,7 @@ final class ComposerTests: XCTestCase {
     _ = try await control("reset")
     let app=XCUIApplication()
     app.launchArguments=["-mobileChatListPage","projects","-drafts","{}"]
-    app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"19645"]
+    app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
     app.launch()
     // Activity lives in the ⋯ menu.
     XCTAssertTrue(app.buttons["Connection"].firstMatch.waitForExistence(timeout:15))

@@ -1,6 +1,6 @@
 # Refresh on mobile chat opening
 
-Run `./scripts/test-mobile-refresh.sh iphone` or `./scripts/test-mobile-refresh.sh ipad`. Requires Xcode, XcodeGen, and the iOS 26.2 simulator runtime. Run the two targets sequentially; they use loopback port 19645. The runner creates and removes its own simulator, uses a separate bundle ID, and leaves screenshots, request logs and an xcresult bundle in the printed temporary directory. It never pairs with the live Mac or sends a message to an agent.
+Run `./scripts/test-mobile-refresh.sh iphone` or `./scripts/test-mobile-refresh.sh ipad`. Requires Xcode, XcodeGen, and the iOS 26.2 simulator runtime. Each run serves on a free loopback port of its own, so the two targets can run at once. The runner creates and removes its own simulator, uses a separate bundle ID, and leaves screenshots, request logs and an xcresult bundle in the printed temporary directory. It never pairs with the live Mac or sends a message to an agent.
 
 The native UI tests use the actual `ChatListView` and `ChatDetailView`, with 300-row chat and project transcripts:
 

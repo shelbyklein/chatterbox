@@ -1,4 +1,7 @@
 import XCTest
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 19645 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "19645"
 
 final class HistoryTests: XCTestCase {
   override func setUp() {
@@ -12,7 +15,7 @@ final class HistoryTests: XCTestCase {
     add(shot)
   }
   func control(_ path: String, post: Bool = false) async throws -> Any {
-    var r = URLRequest(url: URL(string: "http://127.0.0.1:19645" + path)!)
+    var r = URLRequest(url: URL(string: "http://127.0.0.1:\(fixturePort)" + path)!)
     if post { r.httpMethod = "POST" }
     let (data, _) = try await URLSession.shared.data(for: r)
     return try JSONSerialization.jsonObject(with: data)
@@ -23,7 +26,7 @@ final class HistoryTests: XCTestCase {
     app.launchArguments = ["-mobileChatListPage", "chats"]
     app.launchEnvironment = [
       "CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456",
-      "CHATTERBOX_TEST_PORT": "19645",
+      "CHATTERBOX_TEST_PORT": fixturePort,
     ]
     app.launch()
     let row = app.buttons["chat-11111111-1111-1111-1111-111111111111"]
@@ -75,7 +78,7 @@ final class HistoryTests: XCTestCase {
     app.launchArguments = ["-mobileChatListPage", "chats"]
     app.launchEnvironment = [
       "CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456",
-      "CHATTERBOX_TEST_PORT": "19645",
+      "CHATTERBOX_TEST_PORT": fixturePort,
     ]
     app.launch()
     let row = app.buttons["chat-11111111-1111-1111-1111-111111111111"]

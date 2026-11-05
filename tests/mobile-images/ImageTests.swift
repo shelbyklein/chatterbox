@@ -1,7 +1,10 @@
 import XCTest
+/// The fixture server's port: each run has its own (start_test_server, scripts/lib/test-hygiene.sh,
+/// through TEST_RUNNER_CHATTERBOX_TEST_PORT); 47410 when run by hand against a server on it.
+let fixturePort = ProcessInfo.processInfo.environment["CHATTERBOX_TEST_PORT"] ?? "47410"
 
 final class ImageTests: XCTestCase {
-    let base = "http://127.0.0.1:47410"
+    let base = "http://127.0.0.1:\(fixturePort)"
     let imageID = "22222222-2222-2222-2222-222222222222"
     let olderID = "11111111-1111-1111-1111-111111111111"
 
@@ -21,7 +24,7 @@ final class ImageTests: XCTestCase {
         try await control("reset", mode: mode)
         let app = XCUIApplication()
         app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
-        app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": "47410"]
+        app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort]
         app.launch()
         let chat = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
         XCTAssertTrue(chat.waitForExistence(timeout: 15))
