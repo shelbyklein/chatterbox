@@ -27,6 +27,11 @@ app.setActivationPolicy(.accessory)
         window.sendEvent(event)
     }
     try await Task.sleep(for:.milliseconds(300))
+    // The button asks through the New Session sheet (a name, Put on the Desk); starting it unnamed
+    // is the sheet's Start.
+    guard let request=model.namingNewSession, request.sidechatOf==parent.id else {throw NSError(domain:"Native Sidechat button didn't ask for the new Sidechat",code:1)}
+    model.namingNewSession=nil
+    model.startNewSession(request,name:"")
     guard let side=model.selected, side.id != parent.id, side.record.sidechatOf==parent.id else {throw NSError(domain:"Native Sidechat button failed",code:1)}
     precondition(try! encoder.encode(parent.record)==original && parent.draft=="Original draft" && parent.isRunning)
     precondition(side.items.isEmpty && side.draft.isEmpty && side.record.codex?.threadId==nil && side.record.claudeSessionID==nil && side.record.codex?.forkFrom==nil)
