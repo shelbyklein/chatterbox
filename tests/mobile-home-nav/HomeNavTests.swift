@@ -1444,7 +1444,7 @@ final class HomeNavTests: XCTestCase {
   let sync=homeID("work-sync"), docs=homeID("work-docs"), icons=homeID("work-icons")
   func launch(cards:Bool) -> XCUIApplication {
    let app=XCUIApplication()
-   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
    app.launchArguments=["-mobileChatListPage","projects","-mobileChatListCards",cards ? "YES" : "NO","-mobileChatListSort","recent","-mobileActivityExpanded","YES"]
    app.launch()
    if tab("Projects",app).waitForExistence(timeout:15) { tab("Projects",app).tap() }
