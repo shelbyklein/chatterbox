@@ -56,6 +56,10 @@ func pressAccessible(_ label: String, in root: Any) -> Bool {
     print("PASS newest row visible at bottom")
     var stopped = false
     chat.remoteCommand = nil
+    // The copied chat may be a Claude chat; the check runs as Codex (no provider is started, and
+    // Codex's stop records the request without a running process).
+    chat.record.activeBackend = .codex
+    if chat.record.codex == nil { chat.record.codex = CodexSettings(folder: NSTemporaryDirectory(), canEdit: false) }
     chat.codexTurnID = nil
     chat.isRunning = true
     try await Task.sleep(for:.milliseconds(500))
@@ -63,7 +67,7 @@ func pressAccessible(_ label: String, in root: Any) -> Bool {
     let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: ".", charactersIgnoringModifiers: ".", isARepeat: false, keyCode: 47)!
     window.makeKeyAndOrderFront(nil)
     let accepted = window.performKeyEquivalent(with: event)
-    print("Stop shortcut accepted", accepted)
+    FileHandle.standardError.write("Stop shortcut accepted \(accepted), canStop \(chat.canStop), stopRequested \(chat.codexStopRequested), backend \(chat.record.backend)\n".data(using: .utf8)!)
     try await Task.sleep(for:.milliseconds(300))
     guard chat.codexStopRequested else { fatalError("Stop shortcut did not reach session") }
     print("PASS Stop shortcut reaches session; no provider started")

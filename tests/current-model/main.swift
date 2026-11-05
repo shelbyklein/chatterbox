@@ -50,16 +50,9 @@ struct Entry:View {
    panel.sendEvent(event)
   }
  }
- if let reveal=control(panel.contentView!,"Show presets") {precondition(reveal.accessibilityPerformPress())}
- else {click(269,60)}
- for frame in 0..<5 {
-  if frame > 0 {try await Task.sleep(for:.milliseconds(80))}
-  try save(panel.contentView!,"reveal-\(frame)")
- }
- try await Task.sleep(for:.milliseconds(200));try save(panel.contentView!,"presets-expanded")
- precondition(!app.windows.contains {$0 !== panel && $0.isVisible && $0.frame.width > 300},"First stage opened full picker")
- if let more=control(panel.contentView!,"Choose model and effort") {precondition(more.accessibilityPerformPress())}
- else {click(30,60)}
+ // The pill shows the preset's name; one click opens the picker (effort is the slider beside it).
+ if let pill=control(panel.contentView!,"Model: \(preset.displayName)") {precondition(pill.accessibilityPerformPress())}
+ else {click(410,60)}   // the pill, right of the effort slider
  try await Task.sleep(for:.seconds(1))
  precondition(app.windows.contains {$0 !== panel && $0.isVisible && $0.frame.width > 300},"Model picker did not open")
  precondition(session.record.codex==before,"Opening picker changed model")

@@ -59,7 +59,8 @@ func run() async throws {
         try VNImageRequestHandler(cgImage: image).perform([recognize])
         let text = (recognize.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
         let expected = n.isMultiple(of: 2) ? "plain transcript ready" : "preview transcript ready"
-        guard text.contains(expected), text.contains("studios") else {
+        // The sidebar: its search field and section (the Studios label left the chat sidebar).
+        guard text.contains(expected), text.contains("search"), text.contains("chats") else {
             fatalError("Switch \(n): transcript or sidebar disappeared. Recognized: \(text)")
         }
         // Exercise actual text input after a switch; do not send it to an agent.
