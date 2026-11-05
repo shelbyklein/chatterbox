@@ -678,6 +678,18 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let doneDisagrees = DeskStore.shared.snapshot().done?.first { $0.task == clickTask.id }?.check
     try check(doneDisagrees?.warning == "ClickUp still says In progress" && doneDisagrees?.writeBack == "Mark the ClickUp task complete",
               "ours Done, ClickUp in progress: warns and offers to mark it complete there")
+    // Write-back: only Shelby's tap (the app), never an agent; it asks an agent in a new session
+    // (the task has no open thread) to make the change with its connector, naming the task.
+    do { _ = try await agent.request("desk", body: ["action": "writeBack", "id": .string(clickTask.id.uuidString)]); try check(false, "an agent can't write back") }
+    catch { try check(error.localizedDescription.contains("permission_denied"), "an agent can't ask for a write-back") }
+    let sentBefore = sent.count
+    let wrote = try await ui.request("desk", body: ["action": "writeBack", "id": .string(clickTask.id.uuidString)]).decode(Companion.ChatDetail.self)
+    try check(sent.count == sentBefore + 1 && sent.last?.chat == wrote.summary.id && sent.last?.text.hasPrefix("Mark the ClickUp task complete") == true
+              && sent.last?.text.contains("desk source clickup:86camp") == true && wrote.summary.title == "Mark the ClickUp task complete",
+              "write-back: a new session asks an agent to mark the ClickUp task complete, and to report it")
+    _ = try await agent.request("desk", body: ["action": "origin", "ref": "clickup:86camp", "status": "complete"])
+    do { _ = try await ui.request("desk", body: ["action": "writeBack", "id": .string(clickTask.id.uuidString)]); try check(false, "nothing to write back") }
+    catch { try check(error.localizedDescription.contains("agrees"), "once the source agrees, there's nothing to write back") }
     let t0 = Date(timeIntervalSince1970: 1_800_000_000)
     let open = Companion.DeskOrigin(kind: "clickup", id: "1", status: "to do")
     try check(DeskOriginRules.check(open, column: .working, since: t0)?.writeBack == "Set ClickUp to In progress"
@@ -693,7 +705,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     _ = try await agent.request("desk", body: ["action": "origin", "ref": "email:<abc@mail>", "status": "new reply", "replyFrom": "Lauren"])
     let mailCard = DeskStore.shared.snapshot().incoming.first { $0.id == mailTask.id }
     try check(mailCard?.origin?.replyFrom == "Lauren" && mailCard?.check?.warning == "New reply from Lauren", "an email task: a new reply warns on its card")
-    for id in [mailTask.id, noted.incoming.first { $0.text == "Fix the footer" }!.id] { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
+    _ = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(clickTask.id.uuidString)])
+    for id in [clickTask.id, mailTask.id, noted.incoming.first { $0.text == "Fix the footer" }!.id] { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
     // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
     let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
     let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!

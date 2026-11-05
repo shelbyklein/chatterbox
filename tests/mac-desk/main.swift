@@ -137,7 +137,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     // MARK: The stand-in service Desk and transport.
     let resultsEmail = Companion.DeskRequest(id: UUID(), text: "Draft the 2027 Indoor Nationals results email to members", source: "claude",
                                              createdAt: now.addingTimeInterval(-1500), proposed: usaPlace,
-                                             note: "Results post Friday; Lauren wants the email ready to send that afternoon.")
+                                             note: "Results post Friday; Lauren wants the email ready to send that afternoon.",
+                                             origin: .init(kind: "email", id: "<results@usaarchery.org>", title: "Indoor Nationals results", status: "new reply", replyFrom: "Lauren"),
+                                             check: .init(warning: "New reply from Lauren", writeBack: "Draft the reply to Lauren"))
     let badge = Companion.DeskRequest(id: UUID(), text: "Fix the iPad sidebar badge count after archiving a session", source: "you",
                                       createdAt: now.addingTimeInterval(-240), proposed: chatterbox)
     let order = Companion.DeskRequest(id: UUID(), text: "Order more 6 mm magnets before the next PlayCase batch", source: "you",
@@ -151,7 +153,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         .init(id: UUID(), chatID: UUID(), title: "Gone", place: nil, kind: "reply", text: "Gone?"),
     ], incoming: [resultsEmail, badge, order], working: [],
     ready: [
-        .init(id: proofs.id, title: "Banner proofs", place: "USA Archery", text: "The three banner proofs are in the Studio folder.", finishedAt: now.addingTimeInterval(-1800)),
+        .init(id: proofs.id, title: "Banner proofs", place: "USA Archery", text: "The three banner proofs are in the Studio folder.", finishedAt: now.addingTimeInterval(-1800),
+              origin: .init(kind: "clickup", id: "86banner", url: "https://app.clickup.com/t/86banner", title: "Event banners", status: "complete"),
+              check: .init(warning: "ClickUp says Complete", match: "done")),
         .init(id: lid.id, title: "PlayCase lid fit", place: nil, text: "The 5 mm magnets fit the current lid with room to spare.", finishedAt: now.addingTimeInterval(-7200)),
         // Working again here, and archived here since: left out before the service says so.
         .init(id: ribbons.id, title: "National Event Ribbons", place: "USA Archery", text: "Old.", finishedAt: now.addingTimeInterval(-9000)),
@@ -365,6 +369,12 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(zip(columns, columns.dropFirst()).allSatisfy { $0.maxX < $1.minX && abs($0.minY - $1.minY) < 1 }, "side by side, left to right: To do, Working, Needs you, Ready, Done")
     check(columns.allSatisfy { abs($0.width - DeskView.columnWidth) < 1 } && columns.allSatisfy { $0.height > 600 }, "each a fixed width, the page's height (\(columns.map(\.size)))")
     check(keys.allSatisfy { frame("count:" + $0) != nil } && keys.allSatisfy { frame("empty:" + $0) == nil }, "each with its count, none empty")
+    // Sources (plans/source-linked-tasks.md): a badge, the amber warning, and its offers.
+    check(frame("source:\(resultsEmail.id)") != nil && frame("sourceWarning:\(resultsEmail.id)") != nil && frame("writeBack:\(resultsEmail.id)") != nil
+          && frame("match:\(resultsEmail.id)") == nil, "an email task: its badge, \u{201C}New reply from Lauren\u{201D}, and Draft the reply")
+    check(frame("sourceWarning:\(proofs.id)") != nil && frame("match:\(proofs.id)") == nil && frame("writeBack:\(proofs.id)") == nil,
+          "ClickUp finished while it waits for review: the warning; the card's own Mark complete matches it, nothing to write back")
+    check(frame("source:\(badge.id)") == nil, "a task with no source shows no badge")
     func inside(_ card: String, _ column: String) -> Bool {
         guard let card = frame(card), let column = frame("section:" + column) else { return false }
         return card.minX >= column.minX - 0.5 && card.maxX <= column.maxX + 0.5

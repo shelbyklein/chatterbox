@@ -37,7 +37,7 @@ the board is checked against it. Shelby, 2026-11-05.
 
 - [x] S1 Service: source on tasks, `desk add --source`, `desk source` status reports, URL parsing of
       existing notes, mismatch rules; tests.
-- [ ] S2 Board UI (Mac + phone): source badge on cards, amber mismatch line, write-back buttons on
+- [x] S2 Board UI (Mac + phone): source badge on cards, amber mismatch line, write-back buttons on
       moves; tests and screenshots.
 - [~] S3 Automation prompt (agent instructions v17 done; the morning automation's own prompt still to update): add `--source` when putting ClickUp/email work on the Desk, and report
       linked tasks' source status each run.
