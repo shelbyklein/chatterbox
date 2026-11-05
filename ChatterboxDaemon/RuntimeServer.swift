@@ -77,7 +77,7 @@ import CoreFoundation
                 guard ["agent","ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
                 guard role != "ui" || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
                 roles[peer.id]=role
-                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
+                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"metadataFields":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if ["approve","answer","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","connector","preferences"].contains(r.operation), role != "ui" {
@@ -303,27 +303,22 @@ import CoreFoundation
             guard role=="ui",let raw=r.body["studios"] else{throw RuntimeFailure("permission_denied")}
             try runtime.updateStudios(raw.decode([Studio].self))
         case "metadata":
-            guard role=="ui",let raw=r.body["record"] else{throw RuntimeFailure("permission_denied")}
-            let incoming=try raw.decode(ConversationRecord.self)
-            guard let s=runtime.session(incoming.id) else{throw RuntimeFailure("chat_not_found")}
-            let oldFolder=s.record.boundFolder
-            s.setTitle(incoming.title);s.setBackend(incoming.backend)
-            s.setModel(incoming.model);s.setEffort(incoming.effort);s.setPersonality(incoming.personality)
-            s.record.projectNickname=incoming.projectNickname;s.record.tags=incoming.tags
-            s.record.projectFolder=incoming.projectFolder;s.record.studioID=incoming.studioID;s.record.studioFolder=incoming.studioFolder
-            s.record.sidechatOf=incoming.sidechatOf;s.record.sidechatFolder=incoming.sidechatFolder;s.record.sidechatProjectFolder=incoming.sidechatProjectFolder
-            s.record.studioWorkingFolder=incoming.studioWorkingFolder;s.record.convertedProjectFolder=incoming.convertedProjectFolder
-            s.record.worktreeOf=incoming.worktreeOf;s.record.worktreeBranch=incoming.worktreeBranch
-            s.record.githubRepo=incoming.githubRepo;s.record.gitRemote=incoming.gitRemote
-            s.record.claudeMode=incoming.claudeMode;s.record.claudeFastMode=incoming.claudeFastMode
-            if let remote=incoming.remoteControl,remote != s.record.remoteControl{s.setRemoteControl(remote)}
-            s.record.currentIssue=incoming.currentIssue
-            if let c=incoming.codex {
-                s.setCodexModel(c.model);s.setCodexEffort(c.effort)
-                s.setCodexFolder(c.folder);s.record.codex?.mode=c.mode;s.record.codex?.fastMode=c.fastMode;s.record.codex?.route=c.route
+            // A whole record (older apps) sets every metadata field; `fields` sets only those it
+            // names (plans/mac-outbox.md), so the Mac's stale copy of the rest can't undo a change
+            // made on the phone meanwhile.
+            guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+            if let raw=r.body["record"] {
+                let incoming=try raw.decode(ConversationRecord.self)
+                guard let s=runtime.session(incoming.id) else{throw RuntimeFailure("chat_not_found")}
+                applyMetadata(incoming,to:s,only:nil)
+                return revision(s)
             }
-            if oldFolder != s.record.boundFolder{s.claudeWorkingFolderChanged()}
-            s.onChange?(s)
+            guard let fields=r.body["fields"]?.object else{throw RuntimeFailure("invalid_record")}
+            let s=try chat(r.body)
+            let known=fields.filter{ConversationRecord.metadataKeys.contains($0.key)}
+            guard let incoming=s.record.merging(known) else{throw RuntimeFailure("invalid_record")}
+            applyMetadata(incoming,to:s,only:Set(known.keys))
+            return revision(s,["applied":.array(known.keys.sorted().map(JSON.string))])
         case "send", "sendNow":
             let s=try chat(r.body);let text=r.body["text"]?.string ?? ""
             let files=try r.body["attachments"]?.decode([Attachment].self) ?? []
@@ -342,11 +337,11 @@ import CoreFoundation
                 s.answerQuestions(id,answers:raw == nil || raw == .null ? nil : try raw!.decode([String:[String]].self))
             }
             else {guard let decision=r.body["decision"]?.string.flatMap(DisplayItem.ApprovalState.init(rawValue:)),[.approved,.approvedForSession,.denied].contains(decision) else{throw RuntimeFailure("invalid_decision")};s.resolveApproval(id,decision)}
-        case "archive":try chat(r.body).setArchived(r.body["archived"]?.bool ?? true)
-        case "rename":try chat(r.body).setTitle(r.body["title"]?.string ?? "")
+        case "archive":let s=try chat(r.body);s.setArchived(r.body["archived"]?.bool ?? true);return revision(s)
+        case "rename":let s=try chat(r.body);s.setTitle(r.body["title"]?.string ?? "");return revision(s)
         case "setBrief":
             guard role=="ui" else{throw RuntimeFailure("permission_denied")}
-            try chat(r.body).setBrief(r.body["brief"]?.string ?? "")
+            let s=try chat(r.body);s.setBrief(r.body["brief"]?.string ?? "");return revision(s)
         case "delete":guard role=="ui" else{throw RuntimeFailure("permission_denied")};let s=try chat(r.body);try runtime.remove(s.id)
         case "sidequest":
             let task=(r.body["task"]?.string ?? "").trimmingCharacters(in:.whitespacesAndNewlines)
@@ -376,12 +371,53 @@ import CoreFoundation
             if let x=body["openModel"]{s.setOpenModel(x.string)}
             if let x=body["mode"]?.string{s.setMode(x)}
             if let x=body["personality"]?.string.flatMap(Personality.init(rawValue:)){s.setPersonality(x)}
-        case "remoteControl":try chat(r.body).setRemoteControl(r.body["enabled"]?.bool ?? false)
+            return revision(s)
+        case "remoteControl":let s=try chat(r.body);s.setRemoteControl(r.body["enabled"]?.bool ?? false);return revision(s)
         case "restartTools":try chat(r.body).restartClaudeForNewTools()
         case "shell":try chat(r.body).runShell(r.body["command"]?.string ?? "")
         case "stopShell":try chat(r.body).stopShellJobs()
         default:throw RuntimeFailure("unsupported_operation")
         }
         return ["ok":true]
+    }
+    /// A change's reply: the chat's revision once it's applied, so the Mac keeps showing its
+    /// own copy until an update at least that new comes (plans/mac-outbox.md).
+    private func revision(_ s:ChatSession,_ extra:[String:JSON]=[:]) -> JSON {
+        var reply=extra;reply["ok"]=true;reply["revision"] = .number(Double(runtime.state.revisions[s.id.uuidString] ?? 0))
+        return .object(reply)
+    }
+    /// Sets the chat's metadata from `incoming`: every field, or only those in `keys`.
+    private func applyMetadata(_ incoming:ConversationRecord,to s:ChatSession,only keys:Set<String>?) {
+        func has(_ key:String) -> Bool {keys?.contains(key) ?? true}
+        let oldFolder=s.record.boundFolder
+        if has("title"){s.setTitle(incoming.title)}
+        if has("activeBackend"){s.setBackend(incoming.backend)}
+        if has("model"){s.setModel(incoming.model)}
+        if has("effort"){s.setEffort(incoming.effort)}
+        if has("personality"){s.setPersonality(incoming.personality)}
+        if has("projectNickname"){s.record.projectNickname=incoming.projectNickname}
+        if has("tags"){s.record.tags=incoming.tags}
+        if has("projectFolder"){s.record.projectFolder=incoming.projectFolder}
+        if has("studioID"){s.record.studioID=incoming.studioID}
+        if has("studioFolder"){s.record.studioFolder=incoming.studioFolder}
+        if has("sidechatOf"){s.record.sidechatOf=incoming.sidechatOf}
+        if has("sidechatFolder"){s.record.sidechatFolder=incoming.sidechatFolder}
+        if has("sidechatProjectFolder"){s.record.sidechatProjectFolder=incoming.sidechatProjectFolder}
+        if has("studioWorkingFolder"){s.record.studioWorkingFolder=incoming.studioWorkingFolder}
+        if has("convertedProjectFolder"){s.record.convertedProjectFolder=incoming.convertedProjectFolder}
+        if has("worktreeOf"){s.record.worktreeOf=incoming.worktreeOf}
+        if has("worktreeBranch"){s.record.worktreeBranch=incoming.worktreeBranch}
+        if has("githubRepo"){s.record.githubRepo=incoming.githubRepo}
+        if has("gitRemote"){s.record.gitRemote=incoming.gitRemote}
+        if has("claudeMode"){s.record.claudeMode=incoming.claudeMode}
+        if has("claudeFastMode"){s.record.claudeFastMode=incoming.claudeFastMode}
+        if has("remoteControl"),let remote=incoming.remoteControl,remote != s.record.remoteControl{s.setRemoteControl(remote)}
+        if has("currentIssue"){s.record.currentIssue=incoming.currentIssue}
+        if has("codex"),let c=incoming.codex {
+            s.setCodexModel(c.model);s.setCodexEffort(c.effort)
+            s.setCodexFolder(c.folder);s.record.codex?.mode=c.mode;s.record.codex?.fastMode=c.fastMode;s.record.codex?.route=c.route
+        }
+        if oldFolder != s.record.boundFolder{s.claudeWorkingFolderChanged()}
+        s.onChange?(s)
     }
 }

@@ -131,6 +131,53 @@ func listTags(_ list: Any?, _ id: UUID) -> [String]? {
     let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
     let saved = try decoder.decode(ConversationRecord.self, from: Data(contentsOf: folder.appendingPathComponent("\(sideID.uuidString).json")))
     check(saved.tags == ["beta"], "the service saved the work thread's tag")
+
+    // Only the fields that changed (RuntimeOutbox, plans/mac-outbox.md): a partial body sets
+    // just those, so the Mac's stale copy of the rest can't undo a change made on the phone.
+    let partial = await Task.detached { () -> [String: Any] in
+        guard let mac = SocketClient(path), let hello = mac.call("hello", ["role": "ui"]) as? [String: Any] else { return [:] }
+        var seen: [String: Any] = ["hello": hello["metadataFields"] as? Bool ?? false]
+        func record(_ id: UUID) -> [String: Any] {
+            ((mac.call("get", ["chatID": id.uuidString, "summaryOnly": true]) as? [String: Any])?["record"] as? [String: Any]) ?? [:]
+        }
+        let stale = record(projectID)
+        // The phone renames it meanwhile.
+        seen["rename"] = mac.call("rename", ["chatID": projectID.uuidString, "title": "Renamed on the phone"]) != nil
+        let reply = mac.call("metadata", ["chatID": projectID.uuidString, "fields": ["tags": ["gamma", "delta"], "notAField": 1]]) as? [String: Any]
+        seen["applied"] = reply?["applied"] as? [String] ?? []
+        seen["revision"] = reply?["revision"] as? Int ?? -1
+        let after = record(projectID)
+        seen["tags"] = after["tags"] as? [String] ?? []
+        seen["title"] = after["title"] as? String ?? ""
+        // Clearing a field: null.
+        _ = mac.call("metadata", ["chatID": projectID.uuidString, "fields": ["projectNickname": "Nick"]])
+        _ = mac.call("metadata", ["chatID": projectID.uuidString, "fields": ["projectNickname": NSNull()]])
+        seen["nickname"] = record(projectID)["projectNickname"] ?? NSNull()
+        // A value that doesn't fit is refused, and changes nothing.
+        seen["bad"] = mac.call("metadata", ["chatID": projectID.uuidString, "fields": ["tags": "not a list"]]) == nil
+        seen["tags after bad"] = record(projectID)["tags"] as? [String] ?? []
+        // An older app's whole record still works (and sets every field, as it always did).
+        var whole = stale; whole["tags"] = ["old app"]
+        seen["whole"] = (mac.call("metadata", ["record": whole]) as? [String: Any])?["revision"] != nil
+        let wholeAfter = record(projectID)
+        seen["whole tags"] = wholeAfter["tags"] as? [String] ?? []
+        seen["whole title"] = wholeAfter["title"] as? String ?? ""
+        // Settings and the Brief report the revision too.
+        seen["settings revision"] = (mac.call("settings", ["chatID": projectID.uuidString, "personality": "neutral"]) as? [String: Any])?["revision"] as? Int ?? -1
+        seen["brief revision"] = (mac.call("setBrief", ["chatID": projectID.uuidString, "brief": "The brief"]) as? [String: Any])?["revision"] as? Int ?? -1
+        return seen
+    }.value
+    check(partial["hello"] as? Bool == true, "the handshake says partial metadata is supported")
+    check(partial["rename"] as? Bool == true, "the phone renamed the session")
+    check(partial["applied"] as? [String] == ["tags"], "a partial body applies only the known fields it names")
+    check((partial["revision"] as? Int ?? -1) > 0, "the reply carries the session's revision")
+    check(partial["tags"] as? [String] == ["gamma", "delta"], "the partial body set the tags")
+    check(partial["title"] as? String == "Renamed on the phone", "…and left the phone's new name alone")
+    check(partial["nickname"] is NSNull, "null clears a field")
+    check(partial["bad"] as? Bool == true && partial["tags after bad"] as? [String] == ["gamma", "delta"], "a value that doesn't decode is refused and changes nothing")
+    check(partial["whole"] as? Bool == true && partial["whole tags"] as? [String] == ["old app"], "an older app's whole-record body still works")
+    check(partial["whole title"] as? String == "Tagged project", "…setting every field, as before")
+    check((partial["settings revision"] as? Int ?? -1) > 0 && (partial["brief revision"] as? Int ?? -1) > 0, "settings and the Brief reply with the revision")
     server.stop()
     exit(0)
 }

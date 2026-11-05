@@ -112,6 +112,7 @@
 		56CD3F58F9EE442FB5D6E327 /* ChatSession+Issues.swift in Sources */ = {isa = PBXBuildFile; fileRef = A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */; };
 		56DEB72E6A453ED7B082FBF2 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8EB85AF0736434980646DAF /* ChatSession.swift */; };
 		576CB1BB27D8D8C292ECE945 /* RuntimeWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1D72C2B7928773630DB87B /* RuntimeWire.swift */; };
+		5799BCFD4393764911CABF07 /* RuntimeOutbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07640CE2C16E06481A9CD7DB /* RuntimeOutbox.swift */; };
 		57D138F3E0F30EAC4F1EF78D /* Host.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06B1A8FD57BD2D2C11BC4B51 /* Host.swift */; };
 		5832EF2321E145BFF16680CF /* CompanionRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */; };
 		59195F258EBFC06595C7CBA3 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2EAD6E5E9A45856F6E8311 /* ChatView.swift */; };
@@ -391,6 +392,7 @@
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		064C3FB24651A1A367B53C36 /* CodexAppServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAppServer.swift; sourceTree = "<group>"; };
 		06B1A8FD57BD2D2C11BC4B51 /* Host.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Host.swift; sourceTree = "<group>"; };
+		07640CE2C16E06481A9CD7DB /* RuntimeOutbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeOutbox.swift; sourceTree = "<group>"; };
 		080FC1114275CCF21740784E /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatImageGallery.swift; sourceTree = "<group>"; };
 		0881D3AFF484F1F3239AA3CF /* IssuePrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssuePrompts.swift; sourceTree = "<group>"; };
@@ -802,6 +804,7 @@
 				A125487FAFCF644CD583045D /* Prompts.swift */,
 				B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */,
 				CC10CF693F1C16CFCB7AC65A /* RemoteMachine.swift */,
+				07640CE2C16E06481A9CD7DB /* RuntimeOutbox.swift */,
 				5941C429D29DB4AF6D3E6812 /* RuntimePreferenceProjection.swift */,
 				A5D880F9204CBD1DAFCB11DD /* Secrets.swift */,
 				ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */,
@@ -1287,6 +1290,7 @@
 				53EF09A6315994CA6277FF71 /* RemoteMachine.swift in Sources */,
 				5DD3A64579ACC51B4A5F4E50 /* ReviewNotes.swift in Sources */,
 				9B2381AF4F9F3ED0C38A0473 /* RuntimeClient.swift in Sources */,
+				5799BCFD4393764911CABF07 /* RuntimeOutbox.swift in Sources */,
 				9421CB1B01955A819ECB3133 /* RuntimePaths.swift in Sources */,
 				0A746DE3028E37E1747C5CBB /* RuntimePeer.swift in Sources */,
 				44C1DEE60004EBA45CF93260 /* RuntimePreferenceProjection.swift in Sources */,
