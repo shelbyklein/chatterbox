@@ -175,17 +175,34 @@ if (( app )); then
   # Agent shells carry the service's CHATTERBOX_* variables; the app must not inherit them.
   env $(env | sed -n 's/^\(CHATTERBOX_[A-Z_]*\)=.*/-u \1/p') open "/Applications/$name.app"
 fi
-sleep 10
-health=$(/usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo failed
+# The service listens as soon as it has loaded its chats; reattaching to the background host
+# comes after ("starting" until then). Ask every second, for up to RESTART_SERVICE_HEALTH_WAIT
+# seconds (60), and say how long it took.
+health_check() {
+  /usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo failed
 import socket,json,uuid,sys
-s=socket.socket(socket.AF_UNIX); s.settimeout(20)
+s=socket.socket(socket.AF_UNIX); s.settimeout(5)
 s.connect(sys.argv[1]); f=s.makefile('rwb')
 def call(op,b=None):
     k=str(uuid.uuid4()); f.write((json.dumps(dict(version=1,id=k,operation=op,body=b or {}))+'\n').encode()); f.flush()
     while True:
         r=json.loads(f.readline())
         if r.get('id')==k: return r
-call('hello',{'role':'agent'}); print('ok' if 'result' in call('health') else 'failed')
+call('hello',{'role':'agent'}); r=call('health')
+print(r['result'].get('state','ready') if 'result' in r else 'failed')
 PY
-)
+}
+health=failed waited=0 health_wait=${RESTART_SERVICE_HEALTH_WAIT:-60} health_start=$(date +%s)
+while (( waited < health_wait )); do
+  sleep 1
+  health=$(health_check); waited=$(( $(date +%s) - health_start ))
+  [[ "$health" == ready ]] && break
+  # Answering but still reattaching: give that a little longer, then report it as such.
+  [[ "$health" == starting ]] && (( waited >= 20 )) && break
+done
+case "$health" in
+  ready) health="ok after ${waited}s" ;;
+  starting) health="ok after ${waited}s, still reattaching chats to the background host" ;;
+  *) health="failed (no answer in ${waited}s)" ;;
+esac
 log "$daemon pid ${new:-none}, health ${health}; app pid $(pgrep -x "$name" || echo none)"

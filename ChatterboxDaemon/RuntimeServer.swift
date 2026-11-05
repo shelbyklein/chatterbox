@@ -36,6 +36,8 @@ import CoreFoundation
             }
         }
     }
+    /// Commands that reach a chat's agent, so they wait for it to be reattached.
+    static let agentOperations:Set<String>=["send","sendNow","stop","sendQueuedNow","answer","approve","restartTools","settings","remoteControl","shell","stopShell"]
     /// Session events that can change the Desk's Needs you and Working.
     static let deskEvents:Set<String>=["turn.started","turn.finished","approval.waiting","question.waiting","approval.resolved","question.resolved","chat.created","chat.deleted","chat.changed"]
     func stop(){source?.cancel();source=nil;if listenFD>=0{Darwin.close(listenFD);listenFD = -1};for p in peers.values{p.stop()};peers.removeAll();unlink(socketURL.path);try? runtime.flush();runtime.waitForSaves()}
@@ -86,7 +88,8 @@ import CoreFoundation
             }
             let result:JSON
             switch r.operation {
-            case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence))]
+            // "starting" until the first reattachment to the background host is done.
+            case "health":result=["version":1,"sequence":.number(Double(runtime.state.sequence)),"state":.string(runtime.hostsResumed ? "ready":"starting")]
             case "codexModels":
                 guard role == "ui" else { throw RuntimeFailure("permission_denied") }
                 try await CodexAppServer.shared.refreshModels()
@@ -204,6 +207,7 @@ import CoreFoundation
                 result=try .value(RuntimeChatState(record:record,running:s.isRunning,revision:runtime.state.revisions[s.id.uuidString] ?? 0,draft:RuntimeDraft(text:s.draft,attachments:s.draftAttachments),totalCount:s.items.count,pendingItems:s.pendingRequests,summary:runtime.navigationSnapshot(s).summary,historyStart:start))
             case "restartThread":
                 let s = try chat(r.body)
+                if s.awaitingHostResume { try await runtime.waitForHostResume(s) }
                 let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
                 result = try await runtime.executeAsync(id: r.id, operation: r.operation, fingerprint: fingerprint) {
                     await s.restartThread()
@@ -248,6 +252,9 @@ import CoreFoundation
                 runtime.updateDraft(s,text:r.body["text"]?.string ?? "",attachments:try r.body["attachments"]?.decode([Attachment].self) ?? [])
                 result = .null
             default:
+                // A chat still reattaching to its reply (just after the service started) gets
+                // the command once it's back; no receipt is kept if it isn't, so a retry is safe.
+                if Self.agentOperations.contains(r.operation),let s=try? chat(r.body),s.awaitingHostResume {try await runtime.waitForHostResume(s)}
                 let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
                 result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try mutate(r,role:role)}
             }

@@ -61,5 +61,26 @@ func pids(_ binary: String) -> [String] {
     client.kill(id: "after-install")
     print("PASS host handoff")
 }
-Task { @MainActor in do { try await test(); exit(0) } catch { print("FAIL \(error.localizedDescription)"); exit(1) } }
+/// An idle older host: moved aside, then let go as soon as it reports nothing running. A list
+/// sent to it in between must still be answered. The service once waited on exactly that
+/// forever at startup, before it listened (restart "health failed", Nov 5 2026).
+@MainActor func idleHandoff() async throws {
+    let env = ProcessInfo.processInfo.environment
+    let old = env["OLD_HOST"]!, current = env["CHATTERBOX_HOST_BINARY"]!
+    let client = HostClient.shared
+    try await wait("the old host listens") { FileManager.default.fileExists(atPath: HostPaths.socket.path) }
+    try check(pids(old).count == 1 && pids(current).isEmpty, "only the idle old host is running")
+    try client.connect()
+    try check(pids(current).count == 1, "the client started the current host")
+    let started = Date()
+    let survey = await client.survey()
+    let took = Date().timeIntervalSince(started)
+    try check(took < 2, String(format: "listing just after moving an idle old host aside answers at once (%.2fs)", took))
+    try check(survey.complete && survey.processes.isEmpty, "and every host answered, with nothing running")
+    try await wait("the old host exits", seconds: 15) { pids(old).isEmpty }
+    try check(pids(old).isEmpty && pids(current).count == 1, "the idle old host exited")
+    print("PASS idle host handoff")
+}
+let idle = ProcessInfo.processInfo.environment["HANDOFF_IDLE"] == "1"
+Task { @MainActor in do { try await (idle ? idleHandoff() : test()); exit(0) } catch { print("FAIL \(error.localizedDescription)"); exit(1) } }
 RunLoop.main.run()

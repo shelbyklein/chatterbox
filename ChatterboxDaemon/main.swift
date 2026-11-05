@@ -14,7 +14,10 @@ Task { @MainActor in
         await EasyCLIProxy.shared.refresh()
         let runtime=try ConversationRuntime()
         RuntimeHooks.note={ message in fputs("chatterboxd: \(message)\n",stderr) }
-        await runtime.resume()
+        // Listen first, reattach to the background host after: a host that's slow or had just
+        // handed off once kept the service silent for a minute. Chats with nothing in a host
+        // are settled now; ones with a reply there show as reconnecting until it's confirmed.
+        runtime.settleUnlinked()
         let server=RuntimeServer(runtime:runtime)
         try server.start();daemon=server
         let model=DaemonContext(runtime);context=model
@@ -40,6 +43,10 @@ Task { @MainActor in
             if let front=session.record.workOf {DispatchQueue.main.async{session.workTurnEnded(front:runtime.session(front))}}
         }
         print("chatterboxd ready");fflush(stdout)
+        let started=Date()
+        await runtime.resume()
+        let waiting=runtime.sessions.filter(\.awaitingHostResume).count
+        RuntimeHooks.note("Checked the background host in \(String(format:"%.1f",Date().timeIntervalSince(started)))s"+(waiting>0 ? "; \(waiting) chat(s) still reconnecting":""))
     } catch {fputs("chatterboxd: \(error.localizedDescription)\n",stderr);exit(1)}
 }
 signal(SIGTERM,SIG_IGN);signal(SIGINT,SIG_IGN)
