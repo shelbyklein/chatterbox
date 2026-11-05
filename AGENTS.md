@@ -54,6 +54,18 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   cores. Three builds plus simulator suites at once took the Mac to a load average of 120.
   `CHATTERBOX_BUILD_SLOTS=2` allows two; `CHATTERBOX_BUILD_JOBS=N` sets the cap. A build run by
   hand should go through the lock too: `source scripts/lib/build-lock.sh` first.
+- **New worktrees start warm.** `git worktree add` (yours, or a work thread's) runs
+  `scripts/warm-worktree.sh` through a post-checkout hook in the shared `.git/hooks`: it clones
+  the main checkout's build folders (the list above, minus TestFlight) into the new worktree
+  copy-on-write, in seconds and with no extra disk, leaving app bundles, logs and per-run folders
+  behind. A worktree made another way (`--no-checkout`, a fresh clone) runs
+  `scripts/warm-worktree.sh` once before its first build; `--install-hook` puts the hook back.
+  Never copy build folders with plain `cp`/`rsync` (full copies, app bundles included).
+- **C and C++ builds go through ccache**, in any project on this Mac: every zsh (so every agent
+  shell) gets `CMAKE_C_COMPILER_LAUNCHER`/`CMAKE_CXX_COMPILER_LAUNCHER=ccache` and
+  `CCACHE_DIR=~/Library/Caches/ccache` (20 GB) from `~/.zshenv` (`scripts/setup-ccache.sh`).
+  CMake reads them when it first configures a build folder; one configured before needs one
+  reconfigure. `ccache -s` shows hits.
 - **Simulators: the shared test device, shut down when the run ends.** Mobile tests call
   `test_simulator iphone|ipad|duo` (test-hygiene.sh) for this Mac's one "Chatterbox test …"
   device per kind and runtime, booted under the build slot, and shut down (not deleted) on every
@@ -66,6 +78,13 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   `source "$(dirname "$0")/lib/test-hygiene.sh"`; new ones must too. On exit it stops what the run
   started and deletes app bundles in its temp folders, keeping logs and screenshots.
   `KEEP_TEST_BUILDS=1` keeps the builds for debugging.
+- **Run the tests for what you changed; the full suite once at the end.** While working, run
+  only what `scripts/tests-for.sh` lists: the tests covering your changes (commits since
+  origin/main, uncommitted and new files, Core's included; or name files). `--why` says why each
+  is listed, `--run` runs them. It reads the test scripts themselves (what they name, compile and
+  use); `scripts/test-map.txt` adds links it can't see, so add a line there when you write a test
+  it misses. Before you report the work done (or before ship), run the full suite once:
+  `scripts/tests-for.sh --run --all` (logs in `build/test-logs`), and say what failed.
 - **Never stop a process blind.** An idle-looking host can be carrying live chats. Use `safe_stop`
   from `scripts/lib/safe-stop.sh`, which refuses when Claude or Codex work runs under the process.
   Never kill `chatterboxd` or `ChatterboxHost` directly.
