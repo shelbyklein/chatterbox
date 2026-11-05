@@ -186,7 +186,9 @@ import CoreFoundation
                 let cursor=r.body["after"]?.int ?? 0;let replay=runtime.events(after:cursor)
                 subscribed.insert(peer.id)
                 result=["resync":.bool(replay.resync),"sequence":.number(Double(runtime.state.sequence)),"events":try .value(replay.events)]
-            case "list":result=try .value(runtime.snapshots(workingOnly:r.body["workingOnly"]?.bool == true, summaryOnly:r.body["summaryOnly"]?.bool == true))
+            case "list":
+                let working=r.body["workingOnly"]?.bool == true
+                result=r.body["summaryOnly"]?.bool == true ? try runtime.navigationList(workingOnly:working) : try .value(runtime.snapshots(workingOnly:working))
             case "get":
                 let s=try chat(r.body)
                 if r.body["summaryOnly"]?.bool == true { result = try .value(runtime.navigationSnapshot(s)); break }

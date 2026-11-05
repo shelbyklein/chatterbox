@@ -78,6 +78,37 @@ import Darwin
     try check(service.environment(for: session).isEmpty && !service.hasValue(entry), "removal clears service cache and environment")
     try check(!FileManager.default.fileExists(atPath: RuntimePaths.data.appendingPathComponent("test-secret-\(entry.id.uuidString)").path), "removal cleans fixture value")
     print("PASS saved-secret storage selection, cross-process refresh, scope and privacy")
+
+    // Saves mask only rows changed since they were last masked, but every change is caught.
+    let vault = SecretVault.shared
+    let first = SecretEntry(name: "First", variable: "FIRST_KEY"), second = SecretEntry(name: "Second", variable: "SECOND_KEY")
+    try writer.save(first, value: "first-fixture-secret")
+    try vault.reload()
+    let chat = ChatSession(record: ConversationRecord(model: "default", effort: "", personality: .neutral))
+    chat.record.items = (0..<50).map { DisplayItem(kind: .assistant, text: "row \($0)") }
+    chat.record.items[3].text = "leaked first-fixture-secret"
+    chat.redactSecrets()
+    try check(chat.items[3].text == "leaked ••••(FIRST_KEY)", "a secret in the transcript is masked")
+    chat.record.items[10].text += " first-fixture-secret"
+    chat.record.items[20].detail = "detail first-fixture-secret"
+    chat.record.items[49].text = "streamed first-fixture-"
+    chat.redactSecrets()
+    chat.record.items[49].text += "secret, split across chunks"
+    chat.redactSecrets()
+    try check(chat.items[10].text.hasSuffix("••••(FIRST_KEY)") && chat.items[20].detail == "detail ••••(FIRST_KEY)"
+              && chat.items[49].text == "streamed ••••(FIRST_KEY), split across chunks", "rows changed after an earlier save are masked")
+    chat.record.items.insert(DisplayItem(kind: .user, text: "moved first-fixture-secret"), at: 0)
+    chat.record.items[30].text = "same length first-fixture-secret!"
+    chat.redactSecrets()
+    try check(chat.items[0].text == "moved ••••(FIRST_KEY)" && !chat.items.contains { $0.text.contains("first-fixture-secret") }, "rows moved by an insert are masked")
+    chat.record.items[5].text = "already here: second-fixture-secret"
+    chat.redactSecrets()
+    try writer.save(second, value: "second-fixture-secret")
+    try vault.reload()
+    chat.redactSecrets()
+    try check(chat.items[5].text == "already here: ••••(SECOND_KEY)", "a newly saved secret is masked in rows masked before it")
+    try check(vault.redact("e\u{301} first-fixture-secret\u{301}") == "e\u{301} ••••(FIRST_KEY)\u{301}", "a value is masked byte for byte, even before a combining mark")
+    print("PASS incremental transcript masking")
 }
 
 Task { @MainActor in

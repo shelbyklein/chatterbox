@@ -15,12 +15,31 @@ typealias AppModel=DaemonContext
     var sidebarChats:[ChatSession]{activeSessions.filter{$0.record.projectFolder==nil && $0.record.studioID==nil && $0.record.sidechatOf==nil}}
     var activeStudios:[Studio]{runtime.studios.filter{$0.archivedAt==nil}}
     func studio(_ id:UUID)->Studio?{runtime.studios.first{$0.id==id}}
-    func chats(in studio:Studio)->[ChatSession]{activeSessions.filter { chat in
-        chat.record.studioID == studio.id && !activeSessions.contains { parent in
-            chat.record.sidechatOf == parent.id || (chat.record.worktreeOf != nil && chat.record.worktreeOf == parent.record.convertedProjectFolder)
+    func chats(in studio:Studio)->[ChatSession]{
+        let active=activeSessions
+        let parents=Set(active.map(\.id)),converted=Set(active.compactMap{$0.record.convertedProjectFolder})
+        return active.filter { chat in
+            let r=chat.record
+            return r.studioID == studio.id && !(r.sidechatOf.map(parents.contains) ?? false) && !(r.worktreeOf.map(converted.contains) ?? false)
         }
-    }}
-    func worktrees(of project:ChatSession)->[ChatSession]{activeSessions.filter{$0.record.worktreeOf != nil && $0.record.worktreeOf == (project.record.projectFolder ?? project.record.convertedProjectFolder)}}
+    }
+    func worktrees(of project:ChatSession)->[ChatSession]{(project.record.projectFolder ?? project.record.convertedProjectFolder).flatMap{family().worktrees[$0]} ?? []}
+    /// Sidechats by parent and worktrees by project folder, worked out once per runtime change
+    /// (every change publishes an event). The phone's list asks for every session's, and
+    /// filtering all sessions for each one held the main thread.
+    private var familyIndex:(sequence:Int,count:Int,sidechats:[UUID:[ChatSession]],worktrees:[String:[ChatSession]])?
+    private func family()->(sidechats:[UUID:[ChatSession]],worktrees:[String:[ChatSession]]) {
+        if let index=familyIndex,index.sequence==runtime.state.sequence,index.count==sessions.count {return (index.sidechats,index.worktrees)}
+        var sidechats:[UUID:[ChatSession]]=[:],worktrees:[String:[ChatSession]]=[:]
+        for s in activeSessions {
+            let r=s.record
+            if let parent=r.sidechatOf{sidechats[parent,default:[]].append(s)}
+            if let folder=r.worktreeOf{worktrees[folder,default:[]].append(s)}
+        }
+        for key in sidechats.keys{sidechats[key]!.sort{$0.record.updatedAt>$1.record.updatedAt}}
+        familyIndex=(runtime.state.sequence,sessions.count,sidechats,worktrees)
+        return (sidechats,worktrees)
+    }
     /// Starts on what `kind` last used (see ModelSelection).
     func newChat(backend:Backend?=nil,kind:SessionKind = .chats) throws ->ChatSession {
         let s=try makeNewChat(backend:backend)
@@ -98,7 +117,7 @@ typealias AppModel=DaemonContext
     func automationsChanged(){runtime.publishUIRequest("automations.changed",payload:.null)}
     func setInstructions(_ text:String,forStudio id:UUID){var all=runtime.studios;guard let i=all.firstIndex(where:{$0.id==id}) else{return};all[i].instructions=text;try? runtime.updateStudios(all)}
     func canFork(_ s:ChatSession)->Bool{!s.isRunning && s.record.projectFolder==nil && !s.items.isEmpty}
-    func sidechats(of parent: ChatSession) -> [ChatSession] { activeSessions.filter { $0.record.sidechatOf == parent.id }.sorted { $0.record.updatedAt > $1.record.updatedAt } }
+    func sidechats(of parent: ChatSession) -> [ChatSession] { family().sidechats[parent.id] ?? [] }
     func studioFamily(of parent: ChatSession) -> [ChatSession] {
         var family = [parent] + sidechats(of: parent)
         if parent.record.convertedProjectFolder != nil { for child in worktrees(of: parent) { family += [child] + sidechats(of: child) } }
