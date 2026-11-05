@@ -164,11 +164,32 @@ and projects' structure.
 Revert the commits; desk.json's new fields are ignored by older builds; work threads stay as
 ordinary threads.
 
-## Next: open work threads beside the front thread (Shelby, 2026-11-04)
+## Next: peek at a work thread in the thread sidebar (Shelby, 2026-11-04)
 
-On the Mac, opening a work thread (or a sidechat) from the front thread no longer replaces the
-view: it opens as a **peek panel**, a rounded floating card on the right side of the front thread
-(over the thread sidebar's space), showing that thread live with its own composer, approvals and
-status, plus "Open in full" and close. Several open as tabs in the card; Esc closes it. The front
-thread stays readable and typeable. Clicking a work thread in the sidebar list (or the Desk's
-"Open") still opens the full view. Starts after the thread-sidebar work lands (same files).
+Clarified (Shelby, 2026-11-04): work threads don't open when they're made. Only when Shelby clicks
+one, from its front thread, to see what it's doing, it opens in the **right-hand sidebar column**
+of the front thread (where About this thread lives), not in place of the conversation and not as a
+floating bubble.
+
+- [x] P1 Mac peek view (`Core/Chatterbox/Views/PeekPanel.swift`): the column shows the thread live
+      (its status line: Working and its step / Needs you / Ready / Done, kind and agent; its
+      transcript and approvals; its own composer), **Open in Full** (shows it in place of the
+      front thread, its tab closes) and **Back** (or Esc) to return the column to About. Several
+      open as tabs. 440 wide beside the conversation; a window too narrow for both slides it over
+      the right side. The front thread stays readable and typeable; a click in either decides
+      which one has the keyboard's chat shortcuts. Esc goes to a find field, a reply Esc stops,
+      or a "/" menu first.
+- [x] P2 What peeks: the Work strip's chips and a front thread's transcript links (a work
+      thread's or sidequest's result: `openChat`), through `model.peek(id, from: front)`.
+      Unchanged, opening full: the Desk's Open, the session list, a new sidechat, the work
+      thread's own "Open <front>".
+- [x] P3 Tests: tests/mac-desk (nothing peeks until a click; column beside the front thread;
+      tabs; tab click; Open in Full; Back; Esc; narrow slide-over). design/work-threads/mac-peek.png,
+      mac-peek-narrow.png.
+- [ ] P4 With the thread sidebar (About this thread) landed: the peek replaces the sidebar's
+      content in its column instead of adding a column beside it (ChatView's
+      `threadSidebar(overlay:)` shows the peek while one is open), and the sidebar's Task & work
+      rows call `model.peek` instead of `model.selectedID`.
+
+Chosen while building: peeks are kept per front thread for the app's run (in memory), so coming
+back to a front thread shows its peeks again; the phone is unchanged.

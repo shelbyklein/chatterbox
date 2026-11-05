@@ -12,9 +12,11 @@ import SwiftUI
 // lists name them, and that the board scrolls sideways in a narrow window. Tasks (plans/work-threads.md):
 // Working shows only threads carrying a task, Needs you marks those that aren't (Make this a
 // task), a To do card links a thread (asking first when it carries a task), a project's Start is
-// a new work thread, and a front thread's Work strip and a work thread's header render.
+// a new work thread, and a front thread's Work strip and a work thread's header render. A click on
+// a work thread peeks at it in a column on the right (tabs, Open in Full, Back, Esc).
 // Evidence: desk-*.png in the fixture folder (desk-board.png: every column with cards;
-// work-strip.png and work-thread.png: a front thread's Work strip and a work thread's header).
+// work-strip.png and work-thread.png: a front thread's Work strip and a work thread's header;
+// peek-tabs.png: two work threads peeked at beside their front thread).
 setbuf(stdout, nil)
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
@@ -682,6 +684,67 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     try await render(AnyView(VStack(spacing: 0) { WorkStrip(session: plan); WorkThreadBanner(session: workReady); Spacer() }
                         .background(Color(nsColor: .windowBackgroundColor))), 900, 140, "work-strip-banner")
     try await render(AnyView(WorkThreadForm(front: plan) {}.background(Color(nsColor: .windowBackgroundColor))), 400, 420, "work-thread-form")
+
+    // The peek view (plans/work-threads.md, Next): a click on a work thread from its front thread
+    // opens it in the column on the right, live, beside the front thread, not in its place.
+    let peeks = PeekStore.shared
+    workRunning.isRunning = false
+    model.selectedID = plan.id
+    check(peeks.panel(of: plan.id).tabs.isEmpty, "nothing peeks until a click (making a work thread opens nothing)")
+    model.peek(workReady.id, from: plan.id)
+    check(model.selectedID == plan.id && peeks.panel(of: plan.id) == .init(tabs: [workReady.id], selected: workReady.id),
+          "a click peeks at the work thread; the front thread stays selected")
+    func peekFrame(_ key: String) -> CGRect? { PeekDebug.frames[key] }
+    func peekClick(_ key: String) async throws {
+        guard let frame = PeekDebug.frames[key] else { check(false, "nothing to click at \(key)"); return }
+        let point = NSPoint(x: frame.midX, y: panel.frame.height - frame.midY)
+        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            app.postEvent(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                             windowNumber: panel.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!, atStart: false)
+        }
+        try await Task.sleep(for: .milliseconds(500))
+    }
+    PeekDebug.frames = [:]
+    try await render(AnyView(ContentView()), 1500, 900, "peek")
+    if let column = peekFrame("peekColumn"), let front = peekFrame("peekFront") {
+        check(abs(column.width - PeekPanelHost.columnWidth) < 1 && column.maxX > 1490 && column.height > 700,
+              "the peek is a column down the right side (\(column))")
+        check(front.maxX <= column.minX + 1 && front.width >= PeekPanelHost.frontMinimum,
+              "the front thread stays beside it, readable (\(front.width) wide)")
+    } else { check(false, "the peek column and the front thread render") }
+    check(peekFrame("peekOpenFull") != nil && peekFrame("peekBack") != nil && peekFrame("peekTab:\(workReady.id)") != nil,
+          "the peek has its tab, Open in Full and Back")
+    model.peek(workWaiting.id, from: plan.id)
+    try await Task.sleep(for: .milliseconds(600))
+    check(peeks.panel(of: plan.id) == .init(tabs: [workReady.id, workWaiting.id], selected: workWaiting.id), "a second one opens as a tab, shown")
+    try snapshot("peek-tabs")
+    check(peekFrame("peekTab:\(workReady.id)") != nil && peekFrame("peekTab:\(workWaiting.id)") != nil, "both tabs render")
+    try await peekClick("peekTab:\(workReady.id)")
+    check(peeks.panel(of: plan.id).selected == workReady.id && model.selectedID == plan.id, "clicking a tab shows that thread")
+    try await peekClick("peekOpenFull")
+    check(model.selectedID == workReady.id && peeks.panel(of: plan.id).tabs == [workWaiting.id], "Open in Full shows it in place of the front thread; its tab closes")
+    model.selectedID = plan.id
+    try await Task.sleep(for: .milliseconds(400))
+    try await peekClick("peekBack")
+    check(peeks.panel(of: plan.id).tabs.isEmpty && model.selectedID == plan.id, "Back closes the peek, back to the front thread alone")
+    model.peek(workRunning.id, from: plan.id)
+    try await Task.sleep(for: .milliseconds(500))
+    let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                  windowNumber: panel.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                                  isARepeat: false, keyCode: 53)!
+    app.postEvent(escape, atStart: false)
+    try await Task.sleep(for: .milliseconds(400))
+    check(peeks.panel(of: plan.id).tabs.isEmpty, "Esc closes the peek")
+    model.peek(plan.id, from: plan.id)
+    check(peeks.panel(of: plan.id).tabs.isEmpty && model.selectedID == plan.id, "the front thread itself doesn't peek")
+    // Too narrow for both: the column slides over the front thread's right side.
+    model.peek(workReady.id, from: plan.id)
+    PeekDebug.frames = [:]
+    try await render(AnyView(ContentView()), 1100, 800, "peek-narrow")
+    if let column = peekFrame("peekColumn"), let front = peekFrame("peekFront") {
+        check(front.maxX > column.minX + 100 && column.maxX > 1090, "narrow window: the column slides over the right side (\(front.maxX), \(column.minX))")
+    } else { check(false, "the narrow peek renders") }
+    peeks.closeAll(in: plan.id)
     for session in [workRunning] { session.isRunning = false }
     model.showDesk()
 
