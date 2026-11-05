@@ -6,7 +6,9 @@ import Darwin
 // one level); each is a fresh thread in the same folder whose first message is its brief (not
 // the front thread's transcript), on the front thread's agent unless chosen, carrying its own
 // task on the Desk; its finished reply (or `work report`) arrives in the front thread, and its
-// task moves to Ready. The phone's routes start and list them too.
+// task moves to Ready. A turn that ends with background work running is progress (the task stays
+// Working); the turn that ends with nothing running reports, or, if none comes, a safety net once
+// it's sat idle. The phone's routes start and list them too.
 func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     guard try ok() else { throw RuntimeFailure(text) }; print("PASS: \(text)")
 }
@@ -166,6 +168,50 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let phoneList = try Companion.decoder.decode([Companion.WorkThread].self, from: request("GET", "/v1/chats/\(front.id)/work", Data(), auth).body)
     try check(phoneList.map(\.id) == frontDetail.work?.map(\.id), "GET …/work lists them")
     try await wait("the phone's work thread reports back") { front.items.contains { $0.sidequest == phoneWork.summary.id && $0.kind == .user } }
+
+    // A turn that ends with background work still running is progress, not the result: nothing
+    // goes back, its task stays Working with that reply as its status line, until the agent picks
+    // back up by itself and finishes with nothing running; that reply is the result.
+    try await wait("the front thread settles first") { !front.isRunning }
+    func results(_ work: ChatSession) -> [DisplayItem] { front.items.filter { $0.kind == .user && $0.sidequest == work.id } }
+    let suite = runtime.session(try await start(ui, from: front, "Run the suite", brief: "Run the full suite. background").summary.id)!
+    try await wait("its turn ends with the suite still running") { !suite.isRunning && suite.record.workTurnEndedAt != nil }
+    try check(suite.hasBackgroundWork && suite.isWorkPending && suite.items.contains { $0.kind == .assistant && $0.text.contains("notified") },
+              "its turn ended saying it'll be notified, with the suite still running")
+    try check(results(suite).isEmpty, "that reply doesn't go back to the front thread")
+    var suiteBoard = desk.snapshot()
+    try check(suiteBoard.working.contains { $0.id == suite.id } && !(suiteBoard.ready ?? []).contains { $0.id == suite.id }, "its task stays Working on the board")
+    let suiteListed = try await agent.request("work", body: ["action": "list", "chatID": .string(front.id.uuidString)]).decode([Companion.WorkThread].self)
+        .first { $0.id == suite.id }
+    try check(suiteListed?.state == "working" && suiteListed?.status?.contains("Suite running") == true,
+              "the Work strip shows it Working, with its latest status line: \(suiteListed?.status ?? "none")")
+    try await wait("it picks back up and finishes; the result goes back") { !results(suite).isEmpty }
+    try check(results(suite).count == 1 && results(suite)[0].text.contains("Suite passed: all 42 tests green.") && !results(suite)[0].text.contains("notified")
+              && results(suite)[0].detail == "Work thread \u{201C}Run the suite\u{201D} finished", "the turn that ends with nothing running reports its reply, once")
+    try await wait("the front thread carries on") { !front.isRunning }
+    suiteBoard = desk.snapshot()
+    let suiteState = desk.workThreads(of: front).first { $0.id == suite.id }?.state
+    try check(!suite.isWorkPending && !suite.hasBackgroundWork && (suiteBoard.ready ?? []).contains { $0.id == suite.id }
+              && !suiteBoard.working.contains { $0.id == suite.id } && suiteState == "ready", "then its task is Ready")
+
+    // The safety net: background work ends but the agent never picks back up. Idle that long,
+    // nothing running, it reports what it has; before then it's still Working.
+    ChatSession.workIdleReport = 4
+    let stall = runtime.session(try await start(ui, from: front, "Nightly build", brief: "Build it. background-stall").summary.id)!
+    try await wait("its turn ends with the build still running") { !stall.isRunning && stall.record.workTurnEndedAt != nil }
+    try check(stall.isWorkPending && stall.hasBackgroundWork && results(stall).isEmpty, "progress: nothing goes back yet")
+    try await wait("the build finishes, and nothing picks back up") { !stall.hasBackgroundWork }
+    runtime.reportIdleWork()
+    let stallState = desk.workThreads(of: front).first { $0.id == stall.id }?.state
+    try check(stall.isWorkPending && results(stall).isEmpty && desk.snapshot().working.contains { $0.id == stall.id } && stallState == "working",
+              "idle, but not for long: still Working, nothing sent")
+    try await wait("idle long enough, it reports", seconds: 10) { runtime.reportIdleWork(); return !results(stall).isEmpty }
+    try check(results(stall).count == 1 && results(stall)[0].text.contains("notified") && !stall.isWorkPending, "the safety net reports its last reply")
+    try await wait("the front thread carries on") { !front.isRunning }
+    let stallAfter = desk.workThreads(of: front).first { $0.id == stall.id }?.state
+    try check(stallAfter == "ready", "and its task is Ready")
+    runtime.reportIdleWork()
+    try check(results(stall).count == 1, "the safety net reports once")
     try await wait("everything settles") { runtime.sessions.allSatisfy { !$0.isRunning } }
     ui.stop(); agent.stop()
     for session in runtime.sessions { session.shutdown() }

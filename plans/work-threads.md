@@ -105,6 +105,18 @@ Migration: desk.json's requests become tasks to do; existing sessions are not ma
   then only marked reported). Later replies (Shelby carrying on in it) report too. An archived
   front thread isn't woken; the work thread notes it. Work threads aren't archived when they
   report: Mark complete does that.
+- **Done means nothing left running (2026-11-04, after two early "I'll be notified…" results).**
+  A turn that ends while a background command or subagent it started still runs (the session's
+  `backgroundTasks`, Claude's and Codex's alike) isn't reported: `record.workPendingSince` is set,
+  the task stays Working (Work strip, board, `work list`, phone), and the strip shows its latest
+  status line (`WorkThread.status`, the step it's on or what it said last) without waking the
+  front thread. The turn that ends with nothing running reports its reply. Safety net: the
+  service's 30-second idle sweep (`ConversationRuntime.reportIdleWork`) reports the newest reply
+  once a pending work thread has sat idle, nothing running, for 30 minutes
+  (`ChatSession.workIdleReport`). `work report` still goes at once; "during this turn" now means
+  since the previous turn ended, so a background run's later result still reports.
+  `work start` waits 90 s for a busy service, then looks for the thread in `work list` before
+  calling it a failure.
 - **Permission.** Socket op `work`: `list` from any session; `start` from the app, or an agent
   from its own front thread mid-reply (not a sidequest or automation run); never from a work
   thread (`nested_work`, for the app too); `report` only from a work thread (`not_work_thread`),

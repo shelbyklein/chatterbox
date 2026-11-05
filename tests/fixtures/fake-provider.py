@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Deterministic stdio provider fixture. No accounts or network; request logs stay in the test data directory."""
-import json,sys,uuid,os,time
+import json,sys,uuid,os,time,threading
 if 'exec' in sys.argv:
  from pathlib import Path
  output=sys.argv[sys.argv.index('-o')+1]
@@ -12,7 +12,25 @@ if os.environ.get('FAKE_PROVIDER_LAUNCHES'):
  with open(os.environ['FAKE_PROVIDER_LAUNCHES'],'a') as f:f.write(json.dumps({'pid':os.getpid(),'cwd':os.getcwd(),'argv':sys.argv[1:],'chat':os.environ.get('CHATTERBOX_CHAT_ID'),'base':os.environ.get('ANTHROPIC_BASE_URL')})+'\n')
 thread='fixture-thread';turn='fixture-turn';pending=None;fail_unsubscribe=False
 
-def emit(obj):print(json.dumps(obj),flush=True)
+lock=threading.Lock()
+def emit(obj):
+ with lock:print(json.dumps(obj),flush=True)
+def background(stall):
+ # A message ending "background" (Claude): the turn starts a background command and ends saying
+ # so; when the command finishes, Claude Code picks back up by itself with a new turn and the
+ # real answer. "background-stall": the command finishes but nothing picks back up.
+ task='bg-'+str(uuid.uuid4())[:8]
+ emit({'type':'system','subtype':'task_started','task_id':task,'task_type':'local_bash','is_backgrounded':True,'description':'Run the suite'})
+ emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':"Suite running. I'll be notified when the suite finishes."}]}})
+ emit({'type':'result','subtype':'success','is_error':False,'result':"I'll be notified when the suite finishes."})
+ def finish():
+  emit({'type':'system','subtype':'task_updated','task_id':task,'patch':{'status':'completed'}})
+  emit({'type':'system','subtype':'task_notification','task_id':task,'status':'completed'})
+  if stall:return
+  emit({'type':'stream_event','event':{'type':'message_start','message':{}}})
+  emit({'type':'assistant','uuid':str(uuid.uuid4()),'message':{'id':str(uuid.uuid4()),'content':[{'type':'text','text':'Suite passed: all 42 tests green.'}]}})
+  emit({'type':'result','subtype':'success','is_error':False,'result':'Suite passed: all 42 tests green.'})
+ threading.Timer(float(os.environ.get('FAKE_PROVIDER_BACKGROUND_SECONDS','1.5')),finish).start()
 def note(name,value):
  # What the agent was given, for tests that check instructions and messages.
  with open(os.path.join(os.environ.get('CHATTERBOX_DATA_DIR','/tmp'),name),'a') as f:f.write(json.dumps(value)+'\n')
@@ -81,6 +99,8 @@ for line in sys.stdin:
    elif text.endswith('approval'):
     pending=True;emit({'type':'control_request','request_id':'fixture-a','request':{'subtype':'can_use_tool','tool_name':'Bash','input':{'command':'true'}}})
    elif text.endswith('hold'):pending=True
+   elif text.endswith('background'):background(False)
+   elif text.endswith('background-stall'):background(True)
    else:result();pending=None
   elif m.get('type')=='control_response' and pending:result();pending=None
   elif m.get('type')=='control_request':
