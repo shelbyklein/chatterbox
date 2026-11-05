@@ -163,3 +163,12 @@ and projects' structure.
 
 Revert the commits; desk.json's new fields are ignored by older builds; work threads stay as
 ordinary threads.
+
+## Next: open work threads beside the front thread (Shelby, 2026-11-04)
+
+On the Mac, opening a work thread (or a sidechat) from the front thread no longer replaces the
+view: it opens as a **peek panel**, a rounded floating card on the right side of the front thread
+(over the thread sidebar's space), showing that thread live with its own composer, approvals and
+status, plus "Open in full" and close. Several open as tabs in the card; Esc closes it. The front
+thread stays readable and typeable. Clicking a work thread in the sidebar list (or the Desk's
+"Open") still opens the full view. Starts after the thread-sidebar work lands (same files).
