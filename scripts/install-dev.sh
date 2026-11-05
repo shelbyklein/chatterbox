@@ -10,6 +10,8 @@
 #   scripts/install-dev.sh --no-open   leave Dev's app closed
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# One build at a time across worktrees; xcodebuild waits for the slot (AGENTS.md).
+source scripts/lib/build-lock.sh
 now=0 reopen=1
 for arg in "$@"; do
   case "$arg" in

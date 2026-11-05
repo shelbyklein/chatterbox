@@ -11,6 +11,7 @@
 # One-time on the phone: trust this Mac, then Settings → Privacy & Security → Developer Mode.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib/build-lock.sh
 # Chatterbox Dev: the Dev configuration (Debug-based, so Mac Screen is slower there), in its own
 # build folder. The real app keeps Release in build/DerivedDataMobile.
 build_config=Release derived=build/DerivedDataMobile

@@ -2,6 +2,7 @@
 # Build, commit staged work, push main, then install and restart the Mac app.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib/build-lock.sh
 if [[ "$(git branch --show-current)" != main ]]; then
   echo "Run ship.sh from main after reconciling feature work." >&2
   exit 1

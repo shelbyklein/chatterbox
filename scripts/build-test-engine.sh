@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib/build-lock.sh
 if [[ -n "${CHATTERBOX_TEST_ENGINE_DIR:-}" ]]; then
   printf '%s\n' "$CHATTERBOX_TEST_ENGINE_DIR"
   exit 0

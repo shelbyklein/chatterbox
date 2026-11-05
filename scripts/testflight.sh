@@ -11,6 +11,7 @@
 # build/TestFlight, older ones are removed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source scripts/lib/build-lock.sh
 # Signs and uploads with an App Store Connect API key when one is set up, otherwise with the
 # Apple ID signed in to Xcode (Xcode → Settings → Accounts).
 config="$HOME/.appstoreconnect/config"

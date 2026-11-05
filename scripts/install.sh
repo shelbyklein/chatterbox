@@ -4,6 +4,8 @@
 # files that break its code signature, and macOS then refuses to launch it.
 set -e
 cd "$(dirname "$0")/.."
+# One build at a time across worktrees; xcodebuild waits for the slot (AGENTS.md).
+source scripts/lib/build-lock.sh
 BUILD="build/DerivedData/Build/Products/Debug/Chatterbox.app"
 # Build first, so what's installed is always the current code.
 xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \

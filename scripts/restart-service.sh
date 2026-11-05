@@ -2,9 +2,10 @@
 # Restarts the background service (chatterboxd) so a newly installed build takes effect.
 # Installing the app replaces the file but leaves the old service running.
 #
-#   scripts/restart-service.sh            wait until no chat is mid-reply, then restart
-#   scripts/restart-service.sh --now      restart right away (replies in progress stop;
-#                                         their chats keep their history)
+#   scripts/restart-service.sh            restart between turns: as soon as no reply has
+#                                         produced anything for 3 s (hosts carry the agents
+#                                         across the restart), at the latest after 20 min
+#   scripts/restart-service.sh --now      restart right away
 #   scripts/restart-service.sh --app      also quit and reopen Chatterbox afterwards
 #   scripts/restart-service.sh --codex    also stop Chatterbox's Codex process (only the one
 #                                         under its host, never the ChatGPT app's), so the next
@@ -13,6 +14,19 @@
 #   scripts/restart-service.sh --delay N  start N seconds from now (so a chat's reply lands first)
 #   scripts/restart-service.sh --dev      Chatterbox Dev's service (chatterboxd-dev) instead, and
 #                                         with --app its app; the real one is left alone
+#
+# When it restarts (the rule that fired is in the report):
+#   idle           no chat is mid-reply.
+#   between turns  chats are mid-reply, but none has produced anything for RESTART_SERVICE_GAP
+#                  seconds (3): the service is between steps of their replies. The agents
+#                  themselves live in the background hosts (ChatterboxHost), which the service
+#                  reattaches to when it comes back (see HostClient.connect and
+#                  scripts/test-host-handoff.sh), so a reply carries on; the app reconnects.
+#                  "Wait for every reply to finish" never fired once work threads ran all day.
+#   cap            after RESTART_SERVICE_CAP seconds (20 min) of looking: at the next pause in
+#                  the stream however short, and in any case RESTART_SERVICE_GRACE seconds
+#                  (5 min) later.
+#   unresponsive   the service hasn't answered its socket for 60 s.
 #
 # Runs detached and replaces any restart already queued, so restarts never stack up.
 # The outcome goes to ~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt
@@ -27,10 +41,61 @@ else
   name=Chatterbox app_id=com.shelbyklein.Chatterbox daemon=chatterboxd service=com.shelbyklein.chatterboxd
   queue_label="com.shelbyklein.chatterbox.restart-service"
 fi
-sup="$HOME/Library/Application Support/$name"
+sup=${RESTART_SERVICE_SUPPORT_DIR:-$HOME/Library/Application Support/$name}
 report="$sup/Diagnostics/service-restart.txt"
 lock="$sup/Diagnostics/service-restart.pid"
 mkdir -p "$sup/Diagnostics" || exit 1
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$report"; }
+
+# What the service says over its socket: "<chats mid-reply> <event sequence>", or "err" when it
+# doesn't answer. The sequence goes up with every event a reply produces (output, a tool step,
+# a saved record), so an unchanged sequence means no reply is mid-stream right now.
+service_status() {
+  /usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo err
+import json, socket, sys, uuid
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sys.argv[1]); f = s.makefile("rwb")
+def ask(op, body):
+    rid = str(uuid.uuid4())
+    f.write((json.dumps({"version": 1, "id": rid, "operation": op, "body": body}) + "\n").encode()); f.flush()
+    while True:
+        reply = json.loads(f.readline())
+        if reply.get("id") == rid:
+            if reply.get("error"): raise SystemExit(1)
+            return reply.get("result")
+ask("hello", {"role": "agent"})
+# Only the working sessions, in short form: the full list can be too big to send.
+running = sum(1 for c in ask("list", {"workingOnly": True, "summaryOnly": True}) or [] if c.get("running"))
+print(running, int((ask("health", {}) or {}).get("sequence", 0)))
+PY
+}
+
+# Waits for the moment to restart and prints the rule that fired (see the top of the file).
+# RESTART_SERVICE_STATUS_CMD replaces service_status for tests.
+wait_for_turn_gap() {
+  local gap=${RESTART_SERVICE_GAP:-3} cap=${RESTART_SERVICE_CAP:-1200} grace=${RESTART_SERVICE_GRACE:-300} poll=${RESTART_SERVICE_POLL:-1}
+  local started now status running sequence last_sequence='' quiet_since err_since=''
+  started=$(date +%s); quiet_since=$started
+  log "waiting for a gap between replies: restart once no reply has produced anything for ${gap}s, at the latest ${cap}s from now"
+  while true; do
+    now=$(date +%s)
+    status=$(${RESTART_SERVICE_STATUS_CMD:-service_status})
+    if [[ "$status" == err ]]; then
+      : "${err_since:=$now}"
+      if (( now - err_since >= ${RESTART_SERVICE_UNRESPONSIVE:-60} )); then echo unresponsive; return; fi
+      sleep "$poll"; continue
+    fi
+    err_since=''
+    running=${status%% *}; sequence=${status##* }
+    if [[ "$running" == 0 ]]; then echo idle; return; fi
+    if [[ "$sequence" != "$last_sequence" ]]; then last_sequence=$sequence; quiet_since=$now
+    elif (( now - quiet_since >= gap )); then echo "between turns"; return; fi
+    if (( now - started >= cap )); then
+      if (( now - quiet_since >= poll )) || (( now - started >= cap + grace )); then echo cap; return; fi
+    fi
+    sleep "$poll"
+  done
+}
+if [[ "${RESTART_SERVICE_WAIT_ONLY:-}" == 1 ]]; then wait_for_turn_gap; exit 0; fi
 
 if [[ "${RESTART_SERVICE_DETACHED:-}" != 1 ]]; then
   # launchd owns the worker: nohup alone can still be reaped with an agent's shell.
@@ -69,40 +134,16 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$report"; }
 cleanup() { [[ "$(cat "$lock" 2>/dev/null)" == $$ ]] && rm -f "$lock"; }
 trap cleanup EXIT
 
-# How many chats are mid-reply, asked of the service over its socket ("err" if it doesn't answer).
-running() {
-  /usr/bin/python3 - "$sup/daemon.sock" <<'PY' 2>/dev/null || echo err
-import json, socket, sys, uuid
-s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(sys.argv[1]); f = s.makefile("rwb")
-def ask(op, body):
-    rid = str(uuid.uuid4())
-    f.write((json.dumps({"version": 1, "id": rid, "operation": op, "body": body}) + "\n").encode()); f.flush()
-    while True:
-        reply = json.loads(f.readline())
-        if reply.get("id") == rid:
-            if reply.get("error"): raise SystemExit(1)
-            return reply.get("result")
-ask("hello", {"role": "agent"})
-# Only the working sessions, in short form: the full list can be too big to send.
-print(sum(1 for c in ask("list", {"workingOnly": True, "summaryOnly": True}) or [] if c.get("running")))
-PY
-}
-
 sleep "$delay"
-if (( ! now )); then
-  log "waiting for every chat to finish its reply"
-  deadline=$(( $(date +%s) + 4*3600 ))
-  while true; do
-    if (( $(date +%s) > deadline )); then log "gave up after 4 hours: replies still running; no restart"; exit 1; fi
-    a=$(running); sleep 15; b=$(running)
-    [[ "$a" == 0 && "$b" == 0 ]] && break
-    sleep 15
-  done
+if (( now )); then
+  rule="--now"
+else
+  rule=$(wait_for_turn_gap)
 fi
+log "restart rule: $rule"
 
 old=$(pgrep -x "$daemon")
 log "restarting $daemon (was pid ${old:-none})"

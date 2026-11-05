@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib/source-list.sh
+source scripts/lib/build-lock.sh
 mkdir -p build/runtime
 manifest=$(mktemp /tmp/chatterbox-test-daemon-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT

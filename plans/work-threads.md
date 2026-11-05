@@ -16,6 +16,13 @@ plans/desk-board.md ("Tasks linked to threads").
 - Built and tried in Chatterbox Dev first; the real app gets it when Shelby says ship.
 - From plans/desk-board.md: one task per thread; unlinked threads show only in Needs you;
   Mark complete archives the thread; link from the task card or from the thread.
+- (2026-11-04, after the Mac hit load 120 with three work threads building at once) Only
+  PROJECT front threads act as orchestrators: the work-threads instructions go to sessions whose
+  place is a project (its session, a worktree, a Sidechat in it; `ConversationRecord.isInProject`),
+  not to loose chats or Studio sessions, which stay one thread. `work start` still works there
+  when invoked explicitly, and the "Start a Work Thread" menu action stays everywhere.
+  `instructionsVersion` 14 tells non-project chats already running. The Desk's Start of a To do
+  task in a Studio or loose place starts a plain session, as before.
 
 ## Today (code evidence)
 

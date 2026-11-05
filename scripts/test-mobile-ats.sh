@@ -7,12 +7,7 @@ cd "$(dirname "$0")/.."
 probe_host=${1:?Pass the Mac numeric Tailscale IPv4 address}
 probe_lan=${2:-}
 artifacts=$(mktemp -d /tmp/chatterbox-ats.XXXXXX)
-simulator=''
 cleanup() {
-  if [[ -n "$simulator" ]]; then
-    xcrun simctl shutdown "$simulator" >/dev/null 2>&1 || true
-    xcrun simctl delete "$simulator" >/dev/null 2>&1 || true
-  fi
   echo "Numeric ATS artifacts: $artifacts"
 }
 trap cleanup EXIT
@@ -26,9 +21,8 @@ path=sys.argv[1];p=plistlib.load(open(path,'rb'))
 p['NSAppTransportSecurity']={'NSAllowsLocalNetworking':True}
 plistlib.dump(p,open(path,'wb'))
 PY
-simulator=$(xcrun simctl create 'Chatterbox numeric ATS test' com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-26-2)
-xcrun simctl boot "$simulator"
-xcrun simctl bootstatus "$simulator" -b > "$artifacts/boot.log"
+# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+simulator=$(test_simulator iphone com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 for policy in before after; do
   if [[ "$policy" == before ]]; then candidate="$artifacts/before.app"; else candidate="$app"; fi
   xcrun simctl terminate "$simulator" com.shelbyklein.Chatterbox.mobile >/dev/null 2>&1 || true

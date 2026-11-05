@@ -10,14 +10,9 @@ esac
 root=$(pwd)
 artifacts=${CHATTERBOX_TEST_ARTIFACTS:-$(mktemp -d /tmp/chatterbox-mobile-composer.XXXXXX)}
 results="$artifacts/results-$(date +%s).xcresult"
-simulator=''
 server_pid=''
 cleanup() {
   if [[ -n "$server_pid" ]]; then kill "$server_pid" 2>/dev/null || true; fi
-  if [[ -n "$simulator" ]]; then
-    xcrun simctl shutdown "$simulator" >/dev/null 2>&1 || true
-    xcrun simctl delete "$simulator" >/dev/null 2>&1 || true
-  fi
   echo "Mobile composer artifacts: $artifacts"
 }
 trap cleanup EXIT
@@ -83,9 +78,8 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-simulator=$(xcrun simctl create 'Chatterbox refresh regression' "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
-xcrun simctl boot "$simulator"
-xcrun simctl bootstatus "$simulator" -b
+# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 xcodebuild -project "$artifacts/MobileComposerRegression.xcodeproj" -scheme Regression \
   -configuration Debug -destination "platform=iOS Simulator,id=$simulator" \
   -derivedDataPath "$PWD/build/DerivedData-MobileTests" -resultBundlePath "$results" test "${@:2}"

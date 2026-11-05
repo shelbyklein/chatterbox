@@ -47,6 +47,21 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 
   Never build into `/tmp` or a per-run folder. Each extra build leaves a full app copy that macOS
   then offers as Chatterbox.
+- **One build at a time, across every worktree.** `scripts/lib/build-lock.sh` (sourced by the
+  build scripts and, through `test-hygiene.sh`, by every test) makes `xcodebuild`, `swiftc` and
+  `swift build` wait for the shared slot in `~/Library/Caches/Chatterbox/build-lock`, printing
+  "waiting for another build (pid N, worktree X)", and caps xcodebuild at `-jobs` = half the
+  cores. Three builds plus simulator suites at once took the Mac to a load average of 120.
+  `CHATTERBOX_BUILD_SLOTS=2` allows two; `CHATTERBOX_BUILD_JOBS=N` sets the cap. A build run by
+  hand should go through the lock too: `source scripts/lib/build-lock.sh` first.
+- **Simulators: the shared test device, shut down when the run ends.** Mobile tests call
+  `test_simulator iphone|ipad|duo` (test-hygiene.sh) for this Mac's one "Chatterbox test …"
+  device per kind and runtime, booted under the build slot, and shut down (not deleted) on every
+  way out, a SIGKILL included (a watcher process). Booted devices are on record in
+  `~/Library/Caches/Chatterbox/simulators/<udid>`; `scripts/tidy.sh --simulators` shuts down the
+  ones whose run is gone and stops runtime processes of devices that aren't booted. The service
+  also shuts down any booted simulator on the Mac that nothing has used for 30 minutes
+  (Settings → Background service; `SimulatorSweeper`), never one on record.
 - **Test scripts clean up after themselves.** Every `scripts/test-*.sh` starts with
   `source "$(dirname "$0")/lib/test-hygiene.sh"`; new ones must too. On exit it stops what the run
   started and deletes app bundles in its temp folders, keeping logs and screenshots.
@@ -54,10 +69,13 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 - **Never stop a process blind.** An idle-looking host can be carrying live chats. Use `safe_stop`
   from `scripts/lib/safe-stop.sh`, which refuses when Claude or Codex work runs under the process.
   Never kill `chatterboxd` or `ChatterboxHost` directly.
-- **Restart the service only with `scripts/restart-service.sh`.** It waits for every reply to
-  finish by default (`--now` doesn't wait, `--app` reopens the app too), replaces any restart
-  already queued, and reports to `~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt`.
-  Restarts that interrupt replies need the user's go-ahead. `--dev` restarts Chatterbox Dev's
+- **Restart the service only with `scripts/restart-service.sh`.** By default it restarts
+  between turns: as soon as no reply has produced anything for 3 s (the agents live in the
+  hosts, which the service reattaches to; replies carry on), 20 minutes at the latest; the rule
+  that fired is in the report. `--now` doesn't wait, `--app` reopens the app too. It replaces any
+  restart already queued, and reports to
+  `~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt`.
+  Restarts with `--now` while replies run need the user's go-ahead. `--dev` restarts Chatterbox Dev's
   service instead (report in `Application Support/Chatterbox Dev/Diagnostics`).
 - **Install only with `scripts/install-dev.sh` (Dev), or `scripts/ship.sh` / `scripts/install.sh`
   (the real app, when Shelby says ship).** Never `open` either app from an agent shell: it would

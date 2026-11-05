@@ -9,15 +9,10 @@ case "${1:-iphone}" in
 esac
 root=$(pwd)
 mkdir -p build; artifacts=$(mktemp -d "$root/build/mobile-images.XXXXXX")
-simulator=''
 status=0
 server_pid=''
 cleanup() {
   if [[ -n "$server_pid" ]]; then kill "$server_pid" 2>/dev/null || true; fi
-  if [[ -n "$simulator" ]]; then
-    xcrun simctl shutdown "$simulator" >/dev/null 2>&1 || true
-    xcrun simctl delete "$simulator" >/dev/null 2>&1 || true
-  fi
   echo "Mobile image artifacts: $artifacts"
 }
 trap cleanup EXIT
@@ -73,10 +68,9 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump({'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}},f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-simulator=$(xcrun simctl create 'Chatterbox image regression' "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
+# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 status=0
-xcrun simctl boot "$simulator"
-xcrun simctl bootstatus "$simulator" -b
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
 selection=("-only-testing:ImageTests")

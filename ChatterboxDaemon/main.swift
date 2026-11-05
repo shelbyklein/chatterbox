@@ -19,6 +19,8 @@ Task { @MainActor in
         try server.start();daemon=server
         let model=DaemonContext(runtime);context=model
         let automations=AutomationRunner(model);AutomationRunner.shared=automations;automations.start()
+        // Booted simulators nothing has used for half an hour are shut down (the whole Mac's).
+        let simulators=SimulatorSweeper();SimulatorSweeper.shared=simulators;simulators.start()
         NotificationCenter.default.addObserver(forName:Notification.Name("ChatterboxRuntimeOpenPin"),object:nil,queue:.main){note in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }

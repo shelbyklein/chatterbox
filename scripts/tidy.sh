@@ -3,16 +3,20 @@
 # session; /dev-sync runs it too. Nothing is removed without --apply, and nothing that a running
 # process uses (or that hosts Claude/Codex chat work) is touched.
 #
-#   scripts/tidy.sh            report
-#   scripts/tidy.sh --apply    remove what the report lists as removable
+#   scripts/tidy.sh                report
+#   scripts/tidy.sh --apply        remove what the report lists as removable
+#   scripts/tidy.sh --simulators   only the simulators section (with --apply: shut down the
+#                                  booted ones no run owns, stop leftover simulator processes)
 #
 # Covered: leftover test processes, old test temp folders, stray app copies and one-off build
-# folders, simulators made by tests, waiting restart jobs and old activation folders. Branches and
-# worktrees are /dev-sync's job (its inventory reports them).
+# folders, simulators (booted ones whose test run is gone, runtime processes of devices that are
+# shut down or deleted, per-run devices older tests made), waiting restart jobs and old
+# activation folders. Branches and worktrees are /dev-sync's job (its inventory reports them).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 source scripts/lib/safe-stop.sh
 apply=0; [[ " $* " == *" --apply "* ]] && apply=1
+only_simulators=0; [[ " $* " == *" --simulators "* ]] && only_simulators=1
 repo=$PWD
 # The only build folders scripts may use (see AGENTS.md, "Build and test hygiene").
 keep_builds="DerivedData DerivedDataMobile DerivedData-MobileTests runtime TestFlight DerivedData-Dev DerivedDataMobile-Dev"
@@ -45,6 +49,7 @@ section() {
   true
 }
 
+if (( ! only_simulators )); then
 section "Leftover test processes (fake agents and services whose test is gone)"
 while read -r pid ppid cmd; do
   [[ -n "$pid" ]] || continue
@@ -86,6 +91,7 @@ done < <( { find /tmp /private/tmp -maxdepth 6 \( -name Chatterbox.app -o -name 
             find "$HOME/Vibes" -maxdepth 7 -path '*/node_modules' -prune -o \( -name Chatterbox.app -o -name 'Chatterbox Dev.app' \) -type d -prune -print 2>/dev/null; } | sort -u)
 
 (( other_apps )) && item "$other_apps app copies in other repos' build folders; left for that repo's own cleanup"
+fi
 
 # The simulator service can wedge and leave simctl hanging; give up after 20 seconds.
 simulators() {
@@ -99,16 +105,52 @@ simulators() {
   cat "$out"; rm -f "$out"
 }
 
-section "Simulators made by tests"
+# Simulators. Booted devices are kept while something uses them: a build or test whose command
+# line names the device, or the test run that booted it (test-hygiene.sh records the run's pid
+# in ~/Library/Caches/Chatterbox/simulators/<udid>). A booted device whose run is gone, or a
+# test-named one nothing targets, is shut down. Devices that are shut down or deleted sometimes
+# keep their runtime processes (a launchd_sim and everything under it; hundreds of processes and
+# gigabytes once three or four pile up): those are stopped. Per-run devices older tests made are
+# deleted; the shared "Chatterbox test …" devices stay for the next run.
+registry=${CHATTERBOX_SIMULATOR_REGISTRY:-$HOME/Library/Caches/Chatterbox/simulators}
+section "Simulators"
+booted_udids=''
 while IFS= read -r line; do
   [[ -n "$line" ]] || continue
-  udid=$(sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/' <<< "$line")
-  if [[ "$line" == *"(Booted)"* ]]; then keep "$line" "booted"; continue; fi
-  removable=$((removable+1)); listed "simulator: $line"
-  (( apply )) && xcrun simctl delete "$udid" >/dev/null 2>&1
+  udid=$(sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/' <<< "$line")
+  name=${line%% (*}
+  owner=$(sed -n 's/^pid //p' "$registry/$udid" 2>/dev/null)
+  if [[ "$line" == *"(Booted)"* ]]; then
+    booted_udids="$booted_udids $udid"
+    if grep -qF -- "$udid" <<< "$used"; then keep "$line" "a build or test targets it"; continue; fi
+    if [[ -n "$owner" ]] && kill -0 "$owner" 2>/dev/null; then keep "$line" "booted by test run pid $owner"; continue; fi
+    if [[ -n "$owner" ]]; then why="its run (pid $owner) is gone"
+    elif [[ "$name" == "Chatterbox test"* ]] || grep -qE 'Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' <<< "$name"; then why="a test device nothing targets"
+    else keep "$line" "booted, not by a test; shut it down yourself if it's stale"; continue; fi
+    removable=$((removable+1)); listed "shut down booted simulator, $why: $line"
+    (( apply )) && { xcrun simctl shutdown "$udid" >/dev/null 2>&1; rm -f "$registry/$udid"; }
+    continue
+  fi
+  [[ -n "$owner" ]] && (( apply )) && rm -f "$registry/$udid"
+  if [[ "$name" == "Chatterbox test"* ]]; then keep "$line" "reusable test device"; continue; fi
+  if grep -qE 'Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' <<< "$name"; then
+    removable=$((removable+1)); listed "per-run test simulator: $line"
+    (( apply )) && xcrun simctl delete "$udid" >/dev/null 2>&1
+  fi
   true
-done < <(simulators | grep -E 'Chatterbox|regression|remediation|lane-[a-z]-|tt-|TT Website' | sed -E 's/^ +//')
+done < <(simulators | grep -E '\([0-9A-Fa-f-]{36}\)' | sed -E 's/^ +//')
+# Runtime processes of devices that aren't booted (shut down, or deleted altogether).
+while read -r pid cmd; do
+  [[ -n "$pid" ]] || continue
+  udid=$(sed -E 's#.*/Devices/([0-9A-Fa-f-]{36})/.*#\1#' <<< "$cmd")
+  [[ "$udid" != "$cmd" ]] || continue
+  [[ " $booted_udids " == *" $udid "* ]] && continue
+  count=$(_safe_tree "$pid" | wc -l | tr -d ' ')
+  removable=$((removable+1)); listed "leftover simulator processes ($count) of device $udid, not booted: launchd_sim pid $pid"
+  (( apply )) && safe_stop "$pid"
+done < <(ps -axo pid=,command= | grep -E '(^| )launchd_sim ' | grep -v grep || true)
 
+if (( ! only_simulators )); then
 section "Restart jobs and activation folders"
 for pid in $(pgrep -f 'restart-service.sh|Activation/activate.sh|cb-restart.sh' 2>/dev/null); do
   item "waiting restart job, pid $pid: $(ps -o command= -p "$pid" | cut -c1-100)  (scripts/restart-service.sh replaces it)"
@@ -124,6 +166,7 @@ for d in "$HOME/Library/Developer/Xcode/DerivedData"/Chatterbox-*; do
   [[ $(age "$d") -ge 14 ]] && remove "$d" "Xcode DerivedData, $(age "$d") days old" || true
 done
 
+fi
 section
 echo
 if (( apply )); then echo "Removed $removable item(s); kept $kept."

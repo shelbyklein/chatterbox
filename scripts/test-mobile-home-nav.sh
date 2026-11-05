@@ -16,15 +16,10 @@ root=$(pwd)
 # MOBILE_TEST_RUNTIME can pin a supported installed runtime for a reproducible regression.
 runtime=${MOBILE_TEST_RUNTIME:-$(xcrun simctl list runtimes -j | /usr/bin/python3 -c 'import json,sys; d=sys.argv[1]; r=[x for x in json.load(sys.stdin)["runtimes"] if x["platform"]=="iOS" and x["isAvailable"] and any(t["identifier"]==d for t in x.get("supportedDeviceTypes",[]))]; print(sorted(r,key=lambda x:[int(p) for p in x["version"].split(".")])[-1]["identifier"])' "$device_type")}
 mkdir -p build; artifacts=$(mktemp -d "$root/build/mobile-home-nav.XXXXXX")
-simulator=''
 status=0
 server_pid=''
 cleanup() {
   if [[ -n "$server_pid" ]]; then kill "$server_pid" 2>/dev/null || true; fi
-  if [[ -n "$simulator" ]]; then
-    xcrun simctl shutdown "$simulator" >/dev/null 2>&1 || true
-    xcrun simctl delete "$simulator" >/dev/null 2>&1 || true
-  fi
   echo "Mobile home navigation artifacts: $artifacts"
 }
 trap cleanup EXIT
@@ -92,10 +87,9 @@ with (out/'Regression-Info.plist').open('wb') as f:
     plistlib.dump(info,f)
 PY
 xcodegen generate --spec "$artifacts/project.yml"
-simulator=$(xcrun simctl create 'Chatterbox home nav regression' "$device_type" "$runtime")
+# This Mac's reusable test device (test-hygiene.sh), shut down when the run ends.
+simulator=$(test_simulator "${1:-iphone}" "$device_type" "$runtime")
 status=0
-xcrun simctl boot "$simulator"
-xcrun simctl bootstatus "$simulator" -b
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
 # Comma-separated identifiers allow focused phone/tablet runs. Always keep a filter

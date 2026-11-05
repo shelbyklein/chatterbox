@@ -329,6 +329,7 @@ targets:
     - path: Core/ChatterboxRuntime/ConversationRuntime.swift
     - path: Core/ChatterboxRuntime/ChatPromotion.swift
     - path: Core/ChatterboxRuntime/RuntimePreferences.swift
+    - path: Core/ChatterboxRuntime/SimulatorSweep.swift
     - path: Core/ChatterboxRuntime/RuntimePeer.swift
     - path: Core/ChatterboxRuntime/RuntimeClient.swift
     - path: Core/ChatterboxRuntime/Studio.swift
