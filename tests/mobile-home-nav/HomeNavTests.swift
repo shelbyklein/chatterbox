@@ -142,6 +142,32 @@ final class HomeNavTests: XCTestCase {
   let pasted=(composer.value as? String) ?? ""
   XCTAssertTrue(pasted.hasPrefix("Hey Lauren,") && pasted.contains("• Sitemap: Where") && !pasted.contains("Before you send") && !pasted.contains("Subject"), "only the body, clean: \(pasted)")
  }
+ /// A reply's ```actions block: buttons under it; tapping Ship sends "ship" as your message,
+ /// once, and the buttons grey out.
+ @MainActor func testReplyActionButtons() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":"47411"]
+  app.launch()
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
+  let ship=app.buttons["Ship to the real app"]
+  XCTAssertTrue(ship.waitForExistence(timeout:10), "the newest reply's buttons show")
+  for _ in 0..<4 where !ship.isHittable { app.swipeUp() }
+  XCTAssertTrue(ship.isEnabled && app.buttons["Start the next part"].isEnabled, "and are live")
+  XCTAssertFalse(app.staticTexts["```actions"].exists, "no raw fence")
+  capture("phone-ship-button",app)
+  ship.tap()
+  XCTAssertTrue(app.staticTexts["ship"].waitForExistence(timeout:10), "Ship sends \u{201C}ship\u{201D}, shown as your message")
+  let used=expectation(for:NSPredicate(format:"isEnabled == false"),evaluatedWith:app.buttons["Start the next part"])
+  await fulfillment(of:[used],timeout:5)
+  XCTAssertTrue(app.staticTexts["Sent"].exists, "the row says it was sent")
+  capture("phone-ship-button-used",app)
+  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:47411/test/sent")!)
+  let sent=try JSONSerialization.jsonObject(with:data) as! [String:[String]]
+  XCTAssertEqual(sent[uuid("Loose chat").lowercased()],["ship"],"sent once, to this chat")
+ }
  /// A loose session about a Studio's work: the card offers that Studio and moves it there.
  @MainActor func testPlaceSuggestion() async throws {
   try await fixture("reset")
@@ -1647,6 +1673,13 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(caution.exists, "Full access chosen: its caution shows")
   XCTAssertFalse(app.buttons["permission-readOnly"].isSelected)
   capture("new-chat-sheet",app)
+  // Put on the Desk: off unless turned on.
+  let desk=app.switches["new-chat-desk"]
+  for _ in 0..<4 where !desk.isHittable { app.swipeUp() }
+  XCTAssertTrue(desk.exists && (desk.value as? String)=="0", "Put on the Desk, off by default")
+  desk.switches.firstMatch.exists ? desk.switches.firstMatch.tap() : desk.tap()
+  XCTAssertEqual(desk.value as? String,"1")
+  capture("phone-new-chat-desk",app)
   app.buttons["new-chat-start"].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Start opens the new chat")
   let url=URL(string:"http://127.0.0.1:47411/test/created")!
@@ -1655,6 +1688,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(created.last?["backend"] as? String,"codex")
   XCTAssertEqual((created.last?["settings"] as? [String:Any])?["mode"] as? String,"fullAccess","the chat starts with what was picked")
   XCTAssertEqual(created.last?["title"] as? String,"Logo ideas","and the name given")
+  XCTAssertEqual(created.last?["desk"] as? Bool,true,"and put on the Desk")
   XCTAssertNil((created.last?["settings"] as? [String:Any])?["openModel"] as? String,"a Codex model leaves the open model")
  }
  /// Comments on a PDF, as with the Mac's Image Review: from the page being read, tap a spot and

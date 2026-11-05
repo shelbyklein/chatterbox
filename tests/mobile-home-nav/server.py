@@ -124,6 +124,7 @@ def automations_reset():
 def automation(id):
  return next((a for a in AUTOMATIONS if id.lower() in [i.lower() for i in a['ids']]),None)
 automations_reset()
+SENT={}
 def reset():
  global RICH,OFFLINE
  RICH=False;OFFLINE=False
@@ -131,6 +132,7 @@ def reset():
  automations_reset()
  global PINNED
  PINNED[:]=['Loose chat','SDHQ']
+ SENT.clear()
  global RUNNING,REMOVED,ACTIVITY,READS,STARTED,FAIL,MUTATIONS,RENAMES,PROMOTIONS,BRIEFS,LIST_DELAY
  RUNNING=['Galley','Coach Archie'];REMOVED=set();ACTIVITY=[];READS=0
  STARTED=datetime.datetime.now(datetime.timezone.utc).isoformat();FAIL=False;MUTATIONS=[];RENAMES={};PROMOTIONS={};BRIEFS={};LIST_DELAY=0
@@ -186,6 +188,11 @@ def detail(id):
         {'id':cid(id+'a'),'kind':'assistant','text':'Hi! This is '+s['title']+'.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False}]
  # A reply with an email draft, shown as a card with its own Copy.
  if s['title']=='Loose chat':items.append({'id':cid('draft-reply'),'kind':'assistant','text':"Here's a draft to Lauren.\n\n```draft\nSubject: Website feedback\n\nHey Lauren,\n\n- **Sitemap:** Where will today's menu items live?\n\nThanks,\nShelby\n```\n\nBefore you send: check the doc.",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
+ # A reply ending on action buttons (```actions), then whatever was sent since.
+ if s['title']=='Loose chat':
+  items.append({'id':cid('actions-reply'),'kind':'assistant','text':"Installed to Chatterbox Dev. Try it there; when it's right:\n\n```actions\nShip to the real app | ship\nStart the next part | start the next part\n```",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
+ for n,text in enumerate(SENT.get(id.lower(),[])):
+  items.append({'id':cid(id+'sent%d'%n),'kind':'user','text':text,'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[],'isQueued':False})
  # A reply with a PDF proof and a photo, to comment on.
  if s['title']=='PlayCase Magnets':items.append({'id':cid('proof-reply'),'kind':'assistant','text':'The proof and a product photo are ready.','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[
   {'id':cid('magnet-proof'),'name':'Magnet proof.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PROOF)},
@@ -409,6 +416,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
    id=self.path.split('/')[3].lower();result=detail(id);result['isArchived']=True
    REMOVED.add(id);MUTATIONS.append('archive');return self.reply(result)
   if self.path=='/v1/pair':return self.reply({'token':'fixture','macName':'Regression Mac','addresses':['127.0.0.1']})
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/messages'):
+   id=self.path.split('/')[3].lower();SENT.setdefault(id,[]).append(body.get('text',''))
+   return self.reply(detail(id))
   if self.path=='/v1/chats':
    CREATED.append(body);return self.reply(detail(cid('SDHQ')))
   self.send_error(404)
@@ -455,6 +465,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/chats':
    time.sleep(LIST_DELAY);return self.reply(chats())
   if self.path=='/test/created':return self.reply(CREATED)
+  if self.path=='/test/sent':return self.reply(SENT)
   if self.path=='/test/new-chat-options':return self.reply(NEWCHAT)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)
   if self.path.startswith('/v1/new-chat-options'):

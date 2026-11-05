@@ -18,6 +18,18 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   On the phone: `scripts/install-phone.sh --dev "Shelby's Duo"`.
 - **The real app updates only when Shelby says ship**, batched: then `scripts/ship.sh` (or
   `install.sh`) and `scripts/restart-service.sh` for the real service, as below.
+- **After a Dev delivery, offer a Ship button** instead of "say ship when you want it": end the
+  reply with an action block (the app shows its lines as one-tap buttons that send the text as
+  Shelby's message), e.g.
+
+  ````
+  ```actions
+  Ship to the real app | ship
+  ```
+  ````
+
+  Add another line only for an obvious next step (`Start the next part | start the next part`).
+  A button only sends text; tapping Ship is Shelby saying ship.
 - Dev never touches the real app, service, data, ports, pairings or `~/.local/bin` links. Keep it
   that way: a new identity (path, port, id, label, Keychain name) goes in `Flavor.swift` with a
   value for each copy, and `scripts/test-flavor.sh` checks the real ones haven't moved.

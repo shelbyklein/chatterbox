@@ -708,6 +708,43 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     busy.isRunning = false; busy.onChange?(busy)
     try await wait("desk.changed when a session stops") { changes.count > seen && changes.last?.working.contains { $0.id == busy.id } == false }
     try check(true, "a session's change to Working is announced")
+    // Put on the Desk as a thread is made (New Chat's toggle): a task linked to it, in its
+    // place, named from its first message and then with the thread.
+    func newChat(_ request: Companion.NewChatRequest) throws -> ChatSession {
+        let response = call("POST", "/v1/chats", try encode(request))
+        try check(response.status == 200, "a new chat answers with its detail")
+        let detail = try Companion.decoder.decode(Companion.ChatDetail.self, from: response.body)
+        return runtime.session(detail.summary.id)!
+    }
+    let fresh = try newChat(.init(studio: archery.id, desk: true))
+    let freshTask = desk.openTask(for: fresh.id)
+    try check(freshTask?.followsThread == true && freshTask?.proposed?.id == archery.id && freshTask?.source == "you",
+              "new chat with desk: a task linked to it, in its Studio")
+    try check(desk.snapshot().linked?.contains { $0.chatID == fresh.id } == true, "the new chat's task is on the board")
+    _ = fresh.appendItem(DisplayItem(kind: .user, text: "Make the fall banner set\nthree sizes, by Friday"))
+    fresh.setTitleIfNeeded(UserMessage(text: "Make the fall banner set\nthree sizes, by Friday", attachments: []))
+    _ = desk.snapshot()
+    try check(desk.openTask(for: fresh.id)?.text == "Make the fall banner set", "named from its first message: \(desk.openTask(for: fresh.id)?.text ?? "")")
+    fresh.setTitle("Fall banners")
+    _ = desk.snapshot()
+    try check(desk.openTask(for: fresh.id)?.text == "Fall banners", "renaming the thread renames its task")
+    let plainNew = try newChat(.init(studio: archery.id))
+    try check(desk.openTask(for: plainNew.id) == nil, "without desk: no task, as before")
+    let deskSide = try newChat(.init(project: dogear.id, desk: true))
+    try check(deskSide.record.sidechatOf == dogear.id && desk.openTask(for: deskSide.id)?.proposed?.id == dogear.id, "a project's new session on the Desk: in the project")
+    _ = deskSide.appendItem(DisplayItem(kind: .user, text: "Tighten the highlight export"))
+    _ = desk.snapshot()
+    try check(desk.openTask(for: deskSide.id)?.text == "Tighten the highlight export", "a Sidechat's task is named from its first message, not \u{201C}Sidechat\u{201D}")
+    let deskNamed = try newChat(.init(studio: playcase.id, title: "Level pack 3", desk: true))
+    try check(desk.openTask(for: deskNamed.id)?.text == "Level pack 3", "named in the sheet: the task has that name")
+    // The Mac's way: the session first, then the socket's makeTask with follow.
+    let macNew = try runtime.insert(record("New chat", studio: playcase))
+    let macBoard = try await ui.request("desk", body: ["action": "makeTask", "chatID": .string(macNew.id.uuidString), "follow": true, "text": "Icons"]).decode(Companion.Desk.self)
+    try check(macBoard.linked?.contains { $0.chatID == macNew.id && $0.text == "Icons" } == true && desk.openTask(for: macNew.id)?.followsThread == true,
+              "socket makeTask with follow: linked, named as given")
+    macNew.setTitle("App icons")
+    _ = desk.snapshot()
+    try check(desk.openTask(for: macNew.id)?.text == "App icons", "and it follows the thread's name")
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "still no agent started")
     ui.stop(); agent.stop()
     runtime.waitForSaves()
