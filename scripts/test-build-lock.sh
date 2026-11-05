@@ -2,8 +2,9 @@
 # The shared build lock (scripts/lib/build-lock.sh): two builds serialize, a slot whose owner
 # died is taken over, a slot taken in a subshell is the script's own, two slots let two builds
 # run, the xcodebuild wrapper caps -jobs, and the Mac's pressure (pressure.json, written by the
-# service) holds builds to one at a time when busy and makes new ones wait when overloaded, a
-# stale file being ignored. Runs against a private lock folder, pressure file and stub tools.
+# service) sets the slots: three at OK, one when busy, none new when overloaded, two with a stale
+# file; xcodebuild's -jobs shares the cores among the builds running. Runs against a private
+# lock folder, pressure file and stub tools.
 source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -36,6 +37,20 @@ for line in open(sys.argv[1]):
     runs.setdefault(name, {})[kind] = float(t)
 a, b = runs["A"], runs["B"]
 print("yes" if a["start"] < b["end"] and b["start"] < a["end"] else "no")
+PY
+}
+
+most() {  # most LOG → the most runs going at once
+  /usr/bin/python3 - "$1" <<'PY'
+import sys
+events = []
+for line in open(sys.argv[1]):
+    kind, name, t = line.split()
+    events.append((float(t), 1 if kind == "start" else -1))
+running = top = 0
+for _, step in sorted(events, key=lambda e: (e[0], e[1])):
+    running += step; top = max(top, running)
+print(top)
 PY
 }
 
@@ -97,18 +112,37 @@ pressure() {
   mv "$CHATTERBOX_PRESSURE_FILE.tmp" "$CHATTERBOX_PRESSURE_FILE"
 }
 
-echo "== busy: one build at a time, even with two slots"
+echo "== OK: three builds at once"
+pressure ok
+log="$fixture/ok.log"
+"$fixture/worker.sh" A "$log" 2 2> "$fixture/okA.err" & a=$!
+"$fixture/worker.sh" B "$log" 2 2> "$fixture/okB.err" & b=$!
+"$fixture/worker.sh" C "$log" 2 2> "$fixture/okC.err" & c=$!
+sleep 0.3
+"$fixture/worker.sh" D "$log" 0.2 2> "$fixture/okD.err" & d=$!
+wait "$a" "$b" "$c" "$d"
+[[ "$(most "$log")" == 3 ]] || fail "OK: not three at once: $(cat "$log")"
+grep -q "; 3 at a time" "$fixture/okD.err" || fail "OK: the fourth didn't wait, saying 3 at a time: $(cat "$fixture/okD.err")"
+pass "OK: three builds ran together; a fourth waited"
+
+echo "== busy: one build at a time"
 pressure busy
 log="$fixture/busy.log"
-CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" A "$log" 1.5 2> "$fixture/busyA.err" &
+"$fixture/worker.sh" A "$log" 1.5 2> "$fixture/busyA.err" &
 a=$!
 sleep 0.3
-CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" B "$log" 0.5 2> "$fixture/busyB.err" &
+"$fixture/worker.sh" B "$log" 0.5 2> "$fixture/busyB.err" &
 b=$!
 wait "$a" "$b"
 [[ "$(overlap "$log")" == no ]] || fail "busy: two builds overlapped: $(cat "$log")"
-grep -q "waiting for another build (pid $a, worktree $root); the Mac is busy (load 52 on 16 cores" "$fixture/busyB.err" || fail "busy: B's waiting line: $(cat "$fixture/busyB.err")"
-pass "busy: two slots allowed, but the second build waited, saying the Mac is busy"
+grep -q "waiting for another build (pid $a, worktree $root); the Mac is busy (load 52 on 16 cores (over 3×) for 1 min), so builds go 1 at a time" "$fixture/busyB.err" || fail "busy: B's waiting line: $(cat "$fixture/busyB.err")"
+log="$fixture/busy-override.log"
+CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" A "$log" 1.5 2> /dev/null & a=$!
+sleep 0.3
+CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" B "$log" 0.5 2> /dev/null & b=$!
+wait "$a" "$b"
+[[ "$(overlap "$log")" == yes ]] || fail "busy: CHATTERBOX_BUILD_SLOTS=2 didn't override: $(cat "$log")"
+pass "busy: the second build waited, saying the Mac is busy; CHATTERBOX_BUILD_SLOTS=2 still overrides"
 
 echo "== overloaded: a new build waits; a running one carries on"
 rm -f "$CHATTERBOX_PRESSURE_FILE"
@@ -130,39 +164,48 @@ grep -q "build slot free after" "$fixture/overB.err" || fail "B didn't say when 
 [[ -z "$(ls "$fixture/lock" 2>/dev/null)" ]] || fail "overloaded: slots left behind"
 pass "overloaded: A finished, B waited (saying why) while overloaded and built once the Mac was only busy"
 
-echo "== a stale pressure file is ignored"
+echo "== a stale pressure file is ignored: two at a time"
 pressure overloaded 120
 log="$fixture/stale-pressure.log"
-CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" A "$log" 1.5 2> "$fixture/staleA.err" &
-a=$!
+"$fixture/worker.sh" A "$log" 1.5 2> "$fixture/staleA.err" & a=$!
+"$fixture/worker.sh" B "$log" 1.5 2> "$fixture/staleB.err" & b=$!
 sleep 0.3
-CHATTERBOX_BUILD_SLOTS=2 "$fixture/worker.sh" B "$log" 0.5 2> "$fixture/staleB.err" &
-b=$!
-wait "$a" "$b"
-[[ "$(overlap "$log")" == yes ]] || fail "stale: the two-minute-old file still held builds: $(cat "$log")"
-! grep -q "overloaded\|busy" "$fixture/staleA.err" "$fixture/staleB.err" || fail "stale: a waiting line mentions pressure"
+"$fixture/worker.sh" C "$log" 0.2 2> "$fixture/staleC.err" & c=$!
+wait "$a" "$b" "$c"
+[[ "$(most "$log")" == 2 ]] || fail "stale: not two at a time: $(cat "$log")"
+grep -q "; 2 at a time" "$fixture/staleC.err" || fail "stale: the third's waiting line: $(cat "$fixture/staleC.err")"
+! grep -q "overloaded\|busy" "$fixture/staleA.err" "$fixture/staleB.err" "$fixture/staleC.err" || fail "stale: a waiting line mentions pressure"
 pressure overloaded
 CHATTERBOX_BUILD_IGNORE_PRESSURE=1 "$fixture/worker.sh" C "$fixture/ignore.log" 0.1 2> "$fixture/ignore.err"
 grep -q "end C" "$fixture/ignore.log" || fail "CHATTERBOX_BUILD_IGNORE_PRESSURE didn't build"
 rm -f "$CHATTERBOX_PRESSURE_FILE"
-pass "stale (2 min old): ignored, two slots ran together; CHATTERBOX_BUILD_IGNORE_PRESSURE=1 builds while overloaded"
+pass "stale (2 min old): ignored, two ran together, a third waited; CHATTERBOX_BUILD_IGNORE_PRESSURE=1 builds while overloaded"
 
-echo "== xcodebuild gets -jobs capped; export and queries don't"
+echo "== xcodebuild's -jobs shares the cores among the builds running; export and queries get none"
 mkdir -p "$fixture/bin"
 printf '#!/bin/bash\necho "$*"\n' > "$fixture/bin/xcodebuild"; chmod +x "$fixture/bin/xcodebuild"
+cores=$(sysctl -n hw.ncpu)
+share() { local j=$(( cores / $1 )); (( j < 4 )) && j=4; printf '%s' "$j"; }
 jobs_line=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -scheme Chatterbox build")
-cores=$(sysctl -n hw.ncpu); half=$(( cores / 2 )); (( half < 2 )) && half=2
-[[ "$jobs_line" == "-jobs $half -scheme Chatterbox build" ]] || fail "build got: $jobs_line"
+[[ "$jobs_line" == "-jobs $(share 1) -scheme Chatterbox build" ]] || fail "alone, build got: $jobs_line"
+# Two other builds running (live owners): this one gets a third of the cores.
+sleep 30 & other1=$!; sleep 30 & other2=$!
+mkdir -p "$fixture/lock/slot-1" "$fixture/lock/slot-2"
+echo "$other1" > "$fixture/lock/slot-1/pid"; echo "$other2" > "$fixture/lock/slot-2/pid"
+pressure ok
+three=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
+kill "$other1" "$other2" 2>/dev/null || true; wait "$other1" "$other2" 2>/dev/null || true
+rm -rf "$fixture/lock/slot-1" "$fixture/lock/slot-2"
+[[ "$three" == "-jobs $(share 3) build" ]] || fail "beside two others, build got: $three"
 export_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -exportArchive -archivePath x")
 [[ "$export_line" == "-exportArchive -archivePath x" ]] || fail "export got: $export_line"
 chosen=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_JOBS=3 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
 [[ "$chosen" == "-jobs 3 build" ]] || fail "CHATTERBOX_BUILD_JOBS got: $chosen"
 pressure busy
-quarter=$(( cores / 4 )); (( quarter < 2 )) && quarter=2
-busy_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
+busy_line=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build")
 rm -f "$CHATTERBOX_PRESSURE_FILE"
-[[ "$busy_line" == "-jobs $quarter build" ]] || fail "busy build got: $busy_line"
-pass "xcodebuild: -jobs $half added to builds ($quarter while the Mac is busy), not to -exportArchive; CHATTERBOX_BUILD_JOBS wins"
+[[ "$busy_line" == "-jobs $(share 4) build" ]] || fail "busy build got: $busy_line"
+pass "xcodebuild: -jobs $(share 1) alone, $(share 3) beside two others, $(share 4) while busy; none for -exportArchive; CHATTERBOX_BUILD_JOBS wins"
 
 echo "== builds use the shared compilation cache, with this checkout's root mapped"
 cached=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -scheme Chatterbox build")
@@ -175,11 +218,11 @@ z=$(PATH="$fixture/bin:$PATH" zsh -c "source '$root/scripts/lib/build-lock.sh'; 
 export_line=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild -exportArchive -archivePath x")
 [[ "$export_line" == "-exportArchive -archivePath x" ]] || fail "export got cache settings: $export_line"
 own=$(PATH="$fixture/bin:$PATH" bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build COMPILATION_CACHE_ENABLE_CACHING=NO")
-[[ "$own" == "-jobs $half build COMPILATION_CACHE_ENABLE_CACHING=NO" ]] || fail "a build's own cache setting overridden: $own"
+[[ "$own" == "-jobs $(share 1) build COMPILATION_CACHE_ENABLE_CACHING=NO" ]] || fail "a build's own cache setting overridden: $own"
 pass "compilation cache: on for builds (bash and zsh), off for -exportArchive, a build's own setting and CHATTERBOX_COMPILE_CACHE=0"
 
 echo "== zsh runs it too (install.sh)"
 z=$(PATH="$fixture/bin:$PATH" CHATTERBOX_COMPILE_CACHE=0 CHATTERBOX_BUILD_SLOTS=1 zsh -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild build; ls '$fixture/lock'")
-[[ "$z" == "-jobs $half build" ]] || fail "zsh got: $z"
+[[ "$z" == "-jobs $(share 1) build" ]] || fail "zsh got: $z"
 pass "zsh: the wrapper and the lock work, slot given back"
 echo "All build lock checks passed."

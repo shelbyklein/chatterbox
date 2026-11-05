@@ -47,13 +47,17 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 
   Never build into `/tmp` or a per-run folder. Each extra build leaves a full app copy that macOS
   then offers as Chatterbox.
-- **One build at a time, across every worktree.** `scripts/lib/build-lock.sh` (sourced by the
-  build scripts and, through `test-hygiene.sh`, by every test) makes `xcodebuild`, `swiftc` and
-  `swift build` wait for the shared slot in `~/Library/Caches/Chatterbox/build-lock`, printing
-  "waiting for another build (pid N, worktree X)", and caps xcodebuild at `-jobs` = half the
-  cores. Three builds plus simulator suites at once took the Mac to a load average of 120.
-  `CHATTERBOX_BUILD_SLOTS=2` allows two; `CHATTERBOX_BUILD_JOBS=N` sets the cap. A build run by
-  hand should go through the lock too: `source scripts/lib/build-lock.sh` first.
+- **A few builds at a time, across every worktree, as the Mac's pressure allows.**
+  `scripts/lib/build-lock.sh` (sourced by the build scripts and, through `test-hygiene.sh`, by
+  every test) makes `xcodebuild`, `swiftc` and `swift build` wait for a shared slot in
+  `~/Library/Caches/Chatterbox/build-lock`, printing "waiting for another build (pid N, worktree
+  X)". The slot count follows the service's pressure level (`pressure.json`): 3 at OK, 1 at Busy,
+  none new at Overloaded (running builds finish); 2 when there's no current reading. xcodebuild's
+  `-jobs` is max(4, cores / builds running), so three builds share the 16 cores instead of each
+  taking 8 (4 at Busy). Unbounded builds plus simulator suites once took the Mac to a load average
+  of 120. `CHATTERBOX_BUILD_SLOTS=N` overrides the count (not Overloaded's hold);
+  `CHATTERBOX_BUILD_JOBS=N` sets `-jobs`. A build run by hand should go through the lock too:
+  `source scripts/lib/build-lock.sh` first.
 - **New worktrees start warm.** `git worktree add` (yours, or a work thread's) runs
   `scripts/warm-worktree.sh` through a post-checkout hook in the shared `.git/hooks`: it clones
   the main checkout's build folders (the list above, minus TestFlight) into the new worktree
@@ -74,7 +78,7 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   CMake reads them when it first configures a build folder; one configured before needs one
   reconfigure. `ccache -s` shows hits.
 - **The service holds Chatterbox's work back when the Mac is under pressure**
-  (plans/mac-pressure.md): at Busy builds go one at a time and new work threads wait to start; at
+  (plans/mac-pressure.md): at Busy builds go one at a time (three at OK) and new work threads wait to start; at
   Overloaded new builds wait ("waiting: the Mac is overloaded (…)") and work threads don't start
   their next turn. Agents run at nice +10 with build caps (`CMAKE_BUILD_PARALLEL_LEVEL`,
   `MAKEFLAGS`, `CARGO_BUILD_JOBS`) in their environment, in any project. Don't work around it;

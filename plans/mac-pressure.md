@@ -31,10 +31,13 @@ in chatterboxd.log with the readings.
   environment caps builds: `CMAKE_BUILD_PARALLEL_LEVEL` (cmake passes it to ninja, which reads no
   variable itself), `MAKEFLAGS=-jN`, `CARGO_BUILD_JOBS`; N = half the cores at OK, a quarter under
   pressure, fixed when the agent starts (HostClient.spawn). xcodebuild's `-jobs` comes from
-  build-lock.sh (a quarter of the cores while busy). Inner threads are headless unless summoned:
+  build-lock.sh (shared among the builds running). Inner threads are headless unless summoned:
   a work thread that has reported (or a returned sidequest) lets its agent process go ~2 s later
   instead of after 2 minutes.
-- **Busy:** build-lock.sh allows one build regardless of `CHATTERBOX_BUILD_SLOTS`; the simulator
+- **Build slots** (build-lock.sh, Shelby 2026-11-05): 3 builds at OK, 1 at Busy, none new at
+  Overloaded (running ones finish), 2 with no current reading; `CHATTERBOX_BUILD_SLOTS` overrides
+  the count. xcodebuild's `-jobs` = max(4, cores / builds running, itself included); 4 at Busy.
+- **Busy:** build-lock.sh allows one build; the simulator
   sweep runs now and every minute with a 5-minute idle time; new work threads (`work start`, the
   Desk's Start into a project) are made, with their task, but their first turn waits for OK
   ("Waiting: Mac busy"; Start now, or writing in the thread, starts it); build processes descending
