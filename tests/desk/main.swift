@@ -725,6 +725,78 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(mailCard?.origin?.replyFrom == "Lauren" && mailCard?.check?.warning == "New reply from Lauren", "an email task: a new reply warns on its card")
     _ = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(clickTask.id.uuidString)])
     for id in [clickTask.id, mailTask.id, noted.incoming.first { $0.text == "Fix the footer" }!.id] { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
+    // Intake identity is enforced against stored tasks, including cards outside visible limits.
+    let dedupFile = root.appendingPathComponent("dedup.json")
+    var stored: [DeskStore.TaskRecord] = []
+    for (index, state) in ["todo", "working", "needsYou", "review", "silenced", "done", "hiddenReview"].enumerated() {
+        let origin = Companion.DeskOrigin(kind: "clickup", id: "86dedup\(index)")
+        var task = DeskStore.TaskRecord(.init(id: UUID(), text: "Original \(state)", source: "codex", createdAt: Date(), proposed: DeskStore.loose,
+                                             note: "Keep this note", origin: origin,
+                                             confidence: .init(canRunAlone: false, reason: "Needs Shelby", by: "codex", at: Date())))
+        if state != "todo" {
+            var r = record("Intake \(state)", items: reply(state == "needsYou" ? "Which version should I use?" : "Finished.", daysAgo: state == "hiddenReview" ? 8 : 0))
+            if state == "done" { r.archivedAt = Date() }
+            let chat = try runtime.insert(r)
+            if state == "working" { chat.isRunning = true }
+            task.chatID = chat.id; task.linkedAt = Date()
+            if state == "done" { task.completedAt = Date() }
+        }
+        stored.append(task)
+    }
+    // Fill Review past its display limit; the older task still belongs to the inventory.
+    for index in 0...DeskStore.readyLimit {
+        let chat = try runtime.insert(record("Review filler \(index)", items: reply("Done.")))
+        var task = DeskStore.TaskRecord(.init(id: UUID(), text: "Filler \(index)", source: "codex", createdAt: Date(), proposed: DeskStore.loose))
+        task.chatID = chat.id
+        stored.append(task)
+    }
+    let silencedTask = stored[4]
+    let quietChat = runtime.session(silencedTask.chatID!)!
+    let silence = DeskStore.Silence(chatID: quietChat.id, itemID: quietChat.record.items.last!.id, kind: "ready", text: "Finished.", silencedAt: Date())
+    let savedInventory: JSON = ["revision": 10, "requests": [], "tasks": try .value(stored), "silences": try .value([silence])]
+    try savedInventory.encoded().write(to: dedupFile)
+    let inventoryStore = DeskStore(file: dedupFile)
+    inventoryStore.autoStartOverride = false
+    var scoreCalls = 0
+    inventoryStore.scoreTask = { _, _ in scoreCalls += 1; return nil }
+    let beforeInventory = inventoryStore.snapshot()
+    let beforeRecords = inventoryStore.tasks
+    try check(beforeInventory.working.contains { $0.task == stored[1].id }
+              && beforeInventory.needsYou.contains { $0.task == stored[2].id }
+              && beforeInventory.done?.contains { $0.task == stored[5].id } == true
+              && beforeInventory.ready?.contains { $0.task == stored[4].id || $0.task == stored[6].id } == false,
+              "dedup fixture covers working, needs-you, done, silenced and capped-out Review")
+    for (index, task) in stored.prefix(7).enumerated() {
+        let reused = try inventoryStore.add(.init(text: "Changed title \(index)", place: "USA Archery", origin: "https://app.clickup.com/t/86DEDUP\(index)",
+                                                  confidence: "yes", reason: "New import must not rescore"))
+        try check(reused.id == task.id && reused.text == task.text, "intake reuses \(index) across lifecycle states despite changed title/place/confidence")
+    }
+    try check(inventoryStore.tasks == beforeRecords && inventoryStore.snapshot().revision == beforeInventory.revision && scoreCalls == 0,
+              "duplicate imports preserve every record, board state and revision without scoring or auto-start")
+    let inventoryJSON = try inventoryStore.operation(["action": "get"], agent: true)
+    try check(inventoryJSON["tasks"]?.array?.count == stored.count && inventoryJSON["tasks"]?.array?.contains { $0["origin"]?["id"]?.string == "86dedup6" } == true,
+              "agent inventory includes Review tasks omitted from visible board")
+    let reloadedInventory = DeskStore(file: dedupFile)
+    reloadedInventory.autoStartOverride = false
+    try check(try reloadedInventory.add(.init(text: "Reimport after reload", origin: "clickup:86dedup6")).id == stored[6].id,
+              "identity prevention survives a saved inventory reload")
+    let distinct = try inventoryStore.add(.init(text: stored[0].text, place: "loose", origin: "email:DifferentMessage", confidence: "no", reason: "Needs Shelby"))
+    try check(distinct.id != stored[0].id, "identical titles from different sources remain separate")
+    let mailRepeat = try inventoryStore.add(.init(text: "Changed mail title", origin: "outlook:DifferentMessage"))
+    let caseSensitive = try inventoryStore.add(.init(text: "Other message", origin: "email:differentmessage", confidence: "no", reason: "Needs Shelby"))
+    try check(mailRepeat.id == distinct.id && caseSensitive.id != distinct.id, "email aliases reuse opaque exact IDs without conflating case-sensitive message IDs")
+    let legacy = try inventoryStore.add(.init(text: "Legacy   work", place: "loose", note: "Sender subject date", confidence: "no", reason: "Needs Shelby"))
+    try check(try inventoryStore.add(.init(text: " legacy work ", place: "loose", note: "Sender subject date")).id == legacy.id,
+              "source-less legacy work uses normalized exact text and matching context")
+    try check(try inventoryStore.add(.init(text: "Legacy work", place: "USA Archery", note: "Sender subject date", confidence: "no", reason: "Needs Shelby")).id != legacy.id,
+              "same legacy title in a different place stays separate")
+    try check(try inventoryStore.add(.init(text: "Legacy work", place: "loose", note: "Different sender/date", confidence: "no", reason: "Needs Shelby")).id != legacy.id,
+              "same legacy title with different provenance stays separate")
+    let reusedReply = try await agent.request("desk", body: ["action": "add", "text": "Socket repeated source", "origin": "email:socket-dedup", "confidence": "no", "reason": "Needs Shelby"])
+    let secondReply = try await agent.request("desk", body: ["action": "add", "text": "Reworded socket source", "origin": "email:socket-dedup"])
+    try check(reusedReply["addition"]?["created"]?.bool == true && secondReply["addition"]?["created"]?.bool == false
+              && reusedReply["addition"]?["id"] == secondReply["addition"]?["id"], "socket reports created versus reused with the same task ID")
+    try desk.ignore(UUID(uuidString: secondReply["addition"]!["id"]!.string!)!)
     // Confidence (plans/desk-confidence.md): scored Yes/No with a reason when added; Yes with a
     // place starts by itself, two at a time; No, no place, or a disagreeing source waits.
     let parsed = DeskStore.parseScore("Sure: {\"canRunAlone\": false, \"reason\": \"Needs your pick between the two marks\"}", at: Date())

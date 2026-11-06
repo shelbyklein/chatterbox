@@ -40,3 +40,26 @@ import json
 assert json.loads(output.getvalue())["ready"][0]["origin"]["id"] == "original"
 assert calls[-1] == ("desk", {"action": "get"})
 print("PASS: JSON listing retains sources in all board columns for de-duplication")
+
+class ReusedService:
+    def request(self, operation, body):
+        return {"addition": {"id": "existing-task", "created": False}}
+main.__globals__["Service"] = ReusedService
+with contextlib.redirect_stdout(io.StringIO()) as output:
+    sys.argv = ["desk", "add", "Changed wording", "--source", "email:original"]
+    main()
+assert "Already on the Desk (task existing-task)" in output.getvalue()
+assert "On the Desk, with no place" not in output.getvalue()
+print("PASS: CLI reports reused tasks without claiming a new task was created")
+
+class InventoryService:
+    def request(self, operation, body):
+        return {"incoming": [], "tasks": [{"id": "old-review", "text": "Review this", "chatID": "thread",
+                                          "origin": {"kind": "email", "id": "original"}}]}
+main.__globals__["Service"] = InventoryService
+with contextlib.redirect_stdout(io.StringIO()) as output:
+    sys.argv = ["desk", "list"]
+    main()
+assert "Review this" in output.getvalue() and "email:original" in output.getvalue()
+assert "old-review" in output.getvalue() and "linked to thread" in output.getvalue()
+print("PASS: plain CLI list includes linked tasks and source references")

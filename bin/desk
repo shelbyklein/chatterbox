@@ -18,11 +18,13 @@
                     what a task's source says now: ClickUp's status ("in progress",
                     "complete"), or an email's "new reply" (--from who wrote it),
                     "waiting on them" or "answered"
-  desk list         what's on the Desk now: requests waiting to be placed, one per line
+  desk list         all stored Desk tasks, including linked and completed work
   desk places       the Studios and projects work can go in
 
 Agents add requests; only Shelby starts them, so nothing runs until it's placed. Check
-`desk list` first so the same request isn't added twice.
+`desk list --json` first and compare its complete tasks inventory so the same work
+isn't added twice, including in-progress and review tasks. Repeated source identities
+reuse the existing task without moving it or starting more work.
 """
 import argparse, json, os, socket, sys, uuid
 
@@ -81,7 +83,7 @@ def main():
     src.add_argument("--title", help="the ClickUp task's name or the email's subject")
     src.add_argument("--url", help="verified web link to the original email or task")
     src.add_argument("--task", help="update only this Desk task ID; also attaches a missing source")
-    listing = commands.add_parser("list", help="requests waiting on the Desk")
+    listing = commands.add_parser("list", help="all stored tasks, including working, review and done")
     listing.add_argument("--json", action="store_true", help="full board including working, review and done source references, for de-duplication")
     commands.add_parser("places", help="Studios and projects")
     args = parser.parse_args()
@@ -108,7 +110,11 @@ def main():
             body["confidence"] = args.confidence
             body["reason"] = args.reason
         desk = service.request("desk", body) or {}
-        mine = next((r for r in desk.get("incoming", []) if r.get("text") == text), None)
+        addition = desk.get("addition", {})
+        if addition.get("created") is False:
+            print(f"Already on the Desk (task {addition['id']}); kept its existing thread and column.")
+            return
+        mine = next((r for r in desk.get("incoming", []) if r.get("id") == addition.get("id") or (not addition and r.get("text") == text)), None)
         place = (mine or {}).get("proposed")
         print(f"On the Desk{', proposed for ' + place['name'] if place else ', with no place proposed (Shelby will choose)'}.")
     elif args.command == "source":
@@ -128,16 +134,17 @@ def main():
         if args.json:
             print(json.dumps(desk, ensure_ascii=False))
             return
-        incoming = desk.get("incoming", [])
-        if not incoming:
-            print("Nothing waiting to be placed.")
-        for r in incoming:
+        inventory = desk.get("tasks", desk.get("incoming", []))
+        if not inventory:
+            print("No tasks on the Desk.")
+        for r in inventory:
             place = (r.get("proposed") or {}).get("name") or "no place"
             note = f" — {r['note']}" if r.get("note") else ""
             origin = r.get("origin")
             if origin:
                 note += f" (source {origin.get('kind')}:{origin.get('id')}" + (f", {origin['status']}" if origin.get("status") else "") + ")"
-            print(f"- {r.get('text')} [{place}; from {r.get('source')}]{note}")
+            state = "done" if r.get("completedAt") else "linked to thread" if r.get("chatID") else "to do"
+            print(f"- {r.get('text')} [{state}; {place}; from {r.get('source')}; task {r.get('id')}]{note}")
     else:
         for p in service.request("desk", {"action": "places"}) or []:
             detail = f" — {p['detail']}" if p.get("detail") else ""
