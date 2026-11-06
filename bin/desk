@@ -10,10 +10,12 @@
                     where it came from, so its card warns when ClickUp or the email
                     disagrees with the board (a ClickUp link in --note counts too)
                     [--confidence yes|no --reason "..."]
-                    can an agent finish it without Shelby? No if it needs Shelby's creative
-                    judgment, info or access that isn't there, an outward-facing step
-                    (email, publishing, ClickUp), approvals mid-work, or has no clear
-                    place; else yes. Yes tasks with a place start by themselves.
+                    can an agent prepare a useful, reviewable result without Shelby?
+                    No for a blocker to preparation: missing creative direction, info,
+                    access, permission, place, or outbound-only work with nothing to
+                    prepare. Final send/publish/follow-up approval does not lower
+                    preparation confidence or authorize outbound work.
+                    Yes tasks with a place start by themselves.
   desk source REF --status STATUS [--from NAME] [--title T] [--url URL] [--task DESK_ID]
                     what a task's source says now: ClickUp's status ("in progress",
                     "complete"), or an email's "new reply" (--from who wrote it),
@@ -21,7 +23,7 @@
   desk list         all stored Desk tasks, including linked and completed work
   desk places       the Studios and projects work can go in
 
-Agents add requests; only Shelby starts them, so nothing runs until it's placed. Check
+Agents add requests; Yes tasks with a proposed place can start automatically. Check
 `desk list --json` first and compare its complete tasks inventory so the same work
 isn't added twice, including in-progress and review tasks. Repeated source identities
 reuse the existing task without moving it or starting more work.
@@ -74,7 +76,7 @@ def main():
     add.add_argument("--source", dest="origin", help="clickup:<task id or link>, or email:<message id>")
     add.add_argument("--source-title", dest="origin_title", help="the ClickUp task's name or the email's subject")
     add.add_argument("--source-url", dest="origin_url", help="verified web link to the original email or task")
-    add.add_argument("--confidence", choices=["yes", "no"], help="can an agent finish it without Shelby?")
+    add.add_argument("--confidence", choices=["yes", "no"], help="can an agent prepare a reviewable result without Shelby? Final outbound approval is separate.")
     add.add_argument("--reason", help="why: what makes it safe, or what needs Shelby")
     src = commands.add_parser("source", help="report what a task's source (ClickUp, an email) says now")
     src.add_argument("ref", help="clickup:<task id or link>, or email:<message id>")

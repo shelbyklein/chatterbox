@@ -853,6 +853,34 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
             _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)])
         }
     }
+    // Confidence is about preparation. The fixture scorer stands in for the quick model;
+    // the outbound approval must survive through the actual auto-started first message.
+    let prepareTitle = "Prepare the supplied website policy correction"
+    let approvalNote = "Replacement copy is supplied. Publication and follow-up require Shelby's approval."
+    quickScores[prepareTitle] = .init(canRunAlone: true, reason: "The source copy and place are clear; prepare the correction for review", by: "quick pass")
+    desk.autoStartOverride = true
+    _ = try await ui.request("desk", body: ["action": "add", "text": .string(prepareTitle), "place": "USA Archery", "note": .string(approvalNote)])
+    try await wait("clear preparation is scored and starts") { desk.tasks.first { $0.text == prepareTitle }?.autoStarted == true }
+    let preparation = desk.tasks.first { $0.text == prepareTitle }!
+    let preparationMessage = sent.first { $0.chat == preparation.chatID }?.text ?? ""
+    try check(preparation.confidence?.canRunAlone == true && preparationMessage.contains(approvalNote),
+              "clear preparation can auto-start while preserving its final publication approval requirement")
+    try check(preparationMessage.contains("Prepare a useful, reviewable result first")
+              && preparationMessage.contains("before sending, publishing, changing ClickUp or any other outbound action, stop and ask for approval")
+              && preparationMessage.contains("High confidence is not authorization"),
+              "automatic preparation produces reviewable work and explicitly stops before outbound execution")
+    let missingTitle = "Prepare a policy correction without its replacement copy"
+    quickScores[missingTitle] = .init(canRunAlone: false, reason: "The replacement policy is missing; preparation cannot proceed", by: "quick pass")
+    _ = try await ui.request("desk", body: ["action": "add", "text": .string(missingTitle), "place": "USA Archery"])
+    try await wait("missing preparation input is scored") { desk.tasks.first { $0.text == missingTitle }?.confidence != nil }
+    try check(desk.tasks.first { $0.text == missingTitle }?.chatID == nil,
+              "a real blocker to preparation still waits even when final approval is a separate gate")
+    desk.autoStartOverride = false
+    _ = try await ui.request("desk", body: ["action": "unlink", "id": .string(preparation.id.uuidString)])
+    _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(preparation.id.uuidString)])
+    if let missing = desk.tasks.first(where: { $0.text == missingTitle }) {
+        _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(missing.id.uuidString)])
+    }
     // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
     let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
     let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!

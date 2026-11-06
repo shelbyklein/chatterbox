@@ -2,25 +2,28 @@
 
 ## Summary
 
-Every task brought onto the Desk is scored against a rubric: can an agent finish it without
+Every task brought onto the Desk is scored against a rubric: can an agent prepare it for review without
 Shelby? Yes or No, with a one-line reason on the card. Yes tasks start automatically in their
 proposed place; No tasks wait in To do. Shelby, 2026-11-06.
 
 ## Rubric (final, Shelby 2026-11-06)
 
-**No** if any of these holds:
-1. Creative judgment: needs Shelby's taste or direction (picking between designs, deciding a
-   look, writing in Shelby's voice for something that matters).
-2. Missing info or access: something needed isn't in the task, its note, its source (ClickUp
-   task, email) or its Studio/project folder: a file, a detail, a login, a decision.
-3. Outward-facing: finishing it means sending email, publishing, pushing live, changing ClickUp,
-   or anything others see.
-4. Approvals mid-work: it would hit permission prompts (installs, deleting files, working outside
-   its folder, spending money).
-5. No clear place: the Desk can't confidently say which Studio or project it goes in.
+Confidence scores whether an agent can prepare a useful, reviewable deliverable without Shelby.
+Final outbound approval is a separate gate (Shelby's correction, November 6, 2026).
 
-**Yes** otherwise: a clear deliverable, everything it needs at hand, staying inside Chatterbox and
-its folder. The reason names the blocking rule (No) or why it's safe (Yes).
+**No** when preparation is blocked by:
+1. A substantive creative decision or direction needed before useful preparation can proceed.
+2. Missing source information, files, access, or other required inputs.
+3. An outbound-only task with no useful preparatory deliverable.
+4. Permission needed before preparation can proceed, such as a required install, deletion or purchase.
+5. No clear Studio or project.
+
+**Yes** when the task, source inputs and place are clear and an agent can prepare a reviewable
+result. Final approval to send, publish, follow up or change ClickUp does not lower confidence.
+For example, prepare a specified website correction from supplied copy = Yes, even when Shelby
+must approve publication; missing replacement copy or a needed creative direction = No.
+High confidence never authorizes the outbound action. Prepare the work, then request approval
+before executing that action. Ordinary final review is not a missing creative decision.
 
 ## Who scores
 
