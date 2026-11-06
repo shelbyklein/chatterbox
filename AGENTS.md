@@ -132,12 +132,17 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 - **Install only with `scripts/install-dev.sh` (Dev), or `scripts/ship.sh` / `scripts/install.sh`
   (the real app, when Shelby says ship).** Never `open` either app from an agent shell: it would
   inherit the service's `CHATTERBOX_*` variables.
-- **Routine delivery has standing approval (Shelby, October 10, 2026; since November 4 the Mac
-  part goes to Chatterbox Dev).** After requested work is verified, install/reopen Chatterbox Dev
-  (`install-dev.sh`), queue any needed Dev service restart with the default
-  idle-wait behavior, and upload/distribute the iOS build to the existing internal TestFlight
-  group without asking again. Give a brief heads-up before the Mac app reopens and report
-  installation, queued/restarted service status, and TestFlight availability separately.
+- **Routine delivery has standing approval (Shelby, October 10, 2026; updated November 6).**
+  After requested work is verified, install/reopen Chatterbox Dev (`install-dev.sh`) and queue
+  any needed Dev service restart with the default idle-wait behavior. Build only the platforms
+  affected by the change; Mac-only work does not need an iOS build.
+  For phone changes, prefer a direct install while Shelby's paired phone is reachable at home:
+  `scripts/install-phone.sh --dev "Shelby's Duo"` for development, or
+  `scripts/install-phone.sh "Shelby's Duo"` when Shelby says ship. Do not archive or upload to
+  TestFlight on every delivery. Use the existing internal TestFlight group when Shelby requests
+  TestFlight or remote distribution; an unreachable phone alone is not a reason to upload.
+  Give a brief heads-up before the Mac app reopens and report Mac installation, service status
+  and actual phone installation separately; distinguish installed from merely built.
   This does not authorize interrupting active replies, stopping agent hosts, expanding tester
   access, or publishing to the App Store; those still need explicit approval. A later request
   to hold installation or delivery takes precedence.
