@@ -1850,6 +1850,69 @@ final class HomeNavTests: XCTestCase {
   let mutations=try await fixture("mutations",method:"GET") as? [String]
   XCTAssertEqual(mutations,[],"layout/navigation/dismissal never archive, delete or stop a session")
  }
+ /// Reading an Activity reply keeps its thread reachable, without returning to its project.
+ @MainActor func testActivityRecentThreads() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments=["-deskIntroduced","YES","-mobileChatListPage","activity"]
+  app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15)); tab("Activity",app).tap()
+  setBrowsingCards(true,app)
+  let reply=activity("New reply: Tracker Trapper",app)
+  XCTAssertTrue(reply.waitForExistence(timeout:15))
+  if !reply.isHittable { app.swipeUp() }
+  reply.tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10))
+  func back() {
+   let button=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+   XCTAssertTrue(button.waitForExistence(timeout:5)); button.tap()
+  }
+  func recent(_ title:String) -> XCUIElement {
+   app.descendants(matching:.any).matching(identifier:"activity-recent-"+uuid(title)).firstMatch
+  }
+  func reveal(_ element:XCUIElement) {
+   for _ in 0..<4 where !element.isHittable { app.swipeUp() }
+   XCTAssertTrue(element.waitForExistence(timeout:5)); XCTAssertTrue(element.isHittable)
+  }
+  back()
+  XCTAssertTrue(reply.waitForNonExistence(timeout:5),"reading removes the new-reply entry")
+  reveal(recent("Tracker Trapper"))
+  XCTAssertTrue(app.staticTexts["Recent"].exists)
+  XCTAssertFalse(recent("Galley").exists,"a thread still in Activity never repeats in Recent")
+  capture("activity-recent-cards",app)
+  recent("Tracker Trapper").tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10)); back()
+  tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10)); back()
+  tab("Activity",app).tap()
+  reveal(recent("Loose chat")); reveal(recent("Tracker Trapper"))
+  let newest=recent("Loose chat").frame, older=recent("Tracker Trapper").frame
+  XCTAssertTrue(newest.minY < older.minY || (abs(newest.minY-older.minY)<2 && newest.minX<older.minX),"newest opened comes first")
+  setBrowsingCards(false,app)
+  reveal(recent("Loose chat")); reveal(recent("Tracker Trapper"))
+  XCTAssertGreaterThan(recent("Loose chat").frame.width,app.windows.firstMatch.frame.width*0.6,"List renders a full-width row, not a grid card")
+  capture("activity-recent-list",app)
+  // A fresh launch retains the saved history, independent of unread-reply state.
+  app.terminate(); app.launchArguments=["-deskIntroduced","YES","-mobileChatListPage","activity"]; app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
+  reveal(recent("Loose chat"))
+  XCTAssertGreaterThan(recent("Loose chat").frame.width,app.windows.firstMatch.frame.width*0.6,"list preference survives relaunch")
+  recent("Loose chat").tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10)); back()
+  // Search applies to Recent as well as current Activity.
+  for _ in 0..<4 { app.swipeDown() }
+  let search=app.searchFields.firstMatch
+  if !search.isHittable { app.swipeDown() }
+  XCTAssertTrue(search.waitForExistence(timeout:5)); search.tap(); search.typeText("Loose")
+  XCTAssertTrue(recent("Loose chat").waitForExistence(timeout:5))
+  XCTAssertFalse(recent("Tracker Trapper").exists)
+  XCTAssertFalse(activity("Working: Galley",app).exists)
+  let mutations=try await fixture("mutations",method:"GET") as? [String]
+  XCTAssertEqual(mutations,[],"recent browsing only opens conversations")
+ }
  @MainActor func testActivityTab() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
@@ -2374,7 +2437,8 @@ final class HomeNavTests: XCTestCase {
  }
  /// The fixture's ids (server.py: uuid5(NAMESPACE_URL, "home:" + name)).
  func uuid(_ name: String) -> String {
-  ["Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
+  ["Tracker Trapper": "1D6B8917-B3EC-5A50-ADB6-5CE3526C15EA", "Galley": "B5BBD354-BAAF-5AB3-B7FE-3ACD63B384E2",
+   "Chatterbox": "971E8582-9FFF-5D24-A2A2-AC8F6057BB63", "optimization": "2A1682A3-0390-5A12-8CA8-E0E375E1EEFE",
    "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340",
    "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD",
    "studio": "2A955822-AC32-5554-95DF-BB415831052F", "Crystal concept": "7AEBD7DD-A239-547D-A2E7-BD7CA3DC8E5E"][name]!

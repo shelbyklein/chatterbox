@@ -1,0 +1,17 @@
+{
+  "recordedAt": "2026-11-06T22:57:01.679542+00:00",
+  "coreCommit": "9ec87f9b17fd6e9a3752d3bcc86f7988ea43b99a",
+  "sourceSHA256": "5e06725011144a100b9194fc9d045ff9b1b24ed709cce15bb391b5d8d3d94c93",
+  "phone": "Shelby's Duo",
+  "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+  "flavor": "dev",
+  "installed": true,
+  "automaticLaunchSucceeded": false,
+  "phoneRuntimeVerified": false,
+  "installLog": "build/activity-recent-dev-phone.log",
+  "nativeUITest": "build/activity-recent-iphone-final.log",
+  "binarySHA256": {
+    "Chatterbox": "c700e2149e010e1d3ddbd1b40aab93e26fb8344975e2668b3bd2af6ac11cca3f",
+    "Chatterbox.debug.dylib": "6b22ee2ccae483b839e70c8c8276ef6f568847c45e2d8a9f7ea0a2870c8c5c85"
+  }
+}
