@@ -47,6 +47,20 @@ if [[ -n "$fixed" ]]; then
   echo "$fixed" >&2
   exit 1
 fi
+# Bare export prints every environment value, including the user's saved secrets.
+# Report source locations only; never execute or print an environment dump.
+/usr/bin/python3 -I - <<'PY_GUARD' || exit 1
+from pathlib import Path
+import re, sys
+bad = []
+for path in Path('scripts').rglob('*.sh'):
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        if re.fullmatch(r'\s*export(?:\s+-p)?\s*(?:#.*)?', line):
+            bad.append(f"{path}:{number}: export without assignments exposes saved secrets")
+if bad:
+    print("\n".join(bad), file=sys.stderr)
+    sys.exit(1)
+PY_GUARD
 manifest=$(mktemp /tmp/chatterbox-sources.XXXXXX)
 trap 'rm -f "$manifest"' EXIT
 ./scripts/runtime-sources.sh > "$manifest"

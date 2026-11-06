@@ -5,7 +5,6 @@ cd "$(dirname "$0")/.."
 task_dir=$(mktemp -d /tmp/chatterbox-fast.XXXXXX)
 export CHATTERBOX_DATA_DIR="$task_dir/data"
 export CHATTERBOX_HOST_DIR="$task_dir/host"
-export
 # A free port of this run's own (test-hygiene.sh), so two runs never collide.
 export CHATTERBOX_COMPANION_PORT=$(free_port)
 mkdir -p "$CHATTERBOX_DATA_DIR"
