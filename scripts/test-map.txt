@@ -20,3 +20,5 @@ ChatterboxMobile/ChatListView.swift test-mobile-home-nav.sh
 ChatterboxMobile/MobileNewReplies.swift test-mobile-home-nav.sh
 Core/ChatterboxMobile/ChatListView.swift test-mobile-home-nav.sh
 Core/ChatterboxMobile/MobileNewReplies.swift test-mobile-home-nav.sh
+
+tests/tests-for/ test-tests-for.sh

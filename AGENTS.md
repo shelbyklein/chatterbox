@@ -111,13 +111,23 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   `source "$(dirname "$0")/lib/test-hygiene.sh"`; new ones must too. On exit it stops what the run
   started and deletes app bundles in its temp folders, keeping logs and screenshots.
   `KEEP_TEST_BUILDS=1` keeps the builds for debugging.
-- **Run the tests for what you changed; the full suite once at the end.** While working, run
-  only what `scripts/tests-for.sh` lists: the tests covering your changes (commits since
-  origin/main, uncommitted and new files, Core's included; or name files). `--why` says why each
-  is listed, `--run` runs them. It reads the test scripts themselves (what they name, compile and
-  use); `scripts/test-map.txt` adds links it can't see, so add a line there when you write a test
-  it misses. Before you report the work done (or before ship), run the full suite once:
-  `scripts/tests-for.sh --run --all` (logs in `build/test-logs`), and say what failed.
+- **Focused tests for routine work; the full suite for a batch/release (Shelby, November 6).**
+  Run the tests covering each change before Dev delivery, using `scripts/tests-for.sh --why`
+  and `scripts/tests-for.sh --run --fail-fast FILE…`. With no files it compares the current
+  checkout with origin/main, including Core and uncommitted/new files. When work is already
+  committed/pushed, use `--since BASE` with the parent commit before the change or batch:
+  `scripts/tests-for.sh --run --fail-fast --since BASE`. It follows that commit's Core gitlink,
+  so a clean pushed checkout cannot hide committed Core changes. Record the baseline and results.
+  Keep focused UI/gesture/rendered checks for affected mobile views; do not replace them with
+  a compile or a smaller test that drops their coverage. `scripts/test-map.txt` adds links the
+  selector cannot infer; add one when new coverage is missed.
+  Do not repeat the full suite for every edit or Dev install. Before a batched real shipment,
+  run `scripts/tests-for.sh --run --all --fail-fast` once against the batch's final source.
+  Full/overnight runs can also be requested separately; do not schedule one without a request.
+  Logs are in `build/test-logs`. A fail-fast run reports passed, failed and not-run counts;
+  unrun tests are unverified. Keep known baseline failures recorded rather than repeatedly
+  running the same unrelated blocker on each edit. Disclose release blockers and incomplete
+  coverage before shipping; only Shelby can choose to proceed with them. Never call that green.
 - **Never stop a process blind.** An idle-looking host can be carrying live chats. Use `safe_stop`
   from `scripts/lib/safe-stop.sh`, which refuses when Claude or Codex work runs under the process.
   Never kill `chatterboxd` or `ChatterboxHost` directly.

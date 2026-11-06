@@ -5,9 +5,12 @@
 #                                  commits since origin/main, uncommitted and new files, Core's too
 #   scripts/tests-for.sh --why …   the same, with the reason each test is listed, and the tests
 #                                  that only compile a changed file
-#   scripts/tests-for.sh --all     every test script (the full suite)
+#   scripts/tests-for.sh --since REV  changes since a parent commit, including its Core gitlink
+#   scripts/tests-for.sh --all     every test script (the full batch/release suite)
 #   scripts/tests-for.sh --run …   run the listed tests one after another (logs in build/test-logs),
-#                                  then print which passed and failed; e.g. `--run --all`
+#                                  then print which passed and failed
+#   scripts/tests-for.sh --run --fail-fast …  stop at the first failure; report unrun scripts
+# Routine Dev: --run --fail-fast FILE… or --since BASE. Batch/release: --run --all --fail-fast.
 #
 # Worked out from the test scripts themselves, so it stays right as they change. A test covers a
 # changed file when
@@ -21,38 +24,79 @@
 # scripts/check-sources.sh is listed when files were added or removed or project.yml changed.
 cd "$(dirname "$0")/.." || exit 1
 exec /usr/bin/python3 -I - "$@" <<'PY'
-import os, re, subprocess, sys
+import argparse, os, re, subprocess, sys
 from pathlib import Path
 
 ROOT = Path.cwd()
-args = sys.argv[1:]
-why = '--why' in args
-run = '--run' in args
-everything = '--all' in args
-files = [a for a in args if not a.startswith('--')]
+parser = argparse.ArgumentParser(prog='scripts/tests-for.sh', description="Select and run the tests covering a change.")
+parser.add_argument('files', nargs='*', metavar='FILE')
+parser.add_argument('--why', action='store_true', help='explain test selection')
+parser.add_argument('--run', action='store_true', help='run selected tests')
+parser.add_argument('--all', action='store_true', help='select the full batch/release suite')
+parser.add_argument('--since', metavar='REV', help='compare the actual checkout with this parent commit and its Core gitlink')
+parser.add_argument('--fail-fast', action='store_true', help='stop a run after its first failure, reporting unrun tests')
+args = parser.parse_intermixed_args()
+if args.since and (args.files or args.all):
+    parser.error('--since takes a baseline instead of FILE arguments or --all')
+if args.fail_fast and not args.run:
+    parser.error('--fail-fast requires --run')
+why, run, everything = args.why, args.run, args.all
+files = args.files
 tests = sorted(p for p in (ROOT / 'scripts').glob('test-*.sh'))
 
 def git(*a, cwd=ROOT):
     r = subprocess.run(['git', *a], cwd=cwd, capture_output=True, text=True)
     return r.stdout.splitlines() if r.returncode == 0 else []
 
+def required_git(*a, cwd=ROOT):
+    r = subprocess.run(['git', *a], cwd=cwd, capture_output=True, text=True)
+    if r.returncode:
+        parser.error(f"cannot inspect {cwd.name}: {r.stderr.strip()}")
+    return r.stdout
+
+if args.since:
+    baseline = required_git('rev-parse', '--verify', '--end-of-options', args.since + '^{commit}').strip()
+    link = required_git('ls-tree', baseline, '--', 'Core').split()
+    core_baseline = link[2] if len(link) >= 3 and link[0] == '160000' else None
+    if core_baseline:
+        if not (ROOT / 'Core' / '.git').exists():
+            parser.error('the baseline includes Core; initialize its checkout before selecting tests')
+        # A missing historical Core object must not turn into an empty, falsely green scope.
+        required_git('cat-file', '-e', core_baseline + '^{commit}', cwd=ROOT / 'Core')
+
 def changed_files():
-    """Commits since origin/main, uncommitted and new files; Core's too (as Core/…). Also
-    whether files were added or removed."""
+    """Actual tree vs the requested parent/Core baseline (or each origin/main merge base),
+    plus untracked files. NUL paths preserve spaces, Unicode and rename source/destination."""
     out, structural = set(), False
     for cwd, prefix in ((ROOT, ''), (ROOT / 'Core', 'Core/')):
         if not (cwd / '.git').exists():
             continue
-        base = git('merge-base', 'HEAD', 'origin/main', cwd=cwd)
+        if args.since:
+            base = core_baseline if prefix else baseline
+        else:
+            bases = git('merge-base', 'HEAD', 'origin/main', cwd=cwd)
+            base = bases[0] if bases else None
         if base:
-            for line in git('diff', '--name-status', base[0], cwd=cwd):
-                status, *paths = line.split('\t')
-                out.update(prefix + p for p in paths)
-                structural |= status[0] in 'ADR'
-        for line in git('status', '--porcelain', '--untracked-files=all', cwd=cwd):
-            status, path = line[:2], line[3:].split(' -> ')[-1]
+            tokens = required_git('diff', '--name-status', '-z', base, cwd=cwd).split('\0')
+            i = 0
+            while i < len(tokens) and tokens[i]:
+                status = tokens[i]; i += 1
+                count = 2 if status[0] in 'RC' else 1
+                out.update(prefix + path for path in tokens[i:i + count])
+                i += count
+                structural |= status[0] in 'ADRC'
+        elif args.since and prefix:
+            # Core was added after the requested baseline: every tracked source is new.
+            out.update(prefix + path for path in required_git('ls-files', '-z', cwd=cwd).split('\0') if path)
+            structural = True
+        tokens = required_git('status', '--porcelain=v1', '-z', '--untracked-files=all', cwd=cwd).split('\0')
+        i = 0
+        while i < len(tokens) and tokens[i]:
+            status, path = tokens[i][:2], tokens[i][3:]; i += 1
             out.add(prefix + path)
-            structural |= '?' in status or 'A' in status or 'D' in status or 'R' in status
+            structural |= any(c in status for c in '?ADRC')
+            if 'R' in status or 'C' in status:
+                out.add(prefix + tokens[i]); i += 1
     out.discard('Core')
     return sorted(out), structural
 
@@ -187,8 +231,13 @@ def run_all(names):
             code = subprocess.run(['./' + n], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT).returncode
         results.append((code, n, log))
         print(f'    {"pass" if code == 0 else f"FAIL ({code})"}  {log.relative_to(ROOT)}', flush=True)
+        if code and args.fail_fast:
+            break
     failed = [r for r in results if r[0]]
-    print(f'\n{len(results) - len(failed)} passed, {len(failed)} failed')
+    remaining = len(names) - len(results)
+    print(f'\n{len(results) - len(failed)} passed, {len(failed)} failed, {remaining} not run')
+    if remaining:
+        print('Stopped after the first failure; remaining checks are NOT verified.')
     for code, n, log in failed:
         print(f'  FAIL {n} ({code}): {log.relative_to(ROOT)}')
     return 1 if failed else 0

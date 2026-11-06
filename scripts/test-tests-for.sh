@@ -53,4 +53,5 @@ echo "PASS --all lists every test script ($all)"
 why=$(scripts/tests-for.sh --why Core/Chatterbox/Engine/DeskStore.swift)
 grep -q 'uses DeskStore' <<<"$why" || fail "--why gave no reason"
 echo "PASS --why gives reasons"
+python3 tests/tests-for/main.py
 echo "tests-for: all passed"
