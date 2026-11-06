@@ -30,7 +30,7 @@ No visual component or layout changes. Existing confidence fields, auto-start co
 
 - [x] P1 Update rubric, agent/intake/CLI instructions and documented confidence semantics. Acceptance: all scoring paths distinguish preparation and outbound approval; no new API/schema.
 - [ ] P2 Cover preparation auto-start and outbound stop boundary with fixture tests, then run selected checks and the required broad attempt. Acceptance: no real agent/source operation in tests; disclose failures/incomplete coverage.
-- [ ] P3 Commit/push and install Mac Dev; inspect runtime confidence instructions. Acceptance: installed source matches and service healthy. Offer Ship, leave real configuration/tasks untouched.
+- [x] P3 Commit/push and install Mac Dev; inspect runtime confidence instructions. Acceptance: installed source matches and service healthy. Offer Ship, leave real configuration/tasks untouched.
 
 ## Test plan and rollback
 
@@ -44,3 +44,9 @@ Scope confirmed by Shelby's November 6 correction: outbound approval is separate
 
 
 Focused verification: `scripts/test-desk.sh` and `scripts/test-automation-routines.sh` pass. Desk fixtures cover clear preparation auto-starting with its publication-approval note intact, explicit outbound stop instructions, and a genuine missing-input task staying unstarted. The quick model is replaced with fixture scores: this tests runtime handling and message boundaries, not a live model evaluation. No agent or source review ran. Broad attempt is in progress in `build/desk-preparation-confidence-full-suite.log`.
+
+
+Dev delivery: Core b7517a7 and parent 6af862d committed/pushed. Mac Dev installed/reopened; idle restart at 16:34:38 reported healthy at 16:34:41. Installed service bytes match the Dev build and contain the new preparation rubric. Real app bytes are unchanged. No phone build, TestFlight, stored-score rewrite or task start was performed for delivery. Evidence: `build/desk-preparation-confidence-dev-proof.json`; focused logs record 279 Desk and 88 automation checks.
+
+
+Broad validation limit: the full-suite attempt passed 7 scripts. Before continuing the costly chat fixture compiles, the known `scripts/test-chat-switch.sh` gate was checked out of order and reproduced exit 133 at unchanged `tests/chat-switch/Coordinator.swift:11` (old fade expectation vs immediate swap). Stopped the remaining run safely during chat-bottom compilation. Coverage remains incomplete; P2 and the issue stay open. Logs: `build/desk-preparation-confidence-full-suite.log` and `build/desk-preparation-confidence-chat-switch.log`. This is not a green full suite. No unrelated transition behavior/test was changed.
