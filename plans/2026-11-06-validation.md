@@ -42,10 +42,22 @@ Interpretation:
 
 ## Delivery and limits
 
-Earlier Studio/source-link build installed to Mac Dev; service healthy after 2s. Dev phone installation failed because Xcode could not resolve the paired Duo destination. No real-app install, real-service restart, or TestFlight upload in this session. Final Mac Dev update for Activity/Desk refresh installed and reopened; its service restarted on the idle rule at 13:44:36 and reported healthy after 1s at 13:44:38 local. Dev-phone installation was not retried; only simulator verification is claimed for the latest phone changes.
+Earlier Studio/source-link build installed to Mac Dev; service healthy after 2s. Dev phone installation failed because Xcode could not resolve the paired Duo destination. Before Shelby said Ship, no real-app install, real-service restart or TestFlight upload was performed. The authorized ship is recorded below. Final Mac Dev update for Activity/Desk refresh installed and reopened; its service restarted on the idle rule at 13:44:36 and reported healthy after 1s at 13:44:38 local. Dev-phone installation was not retried; only simulator verification is claimed for the latest phone changes.
 
 The two old screenshot email tasks still have no verified original message IDs/URLs. Read-only source inspection did not recover links; no URLs were invented and real Desk/mailbox data was not modified.
 
 ## Test-log exposure
 
 A pre-existing bare `export` in test-chat-bottom emitted inherited environment values. RunCloud and ElevenLabs credentials were present; one tool output exposed the RunCloud key. Removed bare environment dumps from 13 scripts, added a source-check guard, and redacted four affected local logs without printing secret values. Recorded chat output cannot be erased here. Rotate both credentials and update Chatterbox Settings → Secrets. No rotation was performed.
+
+## Authorized ship — 2026-11-06
+
+Shelby said ship. `scripts/ship.sh` shipped 2c8e824: pushed, installed and reopened the real Mac app, with its installed executable matching the build. Default `restart-service.sh` used the between-turns rule at 14:34:17; real service reported health OK after 16s at 14:34:34. A read-only socket check confirmed the Desk source-check state and configured intake routine; no source pull was started.
+
+`scripts/install-phone.sh "Shelby's Duo"` successfully installed the real phone app. Launch was refused because the device was locked, confirmed by MobileBuildMCP's CoreDevice launch diagnostic; no further unlock/launch attempts were made.
+
+TestFlight build **202611061433** uploaded successfully. Apple reports VALID / IN_BETA_TESTING. A separate betaGroups query confirms the existing **Shelby** internal group has automatic access to all builds and explicitly lists this build. No tester access was expanded, and no App Store release was submitted.
+
+No new work threads were created for these changes. The shell has no current Chatterbox chat ID and `work list` could not infer a working session in this folder; no Desk tasks were changed based on a guessed identity. Earlier completed work threads were already cleared, according to the conversation history.
+
+Delivery logs: build/ship-20261106.log, build/ship-phone-20261106.log, build/ship-phone-launch.json, build/ship-testflight-20261106.log and build/ship-testflight-status-20261106.log. The earlier full-suite failures and unresolved legacy email links remain as recorded above.
