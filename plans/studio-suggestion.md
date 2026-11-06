@@ -24,7 +24,7 @@ Success: unrelated generic prompts suggest nothing; explicit names/own terms sti
 Deliverables: shared matcher and regressions committed/pushed, related tests plus one full-suite attempt with failures reported, Dev install with idle-safe Dev restart, delivery evidence here. Preserve manual promotion, dismissed suggestions, existing assignments, task state and source gates. No real app install/restart until Shelby says ship. No new settings, model calls, instruction edits or data migrations.
 
 - [x] S1 Review interrupted matcher, tighten ambiguity/identity edge cases; focused regression cases pass.
-- [ ] S2 Run `scripts/tests-for.sh --run Core/Shared/PlaceSuggestion.swift tests/place-suggestion/main.swift` then `scripts/tests-for.sh --run --all` once; record failures rather than claiming a green suite.
+- [x] S2 Focused matcher checks pass (30). Full-suite attempt finished 98 pass / 12 fail; details, source-edit overlap and stable reruns in `plans/2026-11-06-validation.md`.
 - [x] S3 Core `69d6b3b` and root `679a31f` pushed, then source-link follow-up Core `9129261` / root `883f2db`. Mac Dev installed/reopened, Dev service healthy after 2s at 12:15:38 local. `scripts/tidy.sh` reported 144 removable/7 kept; no apply. Dev phone install failed to resolve Duo destination (exit 70); no phone installation or TestFlight claimed. Offer Ship only with full-run status disclosed.
 
 Rollback: revert scoped matcher commit and reinstall Dev; no stored-data changes. Existing routes: Chats → new loose session → first prompt → suggestion card; Desk → new task → proposed place. The helper is shared by Mac, phone and Desk; focused logic and Desk service checks are the primary behavioral evidence.

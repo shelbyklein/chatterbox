@@ -54,7 +54,7 @@ Request: include a link to the source on the Desk cards shown on the phone. Line
 - [x] Instruct agents and every automation run to preserve verified links; never fabricate IDs or URLs, send email or change ClickUp to obtain one.
 - [x] Validate service (256 checks), connector (36 checks), automation instructions (55 checks), and CLI payload forwarding. Core `9129261` pushed.
 - [x] Parent integration `883f2db` pushed; installed/reopened Chatterbox Dev on Mac. Dev service healthy after 2s (2026-11-06 12:15:38 local).
-- [ ] Finish the already-running full-suite attempt and record failures. Dev phone install attempted but Xcode could not resolve the paired Duo destination (exit 70); no phone install or TestFlight claimed.
+- [x] Full-suite attempt finished: 98 pass / 12 fail; details and stable reruns in `plans/2026-11-06-validation.md`. Dev phone install attempted but Xcode could not resolve the paired Duo destination (exit 70); no phone install or TestFlight claimed.
 
 Current-data limit: both screenshot tasks have no origin/message ID/URL. The morning report explicitly records null `source_link` and `stable_message_id`, with partial native-Outlook coverage. Read-only native Outlook inspection confirmed the 93ft message identity but exposed no Copy Link command. No real tasks or mailbox data were changed, and no exact email links were invented. Existing missing links remain unresolved until the source can provide them.
 

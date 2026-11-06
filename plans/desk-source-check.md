@@ -15,3 +15,5 @@ Flow: Desk → Check for updates → one read-only source check runs → Desk re
 No live pull is started during implementation. No changes to saved automation prompts, schedules, mailbox or ClickUp data. Real app updates only on Ship. Rollback by reverting scoped feature code; optional companion fields retain compatibility.
 
 Validation: automation-routines 66 checks, Mac Desk 154 checks, Desk service/CLI 257 checks pass. Focused Duo testActivityTab (24s) and testDeskSourceCheck (10s) pass; actual screenshots inspected in design/desk-sources/ and design/mobile-activity/. No live source pull or connector run was made; external source coverage and account access remain unverified.
+
+Delivery: Core dcc7bf0 / parent 30a4c0a pushed. Mac Dev installed/reopened; Dev service healthy after 1s at 13:44:38 local. No live source pull, physical-phone installation or TestFlight upload for this feature.
