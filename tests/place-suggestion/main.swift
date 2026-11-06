@@ -38,3 +38,11 @@ check(PlaceSuggestion.named("dogear", among: mixed) == dogear, "a place named in
 check(PlaceSuggestion.named("the USA Archery Studio", among: mixed) == archery, "a place named with \"the\" and \"Studio\" around it")
 check(PlaceSuggestion.named("Geekify", among: mixed + [twin]) == nil, "two places of one name: neither")
 check(PlaceSuggestion.named("Nowhere", among: mixed) == nil, "an unknown name")
+
+check(PlaceSuggestion.best(for: "Update the USAA camp email", among: all) == archery, "a recognizable organization abbreviation")
+check(PlaceSuggestion.best(for: "Compare PlayCase Arcade and Geekify", among: all) == nil, "two explicit names do not favor the longer one")
+check(PlaceSuggestion.best(for: "Compare archery with PlayCase levels", among: all) == nil, "two different own-term matches: no guess")
+let generic = PlaceSuggestion.Place(id: UUID(), name: "Creative Studio", instructions: "Create art and images.")
+check(PlaceSuggestion.best(for: "I need creative ideas", among: all + [generic]) == nil, "a generic name is not identity evidence")
+check(PlaceSuggestion.best(for: "The Github image example", among: [PlaceSuggestion.Place(id: UUID(), name: "USA Archery", instructions: "See https://github.com/example and https://www.usarchery.org")]) == nil, "shared infrastructure sites do not identify the Studio")
+check(PlaceSuggestion.best(for: "A Geekify redesign", among: [PlaceSuggestion.Place(id: UUID(), name: "Geekify", instructions: "")])?.name == "Geekify", "a named Studio needs no instructions")
