@@ -47,6 +47,16 @@ class MigrationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 migration.plan(rows, "/project/On Target")
 
+    def test_real_and_dev_guards_run_before_file_access(self):
+        for target, flags, expected in [
+            (migration.REAL_DATA, ["--apply"], "Ship step"),
+            (migration.REAL_DATA, ["--offline"], "isolated"),
+            (migration.DEV_DATA, ["--offline"], "isolated"),
+        ]:
+            result = subprocess.run(["python3", str(SCRIPT), "--data-dir", str(target)] + flags, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(expected, result.stderr)
+
     def test_files_backups_and_dry_run(self):
         with tempfile.TemporaryDirectory(prefix="general-migration-", dir="/tmp") as directory:
             root = Path(directory)

@@ -325,6 +325,19 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let generalDesk = call("POST", "/v1/desk/check-sources")
     try check(generalDesk.status == 200 && started.last!.automation.projectFolder == nil
               && started.last!.automation.instructions.contains(morningText), "Desk source check runs the general routine without a development project")
+    var presetGeneral = general[0]
+    presetGeneral.reportSessionID = UUID(); presetGeneral.backend = nil; presetGeneral.model = nil
+    presetGeneral.preset = ModelPresets.shared.presets.first(where: { $0.backend == .codex })!.id
+    try check(CompanionMapper.agent(of: presetGeneral, model: model) == "codex"
+              && (try runner.reportSession(for: presetGeneral)).record.backend == .codex,
+              "a General preset keeps the same agent in companion details and actual runs")
+    let priorDefault = AppPreferences.defaults.string(forKey: "defaultBackend")
+    AppPreferences.defaults.set("codex", forKey: "defaultBackend")
+    var defaultGeneral = presetGeneral; defaultGeneral.preset = nil; defaultGeneral.reportSessionID = UUID()
+    try check(CompanionMapper.agent(of: defaultGeneral, model: model) == "codex"
+              && (try runner.reportSession(for: defaultGeneral)).record.backend == .codex,
+              "an unconfigured General routine consistently follows the general agent default")
+    AppPreferences.defaults.set(priorDefault, forKey: "defaultBackend")
     var returned = general
     ProjectAutomations.setTarget(returned[0].id, projectFolder: onTarget.record.projectFolder, in: &returned)
     try check(returned.allSatisfy { $0.projectFolder == onTarget.record.projectFolder && $0.reportSessionID == nil && $0.reportSessionTitle == nil },

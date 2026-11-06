@@ -1356,6 +1356,8 @@ final class HomeNavTests: XCTestCase {
   capture("automation-detail", app)
   // Instructions: Save sends only them.
   instructions.tap(); instructions.typeText(" Include Slack.")
+  // The General destination section makes the form taller; dismiss the keyboard and reveal the run control.
+  revealUp(run, app)
   XCTAssertEqual(run.label, "Save and Run Now")
   app.buttons["automation-save"].tap()
   var calls = try await automationCalls(atLeast:1)

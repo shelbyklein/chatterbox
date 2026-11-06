@@ -76,7 +76,7 @@ import Foundation
         record.id = id
         record.title = automation.reportingTitle
         record.activeBackend = automation.backend.flatMap(Backend.init(rawValue:))
-            ?? automation.preset.flatMap { id in ModelPresets.shared.presets.first { $0.id == id }?.backend }
+            ?? (automation.model == nil ? automation.preset.flatMap { id in ModelPresets.shared.presets.first { $0.id == id }?.backend } : nil)
             ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
         record.claudeMode = PermissionModes.defaultClaude
         if record.backend == .codex {
