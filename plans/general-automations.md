@@ -90,7 +90,7 @@ No blocking product questions. The requested general scope is clear; the propose
 - [x] T3: Mac and phone scope UI and rendered proofs.
 - [x] T4: Exact routine migration and Dev fixture verification.
 - [ ] T5: Validation, scoped commits/push and Dev delivery.
-- [ ] T6: Ship gate, real migration and installed verification.
+- [x] T6: Ship gate, real migration and installed verification.
 
 ## Compatibility detail
 
@@ -120,3 +120,14 @@ Implementation, focused validation and installed Dev preview are complete. T5 re
 T6 remains gated on Shelby saying Ship. The real routine still belongs to On Target until that step. The Dev fixture is intentionally paused and source-free; it is not a live morning review. The feature branches and installed proof are ready for review; the issue and PR drafts remain open.
 
 Final Dev restoration: combined branch includes both completed Activity commits and the connection-error correction. A concurrent installation temporarily replaced Dev; restored build/service healthy at 16:10:02, General capability and native card reverified, with the same seven paused preview IDs and reporting session. Real configuration unchanged. Current proof: `design/general-automations/dev-restored-center.png`. Mapping regression passes. T5 broad-coverage limit and T6 Ship gate remain explicitly open.
+
+
+## Real shipment — November 6, 2026
+
+Shelby explicitly said Ship. Core PR #23 landed first at 23f6dd6, then parent PR #53 at b1fce96, preserving the latest Activity fixes and all five migration/mobile test-map entries. The combined automation suite passes 88 checks; four migration tests, source consistency, test selection and real/Dev identity checks pass. Broad validation remains incomplete with the previously disclosed chat-switch and chat-rendering fixture failures; T5 remains open.
+
+Real Mac installed and running from b1fce96. Service restarted between replies at 16:27:31 and was verified ready with generalAutomations support before any migration. The online dry run made no changes; apply backed up configuration/run state at `~/Library/Application Support/Chatterbox/Backups/general-automations-20261106T212756.332474Z`, then migrated all seven existing entries. Exact structural comparison permits only destination fields and the named delivery sentence; all IDs, enabled flags, schedules, agent settings, unrelated routines and run-state bytes are preserved. Repeat online apply is a configuration no-op.
+
+The real reporting session is 673DCBE3-6F34-4649-A1A0-244269DB4918, Morning priorities, Codex, ordinary Chats, no project/Studio/parent/agent host or items, with the normal real data working folder. Installed UI verified General, Every day at 8:30 AM, Reports to Morning priorities; Open Session opens the empty ordinary chat with No Project. No new review was started. Existing run history remains visible. Evidence logs/proofs are under build/ship-real-migration-*.
+
+Phone delivery changed at Shelby's request: stopped the TestFlight export/upload during preparation, then development-signed Release installed and opened directly on Shelby's Duo. Real and Dev data remain separate. Repo delivery policy now prefers direct phone installs when reachable and no iOS build for Mac-only changes; TestFlight is only for requested distribution. No new TestFlight availability claim is made.
