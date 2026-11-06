@@ -34,14 +34,14 @@ import Foundation
     func run(_ automation: ProjectAutomation, manual: Bool) throws -> UUID {
         var all = ProjectAutomations.loadState()
         var state = all[automation.id.uuidString] ?? AutomationRunState()
-        if let last = state.threadID, let thread = model.sessions.first(where: { $0.id == last }),
-           thread.record.archivedAt == nil, thread.isRunning || thread.isWaitingOnYou {
-            throw RuntimeFailure("Its last run is still going.")
+        let routine = ProjectAutomations.routines(in: ProjectAutomations.load()).first { $0.contains { $0.id == automation.id } } ?? [automation]
+        for day in routine {
+            if let last = all[day.id.uuidString]?.threadID, let thread = model.sessions.first(where: { $0.id == last }),
+               thread.record.archivedAt == nil, thread.isRunning || thread.isWaitingOnYou {
+                throw RuntimeFailure("Its last run is still going.")
+            }
         }
-        guard let project = model.sessions.first(where: {
-            $0.record.projectFolder == automation.projectFolder && $0.record.worktreeOf == nil && $0.record.sidechatOf == nil
-                && $0.record.archivedAt == nil
-        }) else { throw RuntimeFailure("Its project isn't open in Chatterbox anymore.") }
+        let project = try reportSession(for: automation)
         let quest = try startRun(automation, project, manual)
         state.lastRun = Date()
         state.threadID = quest.id
@@ -50,4 +50,41 @@ import Foundation
         RuntimeHooks.note("Ran automation \u{201C}\(automation.title)\u{201D}")
         return quest.id
     }
+    /// Preparing a reporting session never starts an agent or a source review.
+    func reportSession(for automation: ProjectAutomation) throws -> ChatSession {
+        try automation.validateTarget()
+        if let folder = automation.projectFolder {
+            guard let project = model.activeSessions.first(where: {
+                $0.record.projectFolder == folder && $0.record.worktreeOf == nil && $0.record.sidechatOf == nil
+            }) else { throw RuntimeFailure("Its project isn't open in Chatterbox anymore.") }
+            return project
+        }
+        guard let id = automation.reportSessionID else { throw RuntimeFailure("The general automation needs a reporting session.") }
+        if let session = model.sessions.first(where: { $0.id == id }) {
+            let r = session.record
+            guard r.projectFolder == nil, r.convertedProjectFolder == nil, r.worktreeOf == nil,
+                  r.sidechatOf == nil, r.sidequestOf == nil, r.studioID == nil, r.studioFolder == nil,
+                  r.sidechatProjectFolder == nil else {
+                throw RuntimeFailure("Its reporting session now belongs to a project or Studio. Choose another general reporting session.")
+            }
+            if r.archivedAt != nil { session.setArchived(false) }
+            return session
+        }
+        let defaults = AppPreferences.defaults
+        var record = ConversationRecord(model: defaults.string(forKey: "defaultModel") ?? "default",
+                                        effort: defaults.string(forKey: "defaultEffort") ?? "", personality: .friendly)
+        record.id = id
+        record.title = automation.reportingTitle
+        record.activeBackend = automation.backend.flatMap(Backend.init(rawValue:))
+            ?? automation.preset.flatMap { id in ModelPresets.shared.presets.first { $0.id == id }?.backend }
+            ?? Backend(rawValue: defaults.string(forKey: "defaultBackend") ?? "") ?? .claude
+        record.claudeMode = PermissionModes.defaultClaude
+        if record.backend == .codex {
+            record.codex = CodexSettings(folder: RuntimePaths.data.path, canEdit: false, mode: PermissionModes.defaultCodex)
+            record.codex?.model = defaults.string(forKey: "codexDefaultModel").flatMap { $0.isEmpty ? nil : $0 }
+            record.codex?.effort = defaults.string(forKey: "codexDefaultEffort").flatMap { $0.isEmpty ? nil : $0 }
+        }
+        return try model.runtime.insert(record)
+    }
+
 }

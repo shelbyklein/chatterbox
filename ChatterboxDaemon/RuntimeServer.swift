@@ -77,7 +77,7 @@ import CoreFoundation
                 guard ["agent","ui"].contains(role) else {throw RuntimeFailure("permission_denied")}
                 guard role != "ui" || (peer.isTrustedUI && RuntimePeerIdentity.permitsUIRole(role,fd:peer.fd,root:root)) else {throw RuntimeFailure("permission_denied")}
                 roles[peer.id]=role
-                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"metadataFields":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
+                peer.send(RuntimeReply(id:r.id,result:["version":1,"priorityList":true,"navigationSummaries":true,"generalAutomations":true,"metadataFields":true,"role":.string(role),"sequence":.number(Double(runtime.state.sequence))]));return
             }
             guard let role=roles[peer.id] else {throw RuntimeFailure("handshake_required")}
             if ["approve","answer","studios","metadata","delete","settings","remoteControl","restartTools","restartThread","shell","stopShell","companion","connector","preferences"].contains(r.operation), role != "ui" {
@@ -127,6 +127,11 @@ import CoreFoundation
                         return ["accepted": true, "status": .string(status)]
                     }
                 }
+            case "automationReportSession":
+                guard let id = r.body["id"]?.string.flatMap(UUID.init(uuidString:)),
+                      let automation = ProjectAutomations.load().first(where: { $0.id == id }),
+                      let runner = AutomationRunner.shared else { throw RuntimeFailure("automation_not_found") }
+                result = ["threadID": .string(try runner.reportSession(for: automation).id.uuidString)]
             case "runAutomation":
                 // "Run Now" on a project's automation; only Chatterbox's own window may ask.
                 guard role=="ui" else{throw RuntimeFailure("permission_denied")}
