@@ -89,14 +89,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let empty = try deskOf(call("GET", "/v1/desk"))
     try check(empty.needsYou.isEmpty && empty.incoming.isEmpty && empty.working.isEmpty, "a healthy Desk is empty")
 
-    // Proposals: a Studio from its instructions, a project from its brief, nothing when unsure.
-    let banner = try add("Banner ideas for the fall camp flyers and the homepage")
+    // Proposals: the Studio or project the request names (or a distinctive word of its name), nothing when unsure.
+    let banner = try add("Banner ideas for the archery fall camp flyers and the homepage")
     let bannerDesk = try deskOf(banner)
     let bannerRequest = bannerDesk.incoming[0]
     try check(banner.status == 200 && bannerRequest.proposed == .init(kind: "studio", id: archery.id, name: "USA Archery", detail: archery.instructions)
               && bannerRequest.source == "you", "a request is proposed for the Studio it fits, from you")
     try check(bannerDesk.revision > empty.revision && announced.last?.revision == bannerDesk.revision, "adding changes the revision and is announced")
-    let highlights = try deskOf(add("Fix the highlights sync, the bookmarks list and the book import")).incoming[0]
+    let highlights = try deskOf(add("Fix the Dogear highlights sync, the bookmarks list and the book import")).incoming[0]
     try check(highlights.proposed?.kind == "project" && highlights.proposed?.id == dogear.id && highlights.proposed?.name == "Dogear"
               && highlights.proposed?.detail == dogearRecord.brief, "a request is proposed for the project its brief fits")
     let weather = try deskOf(add("What's the weather tomorrow?")).incoming[0]
@@ -109,8 +109,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(try add("   ").status == 400 && call("POST", "/v1/desk", Data("{}".utf8)).status == 400, "nothing to do is refused")
     let incoming = try deskOf(call("GET", "/v1/desk")).incoming
     try check(incoming.map(\.text) == ["Loose thing", "Look at this", "What's the weather tomorrow?",
-                                       "Fix the highlights sync, the bookmarks list and the book import",
-                                       "Banner ideas for the fall camp flyers and the homepage"], "incoming is newest first")
+                                       "Fix the Dogear highlights sync, the bookmarks list and the book import",
+                                       "Banner ideas for the archery fall camp flyers and the homepage"], "incoming is newest first")
 
     // Places: open Studios with instructions, the project's own session with its brief, loose last.
     let places = try Companion.decoder.decode([Companion.DeskPlace].self, from: call("GET", "/v1/desk/places").body)
@@ -429,7 +429,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let bannerChat = runtime.session(detail.summary.id)
     try check(started.status == 200 && bannerChat?.record.studioID == archery.id && bannerChat?.record.studioFolder == archery.folder,
               "start: a new session in the proposed Studio")
-    try check(detail.summary.title == "Banner ideas for the fall camp flyers and the\u{2026}" && sent.last?.chat == detail.summary.id
+    try check(detail.summary.title == "Banner ideas for the archery fall camp flyers\u{2026}" && sent.last?.chat == detail.summary.id
               && sent.last?.text == bannerRequest.text && detail.items.contains { $0.kind == .user && $0.text == bannerRequest.text },
               "named from the request, which is its first message: \(detail.summary.title)")
     let afterStart = try deskOf(call("GET", "/v1/desk"))
@@ -442,7 +442,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let side = try Companion.decoder.decode(Companion.ChatDetail.self, from: call("POST", "/v1/desk/\(highlights.id)/start", Data("{}".utf8)).body)
     let sideChat = runtime.session(side.summary.id)
     try check(sideChat?.record.sidechatOf == dogear.id && side.summary.sidechatOf == dogear.id && sideChat?.record.projectFolder == nil
-              && side.summary.title.hasPrefix("Fix the highlights sync"), "start: a project's work is a new Sidechat of it")
+              && side.summary.title.hasPrefix("Fix the Dogear highlights sync"), "start: a project's work is a new Sidechat of it")
     try check(sideChat?.record.workOf == dogear.id && side.summary.workOf == dogear.id && sideChat?.record.parentContext == nil
               && sideChat?.record.pendingHandoff?.contains("<work_thread>") == true && sideChat?.record.pendingHandoff?.contains("Ship it") != true,
               "…a work thread of the project's session, framed as one, without its transcript")
@@ -471,7 +471,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let elsewhereSync = try runtime.insert(record("Fix the highlight sync", studio: archery, items: [DisplayItem(kind: .user, text: "Fix the highlight sync")]))
     var archivedSync = record("Fix the highlights sync and the bookmarks"); archivedSync.sidechatOf = dogear.id; archivedSync.archivedAt = Date()
     _ = try runtime.insert(archivedSync)
-    let followUp = try deskOf(add("Fix the highlights sync followUp: bookmarks vanish after the book import")).incoming[0]
+    let followUp = try deskOf(add("Fix the Dogear highlights sync followUp: bookmarks vanish after the book import")).incoming[0]
     try check(followUp.proposed?.id == dogear.id, "a follow-up is proposed for the same project")
     func threadsOf(_ response: HTTPResponse) throws -> [Companion.DeskThread] { try Companion.decoder.decode([Companion.DeskThread].self, from: response.body) }
     let threads = try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads"))
@@ -594,7 +594,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "no agent started by continuing or picking a model")
 
     // Claude's connector: propose_work puts work on the Desk from Claude.
-    let (proposed, failed) = await ConnectorTools.call("propose_work", arguments: ["text": "Draft the fall camp flyers, banners and homepage copy", "note": "Camp starts in October"], token: token)
+    let (proposed, failed) = await ConnectorTools.call("propose_work", arguments: ["text": "Draft the archery fall camp flyers, banners and homepage copy", "note": "Camp starts in October"], token: token)
     try check(!failed && proposed.contains("Studio USA Archery") && desk.requests.first?.source == "claude" && desk.requests.first?.note == "Camp starts in October",
               "propose_work: on the Desk from Claude, with the place it fits: \(proposed)")
     let (nowhereText, nowhereFailed) = await ConnectorTools.call("propose_work", arguments: ["text": "Something", "place": "Nowhere"], token: token)
