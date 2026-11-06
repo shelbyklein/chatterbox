@@ -14,3 +14,4 @@ scripts/tests-for.sh            test-tests-for.sh
 scripts/test-map.txt            test-tests-for.sh
 Chatterbox/Engine/RuntimeOutbox.swift test-mac-outbox.sh test-tags.sh
 ChatterboxDaemon/RuntimeServer.swift test-mac-outbox.sh
+bin/desk                         test-desk.sh
