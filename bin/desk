@@ -8,6 +8,11 @@
                     [--source clickup:<id or link> | email:<message id>] [--source-title T]
                     where it came from, so its card warns when ClickUp or the email
                     disagrees with the board (a ClickUp link in --note counts too)
+                    [--confidence yes|no --reason "..."]
+                    can an agent finish it without Shelby? No if it needs Shelby's creative
+                    judgment, info or access that isn't there, an outward-facing step
+                    (email, publishing, ClickUp), approvals mid-work, or has no clear
+                    place; else yes. Yes tasks with a place start by themselves.
   desk source REF --status STATUS [--from NAME] [--title T]
                     what a task's source says now: ClickUp's status ("in progress",
                     "complete"), or an email's "new reply" (--from who wrote it),
@@ -65,6 +70,8 @@ def main():
     add.add_argument("--note", help="a line about it: where it came from, a link, a deadline")
     add.add_argument("--source", dest="origin", help="clickup:<task id or link>, or email:<message id>")
     add.add_argument("--source-title", dest="origin_title", help="the ClickUp task's name or the email's subject")
+    add.add_argument("--confidence", choices=["yes", "no"], help="can an agent finish it without Shelby?")
+    add.add_argument("--reason", help="why: what makes it safe, or what needs Shelby")
     src = commands.add_parser("source", help="report what a task's source (ClickUp, an email) says now")
     src.add_argument("ref", help="clickup:<task id or link>, or email:<message id>")
     src.add_argument("--status", required=True)
@@ -88,6 +95,11 @@ def main():
             body["origin"] = args.origin
         if args.origin_title:
             body["originTitle"] = args.origin_title
+        if args.confidence:
+            if not args.reason:
+                fail("give --reason with --confidence.")
+            body["confidence"] = args.confidence
+            body["reason"] = args.reason
         desk = service.request("desk", body) or {}
         mine = next((r for r in desk.get("incoming", []) if r.get("text") == text), None)
         place = (mine or {}).get("proposed")

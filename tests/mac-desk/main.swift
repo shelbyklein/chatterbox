@@ -139,9 +139,11 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
                                              createdAt: now.addingTimeInterval(-1500), proposed: usaPlace,
                                              note: "Results post Friday; Lauren wants the email ready to send that afternoon.",
                                              origin: .init(kind: "email", id: "<results@usaarchery.org>", title: "Indoor Nationals results", status: "new reply", replyFrom: "Lauren"),
-                                             check: .init(warning: "New reply from Lauren", writeBack: "Draft the reply to Lauren"))
+                                             check: .init(warning: "New reply from Lauren", writeBack: "Draft the reply to Lauren"),
+                                             confidence: .init(canRunAlone: false, reason: "Sending the results email goes out to members", by: "claude"))
     let badge = Companion.DeskRequest(id: UUID(), text: "Fix the iPad sidebar badge count after archiving a session", source: "you",
-                                      createdAt: now.addingTimeInterval(-240), proposed: chatterbox)
+                                      createdAt: now.addingTimeInterval(-240), proposed: chatterbox,
+                                      confidence: .init(canRunAlone: true, reason: "A contained fix in the Chatterbox project, tested locally", by: "quick pass"))
     let order = Companion.DeskRequest(id: UUID(), text: "Order more 6 mm magnets before the next PlayCase batch", source: "you",
                                       createdAt: now.addingTimeInterval(-60), proposed: nil)
     var service = Companion.Desk(revision: 4, needsYou: [
@@ -155,7 +157,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     ready: [
         .init(id: proofs.id, title: "Banner proofs", place: "USA Archery", text: "The three banner proofs are in the Studio folder.", finishedAt: now.addingTimeInterval(-1800),
               origin: .init(kind: "clickup", id: "86banner", url: "https://app.clickup.com/t/86banner", title: "Event banners", status: "complete"),
-              check: .init(warning: "ClickUp says Complete", match: "done")),
+              check: .init(warning: "ClickUp says Complete", match: "done"), autoStarted: true),
         .init(id: lid.id, title: "PlayCase lid fit", place: nil, text: "The 5 mm magnets fit the current lid with room to spare.", finishedAt: now.addingTimeInterval(-7200)),
         // Working again here, and archived here since: left out before the service says so.
         .init(id: ribbons.id, title: "National Event Ribbons", place: "USA Archery", text: "Old.", finishedAt: now.addingTimeInterval(-9000)),
@@ -375,6 +377,10 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(frame("sourceWarning:\(proofs.id)") != nil && frame("match:\(proofs.id)") == nil && frame("writeBack:\(proofs.id)") == nil,
           "ClickUp finished while it waits for review: the warning; the card's own Mark complete matches it, nothing to write back")
     check(frame("source:\(badge.id)") == nil, "a task with no source shows no badge")
+    // Confidence (plans/desk-confidence.md): Yes/No with its reason; auto-started cards say so.
+    check(frame("confidence:\(resultsEmail.id)") != nil && frame("confidence:\(badge.id)") != nil && frame("confidence:\(order.id)") == nil,
+          "scored tasks show Yes or No with the reason; an unscored one shows nothing")
+    check(frame("auto:\(proofs.id)") != nil && frame("auto:\(lid.id)") == nil, "an auto-started card says Started automatically")
     func inside(_ card: String, _ column: String) -> Bool {
         guard let card = frame(card), let column = frame("section:" + column) else { return false }
         return card.minX >= column.minX - 0.5 && card.maxX <= column.maxX + 0.5

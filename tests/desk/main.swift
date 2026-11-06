@@ -41,6 +41,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     }
     var announced: [Companion.Desk] = []
     desk.onChange = { announced.append($0) }
+    // No model runs in tests; nothing starts by itself until the confidence checks turn it on.
+    var quickScores: [String: Companion.DeskConfidence] = [:]
+    desk.scoreTask = { request, _ in quickScores[request.text] }
+    desk.autoStartOverride = false
 
     // Places: two Studios (and an archived one), a project with a brief, its Sidechat.
     func folder(_ name: String) throws -> String {
@@ -707,6 +711,62 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(mailCard?.origin?.replyFrom == "Lauren" && mailCard?.check?.warning == "New reply from Lauren", "an email task: a new reply warns on its card")
     _ = try await ui.request("desk", body: ["action": "reopen", "chatID": .string(clickTask.id.uuidString)])
     for id in [clickTask.id, mailTask.id, noted.incoming.first { $0.text == "Fix the footer" }!.id] { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
+    // Confidence (plans/desk-confidence.md): scored Yes/No with a reason when added; Yes with a
+    // place starts by itself, two at a time; No, no place, or a disagreeing source waits.
+    let parsed = DeskStore.parseScore("Sure: {\"canRunAlone\": false, \"reason\": \"Needs your pick between the two marks\"}", at: Date())
+    try check(parsed?.canRunAlone == false && parsed?.reason == "Needs your pick between the two marks" && parsed?.by == "quick pass"
+              && DeskStore.parseScore("no json", at: Date()) == nil, "the quick pass's JSON answer is read; anything else is no score")
+    do { _ = try await agent.request("desk", body: ["action": "add", "text": "Resize the proofs", "confidence": "yes"]); try check(false, "a score needs a reason") }
+    catch { try check(error.localizedDescription.contains("reason"), "a confidence without a reason is refused") }
+    let sentBeforeAuto = sent.count
+    let scoredNo = try await agent.request("desk", body: ["action": "add", "text": "Pick the camp logo direction", "place": "USA Archery",
+                                                         "confidence": "no", "reason": "Needs your pick between the two directions"]).decode(Companion.Desk.self)
+    let noTask = scoredNo.incoming.first { $0.text == "Pick the camp logo direction" }!
+    try check(noTask.confidence == .init(canRunAlone: false, reason: "Needs your pick between the two directions", by: "claude", at: noTask.confidence?.at),
+              "an agent's No, with its reason, shows on the card")
+    desk.autoStartOverride = true
+    let yesBody: JSON = ["action": "add", "text": "Resize the 12 banner proofs to 1080 square", "place": "USA Archery", "confidence": "yes",
+                         "reason": "Files are in the Studio folder; nothing leaves the Mac"]
+    _ = try await agent.request("desk", body: yesBody)
+    let autoTask = desk.tasks.first { $0.text == "Resize the 12 banner proofs to 1080 square" }!
+    try check(autoTask.autoStarted == true && autoTask.chatID != nil && sent.count == sentBeforeAuto + 1
+              && sent.last?.text.hasPrefix("[Started automatically from the Desk") == true && sent.last?.text.contains("stop and ask") == true,
+              "Yes with a place: started by itself, told to stop and ask at anything the rubric names")
+    try check(desk.tasks.first { $0.id == noTask.id }?.chatID == nil, "No waits in To do")
+    try check(DeskStore.shared.snapshot().working.contains { $0.task == autoTask.id && $0.autoStarted == true }
+              || DeskStore.shared.snapshot().ready?.contains { $0.task == autoTask.id && $0.autoStarted == true } == true,
+              "its card says it started automatically")
+    _ = try await agent.request("desk", body: ["action": "add", "text": "Rename the proof files", "confidence": "yes", "reason": "Plain renames", "place": "loose"])
+    let looseTask = desk.tasks.first { $0.text == "Rename the proof files" }!
+    try check(looseTask.autoStarted == true, "a loose session counts as a place")
+    // A third waits for a slot: two auto-started ones are working.
+    for id in [autoTask.chatID!, looseTask.chatID!] { runtime.session(id)?.isRunning = true }
+    _ = try await agent.request("desk", body: ["action": "add", "text": "Export the proofs as PDF", "place": "USA Archery", "confidence": "yes", "reason": "One export in the Studio"])
+    let third = desk.tasks.first { $0.text == "Export the proofs as PDF" }!
+    try check(third.chatID == nil, "a third Yes waits while two auto-started tasks work")
+    for id in [autoTask.chatID!, looseTask.chatID!] { runtime.session(id)?.isRunning = false }
+    desk.autoStartWaiting()
+    try check(desk.tasks.first { $0.id == third.id }?.autoStarted == true, "and starts once a slot frees")
+    // The quick pass scores what nobody scored; its Yes starts it too.
+    quickScores["Tidy the proof folder names"] = .init(canRunAlone: true, reason: "Plain renames inside the Studio", by: "quick pass")
+    _ = try await ui.request("desk", body: ["action": "add", "text": "Tidy the proof folder names", "place": "USA Archery"])
+    try await wait("the quick pass scored it") { desk.tasks.first { $0.text == "Tidy the proof folder names" }?.confidence != nil }
+    try check(desk.tasks.first { $0.text == "Tidy the proof folder names" }?.confidence?.by == "quick pass", "your own task gets the quick pass's score")
+    // No place, or auto-start off: scored, but nothing starts.
+    _ = try await agent.request("desk", body: ["action": "add", "text": "Something with nowhere to go", "confidence": "yes", "reason": "Simple"])
+    try check(desk.tasks.first { $0.text == "Something with nowhere to go" }?.chatID == nil, "a Yes with no place waits")
+    desk.autoStartOverride = false
+    _ = try await agent.request("desk", body: ["action": "add", "text": "Compress the hero images", "place": "USA Archery", "confidence": "yes", "reason": "Local files only"])
+    try check(desk.tasks.first { $0.text == "Compress the hero images" }?.chatID == nil, "with auto-start off, scores show and nothing starts")
+    for text in ["Pick the camp logo direction", "Something with nowhere to go", "Compress the hero images"] {
+        if let id = desk.tasks.first(where: { $0.text == text })?.id { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)]) }
+    }
+    for text in ["Resize the 12 banner proofs to 1080 square", "Rename the proof files", "Export the proofs as PDF", "Tidy the proof folder names"] {
+        if let id = desk.tasks.first(where: { $0.text == text })?.id {
+            _ = try await ui.request("desk", body: ["action": "unlink", "id": .string(id.uuidString)])
+            _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(id.uuidString)])
+        }
+    }
     // Mark done: done outside Chatterbox, straight to Done with no thread; an agent may not; Reopen sends it back.
     let doneLater = try await ui.request("desk", body: ["action": "add", "text": "Call the venue about parking"]).decode(Companion.Desk.self)
     let doneTask = doneLater.incoming.first { $0.text == "Call the venue about parking" }!
