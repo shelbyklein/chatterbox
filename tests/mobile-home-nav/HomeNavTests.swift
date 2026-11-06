@@ -223,9 +223,7 @@ final class HomeNavTests: XCTestCase {
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
-  let quest = activity("Working: SDHQ · Sidequest",app)
-  XCTAssertTrue(quest.waitForExistence(timeout:10), "Activity identifies the sidequest's parent")
-  XCTAssertTrue(quest.value as? String == "Render four ribbon options, Working")
+  XCTAssertFalse(activity("Working: ",app).exists, "Projects has no embedded Activity")
   let project = app.buttons["chat-"+uuid("SDHQ")]
   XCTAssertTrue(project.waitForExistence(timeout:10)); project.tap()
   let reply = app.staticTexts["Hi! This is SDHQ."]
@@ -293,9 +291,9 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
-  app.launchArguments=["-mobileChatListPage","projects"]
+  app.launchArguments=["-mobileChatListPage","activity"]
   app.launch()
-  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:20))
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:20))
   let live=app.descendants(matching:.any).matching(NSPredicate(format:"label BEGINSWITH %@","Working: ")).firstMatch
   XCTAssertTrue(live.waitForExistence(timeout:10), "Activity: working, live")
   try await fixture("offline")
@@ -362,11 +360,7 @@ final class HomeNavTests: XCTestCase {
   if app.buttons["Show as List"].waitForExistence(timeout:2) { app.buttons["Show as List"].tap() }
   else { app.buttons["Show as Cards"].tap(); try await Task.sleep(for: .seconds(1)); app.buttons["Connection"].tap(); app.buttons["Show as List"].tap() }
   try await Task.sleep(for: .seconds(1))
-  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5), "Activity lists new replies and working chats")
-  let activityReply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
-  let activityWorking = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
-  XCTAssertTrue(activityWorking.exists && activityReply.exists)
-  XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in list mode")
+  XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists, "Projects list has no embedded Activity")
   XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest isn't listed on its own")
   XCTAssertTrue(app.staticTexts["Codex: Render four ribbon options"].exists, "its chat's row names it")
   capture("1-chats-list",app)
@@ -381,8 +375,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(first.frame.minY, second.frame.minY, accuracy: 2, "two cards share a row")
   XCTAssertLessThan(first.frame.maxX, second.frame.minX, "side by side")
   XCTAssertFalse(app.images["Latest image in Chatterbox"].exists, "Projects never show thumbnails")
-  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].exists, "Activity shows in card view too")
-  XCTAssertLessThan(activityWorking.frame.maxY, activityReply.frame.minY, "Working sessions lead Activity in card mode")
+  XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists, "Projects cards have no embedded Activity")
   capture("3-cards", app)
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()
@@ -435,13 +428,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.exists, "no Studio's sessions until one is opened")
   capture("studios-index",app)
   openStudio("studio-1",app)
-  if app.buttons["Show as Cards"].exists { app.buttons["Show as Cards"].tap() }
-  let reply = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "New reply: Tracker Trapper")).firstMatch
-  let working = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Working: Galley")).firstMatch
-  XCTAssertTrue(reply.waitForExistence(timeout:5) && working.exists)
-  XCTAssertEqual(reply.frame.minX, working.frame.minX, accuracy:2)
-  XCTAssertLessThan(working.frame.maxY, reply.frame.minY, "Working sessions appear above unread replies in the Activity list")
-  XCTAssertGreaterThan(reply.frame.width, app.windows.firstMatch.frame.width * 0.8, "Activity uses the full-width list")
+  setBrowsingCards(true,app,studio:true)
+  XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists, "Studio cards have no embedded Activity")
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
   XCTAssertFalse(app.images["Latest image in No image"].exists)
   capture("studio-card-thumbnails",app)
@@ -490,6 +478,7 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Studio options"].tap()
   app.buttons["Show as List"].tap()
   XCTAssertTrue(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.waitForExistence(timeout:5))
+  XCTAssertFalse(app.images["Latest image in Coach Archie"].exists,"the gallery switches to text rows")
   capture("studio-list",app)
   tab("Projects",app).tap()
  }
@@ -502,11 +491,11 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort, "CHATTERBOX_TEST_NO_EDGE_SWIPE": "1"]
   app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15)); tab("Activity",app).tap()
   let pill = app.buttons["mac-pressure"]
   XCTAssertTrue(pill.waitForExistence(timeout:10), "the Activity header shows the Mac's pressure")
   XCTAssertEqual(pill.label, "Mac busy. Show readings")
-  let header = app.buttons["Activity, 1 new replies, 3 working"]
+  let header = app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", " active · ")).firstMatch
   XCTAssertTrue(header.exists)
   XCTAssertEqual(pill.frame.midY, header.frame.midY, accuracy: 12, "on the Activity header's line")
   capture("pressure-1-busy-header", app)
@@ -536,8 +525,8 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
-  tab("Projects",app).tap()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
+  tab("Activity",app).tap()
   let working = activity("Working: Galley", app)
   let reply = activity("New reply: Tracker Trapper", app)
   XCTAssertTrue(working.waitForExistence(timeout:15) && reply.waitForExistence(timeout:10))
@@ -555,10 +544,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(working.exists)
   swipe(working, full:true, left:true)
   XCTAssertTrue(working.waitForNonExistence(timeout:5), "Full swipe dismisses working activity")
-  XCTAssertTrue(app.buttons["chat-" + "B5BBD354-BAAF-5AB3-B7FE-3ACD63B384E2"].exists, "Main chat remains")
   XCTAssertTrue(reply.exists, "Other activity remains")
   capture("activity-after-dismiss",app)
   app.terminate();app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15)); tab("Activity",app).tap()
   XCTAssertTrue(reply.waitForExistence(timeout:15))
   XCTAssertFalse(working.exists, "Dismissal survives relaunch and refresh")
   swipe(reply, full:true, left:true)
@@ -578,8 +567,8 @@ final class HomeNavTests: XCTestCase {
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
-  tab("Projects",app).tap()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
+  tab("Activity",app).tap()
   let working = activity("Working: Galley",app)
   XCTAssertTrue(working.waitForExistence(timeout:15))
   XCTAssertTrue(activity("New reply: Tracker Trapper",app).waitForExistence(timeout:10))
@@ -598,8 +587,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("fail",body:["value":false])
   swipe(working, full:false, left:false);app.buttons["Archive"].tap();app.buttons["Archive and Stop Reply"].tap()
   XCTAssertTrue(working.waitForNonExistence(timeout:8))
-  // Gallery layout uses the same native gestures; Delete must never be full-swipe.
-  tab("Studios",app).tap()
+  // Activity manages Studio sessions too; Delete must never be full-swipe.
   let coach=activity("Working: Coach Archie",app)
   XCTAssertTrue(coach.waitForExistence(timeout:5))
   swipe(coach,full:false,left:false)
@@ -611,7 +599,6 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(coach.exists)
   swipe(coach,full:false,left:false);app.buttons["Delete"].tap();app.buttons["Delete Session"].tap()
   XCTAssertTrue(coach.waitForNonExistence(timeout:8))
-  XCTAssertFalse(app.buttons["chat-F982B462-68F5-509B-8E10-9946C3F0A1B1"].exists)
   let mutations = try await fixture("mutations",method:"GET") as? [String]
   XCTAssertEqual(mutations, ["archive","delete"])
   // Real row navigation still works after the action tray is gone.
@@ -623,8 +610,8 @@ final class HomeNavTests: XCTestCase {
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15))
-  tab("Projects",app).tap()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
+  tab("Activity",app).tap()
   XCTAssertTrue(activity("Working: Coach Archie",app).waitForExistence(timeout:15))
   activity("Working: Coach Archie",app).press(forDuration:1)
   app.buttons["Rename"].tap()
@@ -1487,12 +1474,13 @@ final class HomeNavTests: XCTestCase {
   XCTAssertGreaterThan(family.frame.width, optimization.frame.width * 1.8, "the family card spans the page")
   XCTAssertEqual(optimization.frame.minY, sdhq.frame.minY, accuracy: 2, "other projects still share a row")
   XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest still isn't listed on its own")
-  // Activity: no work thread rows or counts; the one waiting on you under Chatterbox's name.
-  XCTAssertTrue(app.buttons["Activity, 1 new replies, 3 working"].waitForExistence(timeout:5) || app.buttons["Activity, 0 new replies, 3 working"].exists, "work threads aren't counted")
+  tab("Activity",app).tap()
+  // Activity shows a waiting work thread under its front thread's name.
   let needs=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@", "Needs you: Chatterbox · needs you in Highlights sync")).firstMatch
   XCTAssertTrue(needs.exists, "a work thread waiting on you shows as its front thread's row")
   XCTAssertFalse(app.descendants(matching:.any).matching(NSPredicate(format:"label CONTAINS %@", "Desk board columns")).matching(NSPredicate(format:"label BEGINSWITH %@", "Working")).firstMatch.exists,
                  "a working work thread isn't in Activity")
+  tab("Projects",app).tap()
   capture("phone-projects-nested", app)
   more.tap()
   XCTAssertTrue(app.buttons["chat-"+docs].waitForExistence(timeout:3) && app.buttons["chat-"+icons].exists, "Show more opens the card in place")
@@ -1733,6 +1721,14 @@ final class HomeNavTests: XCTestCase {
   if phone.exists { return phone }
   return app.descendants(matching:.any).matching(NSPredicate(format:"label == %@",name)).firstMatch
  }
+ /// Use the visible menu so launch-time defaults cannot mask a layout switch.
+ @MainActor func setBrowsingCards(_ cards:Bool,_ app:XCUIApplication,studio:Bool=false) {
+  let menu=app.buttons[studio ? "Studio options" : "Connection"]
+  menu.tap()
+  let choice=app.buttons[cards ? "Show as Cards" : "Show as List"]
+  if choice.waitForExistence(timeout:1) { choice.tap() }
+  else { menu.tap() }
+ }
  @MainActor func activity(_ prefix:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching: .any).matching(NSPredicate(format:"label BEGINSWITH %@",prefix)).firstMatch
  }
@@ -1766,12 +1762,55 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(checks.count, 1)
   capture("desk-source-check",app)
  }
+ /// Browsing pages never repeat the Activity destination, in either list or card mode.
+ @MainActor func testActivityOnlyInItsTab() async throws {
+  try await fixture("reset")
+  try await fixture("pressure/busy")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments=["-deskIntroduced","YES","-mobileChatsScope","chats"]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("Chatterbox")].waitForExistence(timeout:10))
+  func assertNoActivity() {
+   XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists || activity("Needs you: ",app).exists)
+   XCTAssertFalse(app.buttons["mac-pressure"].exists, "pressure stays with the Activity destination")
+   XCTAssertFalse(app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@", "Activity, ")).firstMatch.exists)
+  }
+  setBrowsingCards(true,app)
+  XCTAssertEqual(app.buttons["chat-"+uuid("Chatterbox")].frame.minY,app.buttons["chat-"+uuid("optimization")].frame.minY,accuracy:2)
+  assertNoActivity(); capture("activity-only-projects-cards",app)
+  setBrowsingCards(false,app)
+  XCTAssertTrue(app.buttons["chat-"+uuid("Chatterbox")].waitForExistence(timeout:5))
+  XCTAssertGreaterThan(app.buttons["chat-"+uuid("optimization")].frame.minY,app.buttons["chat-"+uuid("Chatterbox")].frame.maxY-1)
+  assertNoActivity(); capture("activity-only-projects-list",app)
+  tab("Studios",app).tap()
+  XCTAssertTrue(app.buttons["studio-select-studio-1"].waitForExistence(timeout:10))
+  assertNoActivity(); capture("activity-only-studios-index",app)
+  openStudio("studio-1",app)
+  setBrowsingCards(true,app,studio:true)
+  XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
+  assertNoActivity(); capture("activity-only-studio-cards",app)
+  setBrowsingCards(false,app,studio:true)
+  XCTAssertTrue(app.buttons["chat-F982B462-68F5-509B-8E10-9946C3F0A1B1"].waitForExistence(timeout:10))
+  XCTAssertFalse(app.images["Latest image in Coach Archie"].exists,"list mode has no gallery thumbnail")
+  assertNoActivity(); capture("activity-only-studio-list",app)
+  tab("Chats",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForExistence(timeout:10))
+  assertNoActivity(); capture("activity-only-chats",app)
+  tab("Activity",app).tap()
+  let working=activity("Working: Galley",app), reply=activity("New reply: Tracker Trapper",app)
+  XCTAssertTrue(working.waitForExistence(timeout:10) && reply.exists)
+  XCTAssertLessThan(working.frame.maxY,reply.frame.minY,"working sessions still lead unread replies")
+  XCTAssertTrue(app.buttons["mac-pressure"].exists)
+  capture("activity-only-dedicated-tab",app)
+ }
  /// Activity replaces Pinned, including a saved Pinned selection, without changing pins.
  @MainActor func testActivityTab() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
-  app.launchArguments += ["-mobileChatListPage", "pinned", "-deskIntroduced", "YES", "-mobileActivityExpanded", "NO"]
+  app.launchArguments += ["-mobileChatListPage", "pinned", "-deskIntroduced", "YES", "-mobileActivityExpanded", "NO", "-mobileChatsScope", "chats"]
   app.launch()
   XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15), "Activity replaces Pinned in the navigation bar")
   XCTAssertFalse(app.tabBars.buttons["Pinned"].exists)
@@ -1786,6 +1825,9 @@ final class HomeNavTests: XCTestCase {
   let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
   XCTAssertTrue(back.exists); back.tap()
   XCTAssertTrue(activity("Working: Galley",app).waitForExistence(timeout:10), "Back returns to Activity")
+  // Drop the launch-time tab override before testing navigation to a different tab.
+  app.terminate(); app.launchArguments=["-deskIntroduced","YES","-mobileChatsScope","chats"]; app.launch()
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15))
   // A pin still belongs to the session and can be managed from its usual menu.
   tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
