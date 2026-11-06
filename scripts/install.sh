@@ -1,44 +1,11 @@
-#!/bin/zsh
-# Builds the app, installs it into /Applications, and opens it.
-# Replaces the app bundle outright: copying over an existing bundle can leave stale
-# files that break its code signature, and macOS then refuses to launch it.
+#!/bin/bash
+# Build once and keep the products locked until installation completes.
 set -e
 cd "$(dirname "$0")/.."
-# A few builds at a time across worktrees (by the Mac's pressure); xcodebuild waits for a slot (AGENTS.md).
 source scripts/lib/build-lock.sh
-BUILD="build/DerivedData/Build/Products/Debug/Chatterbox.app"
-# Build first, so what's installed is always the current code.
-xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \
-  -derivedDataPath build/DerivedData build -quiet
-[ -d "$BUILD" ] || { echo "No build at $BUILD."; exit 1; }
-
-osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null || true
-for i in {1..20}; do pgrep -xq Chatterbox || break; sleep 0.25; done
-
-rm -rf /Applications/Chatterbox.app
-ditto "$BUILD" /Applications/Chatterbox.app
-codesign --verify --deep --strict /Applications/Chatterbox.app
-# Chats' agents publish web snippets with `snippet` (bin/snippet), from their shell's PATH.
-mkdir -p "$HOME/.local/bin"
-ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/snippet "$HOME/.local/bin/snippet"
-# …and hand tasks to the other agent with `sidequest` (bin/sidequest).
-ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/sidequest "$HOME/.local/bin/sidequest"
-# …and send work to Shelby-PC with `pc-errand` (the same script, by its other name).
-ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/pc-errand "$HOME/.local/bin/pc-errand"
-# …and put work on the Desk with `desk` (bin/desk), for Shelby to place and start.
-ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/desk "$HOME/.local/bin/desk"
-# …and start work threads from a front thread with `work` (bin/work, plans/work-threads.md).
-ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/work "$HOME/.local/bin/work"
-# Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
-# and `open` hands the caller's environment to the app. Launch it without any of them.
-clean_open() {
-  local -a unset_vars
-  for name in ${(k)parameters[(I)CHATTERBOX_*]}; do unset_vars+=(-u "$name"); done
-  env "${unset_vars[@]}" open "$@"
+source scripts/lib/mac-install.sh
+mac_install() {
+  mac_build
+  mac_install_bundle "$@"
 }
-if (( $# )); then
-  clean_open /Applications/Chatterbox.app --args "$@"
-else
-  clean_open /Applications/Chatterbox.app
-fi
-echo "Installed and opened Chatterbox."
+with_derived_data_lock "$MAC_DERIVED_DATA" mac_install "$@"

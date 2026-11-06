@@ -22,3 +22,8 @@ Core/ChatterboxMobile/ChatListView.swift test-mobile-home-nav.sh
 Core/ChatterboxMobile/MobileNewReplies.swift test-mobile-home-nav.sh
 
 tests/tests-for/ test-tests-for.sh
+scripts/ship.sh                 test-mac-install.sh
+scripts/install.sh              test-mac-install.sh
+scripts/lib/mac-install.sh      test-mac-install.sh
+scripts/lib/build-lock.sh       test-mac-install.sh
+tests/mac-install/              test-mac-install.sh

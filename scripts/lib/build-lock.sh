@@ -213,6 +213,17 @@ _build_lock_dd_take() {
 }
 _build_lock_dd_release() { [[ "$(command cat "$1.building/pid" 2>/dev/null)" == "${BASHPID:-$$}" ]] && command rm -rf "$1.building"; return 0; }
 
+# Keep a build's products stable while a caller validates, publishes and installs them.
+# The top-level EXIT cleanup releases it on failure; nested xcodebuild reuses this lock.
+with_derived_data_lock() {
+  local dd=$1; shift
+  _build_lock_dd_take "$dd"
+  _build_lock_dd_held=$dd
+  "$@"
+  _build_lock_dd_release "$dd"
+  unset _build_lock_dd_held
+}
+
 # xcodebuild -jobs, once this build has its slot: the builds running share the cores,
 # max(4, cores / builds running, this one included); a quarter of the cores (4 at least) while the
 # Mac is under pressure; unless the caller chose.
@@ -262,7 +273,7 @@ xcodebuild() {
   fi
   local dd='' prev=''
   for arg in "$@"; do [[ "$prev" == -derivedDataPath ]] && dd=$arg; prev=$arg; done
-  if (( jobs )) && [[ -n "$dd" ]]; then
+  if (( jobs )) && [[ -n "$dd" && "${_build_lock_dd_held:-}" != "$dd" ]]; then
     local rc=0
     _build_lock_dd_take "$dd"
     _build_lock_xcodebuild "$(( jobs && ! explicit ))" "$@" ${cache[@]+"${cache[@]}"} || rc=$?
@@ -301,5 +312,5 @@ swift() {
 # this through its cleanup; others through this trap (a script's own `trap … EXIT` would replace
 # it, so build scripts that set one call build_unlock there too).
 if [[ -z "${_build_lock_no_trap:-}" ]]; then
-  trap 'build_unlock' EXIT
+  trap '[[ -z "${_build_lock_dd_held:-}" ]] || _build_lock_dd_release "$_build_lock_dd_held"; build_unlock' EXIT
 fi
