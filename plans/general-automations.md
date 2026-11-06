@@ -80,7 +80,7 @@ No blocking product questions. The requested general scope is clear; the propose
 - Tracking: https://github.com/shelbyklein/chatterbox/issues/51. Local plan: `plans/general-automations.md`.
 - Mode: linear. One executor owns the cross-cutting schema/runtime/UI/migration sequence; parallel edits would overlap existing Desk work.
 - Model/effort: current Codex session; exact model/effort unavailable. No delegated agents or handoff.
-- Now/later: now, explicitly authorized November 6, 2026. Linear implementation uses isolated worktree `/Users/shelbyklein/Vibes/Chatterbox-general-automations` (parent and Core branches `general-automations`). T1/T2/T3 complete; T4/T5 in progress; real configuration unchanged.
+- Now/later: now, explicitly authorized November 6, 2026. Linear implementation uses isolated worktree `/Users/shelbyklein/Vibes/Chatterbox-general-automations` (parent and Core branches `general-automations`). T1/T2/T3/T4 complete; T5 in progress; real configuration unchanged.
 - Readiness: R1-R13 pass on November 6, 2026. R3 has recorded current-editor proof, target SVG and flow diagram; R12 includes backed-up, narrow and idempotent migration/rollback. Tracking issue created and read back; checklist aligned. This is planning readiness, not implementation completion.
 
 ## Implementation checklist
@@ -88,7 +88,7 @@ No blocking product questions. The requested general scope is clear; the propose
 - [x] T1: Scope model, persistence and companion mapping.
 - [x] T2: General runtime target, fresh runs and Desk integration.
 - [x] T3: Mac and phone scope UI and rendered proofs.
-- [ ] T4: Exact routine migration and Dev fixture verification.
+- [x] T4: Exact routine migration and Dev fixture verification.
 - [ ] T5: Validation, scoped commits/push and Dev delivery.
 - [ ] T6: Ship gate, real migration and installed verification.
 
@@ -108,3 +108,7 @@ Stored General routines have no projectFolder. The companion wire response retai
 
 - Focused phone verification on iPhone 17 Pro / iOS 26.2: `testAutomationsFromMenu` and `testGeneralAutomationReportingSession` passed (16.7s/12.0s), then `testAutomationEditAndRunFromDesk` passed (24.3s) after revealing its run button following keyboard scrolling. Inspected `phone-detail.png` and `phone-report-session.png` in `design/general-automations/`. No external source or paid agent was invoked.
 - Final automation-routines run: 88 checks pass, including General presets and unset-agent defaults agreeing between companion display and the actual prepared runtime parent. Four migration tests pass, including explicit real/Dev-write guards.
+
+- Installed Mac Dev from this branch on November 6; Dev service restarted safely with rule idle at 15:41:19 and reported healthy after 5s at 15:41:27. The subsequent upstream merge adds only the already-completed mobile Activity change and its test/proof files; Mac implementation is unchanged.
+- Dev preview imported seven paused weekdays with fixture-only instructions (no external source reads), then applied the migration online twice. The second run was a configuration no-op. Runtime preparation created the ordinary Morning priorities chat with Codex, the Dev data working directory, no project/Studio/parent context, no items or agent host. Exact preview IDs, 08:30 schedule, unrelated Dev routines and run-state bytes were verified. Real Automations.json bytes remain unchanged.
+- Installed UI acceptance through CUA: toolbar Automations → General card (one daily routine) → Open Session (ordinary Chats destination); Add Automation → General → Edit shows Scope General and Reports to Morning priorities. No Run Now action or source review was started. Inspected/saved installed captures: `dev-installed-center.png`, `dev-installed-editor.png`, and `dev-installed-report-session.png` under `design/general-automations/`. State proof: `dev-preview-state.json`.
