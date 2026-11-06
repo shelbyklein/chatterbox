@@ -22,7 +22,7 @@ Activity uses the existing shared card/list preference, keeps its current waitin
 
 - [x] A1 Reuse thread card/list components with Activity status and expose the existing layout choice. Acceptance: titles/latest messages visible, both modes show the same Activity entries, stale status honest, native list swipes and card menus operate on the intended session.
 - [ ] A2 Add focused UI coverage and inspect iPhone/Duo captures in both modes. Acceptance: layout switch, navigation/back, dismissal, management, nested requests and error recovery covered; no source or agent calls in fixtures. Run scripts/test-mobile-activity.sh and the required broad attempt, disclose failures.
-- [ ] A3 Commit/push scoped changes, install the affected Dev phone app directly when reachable; retain the unchanged Mac Dev service. Acceptance: installed/runtime health and phone installation reported separately, fresh inspected simulator proofs saved. Real shipment awaits a new Ship instruction; TestFlight only on request.
+- [x] A3 Commit/push scoped changes, install the affected Dev phone app directly when reachable; retain the unchanged Mac Dev service. Acceptance: installed/runtime health and phone installation reported separately, fresh inspected simulator proofs saved. Real shipment awaits a new Ship instruction; TestFlight only on request.
 
 ## Verification, delivery and rollback
 
@@ -40,3 +40,10 @@ First verification pass: iPhone 17 Pro / iOS 26.2 passed Activity layout switchi
 Broad attempt: scripts/tests-for.sh --run --all started. The known chat-switch policy gate was checked out of order and reproduced exit 133 at unchanged Coordinator.swift:11 (old fade expectation). Stopped the remaining broad run safely after its initial script pass; remaining full coverage is incomplete, not green. Logs: build/activity-thread-layouts-full-suite.log and activity-thread-layouts-baseline-gate.log.
 
 Platform scope: product changes are only in Core/ChatterboxMobile, so no Mac app rebuild or service restart is needed. Direct Dev phone install is the delivery target; real app/phone remain unchanged until Ship.
+
+
+Final focused results: two additional iPhone scenarios pass: nested project/work-thread families including requests in Activity (30.4s), and rename in Activity/browser/session menu (41.1s). Eight focused UI scenarios pass in total, plus the Activity engine checks. No agent or connector call was triggered by these fixtures.
+
+Delivery: Core ca6880a and parent d46b952 pushed. Direct Dev install succeeded on Shelby's Duo. Verified bundle com.shelbyklein.Chatterbox.mobile.dev, Dev flavor and no widget. Launch is not verified: iOS explicitly denied it because the device is locked; no unlock or further launch attempts were made. Unlock/open Chatterbox Dev manually. The existing Mac Dev service is ready with General support, unchanged; no Mac rebuild/restart, real app installation, source review or TestFlight upload was needed. Proof: build/activity-thread-layouts-dev-proof.json.
+
+A2 stays open for incomplete broad validation (known unrelated chat-switch baseline gate); this is not a green full-suite claim. UI/source delivery and simulator inspection are complete, while physical UI acceptance awaits opening the installed Dev app. Real shipment remains gated on a new Ship instruction.
