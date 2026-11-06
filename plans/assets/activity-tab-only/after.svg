@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="720" viewBox="0 0 560 720">
+<rect width="560" height="720" fill="#000"/><g font-family="Arial" fill="#fff"><text x="24" y="54" font-size="26" font-weight="bold">Projects</text>
+<g fill="#1c1c1e" stroke="#333"><rect x="24" y="94" width="218" height="174" rx="20"/><rect x="254" y="94" width="218" height="174" rx="20"/><rect x="24" y="282" width="218" height="174" rx="20"/><rect x="254" y="282" width="218" height="174" rx="20"/></g>
+<text x="42" y="152" font-size="21">Chatterbox</text><text x="272" y="152" font-size="21">On Target</text><text x="42" y="340" font-size="21">Playcase Arcade</text><text x="272" y="340" font-size="21">DiscusSlicer</text>
+<g fill="#999" font-size="16"><text x="42" y="188">Latest project reply…</text><text x="272" y="188">Latest project reply…</text><text x="42" y="376">Latest project reply…</text><text x="272" y="376">Latest project reply…</text></g>
+<rect x="488" y="198" width="56" height="294" rx="28" fill="#202022"/><g text-anchor="middle" font-size="21"><text x="516" y="241">Desk</text><text x="516" y="300" fill="#0a9fff">⌁</text><text x="516" y="359" fill="#0a9fff">▰</text><text x="516" y="418">◉</text><text x="516" y="477">☏</text></g>
+<text x="24" y="548" font-size="18">Activity lives in its own tab.</text><text x="24" y="578" font-size="16" fill="#999">Project cards begin directly below the page heading.</text><text x="24" y="608" font-size="16" fill="#999">Schematic only — existing native styling is preserved.</text></g></svg>
