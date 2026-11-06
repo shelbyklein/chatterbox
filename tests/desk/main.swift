@@ -704,8 +704,22 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(DeskOriginRules.check(mail, column: .review, since: t0 + 120) == nil, "a reply from before it reached Review isn't news")
     mail.status = "answered"
     try check(DeskOriginRules.check(mail, column: .done, since: t0) == nil, "answered: no warning")
-    let mailAdd = try await agent.request("desk", body: ["action": "add", "text": "Answer Lauren about the clinic", "origin": "email:<abc@mail>"]).decode(Companion.Desk.self)
+    let mailURL = "https://outlook.office.com/mail/deeplink/read/verified-message"
+    let mailAdd = try await agent.request("desk", body: ["action": "add", "text": "Answer Lauren about the clinic", "origin": "email:<abc@mail>", "originURL": .string(mailURL), "originTitle": "Clinic dates"]).decode(Companion.Desk.self)
     let mailTask = mailAdd.incoming.first { $0.text == "Answer Lauren about the clinic" }!
+    try check(mailTask.origin?.url == mailURL && mailTask.origin?.title == "Clinic dates", "email import preserves its original link and subject for Mac and phone cards")
+    for badURL in ["file:///etc/hosts", "javascript:alert(1)", "https://user:password@example.com/message"] {
+        do { _ = try await agent.request("desk", body: ["action": "origin", "ref": "email:<abc@mail>", "status": "checked", "url": .string(badURL)]); try check(false, "unsafe source link is refused") }
+        catch { try check(error.localizedDescription.contains("http or https"), "unsafe source link is refused") }
+    }
+    let legacyMail = try await agent.request("desk", body: ["action": "add", "text": "Imported email missing its source", "confidence": "no", "reason": "Needs source details"]).decode(Companion.Desk.self)
+    let legacyID = legacyMail.incoming.first { $0.text == "Imported email missing its source" }!.id
+    _ = try await agent.request("desk", body: ["action": "origin", "ref": "email:<abc@mail>", "task": .string(legacyID.uuidString), "status": "checked", "url": "https://outlook.office.com/mail/deeplink/read/recovered-message"])
+    let linkedMail = DeskStore.shared.snapshot().incoming
+    try check(linkedMail.first { $0.id == legacyID }?.origin?.url?.hasSuffix("recovered-message") == true
+              && linkedMail.first { $0.id == mailTask.id }?.origin?.url == mailURL,
+              "recovering one task's source link leaves other tasks with the same source unchanged")
+    _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(legacyID.uuidString)])
     _ = try await agent.request("desk", body: ["action": "origin", "ref": "email:<abc@mail>", "status": "new reply", "replyFrom": "Lauren"])
     let mailCard = DeskStore.shared.snapshot().incoming.first { $0.id == mailTask.id }
     try check(mailCard?.origin?.replyFrom == "Lauren" && mailCard?.check?.warning == "New reply from Lauren", "an email task: a new reply warns on its card")

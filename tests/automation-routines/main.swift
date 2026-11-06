@@ -45,6 +45,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         return a
     }
     let morning = (1...7).map { automation("ClickUp + Outlook morning priorities", morningText, weekday: $0, hour: 8, minute: 30, model: "gpt-5.5", effort: "high") }
+    let runMessage = ProjectAutomations.message(for: morning[0], manual: false)
+    try check(runMessage.contains("--source-url") && runMessage.contains("Never invent an ID or URL")
+              && morning[0].instructions == morningText, "automation runs preserve source links without rewriting the user's saved prompt")
     let weekly = automation("WordPress updates", ProjectAutomations.wordpressInstructions, weekday: 2, hour: 9, backend: "claude")
     let other = automation("ClickUp + Outlook morning priorities", "Only Outlook.", weekday: 3, hour: 8, minute: 30, model: "gpt-5.5", effort: "high")
     let paused = automation("Broken links", "Crawl for broken links.", weekday: 6, hour: 16, folder: goneFolder, backend: nil, enabled: false)

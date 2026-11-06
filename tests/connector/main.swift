@@ -122,10 +122,12 @@ func check(_ ok:Bool,_ what:String) {if !ok {print("FAIL: \(what)");exit(1)};pri
  check(wrongPlace?["isError"]?.bool==true && wrongPlace?["content"]?.array?.first?["text"]?.string?.contains("Studio USA Archery") == true,"an unknown place lists the real ones")
  // Unsure where it goes: propose_work puts it on the Desk, from Claude, and starts nothing.
  let sessionsBefore=model.sessions.count
- let proposal=(await rpc("tools/call",#"{"name":"propose_work","arguments":{"text":"Banner and flyer ideas for the USA Archery homepage","note":"For the fall camp"}}"#))["result"]
+ let proposal=(await rpc("tools/call",#"{"name":"propose_work","arguments":{"text":"Banner and flyer ideas for the USA Archery homepage","note":"For the fall camp","source":"email:verified-message","source_title":"Camp ideas","source_url":"https://outlook.office.com/mail/deeplink/read/verified-message"}}"#))["result"]
  let proposalText=proposal?["content"]?.array?.first?["text"]?.string ?? ""
  check(proposal?["isError"]?.bool==false && proposalText.contains("Studio USA Archery") && DeskStore.shared.requests.first?.source=="claude"
        && DeskStore.shared.requests.first?.note=="For the fall camp" && model.sessions.count==sessionsBefore,"propose_work puts work on the Desk from Claude, starting nothing: \(proposalText)")
+ check(DeskStore.shared.requests.first?.origin?.url == "https://outlook.office.com/mail/deeplink/read/verified-message"
+       && DeskStore.shared.requests.first?.origin?.title == "Camp ideas", "connector preserves the email source link and subject")
  let proposedNowhere=(await rpc("tools/call",#"{"name":"propose_work","arguments":{"text":"Something","place":"Archery USA"}}"#))["result"]
  check(proposedNowhere?["isError"]?.bool==true && proposedNowhere?["content"]?.array?.first?["text"]?.string?.contains("Studio USA Archery") == true,"propose_work to an unknown place lists the real ones")
  // Revoked like a phone: the token stops working.

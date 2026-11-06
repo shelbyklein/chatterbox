@@ -4,6 +4,7 @@
 source "$(dirname "$0")/lib/test-hygiene.sh"
 set -euo pipefail
 cd "$(dirname "$0")/.."
+python3 tests/desk/cli.py
 source scripts/lib/source-list.sh
 fixture=$(mktemp -d /tmp/chatterbox-test-desk.XXXXXX)
 trap 'echo "Desk test artifacts: $fixture"' EXIT

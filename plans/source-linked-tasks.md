@@ -39,9 +39,22 @@ the board is checked against it. Shelby, 2026-11-05.
       existing notes, mismatch rules; tests.
 - [x] S2 Board UI (Mac + phone): source badge on cards, amber mismatch line, write-back buttons on
       moves; tests and screenshots.
-- [~] S3 Automation prompt (agent instructions v17 done; the morning automation's own prompt still to update): add `--source` when putting ClickUp/email work on the Desk, and report
-      linked tasks' source status each run.
+- [x] S3 Automation run instructions now require source references, titles and verified source URLs on imported Desk tasks, and source-status reports. Applied at run time to existing routines; saved user prompts are preserved. Agent instruction version 19 carries the same rule to existing chats.
 
 ## Not changed
 
 The board's columns and rules; ClickUp and email are never changed without Shelby's tap.
+
+## Source URLs on import (Shelby, 2026-11-06)
+
+Request: include a link to the source on the Desk cards shown on the phone. Linear execution in this session, no work threads. Existing Mac and phone source badges already open `origin.url`; the missing path was preserving email links on add. Scope/readiness confirmed from this request and the approved source plan above.
+
+- [x] Add optional `originURL` to the import contract, `desk add --source-url`, and connector `source_url`. Keep source title and reference. Validate web URLs before saving.
+- [x] Expose existing report fields as `desk source REF --url URL --task DESK_ID`, allowing a recovered source to attach to one existing task without changing every task with the same reference.
+- [x] Instruct agents and every automation run to preserve verified links; never fabricate IDs or URLs, send email or change ClickUp to obtain one.
+- [x] Validate service (256 checks), connector (36 checks), automation instructions (55 checks), and CLI payload forwarding. Core `9129261` pushed.
+- [ ] Finish the already-running full-suite attempt, commit/push parent integration and deliver to Dev with the Studio fix.
+
+Current-data limit: both screenshot tasks have no origin/message ID/URL. The morning report explicitly records null `source_link` and `stable_message_id`, with partial native-Outlook coverage. Read-only native Outlook inspection confirmed the 93ft message identity but exposed no Copy Link command. No real tasks or mailbox data were changed, and no exact email links were invented. Existing missing links remain unresolved until the source can provide them.
+
+Success: a verified email/ClickUp link survives import and is returned in the same Desk payload used by Mac and phone cards; legacy tasks can receive a recovered link narrowly; unsafe links are refused. No new source files or redesigned UI. Rollback: revert the scoped URL/import changes; optional fields remain backward compatible.

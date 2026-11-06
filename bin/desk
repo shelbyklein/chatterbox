@@ -6,6 +6,7 @@
                     (otherwise the Desk proposes one, or none); --note is a line about it
                     (where it came from, a link, a deadline). Prints where it was proposed.
                     [--source clickup:<id or link> | email:<message id>] [--source-title T]
+                    [--source-url URL] preserves the verified original web link
                     where it came from, so its card warns when ClickUp or the email
                     disagrees with the board (a ClickUp link in --note counts too)
                     [--confidence yes|no --reason "..."]
@@ -13,7 +14,7 @@
                     judgment, info or access that isn't there, an outward-facing step
                     (email, publishing, ClickUp), approvals mid-work, or has no clear
                     place; else yes. Yes tasks with a place start by themselves.
-  desk source REF --status STATUS [--from NAME] [--title T]
+  desk source REF --status STATUS [--from NAME] [--title T] [--url URL] [--task DESK_ID]
                     what a task's source says now: ClickUp's status ("in progress",
                     "complete"), or an email's "new reply" (--from who wrote it),
                     "waiting on them" or "answered"
@@ -70,6 +71,7 @@ def main():
     add.add_argument("--note", help="a line about it: where it came from, a link, a deadline")
     add.add_argument("--source", dest="origin", help="clickup:<task id or link>, or email:<message id>")
     add.add_argument("--source-title", dest="origin_title", help="the ClickUp task's name or the email's subject")
+    add.add_argument("--source-url", dest="origin_url", help="verified web link to the original email or task")
     add.add_argument("--confidence", choices=["yes", "no"], help="can an agent finish it without Shelby?")
     add.add_argument("--reason", help="why: what makes it safe, or what needs Shelby")
     src = commands.add_parser("source", help="report what a task's source (ClickUp, an email) says now")
@@ -77,6 +79,8 @@ def main():
     src.add_argument("--status", required=True)
     src.add_argument("--from", dest="reply_from", help="an email's new reply: who wrote it")
     src.add_argument("--title", help="the ClickUp task's name or the email's subject")
+    src.add_argument("--url", help="verified web link to the original email or task")
+    src.add_argument("--task", help="update only this Desk task ID; also attaches a missing source")
     commands.add_parser("list", help="requests waiting on the Desk")
     commands.add_parser("places", help="Studios and projects")
     args = parser.parse_args()
@@ -95,6 +99,8 @@ def main():
             body["origin"] = args.origin
         if args.origin_title:
             body["originTitle"] = args.origin_title
+        if args.origin_url:
+            body["originURL"] = args.origin_url
         if args.confidence:
             if not args.reason:
                 fail("give --reason with --confidence.")
@@ -110,6 +116,10 @@ def main():
             body["replyFrom"] = args.reply_from
         if args.title:
             body["title"] = args.title
+        if args.url:
+            body["url"] = args.url
+        if args.task:
+            body["task"] = args.task
         service.request("desk", body)
         print(f"Noted: {args.ref} says {args.status}.")
     elif args.command == "list":
