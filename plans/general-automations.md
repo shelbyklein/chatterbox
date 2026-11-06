@@ -98,5 +98,10 @@ Stored General routines have no projectFolder. The companion wire response retai
 
 ## Implementation evidence
 
-- T1/T2: `scripts/test-automation-routines.sh` passed 85 behavioral checks, including General persistence, dedicated session preparation with no agent, archived-session recovery, rejection of project-promoted reporting targets, independent scheduled runs with the former project closed, cross-weekday overlap guards and Desk-source integration. No model or external-source request ran.
+- T1/T2: `scripts/test-automation-routines.sh` passed 86 behavioral checks, including General persistence, dedicated session preparation with no agent, archived-session recovery, rejection of project-promoted reporting targets, independent scheduled runs with the former project closed, cross-weekday overlap guards and Desk-source integration. No model or external-source request ran.
 - Migration unit tests: three tests pass, checking exact allowed deltas, mismatched-target refusal, dry-run purity, backup contents and repeat-application idempotence. Dev migration pending.
+
+- Source checkpoint: Core `dee99ed`, parent `0962c2f`, pushed on `general-automations`. Review drafts: [Core #23](https://github.com/shelbyklein/chatterbox-core/pull/23), [Mac/runtime #53](https://github.com/shelbyklein/chatterbox/pull/53).
+- Native Mac rendering passed; inspected proofs in `design/general-automations/mac-center.png` and `mac-editor.png`. The paused General fixture is one daily routine despite seven weekday entries. Phone compile passed; UI rerun waits for the shared simulator after correcting its legacy-response fixture.
+- Exact current real configuration copied into an isolated build fixture and migrated twice: the first run changed only the seven destination fields/delivery wording; the second was a no-op. Unrelated routines and run-state bytes were preserved. Real configuration has not been changed.
+- Full regression command `scripts/tests-for.sh --run --all` started; results in `build/general-full-suite.log` and `build/test-logs/`. Final coverage and Dev installation are pending.
