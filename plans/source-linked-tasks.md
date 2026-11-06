@@ -53,8 +53,11 @@ Request: include a link to the source on the Desk cards shown on the phone. Line
 - [x] Expose existing report fields as `desk source REF --url URL --task DESK_ID`, allowing a recovered source to attach to one existing task without changing every task with the same reference.
 - [x] Instruct agents and every automation run to preserve verified links; never fabricate IDs or URLs, send email or change ClickUp to obtain one.
 - [x] Validate service (256 checks), connector (36 checks), automation instructions (55 checks), and CLI payload forwarding. Core `9129261` pushed.
-- [ ] Finish the already-running full-suite attempt, commit/push parent integration and deliver to Dev with the Studio fix.
+- [x] Parent integration `883f2db` pushed; installed/reopened Chatterbox Dev on Mac. Dev service healthy after 2s (2026-11-06 12:15:38 local).
+- [ ] Finish the already-running full-suite attempt and record failures. Dev phone install attempted but Xcode could not resolve the paired Duo destination (exit 70); no phone install or TestFlight claimed.
 
 Current-data limit: both screenshot tasks have no origin/message ID/URL. The morning report explicitly records null `source_link` and `stable_message_id`, with partial native-Outlook coverage. Read-only native Outlook inspection confirmed the 93ft message identity but exposed no Copy Link command. No real tasks or mailbox data were changed, and no exact email links were invented. Existing missing links remain unresolved until the source can provide them.
 
 Success: a verified email/ClickUp link survives import and is returned in the same Desk payload used by Mac and phone cards; legacy tasks can receive a recovered link narrowly; unsafe links are refused. No new source files or redesigned UI. Rollback: revert the scoped URL/import changes; optional fields remain backward compatible.
+
+Validation note: adding this request during the Studio full run changed sources while empty-chat and Fast Mode were compiling; those original runs are invalid. Stable-source reruns: Fast Mode passes; empty-chat persistence fails `Studio chat is back after relaunch`. Other full-run results remain in `build/studio-suggestion-full-suite.log`. Later Activity and Desk-check requests added more code during this long attempt; focused checks are rerun on those final changes. This is not a uniform-tree full-suite pass.

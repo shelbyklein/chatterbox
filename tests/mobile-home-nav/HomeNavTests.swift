@@ -734,7 +734,7 @@ final class HomeNavTests: XCTestCase {
   let app=deskApp(); app.launch()
   let desk=deskTab(app)
   XCTAssertTrue(desk.waitForExistence(timeout:20))
-  for name in ["Pinned","Projects","Studios","Chats"] {
+  for name in ["Activity","Projects","Studios","Chats"] {
    XCTAssertTrue(tab(name,app).exists, "\(name) is still a tab")
    // Across the bar, or down it (a closed iPhone Duo's bar runs down the side).
    let other=tab(name,app).frame
@@ -1731,31 +1731,46 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
   return try JSONSerialization.jsonObject(with:data)
  }
- /// Pinned: the Mac's pinned sessions, in the Mac's order, a tab of their own.
- @MainActor func testPinnedTab() async throws {
+ @MainActor func testDeskSourceCheck() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments += ["-mobileChatListPage", "desk", "-deskIntroduced", "YES"]
   app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
-  capture("activity-compact",app)
-  XCTAssertTrue(tab("Pinned",app).exists, "a Pinned tab in the bottom bar"); tab("Pinned",app).tap()
-  let loose=app.buttons["chat-"+uuid("Loose chat")], sdhq=app.buttons["chat-"+uuid("SDHQ")]
-  XCTAssertTrue(loose.waitForExistence(timeout:10) && sdhq.exists, "it lists the pinned sessions")
-  // Reading order, in rows or in cards two to a row.
-  XCTAssertTrue(loose.frame.minY < sdhq.frame.minY || (loose.frame.minY == sdhq.frame.minY && loose.frame.minX < sdhq.frame.minX), "in the Mac's order")
-  XCTAssertFalse(app.buttons["chat-"+uuid("Chatterbox")].exists, "and nothing that isn't pinned")
-  capture("pinned-tab",app)
-  // Pin and unpin from the phone: long-press a session.
-  tab("Projects",app).tap()
-  let chatterbox=app.buttons["chat-"+uuid("Chatterbox")]
-  XCTAssertTrue(chatterbox.waitForExistence(timeout:10)); chatterbox.press(forDuration:1.0)
-  XCTAssertTrue(app.buttons["Pin to Top"].waitForExistence(timeout:5), "Pin to Top in a session's menu"); app.buttons["Pin to Top"].tap()
-  tab("Pinned",app).tap()
-  XCTAssertTrue(app.buttons["chat-"+uuid("Chatterbox")].waitForExistence(timeout:10), "pinned from the phone, it shows in Pinned")
-  app.buttons["chat-"+uuid("Loose chat")].press(forDuration:1.0)
-  XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout:5)); app.buttons["Unpin"].tap()
-  XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForNonExistence(timeout:10), "unpinned, it leaves Pinned")
+  let button=app.buttons["desk-check-sources"]
+  XCTAssertTrue(button.waitForExistence(timeout:15)); button.tap()
+  XCTAssertTrue(app.buttons["desk-source-check-open"].waitForExistence(timeout:10), "source report is reachable without leaving the Desk")
+  XCTAssertFalse(button.isEnabled, "a running check cannot be duplicated")
+  XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "Last requested")).firstMatch.exists)
+  let checks=try await deskCalls().filter { $0["action"] as? String == "checkSources" }
+  XCTAssertEqual(checks.count, 1)
+  capture("desk-source-check",app)
+ }
+ /// Activity replaces Pinned, including a saved Pinned selection, without changing pins.
+ @MainActor func testActivityTab() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments += ["-mobileChatListPage", "pinned", "-deskIntroduced", "YES", "-mobileActivityExpanded", "NO"]
+  app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15), "Activity replaces Pinned in the navigation bar")
+  XCTAssertFalse(app.tabBars.buttons["Pinned"].exists)
+  let galley = activity("Working: Galley", app)
+  XCTAssertTrue(galley.waitForExistence(timeout:15), "saved Pinned selection migrates to expanded Activity")
+  XCTAssertTrue(activity("Needs you: SDHQ",app).exists, "idle sessions waiting on you are included")
+  XCTAssertFalse(app.buttons["chat-"+uuid("Loose chat")].exists, "an idle pinned chat is not Activity")
+  XCTAssertTrue(activity("New reply: Tracker Trapper",app).waitForExistence(timeout:12))
+  capture("activity-tab",app)
+  galley.tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10), "Activity opens the conversation")
+  let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+  XCTAssertTrue(back.exists); back.tap()
+  XCTAssertTrue(activity("Working: Galley",app).waitForExistence(timeout:10), "Back returns to Activity")
+  // A pin still belongs to the session and can be managed from its usual menu.
+  tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.press(forDuration:1)
+  XCTAssertTrue(app.buttons["Unpin"].waitForExistence(timeout:5), "saved pins survive replacing the tab")
  }
  /// Feedback: screenshot, Mark Up, then the Chatterbox session opens with it in the message box.
  @MainActor func testFeedback() async throws {

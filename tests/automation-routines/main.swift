@@ -45,6 +45,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         return a
     }
     let morning = (1...7).map { automation("ClickUp + Outlook morning priorities", morningText, weekday: $0, hour: 8, minute: 30, model: "gpt-5.5", effort: "high") }
+    try check(try ProjectAutomations.deskSourceRoutine(in: morning).count == 7, "Desk source check selects the explicit routine across weekdays")
+    do { _ = try ProjectAutomations.deskSourceRoutine(in: []); throw RuntimeFailure("missing source routine accepted") }
+    catch let error as NSError { try check(error.domain == "DeskSources", "missing source routine reports setup needed") }
     let runMessage = ProjectAutomations.message(for: morning[0], manual: false)
     try check(runMessage.contains("--source-url") && runMessage.contains("Never invent an ID or URL")
               && morning[0].instructions == morningText, "automation runs preserve source links without rewriting the user's saved prompt")
@@ -52,6 +55,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let other = automation("ClickUp + Outlook morning priorities", "Only Outlook.", weekday: 3, hour: 8, minute: 30, model: "gpt-5.5", effort: "high")
     let paused = automation("Broken links", "Crawl for broken links.", weekday: 6, hour: 16, folder: goneFolder, backend: nil, enabled: false)
     // In the file, the days of a routine needn't sit together.
+    do { _ = try ProjectAutomations.deskSourceRoutine(in: morning + [other]); throw RuntimeFailure("ambiguous source routines accepted") }
+    catch let error as NSError { try check(error.domain == "DeskSources", "ambiguous source routines cannot start unrelated work") }
     try ProjectAutomations.save(Array(morning[0..<3]) + [weekly] + Array(morning[3...]) + [other, paused])
 
     // The phone's routes need a paired token.
@@ -233,6 +238,30 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(closedRun.status == 409 && String(decoding: closedRun.body, as: UTF8.self).contains("isn't open") && started.count == 2,
               "a closed project's routine: can't run")
     try check(call("POST", "/v1/automations/\(UUID())/run").status == 404, "an unknown routine: gone")
+
+    // Desk refresh reuses the configured routine. Stand-in sessions make this read-only
+    // test exercise the real HTTP, state and duplicate guards without calling a model.
+    try ProjectAutomations.save(morning + [weekly])
+    try check(request("POST", "/v1/desk/check-sources", Data(), [:]).status == 401, "Desk source check needs pairing")
+    do { _ = try DeskStore.shared.operation(["action": "checkSources"], agent: true); throw RuntimeFailure("agent started source check") }
+    catch { try check(error.localizedDescription.contains("Only you"), "agents cannot request source pulls") }
+    let sourceConfig = try Data(contentsOf: ProjectAutomations.configFile)
+    let countBefore = started.count
+    let pulled = call("POST", "/v1/desk/check-sources")
+    try check(pulled.status == 200, "Desk source check starts")
+    let pull = try Companion.decoder.decode(Companion.Desk.self, from: pulled.body).sourcePull
+    try check(started.count == countBefore + 1 && pull?.lastRequestedAt != nil && pull?.threadID != nil, "Desk exposes last requested time and report session")
+    let instructions = started.last!.automation.instructions
+    try check(instructions.contains(morningText) && instructions.contains("Read only") && instructions.contains("last verified coverage checkpoint")
+              && instructions.contains("desk list --json") && instructions.contains("never advance"), "source check preserves scope, de-duplicates and retains partial-source checkpoints")
+    try check(try Data(contentsOf: ProjectAutomations.configFile) == sourceConfig, "manual source check never rewrites configured prompts or schedules")
+    let sourceThread = runtime.session(pull!.threadID!)!
+    sourceThread.isRunning = true
+    let repeated = call("POST", "/v1/desk/check-sources")
+    let repeatedDesk = try Companion.decoder.decode(Companion.Desk.self, from: repeated.body)
+    try check(repeated.status == 200 && started.count == countBefore + 1 && repeatedDesk.sourcePull?.isRunning == true, "repeated taps reuse the current source check")
+    sourceThread.isRunning = false
+    try check(call("POST", "/v1/desk/check-sources").status == 200 && started.count == countBefore + 2, "a finished check can be requested again")
 
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "no agent started")
     ui.stop()

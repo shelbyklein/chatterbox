@@ -12,7 +12,7 @@ calls = []
 class Service:
     def request(self, operation, body):
         calls.append((operation, body))
-        return {}
+        return {"incoming": [], "ready": [{"origin": {"kind": "email", "id": "original"}}]}
 
 
 main = namespace["main"]
@@ -32,3 +32,11 @@ assert calls[1] == ("desk", {"action": "origin", "ref": "email:test-message",
                            "status": "checked", "url": url,
                            "task": "B700FBB6-DB17-4C64-BB31-B5770D9B6FFB"}), calls[1]
 print("PASS: CLI preserves source URL/title and targets a single existing Desk task")
+
+with contextlib.redirect_stdout(io.StringIO()) as output:
+    sys.argv = ["desk", "list", "--json"]
+    main()
+import json
+assert json.loads(output.getvalue())["ready"][0]["origin"]["id"] == "original"
+assert calls[-1] == ("desk", {"action": "get"})
+print("PASS: JSON listing retains sources in all board columns for de-duplication")

@@ -81,7 +81,8 @@ def main():
     src.add_argument("--title", help="the ClickUp task's name or the email's subject")
     src.add_argument("--url", help="verified web link to the original email or task")
     src.add_argument("--task", help="update only this Desk task ID; also attaches a missing source")
-    commands.add_parser("list", help="requests waiting on the Desk")
+    listing = commands.add_parser("list", help="requests waiting on the Desk")
+    listing.add_argument("--json", action="store_true", help="full board including working, review and done source references, for de-duplication")
     commands.add_parser("places", help="Studios and projects")
     args = parser.parse_args()
     service = Service()
@@ -124,6 +125,9 @@ def main():
         print(f"Noted: {args.ref} says {args.status}.")
     elif args.command == "list":
         desk = service.request("desk", {"action": "get"}) or {}
+        if args.json:
+            print(json.dumps(desk, ensure_ascii=False))
+            return
         incoming = desk.get("incoming", [])
         if not incoming:
             print("Nothing waiting to be placed.")

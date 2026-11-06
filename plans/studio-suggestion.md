@@ -25,7 +25,7 @@ Deliverables: shared matcher and regressions committed/pushed, related tests plu
 
 - [x] S1 Review interrupted matcher, tighten ambiguity/identity edge cases; focused regression cases pass.
 - [ ] S2 Run `scripts/tests-for.sh --run Core/Shared/PlaceSuggestion.swift tests/place-suggestion/main.swift` then `scripts/tests-for.sh --run --all` once; record failures rather than claiming a green suite.
-- [ ] S3 Commit/push Core then root, install with `scripts/install-dev.sh`, report Dev restart state, and run `scripts/tidy.sh` without apply. Offer Ship action; do not update the real app without it.
+- [x] S3 Core `69d6b3b` and root `679a31f` pushed, then source-link follow-up Core `9129261` / root `883f2db`. Mac Dev installed/reopened, Dev service healthy after 2s at 12:15:38 local. `scripts/tidy.sh` reported 144 removable/7 kept; no apply. Dev phone install failed to resolve Duo destination (exit 70); no phone installation or TestFlight claimed. Offer Ship only with full-run status disclosed.
 
 Rollback: revert scoped matcher commit and reinstall Dev; no stored-data changes. Existing routes: Chats → new loose session → first prompt → suggestion card; Desk → new task → proposed place. The helper is shared by Mac, phone and Desk; focused logic and Desk service checks are the primary behavioral evidence.
 

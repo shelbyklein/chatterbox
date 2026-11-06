@@ -34,6 +34,7 @@ PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banne
  {'kind':'project','id':cid('Chatterbox'),'name':'Chatterbox','detail':'The Mac and iPhone app for Claude and Codex sessions.'},
  {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
+DESK_SOURCE_PULL=None
 DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];DESK_READY=[];DESK_DONE=[]
 # Tasks and work threads (plans/work-threads.md), off unless a test asks (/test/tasks): tasks linked
 # to the working, ready and done threads; the Chatterbox project's session as a front thread with
@@ -59,7 +60,8 @@ def stamp(minutes=0):
 def place_named(name):
  return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
 def desk_reset(empty=False):
- global DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE
+ global DESK_SOURCE_PULL,DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE
+ DESK_SOURCE_PULL=None
  DESK_CALLS=[];DESK_REVISION+=1;DESK_SILENCED=[]
  # The board (plans/desk-board.md): two sessions ready to mark complete, one done this week.
  DESK_READY=[] if empty else [
@@ -79,6 +81,7 @@ def desk():
  working=[{'id':cid(n),'title':n,'place':'USA Archery' if n=='Coach Archie' else n,'since':stamp(6),
   'activity':'Editing Sources/Typography/Engine.swift' if n=='Galley' else 'Thinking\u2026'} for n in RUNNING]
  d={'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
+ if DESK_SOURCE_PULL is not None:d["sourcePull"]=DESK_SOURCE_PULL
  if not TASKS:return d
  def tagged(items,key):
   out=[]
@@ -362,6 +365,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
   if self.path=='/test/tasks':tasks_reset(True);DESK_REVISION+=1;return self.reply({'ok':True})
   global DESK_LINKED
+  if self.path=='/v1/desk/check-sources':
+   global DESK_SOURCE_PULL
+   if DESK_SOURCE_PULL is None:
+    DESK_CALLS.append({'action':'checkSources'})
+    DESK_SOURCE_PULL={'routineID':cid('source-routine'),'lastRequestedAt':stamp(0),'threadID':cid('Chatterbox'),'isRunning':True,'needsYou':False}
+    DESK_REVISION+=1
+   return self.reply(desk())
   if self.path=='/v1/desk/task':
    # Make this a task: linked at once, named for its thread.
    DESK_CALLS.append({'action':'makeTask','body':body})

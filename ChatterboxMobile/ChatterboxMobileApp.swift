@@ -114,7 +114,7 @@ private struct SessionWindowSizeProbe: UIViewRepresentable {
     }
 }
 
-/// The home's bottom tabs: the Desk first (plans/front-desk.md), then Pinned, Projects,
+/// The home's bottom tabs: the Desk first (plans/front-desk.md), then Activity, Projects,
 /// Studios and Chats, like the Mac's Home pages; All is Chats' other half. A phone's bar holds
 /// five (iOS puts the rest behind More, inside a second navigation bar) and an iPad mini's
 /// scrolls the sixth out of sight, so the bar keeps to five everywhere.
@@ -128,9 +128,11 @@ struct ChatterboxTabs: View {
     /// Chats or All, on the Chats tab.
     @AppStorage("mobileChatsScope") private var chatsScope = Page.chats.rawValue
     private let pages = Page.allCases.filter { $0 != .all }
+    /// Resolve the removed destination before TabView can reset an unknown selection to Desk.
+    private var selectedTab: String { tab == "pinned" ? Page.activity.rawValue : tab }
 
     var body: some View {
-        TabView(selection: $tab) {
+        TabView(selection: Binding(get: { selectedTab }, set: { tab = $0 })) {
             MobileDeskView()
                 .tabItem { Label("Desk", systemImage: "lamp.desk") }
                 .badge(store.latestDesk.map(MobileDeskView.waiting) ?? 0)
@@ -138,10 +140,10 @@ struct ChatterboxTabs: View {
             ForEach(pages) { page in
                 Group {
                     if page == .chats {
-                        ChatListView(fixedPage: chatsScope == Page.all.rawValue ? .all : .chats, isSelected: tab == page.rawValue,
+                        ChatListView(fixedPage: chatsScope == Page.all.rawValue ? .all : .chats, isSelected: selectedTab == page.rawValue,
                                      scopes: [.chats, .all], scope: $chatsScope)
                     } else {
-                        ChatListView(fixedPage: page, isSelected: tab == page.rawValue)
+                        ChatListView(fixedPage: page, isSelected: selectedTab == page.rawValue)
                     }
                 }
                 .tabItem { Label(page.title, systemImage: page.icon) }
@@ -170,7 +172,7 @@ struct ChatterboxTabs: View {
                 if store.chatList?.groups.contains(where: { $0.chats.contains { $0.id == id } }) != true { await store.loadChats() }
                 guard MobilePushNotifications.shared.pendingChat == id else { return }
                 // All lists every chat already; otherwise go to the chat's own tab.
-                if tab == Page.chats.rawValue, chatsScope == Page.all.rawValue { return }
+                if tab == Page.activity.rawValue || (tab == Page.chats.rawValue && chatsScope == Page.all.rawValue) { return }
                 let page = Page.home(for: store.chatList?.groups.first { $0.chats.contains { $0.id == id } }?.kind)
                 if page == .chats { chatsScope = Page.chats.rawValue }
                 tab = page.rawValue
@@ -178,10 +180,10 @@ struct ChatterboxTabs: View {
         }
     }
 
-    /// Activity moved into the ⋯ menu: a saved tab from before lands on the Desk. The All
-    /// tab from before is Chats showing All.
+    /// Pinned is now Activity. The older All tab is Chats showing All.
     private func settleTab() {
-        if tab == Page.all.rawValue { chatsScope = Page.all.rawValue; tab = Page.chats.rawValue }
+        if tab == "pinned" { tab = Page.activity.rawValue }
+        else if tab == Page.all.rawValue { chatsScope = Page.all.rawValue; tab = Page.chats.rawValue }
         else if tab != Self.desk, Page(rawValue: tab) == nil { tab = Self.desk }
         // The Desk is new: open on it once after updating, then the last tab as before.
         // Tests that launch on a set tab (-mobileChatListPage) keep it.
