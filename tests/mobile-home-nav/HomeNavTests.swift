@@ -527,6 +527,7 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
   tab("Activity",app).tap()
+  setBrowsingCards(false,app)
   let working = activity("Working: Galley", app)
   let reply = activity("New reply: Tracker Trapper", app)
   XCTAssertTrue(working.waitForExistence(timeout:15) && reply.waitForExistence(timeout:10))
@@ -569,6 +570,7 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15))
   tab("Activity",app).tap()
+  setBrowsingCards(false,app)
   let working = activity("Working: Galley",app)
   XCTAssertTrue(working.waitForExistence(timeout:15))
   XCTAssertTrue(activity("New reply: Tracker Trapper",app).waitForExistence(timeout:10))
@@ -1814,6 +1816,40 @@ final class HomeNavTests: XCTestCase {
   capture("activity-only-dedicated-tab",app)
  }
  /// Activity replaces Pinned, including a saved Pinned selection, without changing pins.
+ /// Activity uses the ordinary full thread views and keeps its session actions in both modes.
+ @MainActor func testActivityThreadLayouts() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments=["-deskIntroduced","YES"]
+  app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15)); tab("Activity",app).tap()
+  setBrowsingCards(true,app)
+  let working=activity("Working: Galley",app)
+  XCTAssertTrue(working.waitForExistence(timeout:15))
+  XCTAssertTrue(app.otherElements["activity-cards"].exists || app.descendants(matching:.any)["activity-cards"].exists)
+  XCTAssertGreaterThan(working.frame.height,90,"Activity cards have normal thread-card height")
+  capture("activity-full-cards",app)
+  working.press(forDuration:1)
+  XCTAssertTrue(app.buttons["Dismiss from Activity"].waitForExistence(timeout:5),"cards retain Activity commands")
+  // Cancel the context menu without executing a mutation.
+  app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.05,dy:0.08)).tap()
+  setBrowsingCards(false,app)
+  XCTAssertTrue(working.waitForExistence(timeout:8))
+  XCTAssertGreaterThan(working.frame.height,55,"list rows show latest-message context, not a compact title strip")
+  capture("activity-full-list",app)
+  working.tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10))
+  let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+  back.tap(); XCTAssertTrue(working.waitForExistence(timeout:10))
+  swipe(working,full:false,left:true)
+  let dismiss=app.buttons["Dismiss"]
+  XCTAssertTrue(dismiss.waitForExistence(timeout:5)); dismiss.tap()
+  XCTAssertTrue(working.waitForNonExistence(timeout:5),"full list rows dismiss without archiving")
+  XCTAssertTrue(activity("New reply: Tracker Trapper",app).exists)
+  let mutations=try await fixture("mutations",method:"GET") as? [String]
+  XCTAssertEqual(mutations,[],"layout/navigation/dismissal never archive, delete or stop a session")
+ }
  @MainActor func testActivityTab() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
