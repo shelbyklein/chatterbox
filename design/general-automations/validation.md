@@ -24,3 +24,7 @@ The required `scripts/tests-for.sh --run --all` attempt ran for approximately 45
 The broad run was stopped safely after that known baseline mismatch, during the next script's guard-held compilation. The remaining 98 scripts were not completed. This is incomplete broad coverage, not a green full-suite result. Logs are in the worktree's `build/general-full-suite.log` and `build/test-logs/`. The feature-specific checks above passed independently, including the final agent-setting follow-up.
 
 No unrelated animation behavior or tests were changed to hide the mismatch. The tracking issue stays open for broad validation/review and the separate Ship/real migration gate.
+
+## Final restoration
+
+A concurrent Main-based Dev installation replaced the General-enabled service at 16:02. The branch now also integrates the committed Activity connection-error fix (Core a58ea21 / parent 60fb8f1). General Mac/runtime sources were checked byte-identical to the versions exercised by the 88 behavioral checks. The combined build was reinstalled and its Dev service reported healthy after the idle restart at 16:10:02 (4s). The General card and ordinary reporting session were verified again; current screenshot: `dev-restored-center.png`. Real configuration remains unchanged and the same seven paused preview entries/reporting UUID remain intact. The test-mapping regression script also passes after retaining both integrations’ map entries.
