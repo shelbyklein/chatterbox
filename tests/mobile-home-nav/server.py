@@ -122,14 +122,14 @@ def started_chat(place):
 desk_reset()
 # Automations (MobileAutomations.swift): a daily routine (seven automations on the Mac), a weekly
 # one, and one switched off. Edits and runs are recorded for asserts; a run opens 'Morning run'.
-AUTOMATIONS=[];AUTOMATION_CALLS=[];AUTOMATION_RAN=False
+AUTOMATIONS=[];AUTOMATION_CALLS=[];AUTOMATION_RAN=False;AUTOMATION_REPORT_PREPARED=False
 def automations_reset():
- global AUTOMATIONS,AUTOMATION_CALLS,AUTOMATION_RAN
- AUTOMATION_CALLS=[];AUTOMATION_RAN=False
+ global AUTOMATIONS,AUTOMATION_CALLS,AUTOMATION_RAN,AUTOMATION_REPORT_PREPARED
+ AUTOMATION_CALLS=[];AUTOMATION_RAN=False;AUTOMATION_REPORT_PREPARED=False
  tomorrow=(datetime.datetime.now()+datetime.timedelta(days=1)).replace(hour=8,minute=30,second=0,microsecond=0).astimezone(datetime.timezone.utc)
  AUTOMATIONS=[
   {'id':cid('auto-morning-1'),'ids':[cid('auto-morning-%d'%d) for d in range(1,8)],'title':'Morning priorities',
-   'instructions':'Read ClickUp and Outlook, then list today\'s priorities.','project':'Chatterbox','projectFolder':'/Users/fixture/Chatterbox',
+   'instructions':'Read ClickUp and Outlook, then list today\'s priorities.','project':'General','projectFolder':'','reportSessionID':cid('Morning priorities session'),'reportSessionTitle':'Morning priorities',
    'agent':'codex','model':'GPT-5.5','effort':'High','days':[1,2,3,4,5,6,7],'hour':8,'minute':30,'enabled':True,
    'lastRunAt':stamp(120),'lastThreadID':cid('Tracker Trapper'),'lastResult':'Three priorities today: the camp banner, the SDHQ cache rules and the Galley review.',
    'isRunning':False,'nextRunAt':tomorrow.strftime('%Y-%m-%dT%H:%M:%SZ')},
@@ -201,9 +201,12 @@ def chats():
  if SIDECHAT:
   side=summary('Release checklist','Checking the 2.1 release list');side.update({'project':None,'sidechatOf':cid('Chatterbox')})
   groups[0]['chats'].append(side)
- # An automation's run: a sidequest of the Chatterbox project's session, working.
+ if AUTOMATION_REPORT_PREPARED or AUTOMATION_RAN:
+  report=summary('Morning priorities session','Daily planning reports');report.update({'project':None,'backend':'codex'})
+  groups.append({'id':'general-automation-report','kind':'chats','title':'Chats','chats':[report]})
+ # An automation's run reports to its independent general session.
  if AUTOMATION_RAN:
-  run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Chatterbox'),'sidequestOf':cid('Chatterbox'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
+  run=summary('Morning run','Reading ClickUp and Outlook');run.update({'project':None,'backend':'codex','isRunning':True,'turnStartedAt':STARTED,'sidechatOf':cid('Morning priorities session'),'sidequestOf':cid('Morning priorities session'),'sidequestTask':'Automation run: Morning priorities','sidequestReturned':False})
   groups[0]['chats'].append(run)
  if WORK_LISTED:
   at=next(i for i,c in enumerate(groups[0]['chats']) if c['id']==cid('Chatterbox'))+1
@@ -325,7 +328,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   try:self.wfile.write(b)
   except BrokenPipeError:pass
  def do_POST(self):
-  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,RICH,OFFLINE,WORK_LISTED
+  global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,AUTOMATION_REPORT_PREPARED,RICH,OFFLINE,WORK_LISTED
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   global PRESSURE
@@ -333,6 +336,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path.startswith('/v1/automations/'):
    parts=self.path.split('/');routine=automation(parts[3])
    if not routine:return self.reply({'error':'That automation is gone.'},404)
+   if len(parts)==5 and parts[4]=='session':
+    AUTOMATION_REPORT_PREPARED=True;AUTOMATION_CALLS.append({'action':'prepare','id':parts[3].lower()})
+    return self.reply({'threadID':routine['reportSessionID']})
    if len(parts)==5 and parts[4]=='run':
     AUTOMATION_CALLS.append({'action':'run','id':parts[3].lower()})
     AUTOMATION_RAN=True;routine.update({'lastRunAt':stamp(),'lastThreadID':cid('Morning run'),'isRunning':True,'lastResult':None})

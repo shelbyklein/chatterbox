@@ -1284,7 +1284,7 @@ final class HomeNavTests: XCTestCase {
   let morning = app.buttons["automation-"+automationID("morning")]
   XCTAssertTrue(morning.waitForExistence(timeout:8), "the routines")
   XCTAssertTrue(morning.label.contains("Morning priorities") && morning.label.contains("Every day at 8:30"), "seven weekday automations read as one, every day: \(morning.label)")
-  XCTAssertTrue(morning.label.contains("Chatterbox · Codex · GPT-5.5 · High"), "its project and agent")
+  XCTAssertTrue(morning.label.contains("General · Codex · GPT-5.5 · High"), "its general scope and agent")
   XCTAssertEqual(app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'automation-' AND label CONTAINS 'Morning priorities'")).count, 1, "listed once")
   XCTAssertTrue(app.buttons["automation-"+automationID("wordpress")].label.contains("Mondays at 9:00"), "a weekly one")
   XCTAssertTrue(app.buttons["automation-"+automationID("links")].label.contains("Mon, Wed, Fri at 4:00"), "one on three days")
@@ -1306,6 +1306,23 @@ final class HomeNavTests: XCTestCase {
   last.tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Tracker Trapper."].waitForExistence(timeout:10), "the last run opens its session")
  }
+ /// A General routine opens its ordinary reporting session without starting a review.
+ @MainActor func testGeneralAutomationReportingSession() async throws {
+  try await fixture("reset")
+  let app=deskApp(); app.launch()
+  let open=app.buttons["desk-automations"]
+  XCTAssertTrue(open.waitForExistence(timeout:20)); open.tap()
+  let morning=app.buttons["automation-"+automationID("morning")]
+  XCTAssertTrue(morning.waitForExistence(timeout:8)); XCTAssertTrue(morning.label.contains("General")); morning.tap()
+  let report=app.buttons["automation-report-session"]
+  XCTAssertTrue(report.waitForExistence(timeout:5), "General has its own reporting session")
+  capture("general-automation-detail", app)
+  report.tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Morning priorities session."].waitForExistence(timeout:10), "opens the general reporting session")
+  let calls=try await automationCalls(atLeast:1)
+  XCTAssertEqual(calls.compactMap { $0["action"] as? String }, ["prepare"], "opening a session does not start a review")
+  capture("general-reporting-session", app)
+ }
  /// From the Desk: a routine's editor; changed instructions saved (only what changed), a day
  /// switched off, then Save and Run Now: the run's session opens.
  @MainActor func testAutomationEditAndRunFromDesk() async throws {
@@ -1322,9 +1339,12 @@ final class HomeNavTests: XCTestCase {
   let instructions=field("automation-instructions",app)
   XCTAssertEqual(instructions.value as? String, "Read ClickUp and Outlook, then list today's priorities.")
   XCTAssertFalse(app.buttons["automation-save"].isEnabled, "nothing to save yet")
+  XCTAssertTrue(app.buttons["automation-report-session"].exists, "general routine exposes its own reporting session")
   capture("automation-detail", app)
   // Instructions: Save sends only them.
   instructions.tap(); instructions.typeText(" Include Slack.")
+  // The General destination section makes the form taller; dismiss the keyboard and reveal the run control.
+  revealUp(run, app)
   XCTAssertEqual(run.label, "Save and Run Now")
   app.buttons["automation-save"].tap()
   var calls = try await automationCalls(atLeast:1)

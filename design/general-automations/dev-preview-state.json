@@ -1,0 +1,14 @@
+{
+  "scope": "General",
+  "weekdayEntries": 7,
+  "schedule": "Every day 08:30 America/New_York",
+  "previewPaused": true,
+  "reportSessionID": "9C783028-CDB5-4F40-B2F9-607CC608BBF2",
+  "reportSessionTitle": "Morning priorities",
+  "projectFolder": null,
+  "backend": "codex",
+  "workingFolder": "/Users/shelbyklein/Library/Application Support/Chatterbox Dev",
+  "agentStarted": false,
+  "devRunStateUnchanged": true,
+  "realConfigurationUnchanged": true
+}

@@ -267,6 +267,82 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     sourceThread.isRunning = false
     try check(call("POST", "/v1/desk/check-sources").status == 200 && started.count == countBefore + 2, "a finished check can be requested again")
 
+    // General routines retain their weekday identity while leaving the development project.
+    var general = morning
+    let originalIDs = general.map(\.id), originalCreated = general.map(\.createdAt)
+    ProjectAutomations.setTarget(general[0].id, projectFolder: nil, reportTitle: "Morning priorities", in: &general)
+    try check(Set(general.compactMap(\.reportSessionID)).count == 1 && general.allSatisfy { $0.projectFolder == nil },
+              "all seven days share one general reporting session")
+    try check(general.map(\.id) == originalIDs && general.map(\.createdAt) == originalCreated
+              && general.allSatisfy { $0.hour == 8 && $0.minute == 30 && $0.enabled && $0.instructions == morningText },
+              "moving scope preserves IDs, schedule, enabled flags, prompts and creation dates")
+    try ProjectAutomations.save(general + [weekly])
+    let roundtrip = ProjectAutomations.load()
+    try check(roundtrip.map(\.id) == (general + [weekly]).map(\.id) && roundtrip.prefix(7).allSatisfy { $0.projectFolder == nil && $0.reportSessionID == general[0].reportSessionID && $0.model == "gpt-5.5" } && roundtrip.last?.projectFolder == weekly.projectFolder, "general and legacy project routines round-trip together")
+    let reportID = general[0].reportSessionID!
+    let generalRoutine = try list().first { $0.title == general[0].title }!
+    try check(generalRoutine.project == "General" && generalRoutine.projectFolder.isEmpty && generalRoutine.reportSessionID == reportID
+              && generalRoutine.reportSessionTitle == "Morning priorities" && generalRoutine.ids.count == 7,
+              "companion reports General and its independent destination as one daily routine")
+    struct OlderPhoneRoutine: Decodable { var project: String; var projectFolder: String }
+    let oldPhone = try Companion.decoder.decode([OlderPhoneRoutine].self, from: call("GET", "/v1/automations").body)
+    try check(oldPhone.contains { $0.project == "General" && $0.projectFolder.isEmpty }, "older phone clients can still decode general routines")
+    var malformed = general[0]; malformed.projectFolder = onTarget.record.projectFolder
+    do { try ProjectAutomations.save([malformed]); throw RuntimeFailure("ambiguous target accepted") }
+    catch let error as NSError { try check(error.domain == "AutomationTarget", "a conflicting project/reporting destination is rejected") }
+    try check(ProjectAutomations.load() == roundtrip, "invalid target leaves saved routines intact")
+    let beforePrepare = started.count
+    try check(request("POST", "/v1/automations/\(general[0].id)/session", Data(), [:]).status == 401, "preparing a reporting session requires pairing")
+    let prepared = call("POST", "/v1/automations/\(general[0].id)/session")
+    try check(prepared.status == 200 && started.count == beforePrepare, "opening a reporting session never starts a review")
+    let report = runtime.session(reportID)!
+    try check(report.title == "Morning priorities" && report.record.projectFolder == nil && report.record.studioID == nil
+              && report.record.parentContext == nil && report.record.sidechatOf == nil && report.record.brief == nil,
+              "the reporting parent is a fresh general chat with no development context")
+    try check(report.workingFolder == root.path && report.record.backend == .codex, "general context uses its normal working directory and configured agent")
+    try check(try runner.reportSession(for: general[4]).id == reportID && runtime.sessions.filter { $0.id == reportID }.count == 1,
+              "another weekday reuses the same reporting session")
+    report.setArchived(true)
+    try check(try runner.reportSession(for: general[1]).record.archivedAt == nil, "an archived general reporting session reopens without duplication")
+    report.record.projectFolder = onTarget.record.projectFolder
+    do { _ = try runner.reportSession(for: general[1]); throw RuntimeFailure("project context accepted") }
+    catch { try check(error.localizedDescription.contains("belongs to a project"), "a reporting session promoted to a project is refused") }
+    report.record.projectFolder = nil
+    let freshRecord = ChatSession.automationRunRecord(general[0], of: report, number: 1, manual: true)
+    try check(freshRecord.sidechatOf == reportID && freshRecord.sidequestOf == reportID && freshRecord.projectFolder == nil
+              && freshRecord.sidechatProjectFolder == nil && freshRecord.parentContext == nil
+              && freshRecord.pendingHandoff?.contains("general routine") == true && freshRecord.pendingHandoff?.contains("On Target") != true,
+              "general run record reports independently and never inherits On Target's transcript or repository")
+    onTarget.setArchived(true)
+    let generalStarted = started.count
+    let generalRun = try runner.run(general[0], manual: false)
+    try check(started.count == generalStarted + 1 && !started.last!.manual && runtime.session(generalRun)?.record.sidechatOf == reportID,
+              "a scheduled general run succeeds with its former project closed")
+    runtime.session(generalRun)?.isRunning = true
+    do { _ = try runner.run(general[6], manual: false); throw RuntimeFailure("parallel weekday accepted") }
+    catch { try check(error.localizedDescription.contains("still going"), "another weekday cannot overlap an active general run") }
+    runtime.session(generalRun)?.isRunning = false
+    let generalDesk = call("POST", "/v1/desk/check-sources")
+    try check(generalDesk.status == 200 && started.last!.automation.projectFolder == nil
+              && started.last!.automation.instructions.contains(morningText), "Desk source check runs the general routine without a development project")
+    var presetGeneral = general[0]
+    presetGeneral.reportSessionID = UUID(); presetGeneral.backend = nil; presetGeneral.model = nil
+    presetGeneral.preset = ModelPresets.shared.presets.first(where: { $0.backend == .codex })!.id
+    try check(CompanionMapper.agent(of: presetGeneral, model: model) == "codex"
+              && (try runner.reportSession(for: presetGeneral)).record.backend == .codex,
+              "a General preset keeps the same agent in companion details and actual runs")
+    let priorDefault = AppPreferences.defaults.string(forKey: "defaultBackend")
+    AppPreferences.defaults.set("codex", forKey: "defaultBackend")
+    var defaultGeneral = presetGeneral; defaultGeneral.preset = nil; defaultGeneral.reportSessionID = UUID()
+    try check(CompanionMapper.agent(of: defaultGeneral, model: model) == "codex"
+              && (try runner.reportSession(for: defaultGeneral)).record.backend == .codex,
+              "an unconfigured General routine consistently follows the general agent default")
+    AppPreferences.defaults.set(priorDefault, forKey: "defaultBackend")
+    var returned = general
+    ProjectAutomations.setTarget(returned[0].id, projectFolder: onTarget.record.projectFolder, in: &returned)
+    try check(returned.allSatisfy { $0.projectFolder == onTarget.record.projectFolder && $0.reportSessionID == nil && $0.reportSessionTitle == nil },
+              "moving back to a project clears general destination fields for every day")
+
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "no agent started")
     ui.stop()
     runtime.waitForSaves()

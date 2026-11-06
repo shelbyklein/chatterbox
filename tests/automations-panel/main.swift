@@ -12,7 +12,14 @@ app.setActivationPolicy(.accessory)
     let folder=root+"/sdhq"
     var wordpress=ProjectAutomation(projectFolder:folder,title:"WordPress updates",template:.wordpress,instructions:ProjectAutomations.wordpressInstructions,weekday:2,hour:9)
     wordpress.backend="claude";wordpress.effort="high"
-    try ProjectAutomations.save([wordpress])
+    let reportID = UUID()
+    let general = (1...7).map { day in
+        var a = ProjectAutomation(projectFolder: nil, title: "ClickUp + Outlook morning priorities", template: .custom,
+                                  instructions: "Review the configured sources and report priorities.", weekday: day, hour: 8, minute: 30, enabled: false)
+        a.reportSessionID = reportID; a.reportSessionTitle = "Morning priorities"; a.backend = "codex"
+        return a
+    }
+    try ProjectAutomations.save([wordpress] + general)
     let model=AppModel()
     let window=NSWindow(contentRect:NSRect(x:80,y:80,width:640,height:700),styleMask:[.titled],backing:.buffered,defer:false)
     window.appearance=NSAppearance(named:.darkAqua)
@@ -27,7 +34,7 @@ app.setActivationPolicy(.accessory)
     var plain=wordpress;plain.backend=nil;plain.effort=nil;plain.preset=nil
     guard AutomationModelPicker.summary(plain,projectBackend:.codex).hasPrefix("Codex") else { print("FAIL unset automation follows the project's agent"); exit(1) }
     // The Automations page: each automation shows who does the work, with a button to change it.
-    let page=NSWindow(contentRect:NSRect(x:80,y:80,width:900,height:420),styleMask:[.titled],backing:.buffered,defer:false)
+    let page=NSWindow(contentRect:NSRect(x:80,y:80,width:1100,height:620),styleMask:[.titled],backing:.buffered,defer:false)
     page.appearance=NSAppearance(named:.darkAqua)
     page.contentView=NSHostingView(rootView:AutomationsCenter().environment(model).environment(\.colorScheme,.dark))
     page.orderFrontRegardless()
@@ -35,6 +42,17 @@ app.setActivationPolicy(.accessory)
     let pv=page.contentView!;pv.layoutSubtreeIfNeeded()
     let prep=pv.bitmapImageRepForCachingDisplay(in:pv.bounds)!;pv.cacheDisplay(in:pv.bounds,to:prep)
     try prep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("page.png"))
+    let generalWindow=NSWindow(contentRect:NSRect(x:80,y:80,width:640,height:700),styleMask:[.titled],backing:.buffered,defer:false)
+    generalWindow.appearance=NSAppearance(named:.darkAqua)
+    generalWindow.contentView=NSHostingView(rootView:AutomationsSheet(projectFolder:nil,projectName:"General",initiallyEditing:general[0].id).environment(model).environment(\.colorScheme,.dark))
+    generalWindow.orderFrontRegardless()
+    try await Task.sleep(for:.seconds(1.5))
+    let gv=generalWindow.contentView!;gv.layoutSubtreeIfNeeded()
+    let grep=gv.bitmapImageRepForCachingDisplay(in:gv.bounds)!;gv.cacheDisplay(in:gv.bounds,to:grep)
+    try grep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("general-editor.png"))
+    guard ProjectAutomations.routines(in: ProjectAutomations.load()).count == 2,
+          ProjectAutomations.routineScheduleText(general[0]).hasPrefix("Every day at") else { throw NSError(domain:"GeneralUI",code:1) }
+    print("PASS General editor renders without a project; the app-wide page groups seven weekdays into one daily routine.")
     page.orderOut(nil)
     print("PASS automations panel renders with its model pickers; the Automations page shows each one's model (\(summary)). Evidence: \(root)")
 }

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="650" viewBox="0 0 1080 650">
+<rect width="1080" height="650" fill="#f3f1ed"/>
+<g font-family="system-ui, sans-serif" fill="#222">
+<text x="40" y="56" font-size="28" font-weight="700">Automations</text>
+<text x="40" y="86" font-size="15" fill="#666">Target sketch: general routines live independently of development projects</text>
+<rect x="40" y="116" width="620" height="218" rx="12" fill="white" stroke="#d5d1c9"/>
+<text x="64" y="153" font-size="20" font-weight="600">General</text>
+<text x="64" y="194" font-size="18">ClickUp + Outlook morning priorities</text>
+<text x="64" y="227" font-size="15" fill="#666">Every day · 8:30 AM · Codex</text>
+<text x="64" y="260" font-size="15">Reports to: Morning priorities</text>
+<rect x="64" y="279" width="116" height="34" rx="6" fill="#e9edf4"/>
+<text x="80" y="301" font-size="14">Open session</text>
+<rect x="40" y="356" width="620" height="116" rx="12" fill="white" stroke="#d5d1c9"/>
+<text x="64" y="394" font-size="20" font-weight="600">On Target</text>
+<text x="64" y="430" font-size="15" fill="#666">Project development routines only</text>
+<rect x="700" y="116" width="340" height="356" rx="12" fill="white" stroke="#d5d1c9"/>
+<text x="724" y="153" font-size="20" font-weight="600">Automation scope</text>
+<rect x="724" y="178" width="144" height="40" rx="6" fill="#263b5f"/>
+<text x="762" y="204" font-size="15" fill="white">General</text>
+<rect x="876" y="178" width="140" height="40" rx="6" fill="#eee"/>
+<text x="919" y="204" font-size="15">Project</text>
+<text x="724" y="260" font-size="15">Reporting session</text>
+<rect x="724" y="276" width="292" height="43" rx="6" fill="#f3f1ed"/>
+<text x="739" y="303" font-size="15">Morning priorities</text>
+<text x="724" y="363" font-size="14" fill="#666">Uses general settings and tools.</text>
+<text x="724" y="390" font-size="14" fill="#666">No development project required.</text>
+<text x="40" y="526" font-size="17" font-weight="600">Preserved</text>
+<text x="40" y="559" font-size="15">Daily schedule · Review instructions · Reports · Desk placement · Run history</text>
+<text x="40" y="607" font-size="13" fill="#777">Planning sketch only. No automation or live application changes applied.</text>
+</g></svg>
