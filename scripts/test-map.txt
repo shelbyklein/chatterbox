@@ -17,3 +17,5 @@ ChatterboxDaemon/RuntimeServer.swift test-mac-outbox.sh
 bin/desk                         test-desk.sh
 ChatterboxMobile/ChatListView.swift test-mobile-home-nav.sh
 ChatterboxMobile/MobileNewReplies.swift test-mobile-home-nav.sh
+Core/ChatterboxMobile/ChatListView.swift test-mobile-home-nav.sh
+Core/ChatterboxMobile/MobileNewReplies.swift test-mobile-home-nav.sh

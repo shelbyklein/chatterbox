@@ -478,7 +478,7 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Studio options"].tap()
   app.buttons["Show as List"].tap()
   XCTAssertTrue(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.waitForExistence(timeout:5))
-  XCTAssertFalse(app.images["Latest image in Coach Archie"].exists,"the gallery switches to text rows")
+  XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForNonExistence(timeout:5),"the gallery switches to text rows")
   capture("studio-list",app)
   tab("Projects",app).tap()
  }
@@ -1706,8 +1706,15 @@ final class HomeNavTests: XCTestCase {
   let menu=app.buttons[studio ? "Studio options" : "Connection"]
   menu.tap()
   let choice=app.buttons[cards ? "Show as Cards" : "Show as List"]
-  if choice.waitForExistence(timeout:1) { choice.tap() }
-  else { menu.tap() }
+  if choice.waitForExistence(timeout:1) {
+   // The Duo's tall menu scrolls; a choice may exist below its visible bounds.
+   for _ in 0..<4 where !choice.isHittable {
+    let window=app.windows.firstMatch
+    window.coordinate(withNormalizedOffset:CGVector(dx:0.65,dy:0.8)).press(forDuration:0.05,
+      thenDragTo:window.coordinate(withNormalizedOffset:CGVector(dx:0.65,dy:0.35)))
+   }
+   XCTAssertTrue(choice.isHittable); choice.tap()
+  } else { app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.04,dy:0.08)).tap() }
  }
  @MainActor func activity(_ prefix:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching: .any).matching(NSPredicate(format:"label BEGINSWITH %@",prefix)).firstMatch
@@ -1758,6 +1765,7 @@ final class HomeNavTests: XCTestCase {
    XCTAssertFalse(app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@", "Activity, ")).firstMatch.exists)
   }
   setBrowsingCards(true,app)
+  setBrowsingCards(true,app) // Already selected: close the menu before inspecting the page.
   XCTAssertEqual(app.buttons["chat-"+uuid("Chatterbox")].frame.minY,app.buttons["chat-"+uuid("optimization")].frame.minY,accuracy:2)
   assertNoActivity(); capture("activity-only-projects-cards",app)
   setBrowsingCards(false,app)
@@ -1773,7 +1781,7 @@ final class HomeNavTests: XCTestCase {
   assertNoActivity(); capture("activity-only-studio-cards",app)
   setBrowsingCards(false,app,studio:true)
   XCTAssertTrue(app.buttons["chat-F982B462-68F5-509B-8E10-9946C3F0A1B1"].waitForExistence(timeout:10))
-  XCTAssertFalse(app.images["Latest image in Coach Archie"].exists,"list mode has no gallery thumbnail")
+  XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForNonExistence(timeout:5),"list mode has no gallery thumbnail")
   assertNoActivity(); capture("activity-only-studio-list",app)
   tab("Chats",app).tap()
   XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForExistence(timeout:10))
