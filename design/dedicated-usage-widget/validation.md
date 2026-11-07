@@ -17,4 +17,4 @@ Baseline parent `7a117b9`, Core `ed603d0`. Adds the separate `ChatterboxUsage` g
 
 ## Delivery
 
-Pending phone Dev installation. Dev intentionally embeds no widgets; real Home Screen activation requires Ship. No Mac install/service restart or TestFlight is planned.
+Core `4a5b948` and parent `ca94612` committed and pushed. Dev installed and opened on Shelby’s Duo. The device Usage extension built and its signature verified; Dev intentionally embeds no widgets, so real Home Screen activation requires Ship. Real Mac app/service/host and Automations hashes are unchanged. No Mac install/service restart or TestFlight. [Delivery metadata](dev-delivery.json). The device build logged an incremental compiler/cache diagnostic but completed and installed successfully; the installed launch result and extension verification were checked separately.

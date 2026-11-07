@@ -35,7 +35,7 @@ Small summarizes the highest used limit and reported-account counts per provider
 
 - [x] U1 Preserve all usage sources and handle cold proxy refresh. Acceptance: backward-compatible data, six synthetic proxy windows across five accounts and statuses survive sync/cache/clear; normalized used readings are correct; pending/cancel guards hold.
 - [x] U2 Add dedicated widget and representative native fixtures. Acceptance: all sizes, large full list, unavailable/reset, long labels and explicit overflow render with readable bounds, source/freshness labels and correct usage link.
-- [ ] U3 Run selected focused tests, inspect bounded native captures, commit/push and deliver phone Dev. Acceptance: widget and native Usage flows pass; device extension built; Dev install state and real-data isolation recorded; issue remains open pending Ship/acceptance.
+- [x] U3 Run selected focused tests, inspect bounded native captures, commit/push and deliver phone Dev. Acceptance: widget and native Usage flows pass; device extension built; Dev install state and real-data isolation recorded; issue remains open pending Ship/acceptance.
 
 ## Tests, scope and rollback
 
