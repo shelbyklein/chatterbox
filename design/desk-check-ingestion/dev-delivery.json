@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-07T00:45:09.076771+00:00",
+  "sourceParentCommit": "4cce9885f06eea5a0dcbd89e923d9a770d51598b",
+  "sourceCoreCommit": "936b74a83b0349e5d74f5d15c3e31116d7c711f1",
+  "devDeskBackedUp": true,
+  "realUnchanged": {
+    "app": true,
+    "service": true,
+    "automations": true
+  },
+  "devAutomationsUnchanged": true,
+  "mac": {
+    "installed": true,
+    "opened": true,
+    "installedMatchesBuild": true,
+    "health": "ready",
+    "generalAutomations": true,
+    "onHold": true,
+    "ingestionRoute": "present; unknown run rejected read-only as chat_not_found",
+    "bundledCLI": "ingest present; bytes match repo",
+    "appSHA256": "faebb447f50f021535e14c61c59acb6dba0ad9d85bad0cb0024add0336c1acfc",
+    "serviceSHA256": "749aac68a843113ae151d152ce9fa05fea2cc5c06dcfc34ba59a1996f2e5b8a9",
+    "restartReport": "2026-11-06 19:44:05 waiting for a gap between replies: restart once no reply has produced anything for 3s, at the latest 1200s from now\n2026-11-06 19:44:05 restart rule: idle\n2026-11-06 19:44:05 restarting chatterboxd-dev (was pid 72190)\n2026-11-06 19:44:07 chatterboxd-dev pid 96080, health ok after 1s; app pid 96057\n"
+  },
+  "phone": {
+    "device": "Shelby's Duo",
+    "installed": true,
+    "opened": false,
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+    "flavor": "dev",
+    "builtExecutableSHA256": "9cad327e15174ae2c91fa9d9c421945a666577ca0471a8777aa95090f8a2da83",
+    "method": "scripts/install-phone.sh --dev (direct, no TestFlight)"
+  },
+  "liveSourceReviewPerformed": false,
+  "visualProof": "native fixture screenshots on Mac, iPhone 17 Pro and Duo; no physical-phone screenshot"
+}

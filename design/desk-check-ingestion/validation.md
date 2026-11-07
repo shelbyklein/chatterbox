@@ -19,4 +19,8 @@ Initial attempts are not called green: the automation stand-in created a generic
 
 [Mac complete](mac-complete.png), [Mac incomplete](mac-incomplete.png), [iPhone complete](iphone-complete.png), [iPhone incomplete](iphone-incomplete.png), [Duo complete](duo-complete.png), [Duo incomplete](duo-incomplete.png). These use synthetic fixture content, retain existing native styling, keep status readable and remove the Open check link. The fixture also checks older payloads with five tabs; the existing On hold regression retains six-column coverage. [Before](before.png) is Shelby's supplied screenshot. No live source pull or actual task movement was performed for these screenshots.
 
-Dev delivery pending; real app still has the separately authorized On hold/Recent shipment. Source-check ingestion requires another Ship after Dev delivery.
+## Dev delivery
+
+Core `936b74a`, parent `4cce988` committed and pushed before installation. Mac Dev installed/reopened; fresh idle restart at 19:44:05, healthy at 19:44:07 (PID 96080). Installed app/service match build bytes; bundled CLI ingest command matches repo bytes and its help succeeds without contacting a source. Read-only rejected-run probe confirms the new ingestion route is present; health, General automation and On hold support remain ready. Dev Desk backed up outside version control. Real binaries/config and paused Dev automation config hashes remain unchanged. Duo Dev app installed directly; automatic launch unsuccessful, so physical launch remains user-driven. No live check or paid source review was run. [Delivery proof](dev-delivery.json). Both owned test simulators shut down; final report 0 removable/8 kept, no cleanup apply.
+
+The real app has the separately authorized On hold/Recent shipment. Source-check ingestion is Dev-only until a new Ship. Issue remains open for acceptance.
