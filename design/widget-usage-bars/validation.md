@@ -16,4 +16,4 @@ Baseline parent `8b62317`, Core `368b1c2`. The widget now renders an individual 
 
 ## Delivery
 
-Pending phone Dev delivery. Dev intentionally has no widget; physical Home Screen activation remains gated by a subsequent Ship. No Mac install/service restart, real app update, account/configuration change, provider request or TestFlight upload is part of this Dev delivery.
+Core `ed603d0`, parent source `1d60ba6` committed/pushed to main. Phone Dev installed and opened on Shelby's Duo through `scripts/install-phone.sh --dev`. The device WidgetKit extension built and its signature verified. Dev intentionally embeds no widget; physical Home Screen activation remains gated by a subsequent Ship. Real app/service/configuration hashes stayed unchanged. No Mac install/service restart, real app update, account/configuration change, provider request or TestFlight upload occurred. [Delivery metadata](dev-delivery.json).

@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-07T16:41:24.420158-05:00",
+  "sourceParent": "1d60ba6",
+  "sourceCore": "ed603d0",
+  "phone": {
+    "name": "Shelby's Duo",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+    "installed": true,
+    "launchCommandSucceeded": true,
+    "widgetEmbedded": false
+  },
+  "widget": {
+    "deviceExtensionBuilt": true,
+    "signatureVerified": true,
+    "physicalWidgetVerified": false,
+    "realActivation": "pending Ship"
+  },
+  "validation": {
+    "focusedScriptsPassed": 1,
+    "focusedScriptsFailed": 0,
+    "focusedScriptsNotRun": 0,
+    "nativeTestsPassed": 3,
+    "nativeDurationSeconds": 38.443,
+    "inspectedCaptures": 8,
+    "visualPasses": 1,
+    "newNormalizationChecks": 12
+  },
+  "realAppServiceAndAutomationsHashesUnchanged": true,
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "testFlightUploaded": false,
+  "logs": [
+    "build/widget-usage-bars-focused.log",
+    "build/widget-usage-bars-verified.log",
+    "build/widget-usage-bars-install-phone.log"
+  ]
+}
