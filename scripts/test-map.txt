@@ -30,3 +30,7 @@ tests/mac-install/              test-mac-install.sh
 Core/Chatterbox/Views/DeskView.swift        test-mac-desk.sh
 Core/ChatterboxMobile/MobileDesk.swift     test-mobile-home-nav.sh
 Core/ChatterboxMobile/MobileStore.swift    test-mobile-home-nav.sh
+Core/Shared/WidgetSnapshot.swift          test-widget.sh
+Core/ChatterboxMobile/MobileWidgetSync.swift test-widget.sh test-mobile-home-nav.sh
+Core/ChatterboxWidget/                    test-widget.sh
+tests/widget/                            test-widget.sh

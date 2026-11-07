@@ -2108,6 +2108,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["12% used"].exists && app.staticTexts["65% left"].exists,"Codex and the proxy account")
   capture("usage",app)
   app.buttons["Done"].tap()
+  app.open(URL(string:"chatterbox://usage")!)
+  XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"the widget link opens Usage")
+  app.buttons["Done"].tap()
  }
  @MainActor func testNewChatPicksSettingsFirst() async throws {
   try await fixture("reset")

@@ -79,6 +79,7 @@ y+='''    settings:
 (out/'project.yml').write_text(y)
 with (out/'Regression-Info.plist').open('wb') as f:
     info={'NSAppTransportSecurity':{'NSAllowsLocalNetworking':True},'UILaunchScreen':{}}
+    info['CFBundleURLTypes']=[{'CFBundleURLSchemes':['chatterbox']}]
     real=plistlib.load((root/'ChatterboxMobile/Info.plist').open('rb'))
     for key in ('UISupportedInterfaceOrientations','UISupportedInterfaceOrientations~ipad'):
         info[key]=real[key]

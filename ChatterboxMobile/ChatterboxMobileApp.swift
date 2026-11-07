@@ -39,8 +39,16 @@ struct ChatterboxMobileApp: App {
             .preferredColorScheme(MobileAppearance.colorScheme(scheme))
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
+            .sheet(isPresented: Binding(get: { store.showingUsage }, set: { store.showingUsage = $0 })) {
+                MobileUsageView().environment(store)
+            }
             .onOpenURL { url in
-                guard url.scheme == Flavor.current.urlScheme, url.host == "chat",
+                guard url.scheme == Flavor.current.urlScheme else { return }
+                if url.host == "usage" {
+                    store.showingUsage = true
+                    return
+                }
+                guard url.host == "chat",
                       let id = UUID(uuidString: url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))) else { return }
                 MobilePushNotifications.shared.pendingChat = id
             }
