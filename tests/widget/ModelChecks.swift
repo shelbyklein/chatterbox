@@ -32,6 +32,15 @@ import Foundation
         precondition(WidgetSnapshot.Usage.Window(label: "5-hour", fraction: .nan, resetsAt: nil).text(at: now) == "5h —")
         precondition(WidgetSnapshot.Usage.Window(label: "7-day", fraction: 2, resetsAt: nil).text(at: now) == "7d 100%")
         precondition(WidgetSnapshot.Usage.Window(label: "7-day", fraction: -1, resetsAt: nil).text(at: now) == "7d 0%")
+        precondition(windows[0].usedFraction(at: now) == 0.42)
+        precondition(windows[0].usedFraction(at: now.addingTimeInterval(60)) == nil)
+        let unavailable: [Double?] = [nil, .nan, .infinity, -.infinity]
+        for fraction in unavailable {
+            precondition(WidgetSnapshot.Usage.Window(label: "5-hour", fraction: fraction, resetsAt: nil).usedFraction(at: now) == nil)
+        }
+        for (fraction, expected) in [(-1.0, 0.0), (0, 0), (0.75, 0.75), (0.9, 0.9), (1, 1), (2, 1)] {
+            precondition(WidgetSnapshot.Usage.Window(label: "7-day", fraction: fraction, resetsAt: nil).usedFraction(at: now) == expected)
+        }
         var snapshot = old
         snapshot.usage = .init(syncedAt: now, claude: windows, codex: [])
         precondition(snapshot.save(to: Harness.file))

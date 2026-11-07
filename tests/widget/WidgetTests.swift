@@ -48,6 +48,24 @@ final class WidgetTests: XCTestCase {
         }
     }
 
+    @MainActor func testUsageBoundaries() {
+        for size in ["small", "medium", "large"] {
+            let app = XCUIApplication()
+            app.launchEnvironment = ["WIDGET_SIZE": size, "WIDGET_STATE": "boundaries", "WIDGET_LIGHT": "1"]
+            app.launch()
+            let claude = app.descendants(matching: .any)["widget-usage-claude"].firstMatch
+            let codex = app.descendants(matching: .any)["widget-usage-codex"].firstMatch
+            XCTAssertTrue(claude.waitForExistence(timeout: 10))
+            XCTAssertTrue(claude.label.contains("5h 0%") && claude.label.contains("7d 100%"))
+            XCTAssertTrue(codex.label.contains("5h —") && codex.label.contains("7d —"))
+            let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
+            XCTAssertTrue(widget.frame.contains(claude.frame), "\(size): full and zero usage fit")
+            XCTAssertTrue(widget.frame.contains(codex.frame), "\(size): unknown and expired usage fit")
+            capture("usage-boundaries-" + size, app)
+            app.terminate()
+        }
+    }
+
     @MainActor private func capture(_ name: String, _ app: XCUIApplication) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

@@ -26,6 +26,11 @@ struct WidgetPreviewApp: App {
             result.updatedAt = .now.addingTimeInterval(-7200)
             result.usage?.syncedAt = result.updatedAt
         }
+        if mode == "boundaries" {
+            result.usage?.claude = [.init(label: "5-hour", fraction: 0, resetsAt: nil), .init(label: "7-day", fraction: 1, resetsAt: nil)]
+            result.usage?.codex = [.init(label: "5-hour", fraction: nil, resetsAt: nil), .init(label: "7-day", fraction: 0.7, resetsAt: .now.addingTimeInterval(-60))]
+            result.waiting[0].title = "A longer thread title to check the compact widget"
+        }
         return result
     }
     var body: some Scene {
