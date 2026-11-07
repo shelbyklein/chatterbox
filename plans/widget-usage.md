@@ -30,7 +30,7 @@ Activity rows                 Activity rows
 
 - [x] W1 Implement additive snapshot, safe phone sync and native usage footer. Acceptance: old data and activity navigation remain valid; percentages, unknown/reset states and freshness have behavioral coverage.
 - [x] W2 Run focused native widget and existing Usage flows; inspect small/medium/large and empty/stale captures. Acceptance: native screenshots show readable unclipped content; focused tests and source checks pass.
-- [ ] W3 Commit/push, install phone Dev and record delivery. Acceptance: source revisions and actual install result recorded; real app/widget untouched, activation pending Ship.
+- [x] W3 Commit/push, install phone Dev and record delivery. Acceptance: source revisions and actual install result recorded; real app/widget untouched, activation pending Ship.
 
 ## Boundaries, tests and rollback
 
@@ -39,3 +39,7 @@ No quota estimates, summed provider accounts, token/cost tracking, provider API 
 Run `scripts/test-widget.sh`, focused `MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testUsage scripts/test-mobile-home-nav.sh iphone`, `scripts/tests-for.sh --why` and `scripts/check-sources.sh`. Native fixtures use the actual widget view at widget dimensions, with synthetic values and isolated test state. Inspect the resulting screenshots; a fixture is not installed-widget proof.
 
 Rollback: revert this task's source commits and reinstall the appropriate flavor with the repository script. Snapshot changes are optional/additive, so older code ignores usage; no migration or real data rewrite is required. Dev has no App Group and cannot overwrite the real widget cache. Real delivery and issue closure remain gated by Shelby.
+
+## Delivery
+
+Core `c24a0bd` and parent source `cd3f830` committed/pushed to main. Phone Dev installed and opened on Shelby's Duo using `scripts/install-phone.sh --dev "Shelby's Duo"`; the script and subsequent bundle inspection confirm Dev flavor and no embedded widget. The actual WidgetKit extension target also compiled as part of the device build. See [validation](../design/widget-usage/validation.md) and [delivery metadata](../design/widget-usage/dev-delivery.json). No Mac install/restart or real phone/widget update was performed. Widget activation remains pending Ship.

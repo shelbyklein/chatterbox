@@ -21,3 +21,11 @@ Data comes from the existing read-only companion usage route. Successful chat re
 [Before](before-medium.png), [small](usage-small.png), [medium](usage-medium.png), [large](usage-large.png), [no readings](usage-empty.png), [stale sync](usage-stale.png).
 
 All values are synthetic. Real app/service/data/pairings have not been changed. Dev has no widget or App Group, so direct Dev phone delivery cannot activate this footer in the real widget. Ship remains required for that activation.
+
+## Dev delivery
+
+- Source: Core `c24a0bd`, parent `cd3f830`, both pushed to main.
+- `scripts/install-phone.sh --dev "Shelby's Duo"` completed with status 0 and reported **Installed and opened** (`build/widget-usage-install-phone.log`). The app bundle is `Chatterbox.app`, with identifier `com.shelbyklein.Chatterbox.mobile.dev`, Dev flavor and no embedded widget. The WidgetKit extension built separately in the same device products; Dev intentionally excludes it from the installed app.
+- Xcode printed its existing OS-build-string, cache-miss and unrelated Swift warning diagnostics; the build continued successfully and the device installation/launch commands succeeded. These are not a claim of a warning-free build.
+- No Mac binary/service change was needed. No TestFlight upload, real installation, real source review or quota refresh was performed. Physical widget refresh and SpringBoard rendering remain pending real activation; native fixtures are the visual proof available now.
+- Read-only simulator tidy: **0 removable, 8 kept** (`build/widget-usage-tidy.log`); test devices are shut down, the unrelated active Duo simulator was preserved. No cleanup apply was run.
