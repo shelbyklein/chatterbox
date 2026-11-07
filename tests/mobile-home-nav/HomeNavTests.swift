@@ -2137,7 +2137,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testUsage() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort, "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
   app.buttons["Connection"].tap()
@@ -2146,8 +2146,20 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["12% used"].exists && app.staticTexts["65% left"].exists,"Codex and the proxy account")
   capture("usage",app)
   app.buttons["Done"].tap()
+  XCTAssertTrue(app.buttons["Done"].waitForNonExistence(timeout:5),"dismissal completes before reopening from a widget URL")
+  XCUIDevice.shared.press(.home) // A Home Screen widget opens the app from the background.
   app.open(URL(string:"chatterbox://usage")!)
   XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"the widget link opens Usage")
+  app.buttons["Done"].tap()
+  XCTAssertTrue(app.buttons["Done"].waitForNonExistence(timeout:5))
+  try await fixture("usage-cold")
+  app.buttons["Connection"].tap();app.buttons["Usage"].tap()
+  XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"cold quota check receives its bounded follow-up")
+  XCTAssertTrue(app.staticTexts["65% left"].exists,"proxy quota arrives after the pending response")
+  let reads=try await fixture("usage-state",method:"GET") as! [String:Int]
+  XCTAssertEqual(reads["reads"],2,"one initial read and one follow-up")
+  XCTAssertEqual(reads["refreshes"],0,"polling never forces another provider refresh")
+  capture("usage-after-cold-proxy",app)
   app.buttons["Done"].tap()
  }
  @MainActor func testNewChatPicksSettingsFirst() async throws {

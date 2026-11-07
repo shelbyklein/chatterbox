@@ -1,0 +1,20 @@
+# Dedicated Usage widget verification
+
+Baseline parent `7a117b9`, Core `ed603d0`. Adds the separate `ChatterboxUsage` gallery widget, preserving the existing activity widget and URL identity. Snapshot fields are optional/additive; companion wire and Mac service require no change. Proxy remaining fractions are normalized to used exactly once, with every account/window/status retained. Direct reports remain separately labelled. Small shows highest reported limits/counts; medium shows the current five-account pool; large shows all windows. Oversized pools explicitly fall back to summaries and the full Usage link.
+
+## Checks
+
+- Final `scripts/test-widget.sh`: **5 native tests passed in 75.146 seconds**, plus all model/cache checks. iPhone 17 Pro/iOS 26.2. Artifact `build/widget-test.q623jB`, log `build/dedicated-usage-widget-native-confirm.log`. Covers new small/medium/large, all five proxy accounts, unavailable accounts, third Claude window, separate direct reports, quota-check age, missing/checking/legacy/stale, 24-account overflow, plus all existing activity-widget size/boundary cases. Data checks include legacy decode, six quota windows, exact-once inversion, unknown/nonfinite/expired, checked-cache retention during cold refresh, configuration removal and pairing cleanup.
+- Final `MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testUsage MOBILE_TEST_RUNTIME=com.apple.CoreSimulator.SimRuntime.iOS-26-2 scripts/test-mobile-home-nav.sh iphone`: **passed in 27.531 seconds**. Artifact `build/mobile-home-nav.cZFqFb`, log `build/dedicated-usage-widget-usage-verified.log`. Opens Usage from the Home Screen URL, then simulates a cold quota response: exactly two reads (initial plus follow-up), no forced provider refresh, direct and proxy values displayed. Pairing/cancellation guards remain before and after suspension.
+- The selector maps changed files to these two focused scripts; MobileStore gained an explicit test-map entry. Initial selector fail-fast runs are not called green: the unsigned native fixture lost its test pairing during URL relaunch. Adding its existing supported synthetic pair token stabilized startup; the test also now models a real widget tap from Home. One failed Xcode client stalled after completion and was stopped only after verifying its exact owned test-products path through safe_stop. No hosts/services were stopped.
+- Read-only live proxy parsing/serialization passed before implementation (`build/widget-all-usage-live-proxy.log`): two Claude accounts reported 2/3 windows, two Codex accounts were unavailable, one Codex account reported one window. Account names/credentials were not logged or used in fixtures. No settings changed or model calls started.
+- Two bounded visual rounds completed. First inspected the native captures and found medium's automatic fit chooser selecting a provider summary; normal medium pools now use compact rows directly, with explicit fallback for more rows/larger type. Confirmation inspected all eight dedicated captures plus the native cold-Usage screen: readable source/percent labels, correct bars and account counts, all five accounts and the third Claude window visible, no clipping. Existing activity renders also passed/retained their layout.
+- Source check, fixture Python syntax and parent/Core diff checks passed. No new target files, so project regeneration was unnecessary. Full release suite deferred to Ship; prior known chat-switch mismatch/incomplete coverage remains recorded, no full-green claim.
+
+## Native evidence
+
+[Small](dedicated-small.png), [medium](dedicated-medium.png), [large](dedicated-large.png), [empty](dedicated-empty.png), [checking](dedicated-checking.png), [legacy](dedicated-legacy.png), [stale](dedicated-stale.png), [overflow](dedicated-overflow.png), [Usage screen](usage.png), [cold quota follow-up](usage-after-cold-proxy.png). Original native simulator screenshots; invented values and names.
+
+## Delivery
+
+Pending phone Dev installation. Dev intentionally embeds no widgets; real Home Screen activation requires Ship. No Mac install/service restart or TestFlight is planned.

@@ -20,6 +20,7 @@ MUTATIONS=[]
 RENAMES={}
 PROMOTIONS={}
 LIST_DELAY=0
+USAGE_COLD=False;USAGE_READS=0;USAGE_REFRESHES=0
 # The UX panel tour (testUXPanelTour): fuller transcripts for Galley and SDHQ, off unless asked for.
 RICH=False
 # Its connection-error step: every /v1 reply held past the app's 6-second timeout.
@@ -157,6 +158,8 @@ def pressure(level):
    else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
 
 def reset():
+ global USAGE_COLD,USAGE_READS,USAGE_REFRESHES
+ USAGE_COLD=False;USAGE_READS=0;USAGE_REFRESHES=0
  global RATE_LIMIT,RATE_RETRIES,RATE_RETRIED
  RATE_LIMIT=None;RATE_RETRIES=[];RATE_RETRIED=None
  global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE,WORK_LISTED
@@ -351,6 +354,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,AUTOMATION_REPORT_PREPARED,RICH,OFFLINE,WORK_LISTED
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
   global RATE_LIMIT,RATE_RETRIED
+  global USAGE_COLD,USAGE_READS,USAGE_REFRESHES
+  if self.path=='/test/usage-cold':
+   USAGE_COLD=True;USAGE_READS=0;USAGE_REFRESHES=0;return self.reply({'ok':True})
   if self.path=='/test/rate-limit':RATE_LIMIT=body;return self.reply({'ok':True})
   if self.path.startswith('/v1/chats/') and self.path.endswith('/retry-rate-limit'):
    id=self.path.split('/')[3];offer=detail(id).get('rateLimitRetry')
@@ -566,6 +572,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    REMOVED.add(self.path.split('/')[3].lower());MUTATIONS.append('delete');return self.reply({'ok':True})
   self.send_error(404)
  def do_GET(self):
+  global USAGE_READS,USAGE_REFRESHES
+  if self.path=='/test/usage-state':return self.reply({'reads':USAGE_READS,'refreshes':USAGE_REFRESHES})
   if self.path=='/test/rate-retries':return self.reply(RATE_RETRIES)
   if OFFLINE and self.path.startswith('/v1/'):time.sleep(8)
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
@@ -584,6 +592,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/briefs':return self.reply(BRIEFS)
   if self.path=='/test/renames':return self.reply(RENAMES)
   if self.path.startswith('/v1/usage'):
+   USAGE_READS+=1
+   if 'refresh=1' in self.path:USAGE_REFRESHES+=1
+   if USAGE_COLD and USAGE_READS==1:return self.reply({'claude':[],'codex':[],'proxyAccounts':[]})
    return self.reply({'claude':[{'label':'5-hour','fraction':0.42,'resetsAt':'2099-01-01T00:00:00Z'},{'label':'7-day','fraction':0.81,'resetsAt':'2099-01-03T00:00:00Z'}],
                       'codex':[{'label':'5-hour','fraction':0.12,'resetsAt':'2099-01-01T00:00:00Z'}],
                       'proxyAccounts':[{'provider':'claude','name':'shelby@example.com','status':'Available','windows':[{'label':'Weekly','fraction':0.65}]}],

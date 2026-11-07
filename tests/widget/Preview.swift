@@ -21,10 +21,33 @@ struct WidgetPreviewApp: App {
     private var snapshot: WidgetSnapshot {
         var result = WidgetSnapshot.sample
         let mode = environment["WIDGET_STATE"] ?? "current"
+        if environment["WIDGET_KIND"] == "usage", mode != "legacy" {
+            result.usage?.claude = [] // Proxy quotas must work without Claude chat-process events.
+        }
         if mode == "empty" { result = .empty }
         if mode == "stale" {
             result.updatedAt = .now.addingTimeInterval(-7200)
             result.usage?.syncedAt = result.updatedAt
+            result.usage?.proxyChecked = result.updatedAt
+        }
+        if mode == "legacy" {
+            result.usage?.proxyAccounts = nil
+            result.usage?.proxyChecked = nil
+            result.usage?.proxyRefreshing = nil
+        }
+        if mode == "checking" {
+            result.usage?.claude = []; result.usage?.codex = []
+            result.usage?.proxyAccounts = []
+            result.usage?.proxyChecked = nil
+            result.usage?.proxyRefreshing = true
+        }
+        if mode == "overflow" {
+            result.usage?.proxyAccounts = (0..<24).map { index in
+                .init(provider: index % 2 == 0 ? "claude" : "codex", name: "Long account name \(index + 1)", status: "Available",
+                      windows: [.init(label: "5-hour window", fraction: 0.4, resetsAt: nil),
+                                .init(label: "7-day Sonnet", fraction: 0.9, resetsAt: nil),
+                                .init(label: "Code review · Weekly limit", fraction: 0.2, resetsAt: nil)])
+            }
         }
         if mode == "boundaries" {
             result.usage?.claude = [.init(label: "5-hour", fraction: 0, resetsAt: nil), .init(label: "7-day", fraction: 1, resetsAt: nil)]
@@ -37,7 +60,13 @@ struct WidgetPreviewApp: App {
         WindowGroup {
             VStack(spacing: 24) {
                 Text("Native widget fixture").font(.headline)
-                ChatterboxWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
+                Group {
+                    if environment["WIDGET_KIND"] == "usage" {
+                        ChatterboxUsageWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
+                    } else {
+                        ChatterboxWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
+                    }
+                }
                     .padding(16)
                     .frame(width: size.width, height: size.height)
                     .background(.tertiary, in: RoundedRectangle(cornerRadius: 22))
