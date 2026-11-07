@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-07",
+  "source": {
+    "parent": "dbf926a",
+    "core": "368b1c2"
+  },
+  "mac": {
+    "bundleID": "com.shelbyklein.Chatterbox.dev",
+    "flavor": "dev",
+    "installed": true,
+    "health": "ready",
+    "appPID": 57922,
+    "servicePID": 57993,
+    "restartRule": "idle",
+    "healthyAt": "2026-11-07 14:06:46 America/New_York",
+    "installedMatchesBuild": true,
+    "sha256": {
+      "app": "bd25a11ef419791f94be78c0300a0def4c824f9bd9b55a279b849665a88f09b1",
+      "service": "3f0515c874f23b4aa96a2d79993f730d504953ecb2131080df38aa14f452738a"
+    }
+  },
+  "realBinariesAndAutomationsUnchanged": true,
+  "testFlightUploaded": false,
+  "realInstalled": false,
+  "phone": {
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+    "installed": true,
+    "launch": "Installed; automatic launch unconfirmed. The unresponsive Mac launch client was stopped after more than two minutes; open the app on the phone.",
+    "flavor": "dev",
+    "widgetEmbedded": false,
+    "launchConfirmed": false
+  },
+  "validation": {
+    "service": "passed; 17 new checks",
+    "iphone": "passed; 29.567 seconds",
+    "duo": "passed; 36.809 seconds",
+    "fullReleaseSuiteRun": false,
+    "simulatorTidy": {
+      "removable": 0,
+      "kept": 8,
+      "applied": false
+    }
+  }
+}

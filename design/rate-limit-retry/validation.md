@@ -28,3 +28,12 @@ The first UI run exposed the outer suggestion accessibility identifier overridin
 [Duo: Claude limit](duo-rate-limit-claude.png), [Duo: Codex limit](duo-rate-limit-codex.png), [Duo: request retried and draft retained](duo-rate-limit-retried-claude.png), [Duo: reverse retry](duo-rate-limit-retried-codex.png).
 
 Real deployment and issue closure remain pending Shelby. Dev delivery is recorded separately after installation.
+
+## Dev delivery
+
+- Core `368b1c2`, parent source `dbf926a`, both committed/pushed to main before installation.
+- `scripts/install-dev.sh` completed successfully (`build/rate-limit-retry-install-mac.log`). Mac Dev reopened. Its default safe restart fired on idle at **14:06:43**, and new service **PID 57993** was healthy at **14:06:46** (app PID 57922). A fresh Dev Unix-socket hello/health check returned ready. Installed app and daemon SHA256 values match the fixed Dev build products; the daemon binary contains the new retry route.
+- `scripts/install-phone.sh --dev "Shelby's Duo"` installed `com.shelbyklein.Chatterbox.mobile.dev` successfully (`build/rate-limit-retry-install-phone.log`). The following CoreDevice launch client remained unresponsive for more than two minutes. Only that owned Mac launch client was terminated; the installer finished with **Installed on Shelby's Duo (open it there)**. Phone launch is unconfirmed, not claimed successful. The build is Dev flavor with no embedded widget.
+- Real app/service executable and real Automations.json hashes match their pre-delivery values. No real install/restart, account/proxy configuration change, live prompt, live retry or TestFlight upload was performed.
+- Read-only simulator tidy reports **0 removable, 8 kept** (`build/rate-limit-retry-tidy.log`). Owned test simulators are shut down; the unrelated active Duo simulator was preserved. No cleanup apply was run.
+- [Delivery metadata](dev-delivery.json) records build identity and observed activation separately. The remaining user gate is Ship to the real apps; issue 62 stays open.

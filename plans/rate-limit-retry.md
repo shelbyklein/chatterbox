@@ -27,7 +27,7 @@ Target:  original request → provider rate-limit error
 
 - [x] R1 Detect eligible failures and expose an optional retry offer; validate switch-and-resend by original request ID. Acceptance: service fixtures cover both providers, unrelated errors, stale/busy rejection and original text/attachments, without starting models.
 - [x] R2 Add the iOS suggestion/action and native UI coverage. Acceptance: correct label, single retry, same thread, saved draft and readable iPhone/Duo captures.
-- [ ] R3 Run focused checks, commit/push and deliver to Dev. Acceptance: source revisions, observed installation/restart state and evidence recorded, issue left open for activation/acceptance.
+- [x] R3 Run focused checks, commit/push and deliver to Dev. Acceptance: source revisions, observed installation/restart state and evidence recorded, issue left open for activation/acceptance.
 
 ## Boundaries and validation
 
@@ -40,3 +40,7 @@ Rollback: revert this task's scoped commits and reinstall Dev with repository sc
 ## Verification
 
 See [validation and native captures](../design/rate-limit-retry/validation.md). Service/Desk coverage passed with 17 new retry checks and no agents started. Final iPhone 17 Pro/iOS 26.2 flow passed in 29.567s; final Duo/iOS 27.1 flow passed in 36.809s. Both directions resend once, remove the offer and preserve the draft. Rendered captures were inspected, including confirmation of the explanation wrapping fix. These are focused checks; the full release suite is deferred to Ship.
+
+## Dev delivery
+
+Core `368b1c2` and parent source `dbf926a` committed/pushed to main. Mac Dev installed/reopened, default idle restart at 14:06:43, service PID 57993 healthy at 14:06:46; a fresh socket read also returned ready and the installed app/service match the build bytes. Phone Dev installed on Shelby's Duo; automatic launch could not be confirmed, so open it on the phone. Real app/service executable and automation-config hashes remain unchanged. [Delivery metadata](../design/rate-limit-retry/dev-delivery.json). Real shipment and issue closure remain pending Shelby.
