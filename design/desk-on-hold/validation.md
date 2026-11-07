@@ -23,3 +23,8 @@ Use a task card's menu to **Put on hold**, then **Resume** to return to the stat
 ## Dev delivery
 
 Source Core `2ca56b9`, parent `768de6b` pushed to main before delivery. Mac Dev installed and reopened, then its default restart selected an idle gap at 19:06:43; PID 72190 healthy at 19:06:46. A fresh read-only socket handshake confirms ready, On hold data and General automation support. Dev Desk state was backed up outside version control. The Dev app installed and opened directly on Shelby's Duo; no TestFlight. [Delivery proof](dev-delivery.json) records product identities/hashes and distinct install/launch results. Real app, service executable and Automations.json hashes are unchanged. Tidy report confirms both owned test devices shut down; no cleanup apply was run. No actual user task was moved for proof. Issue remains open for acceptance.
+
+
+## Real shipment
+
+Authorized by Shelby's Ship after disclosure. Source parent `343c0b0` / Core `2ca56b9`. Release-wide fail-fast run: **11 passed, 1 failed, 100 not run**; unchanged chat-switch old-fade assertion at Coordinator.swift:11 (exit 133), already disclosed. Chat rendering passed this run. This is incomplete release coverage, not green. Mac app installed/reopened through ship.sh, matching built bytes; service restarted between turns and healthy at 19:24:38 (PID 85913), with On hold and General capability. Real Desk/config backed up locally; automation configuration hash unchanged. Real Duo app installed directly, automatic open unsuccessful. No TestFlight or live source check. [Real delivery proof](real-delivery.json).

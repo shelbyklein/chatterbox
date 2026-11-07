@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-11-07T00:24:55.532879+00:00",
+  "sourceParentCommit": "343c0b02de7c2799d5f8c64f13489fd6da1fb6da",
+  "sourceCoreCommit": "2ca56b9e6d9b99042a4fb8f420989791673661bc",
+  "authorization": "Shelby said ship after the disclosed full-suite limitations.",
+  "realDeskBackedUp": true,
+  "automationsUnchanged": true,
+  "mac": {
+    "installed": true,
+    "opened": true,
+    "installedMatchesBuild": true,
+    "appSHA256": "d6e7a9d32a1ea1e4fd370857cfe5b3aaa0d1ac56a538eedc8dbfa69dd53ea0af",
+    "serviceSHA256": "e414cb332808daba6d471e907dc5aaac858ae2e3fda92d2d39808168585b9bdc",
+    "serviceHealth": "ready",
+    "onHoldCapability": true,
+    "generalAutomationsCapability": true,
+    "restartReport": "2026-11-06 19:24:18 waiting for a gap between replies: restart once no reply has produced anything for 3s, at the latest 1200s from now\n2026-11-06 19:24:22 restart rule: between turns\n2026-11-06 19:24:22 restarting chatterboxd (was pid 69232)\n2026-11-06 19:24:38 chatterboxd pid 85913, health ok after 16s; app pid 85614\n"
+  },
+  "phone": {
+    "device": "Shelby's Duo",
+    "installed": true,
+    "opened": false,
+    "bundleID": "com.shelbyklein.Chatterbox.mobile",
+    "flavor": "real",
+    "builtExecutableSHA256": "e2e36667e6855cbfa7724725d47f3c3ade3578814465851d0031eb4a741f0a56",
+    "method": "scripts/install-phone.sh (direct; no TestFlight)"
+  },
+  "releaseTestLog": "build/desk-on-hold-ship-suite.log",
+  "releaseTests": {
+    "passed": 11,
+    "failed": 1,
+    "notRun": 100,
+    "failure": "test-chat-switch.sh exit 133, tests/chat-switch/Coordinator.swift:11 expects the old fade; unchanged baseline failure disclosed before Ship.",
+    "chatRendering": "Passed this run; earlier No manual report failure did not reproduce.",
+    "fullSuiteGreen": false
+  }
+}
