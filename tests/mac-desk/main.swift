@@ -37,7 +37,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(DeskSections.summary(needsYou: 2, incoming: 0, working: 3) == "2 need you · 3 working", "summary: 2 need you · 3 working")
     check(DeskSections.summary(needsYou: 1, incoming: 2, working: 0, ready: 4) == "1 needs you · 2 to do · 4 ready", "summary: singular, to do and ready")
     check(DeskSections.summary(needsYou: 0, incoming: 0, working: 0) == "All clear", "summary: nothing at all")
-    check(DeskSections.Section.allCases.map(\.rawValue) == ["To do", "Working", "Needs you", "Review", "Done"], "five columns, left to right")
+    check(DeskSections.Section.allCases.map(\.rawValue) == ["To do", "Working", "Needs you", "Review", "On hold", "Done"], "six columns, left to right")
     var logic = DeskSections()
     check(DeskSections.Section.allCases.allSatisfy { logic.count($0) == 0 } && logic.actionCount == 0, "empty Desk: every column empty")
     logic.working = [Companion.DeskWorking(id: UUID(), title: "Ribbons", place: nil)]
@@ -193,6 +193,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
                      modes: [], mode: "default", presets: [], openModels: [.init(id: "qwen3.5:9b", name: "qwen3.5:9b", detail: "On Shelby-PC", efforts: [], defaultEffort: nil)],
                      openModel: picks.openModel)
     }
+    var heldReady: [UUID: Companion.DeskReady] = [:]
     var sent: [JSON] = []
     let desk = DeskModel.shared
     desk.transport = { body, _ in
@@ -264,6 +265,16 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
                 service.linked = (service.linked ?? []).filter { $0.chatID != chat } + [.init(id: request.id, text: request.text, chatID: chat!)]
             }
             service.revision += 1
+            return try JSON.value(service)
+        case "hold":
+            guard let id, let item = service.ready?.first(where: { $0.task == id }) else { throw RuntimeFailure("Task gone") }
+            heldReady[id] = item
+            service.onHold = (service.onHold ?? []) + [.init(id: id, text: item.taskText ?? item.title, heldAt: Date(), place: item.place, chatID: item.id)]
+            service.ready?.removeAll { $0.task == id }; service.revision += 1
+            return try JSON.value(service)
+        case "resume":
+            guard let id, let item = heldReady.removeValue(forKey: id) else { throw RuntimeFailure("Task gone") }
+            service.onHold?.removeAll { $0.id == id }; service.ready = (service.ready ?? []) + [item]; service.revision += 1
             return try JSON.value(service)
         case "unlink":
             service.linked?.removeAll { $0.id == id }; service.revision += 1
@@ -363,7 +374,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
         try await Task.sleep(for: .milliseconds(500))
     }
     func frame(_ key: String) -> CGRect? { DeskDebug.frames[key] }
-    let keys = DeskSections.Section.allCases.map(\.key)
+    let keys = DeskSections.Section.allCases.filter { $0 != .onHold }.map(\.key)
 
     // Home opens on the Desk when it's chosen; the Desk is the column's first entry.
     model.showDesk()
@@ -669,6 +680,35 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(old.unsupported && calls == 1 && old.problem?.contains("restarts") == true, "older service: one try, a quiet note")
     old.runtimeEvent(RuntimeEvent(sequence: 3, revision: 0, kind: "runtime.resync")); try await Task.sleep(for: .milliseconds(200))
     check(calls == 2, "reconnecting tries again")
+
+    // New hold capability: preserved Review task, exactly one lane, readable six-column board.
+    let deferred = model.insertSession(finishedRecord("Deferred budget review", "The review packet is ready in the conversation.", ago: 60))
+    let deferredTask = UUID()
+    service.onHold = []
+    service.linked = (service.linked ?? []) + [.init(id: deferredTask, text: "Review the prepared budget", chatID: deferred.id)]
+    service.ready = (service.ready ?? []) + [.init(id: deferred.id, title: deferred.title, text: "The review packet is ready in the conversation.", finishedAt: now,
+                                                   task: deferredTask, taskText: "Review the prepared budget")]
+    desk.load(service)
+    await desk.hold(deferredTask)
+    check(desk.sections(in: model).onHold.first?.id == deferredTask && !desk.sections(in: model).ready.contains { $0.task == deferredTask },
+          "held Review task occupies On hold and preserves the task link")
+    deferred.isRunning = true
+    _ = deferred.appendItem(DisplayItem(kind: .approval, text: "A stale pending request", requestID: ["id": "held-stale"], approvalState: .pending))
+    let heldSections = desk.sections(in: model)
+    check(!heldSections.needsYou.contains { $0.waiting.chatID == deferred.id } && !heldSections.working.contains { $0.id == deferred.id },
+          "locally derived Needs you and Working do not duplicate held tasks")
+    deferred.isRunning = false
+    deferred.record.items.removeLast()
+    model.showDesk()
+    try await render(AnyView(ContentView()), 2600, 1000, "desk-on-hold")
+    check(frame("section:onHold") != nil && frame("held:\(deferredTask)") != nil && frame("resume:\(deferredTask)") != nil,
+          "On hold column and Resume render on the Mac")
+    try await click("resume:\(deferredTask)")
+    check(desk.sections(in: model).onHold.isEmpty && desk.sections(in: model).ready.contains { $0.task == deferredTask },
+          "native Resume button restores Review without starting work")
+    check(sent.filter { ["hold", "resume"].contains($0["action"]?.string ?? "") }.suffix(2).map { $0["action"]?.string } == ["hold", "resume"], "hold/resume use explicit task actions")
+    service.onHold = nil; desk.load(service)
+    check(!desk.canHold, "older service hides unsupported hold controls")
 
     // MARK: Empty columns: nothing waits on you or to be placed; Working still shows its cards.
     for session in model.sessions {

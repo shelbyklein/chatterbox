@@ -1397,6 +1397,70 @@ final class HomeNavTests: XCTestCase {
  /// Tasks (plans/work-threads.md): Working, Ready and Done are tasks by their thread; Needs you
  /// marks threads that aren't tasks, with Make this a task; a To do card links a thread (one
  /// carrying a task asks first, then sends replace); a task card's menu unlinks.
+ @MainActor func testDeskOnHold() async throws {
+  try await fixture("reset"); try await fixture("desk-hold")
+  let app=deskApp(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  func select(_ id:String) {
+   let button=app.buttons["desk-tab-"+id]
+   for _ in 0..<4 where !button.isHittable {
+    let visible=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@","desk-tab-")).allElementsBoundByIndex.first { $0.isHittable }
+    guard let visible else { XCTFail("Desk tabs are missing"); return }
+    let window=app.windows.firstMatch, left=["todo","working","needs-you"].contains(id)
+    let origin=window.coordinate(withNormalizedOffset:.zero)
+    origin.withOffset(CGVector(dx:window.frame.width*(left ? 0.25 : 0.8),dy:visible.frame.midY))
+     .press(forDuration:0.05,thenDragTo:origin.withOffset(CGVector(dx:window.frame.width*(left ? 0.8 : 0.25),dy:visible.frame.midY)),withVelocity:.slow,thenHoldForDuration:0.2)
+   }
+   XCTAssertTrue(button.isHittable); button.tap()
+  }
+  func putOnHold(_ element:XCUIElement) {
+   XCTAssertTrue(element.waitForExistence(timeout:8)); element.press(forDuration:1)
+   let hold=app.buttons["Put on hold"]
+   XCTAssertTrue(hold.waitForExistence(timeout:5)); hold.tap()
+  }
+  func held(_ id:String) -> XCUIElement { app.descendants(matching:.any).matching(identifier:"desk-held-"+id).firstMatch }
+  let reviewTask="F08C3C80-D01C-51C1-9DB6-BF82C0C3FCE9", questionTask="A55713B5-FB36-53B1-8C16-B2EE04F19893"
+  select("ready")
+  let ready=app.buttons["desk-ready-"+uuid("PlayCase Magnets")]
+  putOnHold(ready)
+  XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8))
+  XCTAssertTrue(app.buttons["desk-tab-on-hold"].isSelected)
+  XCTAssertGreaterThanOrEqual(app.buttons["desk-tab-on-hold"].frame.width,54,"six states stay readable")
+  XCTAssertTrue(app.buttons["desk-tab-todo"].isHittable,"normal text keeps the first state within reach")
+  XCTAssertFalse(ready.exists,"the task is only in On hold")
+  capture("desk-on-hold-review",app)
+  held(reviewTask).buttons["Open"].tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10),"Open keeps access to the prepared conversation")
+  let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+  XCTAssertTrue(back.waitForExistence(timeout:5)); back.tap(); deskTab(app).tap()
+  select("on-hold")
+  XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8))
+  app.terminate(); app.launch()
+  XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); select("on-hold")
+  XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8),"hold survives reconnect and app relaunch")
+  app.buttons["desk-resume-"+reviewTask].tap()
+  XCTAssertTrue(ready.waitForExistence(timeout:8),"Resume restores Review rather than restarting preparation")
+  XCTAssertTrue(app.buttons["desk-tab-ready"].isSelected)
+  // Errors keep the original task, and do not falsely switch its lane.
+  try await fixture("fail",body:["value":true]); putOnHold(ready)
+  XCTAssertTrue(app.alerts["Couldn't update the Desk"].waitForExistence(timeout:5)); app.alerts.buttons["OK"].tap()
+  XCTAssertTrue(ready.exists); try await fixture("fail",body:["value":false])
+  select("todo")
+  putOnHold(app.staticTexts["Make a banner for the fall archery camp"])
+  XCTAssertTrue(held(deskID("banner")).waitForExistence(timeout:8)); capture("desk-on-hold-todo",app)
+  app.buttons["desk-resume-"+deskID("banner")].tap()
+  XCTAssertTrue(app.buttons["desk-start-"+deskID("banner")].waitForExistence(timeout:8),"unstarted task returns to To do")
+  select("needs-you")
+  let question=app.buttons["desk-waiting-"+deskID("questions")]
+  putOnHold(question)
+  XCTAssertTrue(held(questionTask).waitForExistence(timeout:8))
+  app.buttons["desk-resume-"+questionTask].tap()
+  XCTAssertTrue(question.waitForExistence(timeout:8),"idle question returns to Needs you")
+  let calls=try await deskCalls()
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "hold" }.count,3)
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,3)
+  XCTAssertFalse(calls.contains { ["start","complete","writeBack"].contains($0["action"] as? String ?? "") })
+ }
  @MainActor func testDeskTasks() async throws {
   try await fixture("reset"); try await fixture("tasks")
   let app=deskApp(); app.launch()

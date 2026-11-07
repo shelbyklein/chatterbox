@@ -992,6 +992,61 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     macNew.setTitle("App icons")
     _ = desk.snapshot()
     try check(desk.openTask(for: macNew.id)?.text == "App icons", "and it follows the thread's name")
+    // On hold preserves task identity, links and completed preparation through refresh/restart.
+    let heldSession = try runtime.insert(record("Prepared budget", studio: archery, items: [
+        DisplayItem(kind: .user, text: "Prepare the budget"),
+        DisplayItem(kind: .assistant, text: "The review packet is ready.", phase: .final)]))
+    let heldTask = try desk.add(.init(text: "Review the prepared budget", origin: "email:held-budget", confidence: "no", reason: "Wait for the meeting"))
+    try desk.link(heldTask.id, .init(chatID: heldSession.id))
+    let heldItemsBefore = heldSession.record.items
+    let paused = call("POST", "/v1/desk/\(heldTask.id)/hold", Data("{}".utf8))
+    try check(paused.status == 200, "phone hold route accepts an idle open task")
+    let pausedBoard = try deskOf(paused)
+    try check(pausedBoard.onHold?.contains { $0.id == heldTask.id && $0.chatID == heldSession.id } == true
+        && pausedBoard.ready?.contains { $0.task == heldTask.id } == false
+        && !pausedBoard.needsYou.contains { $0.task == heldTask.id }
+        && !pausedBoard.working.contains { $0.task == heldTask.id }
+        && !pausedBoard.incoming.contains { $0.id == heldTask.id }, "held task occupies exactly one lane and keeps its thread")
+    let holdDate = desk.tasks.first { $0.id == heldTask.id }?.heldAt
+    try desk.hold(heldTask.id)
+    let repeatHeld = try desk.add(.init(text: "New intake title", origin: "email:held-budget", confidence: "yes", reason: "New pass"))
+    try check(repeatHeld.id == heldTask.id && desk.tasks.first { $0.id == heldTask.id }?.heldAt == holdDate,
+              "repeated hold and source reimport preserve hold and stable identity")
+    _ = try desk.reportOrigin(.init(ref: "email:held-budget", status: "new reply"))
+    let heldReload = DeskStore(file: root.appendingPathComponent("desk.json"))
+    try check(heldReload.tasks.first { $0.id == heldTask.id }?.heldAt == holdDate && heldSession.record.items == heldItemsBefore,
+              "hold survives source refresh and disk reload without changing the prepared conversation")
+    let resumed = try await ui.request("desk", body: ["action": "resume", "id": .string(heldTask.id.uuidString)]).decode(Companion.Desk.self)
+    try check(resumed.onHold?.contains { $0.id == heldTask.id } == false && resumed.ready?.contains { $0.task == heldTask.id } == true,
+              "socket resume restores Review without restarting or unlinking")
+    heldSession.isRunning = true
+    try check(call("POST", "/v1/desk/\(heldTask.id)/hold").status == 409 && desk.tasks.first { $0.id == heldTask.id }?.heldAt == nil,
+              "hold refuses a live reply instead of stopping or hiding it")
+    heldSession.isRunning = false
+    do { _ = try await agent.request("desk", body: ["action": "hold", "id": .string(heldTask.id.uuidString)]); try check(false, "agent must not hold tasks") }
+    catch { try check(error.localizedDescription == "permission_denied", "agent intake cannot change Shelby's hold choice") }
+    try desk.complete(heldSession.id)
+    try check(call("POST", "/v1/desk/\(heldTask.id)/hold").status == 404, "completed tasks cannot be put on hold")
+
+    let holdQueueFile = root.appendingPathComponent("hold-queue.json")
+    let holdQueue = DeskStore(file: holdQueueFile)
+    holdQueue.autoStartOverride = false
+    holdQueue.scoreTask = { _, _ in nil }
+    var queueStarts = 0
+    holdQueue.sendFirstMessage = { _, _ in queueStarts += 1 }
+    let heldYes = try holdQueue.add(.init(text: "Pause otherwise automatic preparation", place: archery.name,
+                                        confidence: "yes", reason: "Everything supplied"))
+    try holdQueue.hold(heldYes.id)
+    holdQueue.autoStartOverride = true; holdQueue.autoStartWaiting()
+    try check(queueStarts == 0 && holdQueue.requests.isEmpty && holdQueue.tasks.first?.heldAt != nil,
+              "Yes-confidence task remains held through auto-start checks")
+    do { _ = try holdQueue.start(heldYes.id); try check(false, "held task must not start") }
+    catch { try check(queueStarts == 0, "explicit start also refuses a held task") }
+    try holdQueue.resume(heldYes.id)
+    try check(holdQueue.requests.first?.id == heldYes.id, "unlinked held task resumes to To do with the same ID")
+    let oldHoldWire = try Companion.decoder.decode(Companion.Desk.self, from: Data("{\"revision\":1,\"incoming\":[],\"working\":[],\"needsYou\":[]}".utf8))
+    try check(oldHoldWire.onHold == nil, "older Desk payloads decode without hold capability")
+
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "still no agent started")
     ui.stop(); agent.stop()
     runtime.waitForSaves()

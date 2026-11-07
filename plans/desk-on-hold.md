@@ -1,0 +1,27 @@
+# Put Desk tasks on hold
+
+Shelby requested an On hold column after showing completed preparation that should wait rather than be marked done. The current Desk derives To do, Working, Needs you and Review from task links and thread state, with no durable pause. Add a manual hold that preserves the task, source identity, conversation and finished work.
+
+Current references: [phone Review](../design/desk-board/iphone-board-ready.png), [Mac board](../design/desk-board/mac-board.png), and Shelby's supplied screenshot in this thread. Target:
+```
+To do | Working | Needs you | Review | On hold | Done
+                                      [task / place / held time]
+                                      [Resume] [Open]
+To do/Needs you/Review task menu: Put on hold
+```
+Phone tabs scroll when needed so six states remain readable. Wide boards retain their columns. On hold is manual and excluded from attention badges and automatic starts. Resuming clears the hold and derives the current state from the preserved thread (Review stays Review when still finished). A running reply must finish before holding; hold never stops an agent. No date/snooze scheduler, source status writeback, automatic movement of existing tasks, connector/source review, or real delivery.
+
+- [x] H1 Add optional hold persistence, additive wire data and hold/resume actions on service/HTTP/socket paths. Acceptance: old saves and payloads decode, held tasks occupy exactly one lane, survive restart and source refresh/dedup, cannot start while held, and running/completed tasks reject invalid holds without stopping work.
+- [x] H2 Add Mac On hold column/cards and hold/resume controls, respecting old services. Acceptance: held tasks do not reappear through locally derived Needs you/Working, actions preserve links and outputs, counts exclude held tasks from attention.
+- [x] H3 Add iOS On hold and readable six-state navigation. Acceptance: hold from To do/Review/Needs you task menus, Resume/Open, search/normal navigation and errors/stale states remain clear; old services offer no unsupported action.
+- [x] H4 Verify engine/wire/model/CLI and focused native Mac/iPhone/Duo flows; inspect fresh captures. Acceptance: persistence, de-dup and auto-start regressions pass with no agent/source calls; real menu/lane round trip and resume-to-Review shown on phone, Mac rendering verified.
+- [ ] H5 Commit/push Core then parent and deliver to Mac Dev and paired Dev phone. Acceptance: back up Dev desk state before installation, default safe Dev restart/health checked, direct phone installed versus opened reported separately, no real app/data/restart or TestFlight. Keep issue open pending acceptance.
+
+Success criteria: held items are durable and exclusive to On hold; refresh cannot duplicate/unhold them; resume preserves prior progress; both clients show usable columns and explicit actions. Deliver source/tests/plan and inspected fixture screenshots committed/pushed on main, Mac Dev installed and healthy, Dev phone installed if reachable. No new Core file is planned (existing files only), so regeneration is not needed unless that changes.
+
+Verification: scripts/tests-for.sh --why on actual changed files; scripts/test-desk.sh, scripts/test-work-threads.sh, scripts/test-mac-desk.sh and focused scripts/test-mobile-home-nav.sh scenarios for Desk hold and existing board behavior. Test wire backward compatibility and service action routing in these fixtures. Add test-map links if selection misses coverage. No broad native suite for routine Dev delivery; existing release blockers remain unchanged. Build and simulator pressure limits apply. Rollback: revert scoped commits and reinstall compatible Dev, using the pre-install Dev desk.json backup if needed; do not edit or migrate real data.
+
+Work preparation: user requested this capability now in the ongoing implementation thread. Optional question about resume behavior is pending; default communicated is restore the preserved state. After at least a minute without an answer, proceed with that reversible default. Linear, one executor because engine/wire and both views share one state contract. Model: current session; exact model/effort unavailable. Readiness: pass R1-R13 under the communicated default; no blocking question. Tracking: https://github.com/shelbyklein/chatterbox/issues/59.
+
+
+Validation in progress (baseline parent `57f8e4b`, Core `9ec87f9`): engine Desk, work-thread and native Mac suites pass; source list and diff checks pass. The initial iPhone 17 Pro/iOS 26.2 run passed `testDeskFirstTab` (29.244 s), `testDeskOnHold` (57.699 s) and `testDeskTasks` (24.491 s). A capture review reduced the new tabs from 72 to 56 pt minimum width without changing their text size; final hold-only iPhone (55.565 s) and Duo/iOS 27.1 (66.059 s) runs both pass, with all six tabs visible at normal text size. Final Review/To do captures from both devices were inspected, with readable cards, clear Resume/Open controls and no content clipping. Selector regression passes (1 script, 0 failed/not run). Focused coverage uses fixture-only agents and servers, with no source review or model call. Existing broad-suite release blockers and incomplete coverage remain; this is a focused Dev delivery, not a full-suite green or release claim.

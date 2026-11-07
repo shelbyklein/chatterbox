@@ -27,3 +27,6 @@ scripts/install.sh              test-mac-install.sh
 scripts/lib/mac-install.sh      test-mac-install.sh
 scripts/lib/build-lock.sh       test-mac-install.sh
 tests/mac-install/              test-mac-install.sh
+Core/Chatterbox/Views/DeskView.swift        test-mac-desk.sh
+Core/ChatterboxMobile/MobileDesk.swift     test-mobile-home-nav.sh
+Core/ChatterboxMobile/MobileStore.swift    test-mobile-home-nav.sh

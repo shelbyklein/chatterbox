@@ -36,6 +36,7 @@ PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banne
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
 DESK_SOURCE_PULL=None
 DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];DESK_READY=[];DESK_DONE=[]
+DESK_HOLD_ENABLED=False;DESK_HELD=[];DESK_HELD_RECORDS={}
 # Tasks and work threads (plans/work-threads.md), off unless a test asks (/test/tasks): tasks linked
 # to the working, ready and done threads; the Chatterbox project's session as a front thread with
 # two work threads (one working, one ready). Starts and task changes are recorded in DESK_CALLS.
@@ -60,8 +61,9 @@ def stamp(minutes=0):
 def place_named(name):
  return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
 def desk_reset(empty=False):
- global DESK_SOURCE_PULL,DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE
+ global DESK_SOURCE_PULL,DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,DESK_HOLD_ENABLED,DESK_HELD,DESK_HELD_RECORDS
  DESK_SOURCE_PULL=None
+ DESK_HOLD_ENABLED=False;DESK_HELD=[];DESK_HELD_RECORDS={}
  DESK_CALLS=[];DESK_REVISION+=1;DESK_SILENCED=[]
  # The board (plans/desk-board.md): two sessions ready to mark complete, one done this week.
  DESK_READY=[] if empty else [
@@ -82,6 +84,7 @@ def desk():
   'activity':'Editing Sources/Typography/Engine.swift' if n=='Galley' else 'Thinking\u2026'} for n in RUNNING]
  d={'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
  if DESK_SOURCE_PULL is not None:d["sourcePull"]=DESK_SOURCE_PULL
+ if DESK_HOLD_ENABLED:d["onHold"]=DESK_HELD
  if not TASKS:return d
  def tagged(items,key):
   out=[]
@@ -370,7 +373,36 @@ class Handler(http.server.BaseHTTPRequestHandler):
    return self.reply({'ok':True})
   if self.path=='/test/desk-empty':desk_reset(empty=True);return self.reply({'ok':True})
   if self.path=='/test/tasks':tasks_reset(True);DESK_REVISION+=1;return self.reply({'ok':True})
-  global DESK_LINKED
+  global DESK_LINKED,DESK_HOLD_ENABLED,DESK_HELD,DESK_HELD_RECORDS
+  if self.path=='/test/desk-hold':
+   tasks_reset(True);DESK_HOLD_ENABLED=True;DESK_HELD=[];DESK_HELD_RECORDS={};DESK_REVISION+=1
+   DESK_LINKED.append({'id':cid('task-Tracker Trapper'),'text':'Choose the progress style','chatID':cid('Tracker Trapper')})
+   return self.reply({'ok':True})
+  if self.path.startswith('/v1/desk/') and self.path.endswith(('/hold','/resume')):
+   if not DESK_HOLD_ENABLED:return self.reply({'error':'unsupported'},404)
+   if FAIL:return self.reply({'error':'Fixture hold failed. Try again.'},409)
+   id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
+   DESK_CALLS.append({'action':action,'id':id})
+   if action=='hold':
+    if id in DESK_HELD_RECORDS:return self.reply(desk())
+    task=next((t for t in DESK_LINKED if t['id'].lower()==id),None)
+    found=None
+    for lane,items,key in [('incoming',DESK_INCOMING,'id'),('ready',DESK_READY,'id'),('needsYou',DESK_WAITING,'chatID')]:
+     match=next((r for r in items if r[key].lower()==(task['chatID'].lower() if task else id)),None)
+     if match:found=(lane,match);items.remove(match);break
+    if found is None:return self.reply({'error':'Wait for the reply to finish.'},409)
+    lane,item=found;DESK_HELD_RECORDS[id]=(lane,item)
+    DESK_HELD.append({'id':id,'text':task['text'] if task else item['text'],'heldAt':stamp(),
+                      'place':item.get('place') or (item.get('proposed') or {}).get('name'),
+                      'chatID':task['chatID'] if task else None,'note':item.get('note')})
+   else:
+    saved=DESK_HELD_RECORDS.pop(id,None)
+    if saved is None:return self.reply({'error':'Task gone'},404)
+    lane,item=saved
+    {'incoming':DESK_INCOMING,'ready':DESK_READY,'needsYou':DESK_WAITING}[lane].append(item)
+    DESK_HELD=[h for h in DESK_HELD if h['id'].lower()!=id]
+   DESK_REVISION+=1
+   return self.reply(desk())
   if self.path=='/v1/desk/check-sources':
    global DESK_SOURCE_PULL
    if DESK_SOURCE_PULL is None:
