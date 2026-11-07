@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-07T18:23:57.332112-05:00",
+  "sourceParent": "54f2f5d05bbf8e029a43e867fe301ce6da2790cc",
+  "sourceCore": "4a5b94822b11164b9c9248040d1c6425acc6e9a1",
+  "authorization": "Shelby: ship dedicated Usage widget. Existing explicit approval to proceed despite the known chat-switch failure and incomplete release coverage retained; same limitation reproduced.",
+  "phone": {
+    "device": "Shelby's Duo",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile",
+    "executableSHA256": "6dc7b377d92afd0bbd925af54f93502a8d3dda1c5fb6f0cb2212539aed9e22a6",
+    "installed": true,
+    "launchConfirmed": false,
+    "launchFailure": "Device locked; unlock and open Chatterbox.",
+    "widgetEmbedded": true
+  },
+  "widget": {
+    "kind": "ChatterboxUsage",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.widget",
+    "executableSHA256": "e328e81d77ad38d08e7f3f50851b5b77e3b613dbed14b58136694ac3fd79f4c6",
+    "signatureVerified": true,
+    "allAccountQuotaWindowsIncluded": true
+  },
+  "physicalWidgetAppearanceVerified": false,
+  "releaseSuite": {
+    "command": "scripts/tests-for.sh --run --all --fail-fast",
+    "passed": 11,
+    "failed": 1,
+    "notRun": 101,
+    "failure": "test-chat-switch.sh exit 133 at tests/chat-switch/Coordinator.swift:11; old fade assertion against intentional immediate switch",
+    "testAndImplementationUnchanged": true,
+    "green": false,
+    "approvedKnownLimitation": true
+  },
+  "focusedValidation": "Five native widget tests plus the Usage URL and cold-cache flow passed before shipping. Two bounded visual rounds.",
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "realMacAppServiceHostAndAutomationsHashesUnchanged": true,
+  "testFlightUploaded": false,
+  "deliveredWorkThreads": "No Ready work threads associated with this front thread; existing threads already Done.",
+  "logs": [
+    "build/dedicated-usage-widget-release-suite.log",
+    "build/dedicated-usage-widget-release-phone-build.log",
+    "build/dedicated-usage-widget-release-phone-install.log",
+    "build/dedicated-usage-widget-release-phone-launch.json"
+  ]
+}

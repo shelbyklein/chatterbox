@@ -18,3 +18,9 @@ Baseline parent `7a117b9`, Core `ed603d0`. Adds the separate `ChatterboxUsage` g
 ## Delivery
 
 Core `4a5b948` and parent `ca94612` committed and pushed. Dev installed and opened on Shelby’s Duo. The device Usage extension built and its signature verified; Dev intentionally embeds no widgets, so real Home Screen activation requires Ship. Real Mac app/service/host and Automations hashes are unchanged. No Mac install/service restart or TestFlight. [Delivery metadata](dev-delivery.json). The device build logged an incremental compiler/cache diagnostic but completed and installed successfully; the installed launch result and extension verification were checked separately.
+
+## Real shipment
+
+Shelby explicitly requested “ship dedicated Usage widget”. Re-ran the full release selector against final source: **11 passed, 1 failed, 101 not run**. Same unchanged `test-chat-switch.sh` failure (exit 133, Coordinator.swift:11, old fade assertion); existing explicit waiver retained. Not green; unrun scripts remain unverified. Focused widget/Usage results above passed.
+
+The real phone app and signed embedded `ChatterboxUsage` extension were built and installed directly on Shelby’s Duo. Launch could not be confirmed: the device returned **Locked** (CoreDevice 10002 / FBS RequestDenied). Unlock and open Chatterbox once, then add **Chatterbox → Usage → Large** for all reported windows. Actual Home Screen appearance remains pending physical acceptance. Real Mac app/service/host and Automations hashes unchanged; no Mac restart or TestFlight. No Ready work threads to clear. [Shipment metadata](real-delivery.json).

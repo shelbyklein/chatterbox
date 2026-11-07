@@ -44,3 +44,8 @@ Run `scripts/tests-for.sh --why` and `--run --fail-fast` for changed widget/shar
 No account routing, credentials, proxy settings, provider refresh cadence, model calls, live source checks, activity ordering or real installation changes. The widget reads the app-group cache and does no networking. A bounded phone follow-up uses the existing read-only service endpoint, not a new provider API. Quota timestamps remain distinct from phone sync time. Account display names exist only in the same protected on-device cache; all fixtures and committed screenshots use invented names/values.
 
 Rollback: revert this task's source commits and reinstall through repository scripts. Snapshot fields are optional/additive; there is no migration, data deletion or identity change. Existing widgets remain registered. Unknown fields are ignored by older builds. Open questions: none.
+
+## Shipment
+
+- [x] U4 Ship dedicated Usage widget after Shelby’s explicit request. Real phone app/embedded widget installed on Duo; signatures/kind verified. Full release check: 11 passed, known chat-switch failed, 101 unrun; existing explicit waiver retained. Launch blocked by locked device. Mac/service/config unchanged.
+- [ ] U5 Physical acceptance: unlock/open Chatterbox and add Chatterbox → Usage → Large. Keep issue open pending user acceptance. [Delivery](../design/dedicated-usage-widget/real-delivery.json).
