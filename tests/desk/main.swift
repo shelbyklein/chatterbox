@@ -31,6 +31,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let runtime = try ConversationRuntime(root: root), model = DaemonContext(runtime), server = CompanionServer.shared
     server.model = model
     let desk = DeskStore.shared
+    RuntimeHooks.sourceCheckComplete = { DeskStore.shared.sourceCheckResult($0)?.complete == true }
     var sent: [(chat: UUID, text: String)] = []
     // What each message went out on: switching a continued session comes first.
     var sentOn: [String] = []
@@ -1047,6 +1048,120 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let oldHoldWire = try Companion.decoder.decode(Companion.Desk.self, from: Data("{\"revision\":1,\"incoming\":[],\"working\":[],\"needsYou\":[]}".utf8))
     try check(oldHoldWire.onHold == nil, "older Desk payloads decode without hold capability")
 
+    // Manual source checks deliver individual findings, not a report for another agent.
+    let reporting = try runtime.insert(record("Source reporting chat"))
+    func checkRun(_ name: String) throws -> ChatSession {
+        var r = record(name, items: [DisplayItem(kind: .user, text: "Check the configured sources"),
+                                   DisplayItem(kind: .assistant, text: "Findings submitted.", phase: .final)])
+        r.automationID = UUID(); r.deskSourceCheck = true; r.sidequestOf = reporting.id
+        let run = try runtime.insert(r); run.isRunning = true; return run
+    }
+    let sourceRun = try checkRun("Structured source check")
+    let review = try runtime.insert(record("Prepared source request", items: [DisplayItem(kind: .assistant, text: "Packet ready.", phase: .final)]))
+    let reviewTask = try desk.add(.init(text: "Prepared source request", origin: "clickup:ingest-review", confidence: "no", reason: "Prepared"))
+    try desk.link(reviewTask.id, .init(chatID: review.id))
+    let held = try desk.add(.init(text: "Waiting for next season", origin: "email:ingest-held", confidence: "no", reason: "On hold"))
+    try desk.hold(held.id)
+    let heldBefore = desk.tasks.first { $0.id == held.id }!
+    let manifest = Companion.DeskIngestion(items: [
+        .init(text: "Prepare the spring event banner", place: archery.name, origin: "email:ingest-banner", confidence: "no", reason: "Fixture"),
+        .init(text: "Check the event page copy", place: archery.name, origin: "clickup:ingest-page", confidence: "no", reason: "Fixture"),
+        .init(text: "Do not recreate this held request", origin: "email:ingest-held", confidence: "yes", reason: "New scan")],
+        updates: [.init(ref: "clickup:ingest-review", status: "in progress"), .init(ref: "email:ingest-held", status: "waiting"),
+                  .init(ref: "email:held-budget", status: "complete")], unavailable: [])
+    let result = try await agent.request("deskIngest", body: ["chatID": .string(sourceRun.id.uuidString), "manifest": try .value(manifest)]).decode(Companion.DeskIngestResult.self)
+    try check(result.complete && result.added.count == 2 && Set(result.updated) == [reviewTask.id, held.id, heldTask.id],
+              "ingestion creates two individual requests and updates three existing source identities")
+    let heldAfter = desk.tasks.first { $0.id == held.id }!
+    try check(heldAfter.heldAt == heldBefore.heldAt && heldAfter.confidence == heldBefore.confidence
+        && desk.tasks.first { $0.id == reviewTask.id }?.chatID == review.id
+        && desk.tasks.first { $0.id == heldTask.id }?.completedAt != nil,
+        "ingestion preserves Review links, On hold confidence and Done progress")
+    let receiptReload = DeskStore(file: root.appendingPathComponent("desk.json"))
+    try check(receiptReload.sourceCheckResult(sourceRun.id) == result && result.added.allSatisfy { id in receiptReload.tasks.contains { $0.id == id } },
+              "receipt and all individual task writes persist together")
+    let beforeReplay = desk.revision
+    let replay = try desk.ingest(manifest, in: sourceRun)
+    try check(replay == result && desk.revision == beforeReplay, "replaying a completed manifest returns its original receipt without duplicates")
+    do { _ = try desk.ingest(.init(items: [], updates: [], unavailable: []), in: sourceRun); throw RuntimeFailure("changed manifest accepted after completion") }
+    catch let error as DeskStore.Failure { try check(error.status == 409 && desk.revision == beforeReplay, "a completed check cannot silently accept a different manifest") }
+    let parentItems = reporting.record.items
+    sourceRun.isRunning = false; sourceRun.returnSidequest(to: reporting)
+    try check(sourceRun.record.archivedAt != nil && sourceRun.record.sidequestReturned != nil && reporting.record.items == parentItems && !reporting.isRunning,
+              "successful check dismisses its own thread without a second reporting reply")
+
+    let partialRun = try checkRun("Partial source check")
+    let partial = Companion.DeskIngestion(items: [.init(text: "Prepare the accessible request", origin: "email:ingest-partial", confidence: "no", reason: "Fixture")], updates: [], unavailable: ["Outlook archive unavailable"])
+    let partialResult = try desk.ingest(partial, in: partialRun)
+    partialRun.isRunning = false; partialRun.returnSidequest(to: reporting)
+    try check(!partialResult.complete && partialResult.added.count == 1 && partialRun.record.archivedAt == nil && reporting.record.items == parentItems,
+              "partial findings persist without dismissing the check or advancing to a reporting reply")
+    partialRun.isRunning = true
+    var recovered = partial; recovered.unavailable = []
+    let recovery = try desk.ingest(recovered, in: partialRun)
+    try check(recovery.complete && recovery.added == partialResult.added && desk.tasks.filter { $0.origin?.id == "ingest-partial" }.count == 1,
+              "retry after source recovery keeps the original created IDs and does not duplicate work")
+    partialRun.isRunning = false; partialRun.returnSidequest(to: reporting)
+    try check(partialRun.record.archivedAt != nil, "recovered check dismisses after its complete receipt")
+
+    let invalidRun = try checkRun("Invalid source check")
+    let tasksBeforeInvalid = desk.tasks
+    let invalid = Companion.DeskIngestion(items: [.init(text: "Must roll back", origin: "email:invalid-first", confidence: "no", reason: "Fixture"),
+                                                 .init(text: "Invalid second item", confidence: "yes")], updates: [], unavailable: [])
+    do { _ = try desk.ingest(invalid, in: invalidRun); throw RuntimeFailure("invalid manifest accepted") }
+    catch let error as DeskStore.Failure { try check(error.status == 400 && desk.tasks == tasksBeforeInvalid && desk.sourceCheckResult(invalidRun.id) == nil, "invalid later item rolls back the entire manifest, with no success receipt") }
+    invalidRun.record.deskSourceCheckIncludeNew = false
+    do { _ = try desk.ingest(.init(items: [partial.items[0]], updates: [], unavailable: []), in: invalidRun) }
+    catch { throw RuntimeFailure("existing-only check rejected an already-present request") }
+    let existingOnlyRun = try checkRun("Existing only")
+    existingOnlyRun.record.deskSourceCheckIncludeNew = false
+    do { _ = try desk.ingest(.init(items: [invalid.items[0]], updates: [], unavailable: []), in: existingOnlyRun); throw RuntimeFailure("existing-only added a task") }
+    catch let error as DeskStore.Failure { try check(error.status == 409 && desk.tasks == tasksBeforeInvalid && desk.sourceCheckResult(existingOnlyRun.id) == nil, "existing-only check cannot create new tasks") }
+    let missing = try checkRun("Prose only check")
+    missing.isRunning = false; missing.returnSidequest(to: reporting)
+    try check(missing.record.archivedAt == nil && reporting.record.items == parentItems, "prose alone never completes intake or starts another chat")
+    let zero = try checkRun("Nothing changed")
+    let zeroResult = try desk.ingest(.init(items: [], updates: [], unavailable: []), in: zero)
+    zero.isRunning = false; zero.returnSidequest(to: reporting)
+    try check(zeroResult.complete && zeroResult.added.isEmpty && zeroResult.updated.isEmpty && zero.record.archivedAt != nil,
+              "verified zero-change check finishes quietly")
+    let unwritable = root.appendingPathComponent("ingest-unwritable")
+    try FileManager.default.createDirectory(at: unwritable, withIntermediateDirectories: true)
+    let broken = DeskStore(file: unwritable); broken.autoStartOverride = false
+    let brokenRun = try checkRun("Save failure")
+    do { _ = try broken.ingest(.init(items: [invalid.items[0]], updates: [], unavailable: []), in: brokenRun); throw RuntimeFailure("save failure ignored") }
+    catch { try check(broken.tasks.isEmpty && broken.sourceCheckResult(brokenRun.id) == nil, "failed persistence rolls back findings and never records success") }
+    do { _ = try await agent.request("deskIngest", body: ["chatID": .string(reporting.id.uuidString), "manifest": try .value(manifest)]); throw RuntimeFailure("ordinary chat ingested") }
+    catch { try check(error.localizedDescription == "permission_denied", "ordinary chats cannot complete a source check") }
+
+    // The real CLI talks to this isolated service and submits the exact manifest.
+    sourceRun.isRunning = true; sourceRun.setArchived(false)
+    func runIngestCLI(_ value: Companion.DeskIngestion, chat: UUID, explicit: Bool = false) async throws -> (Int32, Companion.DeskIngestResult) {
+        let manifestFile = root.appendingPathComponent("ingest.json")
+        try Companion.encoder.encode(value).write(to: manifestFile)
+        let cli = Process(), out = Pipe(), err = Pipe()
+        cli.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        cli.arguments = ["-I", FileManager.default.currentDirectoryPath + "/bin/desk", "ingest", manifestFile.path]
+        cli.environment = ProcessInfo.processInfo.environment.merging(["CHATTERBOX_DATA_DIR": root.path]) { _, new in new }
+        if explicit { cli.environment?.removeValue(forKey: "CHATTERBOX_CHAT_ID"); cli.arguments! += ["--chat", chat.uuidString] }
+        else { cli.environment?["CHATTERBOX_CHAT_ID"] = chat.uuidString }
+        cli.standardOutput = out; cli.standardError = err
+        try cli.run(); try await wait("CLI ingestion") { !cli.isRunning }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        if data.isEmpty { throw RuntimeFailure("CLI returned no receipt: " + String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)) }
+        return (cli.terminationStatus, try Companion.decoder.decode(Companion.DeskIngestResult.self, from: data))
+    }
+    let beforeCLI = Set(desk.tasks.map(\.id))
+    let (cliStatus, cliReceipt) = try await runIngestCLI(manifest, chat: sourceRun.id)
+    try check(cliStatus == 0 && cliReceipt == result && Set(desk.tasks.map(\.id)) == beforeCLI,
+              "desk ingest CLI returns the saved receipt through the service")
+    let partialCLI = try checkRun("Partial CLI check")
+    let (partialStatus, partialCLIReceipt) = try await runIngestCLI(partial, chat: partialCLI.id, explicit: true)
+    try check(partialStatus == 2 && !partialCLIReceipt.complete && partialCLI.record.archivedAt == nil,
+              "CLI reports partial ingestion distinctly and supports an explicit run ID for either agent")
+    partialCLI.isRunning = false
+    sourceRun.isRunning = false
+    invalidRun.isRunning = false; existingOnlyRun.isRunning = false; brokenRun.isRunning = false
     try check(runtime.sessions.allSatisfy { $0.claudeProcess == nil } && !CodexAppServer.shared.isRunning, "still no agent started")
     ui.stop(); agent.stop()
     runtime.waitForSaves()

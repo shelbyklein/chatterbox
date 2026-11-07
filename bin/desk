@@ -16,6 +16,9 @@
                     prepare. Final send/publish/follow-up approval does not lower
                     preparation confidence or authorize outbound work.
                     Yes tasks with a place start by themselves.
+  desk ingest FILE [--chat ID]
+                    from an active Desk check: commit a JSON manifest of individual items,
+                    updates and unavailable sources; print its persisted receipt
   desk source REF --status STATUS [--from NAME] [--title T] [--url URL] [--task DESK_ID]
                     what a task's source says now: ClickUp's status ("in progress",
                     "complete"), or an email's "new reply" (--from who wrote it),
@@ -87,11 +90,28 @@ def main():
     src.add_argument("--task", help="update only this Desk task ID; also attaches a missing source")
     listing = commands.add_parser("list", help="all stored tasks, including working, review and done")
     listing.add_argument("--json", action="store_true", help="full board including working, review and done source references, for de-duplication")
+    ingest = commands.add_parser("ingest", help="commit a source check's individual items and updates")
+    ingest.add_argument("file", help="JSON file with items, updates and unavailable arrays (- reads stdin)")
+    ingest.add_argument("--chat", default=os.environ.get("CHATTERBOX_CHAT_ID"), help="the active check session (defaults to CHATTERBOX_CHAT_ID)")
     commands.add_parser("places", help="Studios and projects")
     args = parser.parse_args()
     service = Service()
 
-    if args.command == "add":
+    if args.command == "ingest":
+        if not args.chat:
+            fail("ingest needs the active check's --chat ID or CHATTERBOX_CHAT_ID.")
+        try:
+            manifest = json.load(sys.stdin if args.file == "-" else open(args.file))
+        except (OSError, ValueError) as error:
+            fail(f"couldn't read the ingestion manifest: {error}")
+        result = service.request("deskIngest", {"chatID": args.chat, "manifest": manifest}) or {}
+        if not result.get("finishedAt"):
+            fail("the service returned no saved ingestion receipt.")
+        print(json.dumps(result, ensure_ascii=False))
+        if result.get("unavailable"):
+            print("desk: check incomplete; the available findings were saved, but some sources could not be checked.", file=sys.stderr)
+            sys.exit(2)
+    elif args.command == "add":
         text = args.text.strip()
         if not text:
             fail("say what needs doing.")

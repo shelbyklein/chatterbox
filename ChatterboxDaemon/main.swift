@@ -39,6 +39,7 @@ Task { @MainActor in
         ConnectorServer.shared.onRequest={id,client in runtime.publishUIRequest("connector.request",payload:["id":.string(id.uuidString),"client":.string(client)])}
         ConnectorServer.shared.start()
         RuntimeHooks.clearSuggestions={NextSteps.shared.clear($0)}
+        RuntimeHooks.sourceCheckComplete={DeskStore.shared.sourceCheckResult($0)?.complete == true}
         RuntimeHooks.turnEnded={session in
             NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
             // A sidequest's answer goes back once the turn has settled.

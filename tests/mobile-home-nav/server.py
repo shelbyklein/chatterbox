@@ -403,8 +403,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
     DESK_HELD=[h for h in DESK_HELD if h['id'].lower()!=id]
    DESK_REVISION+=1
    return self.reply(desk())
-  if self.path=='/v1/desk/check-sources':
+  if self.path=='/test/desk-source-result':
    global DESK_SOURCE_PULL
+   partial=bool(body.get('partial',False))
+   DESK_SOURCE_PULL={'routineID':cid('source-routine'),'lastRequestedAt':stamp(10),'threadID':cid('Chatterbox'),'isRunning':False,'needsYou':partial,
+    'result':{'finishedAt':stamp(0),'added':[cid('desk-imported')],'updated':[cid('desk-banner')],'unavailable':['Outlook archive unavailable'] if partial else []}}
+   if partial:DESK_SOURCE_PULL['problem']='Check incomplete · Outlook archive unavailable'
+   if not any(i['id']==cid('desk-imported') for i in DESK_INCOMING):
+    DESK_INCOMING.append({'id':cid('desk-imported'),'text':'Prepare the spring camp poster','source':'codex','createdAt':stamp(0),'proposed':{k:v for k,v in PLACES[0].items() if k!='detail'}})
+   DESK_REVISION+=1
+   return self.reply({'ok':True})
+  if self.path=='/v1/desk/check-sources':
    if DESK_SOURCE_PULL is None:
     DESK_CALLS.append({'action':'checkSources'})
     DESK_SOURCE_PULL={'routineID':cid('source-routine'),'lastRequestedAt':stamp(0),'threadID':cid('Chatterbox'),'isRunning':True,'needsYou':False}

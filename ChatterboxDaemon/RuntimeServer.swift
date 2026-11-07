@@ -221,6 +221,17 @@ import CoreFoundation
                     await s.restartThread()
                     return ["status": s.threadRestartStatus.map(JSON.string) ?? .null]
                 }
+            case "deskIngest":
+                let s = try chat(r.body)
+                guard s.record.deskSourceCheck == true, s.record.automationID != nil, s.isRunning else {
+                    throw RuntimeFailure("permission_denied")
+                }
+                let manifest = try r.body["manifest"]?.decode(Companion.DeskIngestion.self)
+                guard let manifest else { throw RuntimeFailure("invalid_manifest") }
+                let fingerprint = SHA256.hash(data: try r.body.encoded()).map { String(format: "%02x", $0) }.joined()
+                result = try runtime.execute(id: r.id, operation: r.operation, fingerprint: fingerprint) {
+                    try .value(DeskStore.shared.ingest(manifest, in: s))
+                }
             case "desk":
                 // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
                 let action=r.body["action"]?.string ?? "get"

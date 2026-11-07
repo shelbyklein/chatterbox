@@ -1,0 +1,22 @@
+# Desk source-check ingestion validation
+
+Baseline parent `4f5cde2`, Core `2ca56b9`. Issue [60](https://github.com/shelbyklein/chatterbox/issues/60).
+
+Manual Desk checks submit a structured manifest of individual requests and source updates with `desk ingest FILE --chat RUN_ID`. The service uses existing task/source identity rules, persists the complete batch and receipt atomically, then permits the finished check to archive itself. It never starts a second agent reply to interpret the report. Partial findings are saved with unavailable sources named; they do not dismiss the check or claim complete coverage. Missing results, validation errors and failed saves never record success. Scheduled project/General routines retain their normal reporting behavior. No configured schedule, agent, destination, source checkpoint or real source was changed for validation.
+
+## Checks
+
+- `scripts/test-desk.sh` final pass: individual requests and source updates, preserved Review link/On hold confidence/Done state, atomic receipt plus task reload, no duplicate retry, changed completed-manifest refusal, no parent reply after successful archival, partial recovery, invalid manifest rollback, existing-only mode, prose-only incomplete run, zero-change check, failed persistence, permissions, actual CLI RPC and partial exit code. Log `build/desk-check-ingestion-engine-final.log`; artifacts `/tmp/chatterbox-test-desk.DRO3yX`. No model or source review was started.
+- `scripts/test-automation-routines.sh` passes, including unchanged configuration bytes, typed manual-check run marker and explicit run ID in the agent instructions. General/project defaults, targeting, presets and weekday guards remain green in this focused suite. Log `build/desk-check-ingestion-automations-final.log`.
+- `scripts/test-sidequest.sh` final pass, with scripted local providers, verifies ordinary sidequests and automation reports still round-trip. Log `build/desk-check-ingestion-sidequest-final.log`. The Foundation-only engine obtains receipt completion through an injected runtime hook rather than depending on DeskStore; absent hook fails closed.
+- `scripts/test-mac-desk.sh` passes: running header feedback, no report detour, saved completion counts, incomplete state, and existing Desk/On hold/navigation behavior. Log `build/desk-check-ingestion-mac.log`; artifacts `/tmp/chatterbox-mac-desk.HfTvpt`.
+- Focused `testDeskSourceCheck` through `scripts/test-mobile-home-nav.sh`: iPhone 17 Pro / iOS 26.2 passes (13.067 s), Duo / iOS 27.1 passes (20.194 s). It checks no Open check, disabled duplicate request, inline saved counts, new individual task, incomplete-source warning and retry availability. Logs `build/desk-check-ingestion-iphone.log` and `build/desk-check-ingestion-duo.log`. Native UI source/captures were unchanged by the later runtime hook fix; final engine/sidequest tests cover that fix.
+- Selector `--why` points at these five suites for their regression files (`build/desk-check-ingestion-selection.log`). Source/project checks, Python syntax and both repositories' diff checks pass. No new source file; no project regeneration needed.
+
+Initial attempts are not called green: the automation stand-in created a generic Sidechat, omitting the new run marker; it now uses the real automation record factory. The smaller sidequest build exposed a direct DeskStore dependency, replaced by RuntimeHooks and reverified. A Python fixture global declaration was fixed before its native run. Full release suite was not repeated for this focused Dev change; the preceding real shipment had 11 passed, the known chat-switch old-fade failure, 100 not run. No full-suite green is claimed.
+
+## Inspected captures
+
+[Mac complete](mac-complete.png), [Mac incomplete](mac-incomplete.png), [iPhone complete](iphone-complete.png), [iPhone incomplete](iphone-incomplete.png), [Duo complete](duo-complete.png), [Duo incomplete](duo-incomplete.png). These use synthetic fixture content, retain existing native styling, keep status readable and remove the Open check link. The fixture also checks older payloads with five tabs; the existing On hold regression retains six-column coverage. [Before](before.png) is Shelby's supplied screenshot. No live source pull or actual task movement was performed for these screenshots.
+
+Dev delivery pending; real app still has the separately authorized On hold/Recent shipment. Source-check ingestion requires another Ship after Dev delivery.

@@ -199,10 +199,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     var started: [(automation: ProjectAutomation, manual: Bool)] = []
     runner.startRun = { automation, project, manual in
         started.append((automation, manual))
-        let quest = try model.newSidechat(of: project)
-        quest.record.sidequestOf = project.id
-        quest.setTitle("Automation · " + automation.title)
-        return quest
+        let number = model.sessions.filter { $0.record.sidechatOf == project.id }.count + 1
+        return try runtime.insert(ChatSession.automationRunRecord(automation, of: project, number: number, manual: manual))
     }
     AutomationRunner.shared = runner
     let heardBeforeRun = heard
@@ -260,6 +258,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               && instructions.contains("desk list --json") && instructions.contains("never advance"), "source check preserves scope, de-duplicates and retains partial-source checkpoints")
     try check(try Data(contentsOf: ProjectAutomations.configFile) == sourceConfig, "manual source check never rewrites configured prompts or schedules")
     let sourceThread = runtime.session(pull!.threadID!)!
+    try check(sourceThread.record.deskSourceCheck == true && sourceThread.record.sidequestTask?.contains("desk ingest FILE --chat \(sourceThread.id.uuidString)") == true,
+              "manual Desk run is marked before execution and carries its explicit ingestion run ID")
+    try check(instructions.contains("desk ingest FILE") && instructions.contains("individual actionable request") && instructions.contains("unavailable"),
+              "manual check requires individual persisted findings rather than a summary-only report")
     sourceThread.isRunning = true
     let repeated = call("POST", "/v1/desk/check-sources")
     let repeatedDesk = try Companion.decoder.decode(Companion.Desk.self, from: repeated.body)

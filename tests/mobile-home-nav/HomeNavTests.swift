@@ -1828,12 +1828,27 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   let button=app.buttons["desk-check-sources"]
   XCTAssertTrue(button.waitForExistence(timeout:15)); button.tap()
-  XCTAssertTrue(app.buttons["desk-source-check-open"].waitForExistence(timeout:10), "source report is reachable without leaving the Desk")
+  XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "Last requested")).firstMatch.waitForExistence(timeout:10))
+  XCTAssertFalse(app.buttons["desk-source-check-open"].exists, "checking does not create a report detour")
   XCTAssertFalse(button.isEnabled, "a running check cannot be duplicated")
   XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "Last requested")).firstMatch.exists)
   let checks=try await deskCalls().filter { $0["action"] as? String == "checkSources" }
   XCTAssertEqual(checks.count, 1)
   capture("desk-source-check",app)
+  try await fixture("desk-source-result")
+  let result=app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "1 added · 1 updated")).firstMatch
+  XCTAssertTrue(result.waitForExistence(timeout:10), "persisted outcome appears inline above the board")
+  XCTAssertTrue(button.isEnabled)
+  app.buttons["desk-tab-todo"].tap()
+  XCTAssertTrue(app.staticTexts["Prepare the spring camp poster"].waitForExistence(timeout:10), "the individual request is on the Desk")
+  XCTAssertFalse(app.buttons["desk-source-check-open"].exists)
+  capture("desk-check-complete",app)
+  try await fixture("desk-source-result",body:["partial":true])
+  let incomplete=app.staticTexts["Check incomplete · Outlook archive unavailable"]
+  XCTAssertTrue(incomplete.waitForExistence(timeout:10), "partial coverage stays visible")
+  XCTAssertFalse(result.exists, "partial check must not claim successful coverage")
+  XCTAssertTrue(button.isEnabled)
+  capture("desk-check-incomplete",app)
  }
  /// Browsing pages never repeat the Activity destination, in either list or card mode.
  @MainActor func testActivityOnlyInItsTab() async throws {

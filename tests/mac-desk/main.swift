@@ -384,11 +384,24 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(frame("checkSources") != nil, "Desk has Check for updates")
     try await click("checkSources")
     check(desk.snapshot?.sourcePull?.isRunning == true && desk.snapshot?.sourcePull?.lastRequestedAt != nil
-          && frame("sourcePullOpen") != nil && model.showingDesk, "source check stays on Desk with progress, requested time and report link")
+          && frame("sourcePullStatus") != nil && frame("sourcePullOpen") == nil && model.showingDesk, "source check stays on Desk with progress and no report detour")
     let sourceSends = sent.filter { $0["action"]?.string == "checkSources" }.count
     await desk.checkSources()
     check(sent.filter { $0["action"]?.string == "checkSources" }.count == sourceSends, "running source check is not requested twice")
     try snapshot("desk-source-check")
+    service.sourcePull = .init(routineID: UUID(), lastRequestedAt: now, threadID: sdhq.id,
+                              result: .init(finishedAt: now, added: [UUID(), UUID()], updated: [UUID()], unavailable: []))
+    desk.load(service)
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-check-complete")
+    check(frame("sourcePullStatus") != nil && frame("sourcePullOpen") == nil && desk.snapshot?.sourcePull?.result?.summary == "2 added · 1 updated",
+          "completed check shows its saved Desk counts without Open check")
+    service.sourcePull?.result?.unavailable = ["Outlook unavailable"]
+    service.sourcePull?.problem = "Check incomplete · Outlook unavailable"
+    service.sourcePull?.needsYou = true
+    desk.load(service)
+    try await render(AnyView(ContentView()), 2200, 1000, "desk-check-incomplete")
+    check(frame("sourcePullStatus") != nil && frame("sourcePullOpen") == nil && desk.snapshot?.sourcePull?.result?.complete == false,
+          "incomplete check remains visible without claiming successful coverage")
     service.sourcePull = nil; desk.load(service)
     try await Task.sleep(for: .milliseconds(200))
     let columns = keys.compactMap { frame("section:" + $0) }
