@@ -476,8 +476,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(followUp.proposed?.id == dogear.id, "a follow-up is proposed for the same project")
     func threadsOf(_ response: HTTPResponse) throws -> [Companion.DeskThread] { try Companion.decoder.decode([Companion.DeskThread].self, from: response.body) }
     let threads = try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads"))
-    try check(threads.first?.id == side.summary.id && threads.first?.match == "clear" && threads.first?.title == side.summary.title,
-              "threads: the session started for the same work first, a clear match: \(threads.map { "\($0.title) \($0.match)" })")
+    // That session carries the highlights task, so it's listed first but never pre-selected:
+    // continuing it would send that task back to To do (Shelby, 2026-11-07).
+    try check(threads.first?.id == side.summary.id && threads.first?.match == "possible" && threads.first?.task != nil && threads.first?.title == side.summary.title,
+              "threads: the session doing the same work first, but not clear while it carries another task: \(threads.map { "\($0.title) \($0.match)" })")
+    try desk.unlink(highlights.id)
+    let freed = try threadsOf(call("GET", "/v1/desk/\(followUp.id)/threads"))
+    try check(freed.first?.id == side.summary.id && freed.first?.match == "clear", "once it carries no task, it's the clear match again")
+    try desk.link(highlights.id, .init(chatID: side.summary.id))
     try check(threads.contains { $0.id == branch.id && $0.match == "possible" } && threads.count <= DeskStore.threadLimit,
               "and the project's worktree doing similar work, as possible")
     try check(!threads.contains { $0.id == elsewhereSync.id } && !threads.contains { $0.title == archivedSync.title } && !threads.contains { $0.id == phoneSide.summary.id },
