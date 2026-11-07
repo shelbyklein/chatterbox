@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-07T14:31:54.818853-05:00",
+  "sourceParent": "3d8121ccf831d4f214d38f60ac588bd007e4eb23",
+  "sourceCore": "368b1c2c611d53a717512c97ad69fe87842ffb7c",
+  "shipRequested": true,
+  "status": "Signed candidates ready; waiting for a decision on incomplete release coverage.",
+  "releaseSuite": {
+    "command": "scripts/tests-for.sh --run --all --fail-fast",
+    "passed": 11,
+    "failed": 1,
+    "notRun": 101,
+    "failure": "test-chat-switch.sh exit 133 at tests/chat-switch/Coordinator.swift:11; old fade assertion versus intentional immediate switch",
+    "baselineParent": "343c0b0",
+    "baselineCore": "2ca56b9",
+    "testAndImplementationUnchangedFromBaseline": true,
+    "log": "build/rate-limit-retry-release-suite.log"
+  },
+  "mac": {
+    "path": "build/DerivedData/Build/Products/Debug/Chatterbox.app",
+    "bundleID": "com.shelbyklein.Chatterbox",
+    "executableSHA256": "8af264d4dfdbd704bb01bba328a7bebb1a9e6f3edee8f1881046fc29b050f9e0",
+    "signatureVerified": true,
+    "installed": false
+  },
+  "phone": {
+    "path": "build/DerivedDataMobile/Build/Products/Release-iphoneos/Chatterbox.app",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile",
+    "executableSHA256": "bae10a04e1e682138ce627d06d8461aa80e2f9e6138612aa0065a4522124d5f1",
+    "signatureVerified": true,
+    "installed": false
+  },
+  "widget": {
+    "path": "build/DerivedDataMobile/Build/Products/Release-iphoneos/Chatterbox.app/PlugIns/ChatterboxWidget.appex",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.widget",
+    "executableSHA256": "944fe90bd29b455b80e33c64767f0c12046be98c663d58da188a5721f0098da9",
+    "signatureVerified": true,
+    "installed": false
+  },
+  "realAppServiceAndAutomationHashesUnchanged": true,
+  "realServiceRestarted": false,
+  "testFlightUploaded": false,
+  "tidy": {
+    "removable": 0,
+    "kept": 8,
+    "applied": false
+  }
+}

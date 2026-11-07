@@ -29,3 +29,7 @@ All values are synthetic. Real app/service/data/pairings have not been changed. 
 - Xcode printed its existing OS-build-string, cache-miss and unrelated Swift warning diagnostics; the build continued successfully and the device installation/launch commands succeeded. These are not a claim of a warning-free build.
 - No Mac binary/service change was needed. No TestFlight upload, real installation, real source review or quota refresh was performed. Physical widget refresh and SpringBoard rendering remain pending real activation; native fixtures are the visual proof available now.
 - Read-only simulator tidy: **0 removable, 8 kept** (`build/widget-usage-tidy.log`); test devices are shut down, the unrelated active Duo simulator was preserved. No cleanup apply was run.
+
+## Release check, November 7
+
+Shelby requested Ship. The final-source release run stopped with **11 passed, 1 failed, 101 not run**. `test-chat-switch.sh` failed at `tests/chat-switch/Coordinator.swift:11` (exit 133), the same old-fade assertion previously disclosed. Both that test and `ChatSwitchTransition` are unchanged from the prior shipped baseline (parent `343c0b0`, Core `2ca56b9`). Remaining tests are unverified; this is not a green release suite. Signed Mac and real-phone candidates, including the widget extension, built successfully. No real installation/restart occurred, and real executable/configuration hashes are unchanged. The current coverage decision remains pending Shelby under AGENTS.md. See [release check record](../rate-limit-retry/release-check.json).

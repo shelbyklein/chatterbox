@@ -37,3 +37,7 @@ Real deployment and issue closure remain pending Shelby. Dev delivery is recorde
 - Real app/service executable and real Automations.json hashes match their pre-delivery values. No real install/restart, account/proxy configuration change, live prompt, live retry or TestFlight upload was performed.
 - Read-only simulator tidy reports **0 removable, 8 kept** (`build/rate-limit-retry-tidy.log`). Owned test simulators are shut down; the unrelated active Duo simulator was preserved. No cleanup apply was run.
 - [Delivery metadata](dev-delivery.json) records build identity and observed activation separately. The remaining user gate is Ship to the real apps; issue 62 stays open.
+
+## Release check, November 7
+
+Shelby requested Ship. The final-source release run stopped with **11 passed, 1 failed, 101 not run**. `test-chat-switch.sh` failed at `tests/chat-switch/Coordinator.swift:11` (exit 133), the same old-fade assertion previously disclosed. Both that test and `ChatSwitchTransition` are unchanged from the prior shipped baseline (parent `343c0b0`, Core `2ca56b9`). Remaining tests are unverified; this is not a green release suite. Signed Mac and real-phone candidates, including the widget extension, built successfully. No real installation/restart occurred, and real executable/configuration hashes are unchanged. The current coverage decision remains pending Shelby under AGENTS.md. See [release check record](../rate-limit-retry/release-check.json).
