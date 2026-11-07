@@ -43,3 +43,7 @@ Rollback: revert this task's source commits and reinstall the appropriate flavor
 ## Delivery
 
 Core `c24a0bd` and parent source `cd3f830` committed/pushed to main. Phone Dev installed and opened on Shelby's Duo using `scripts/install-phone.sh --dev "Shelby's Duo"`; the script and subsequent bundle inspection confirm Dev flavor and no embedded widget. The actual WidgetKit extension target also compiled as part of the device build. See [validation](../design/widget-usage/validation.md) and [delivery metadata](../design/widget-usage/dev-delivery.json). No Mac install/restart or real phone/widget update was performed. Widget activation remains pending Ship.
+
+## Real shipment
+
+Shipped November 7 after Shelby explicitly accepted the known chat-switch failure and incomplete release coverage (11 passed, 1 failed, 101 not run). Real Mac installed/reopened, service healthy after a between-turns restart; real Duo installed and opened, widget extension included. Physical widget appearance remains unverified. See [shipment evidence](../design/rate-limit-retry/real-delivery.json). Issue remains open for acceptance.

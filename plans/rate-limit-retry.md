@@ -44,3 +44,7 @@ See [validation and native captures](../design/rate-limit-retry/validation.md). 
 ## Dev delivery
 
 Core `368b1c2` and parent source `dbf926a` committed/pushed to main. Mac Dev installed/reopened, default idle restart at 14:06:43, service PID 57993 healthy at 14:06:46; a fresh socket read also returned ready and the installed app/service match the build bytes. Phone Dev installed on Shelby's Duo; automatic launch could not be confirmed, so open it on the phone. Real app/service executable and automation-config hashes remain unchanged. [Delivery metadata](../design/rate-limit-retry/dev-delivery.json). Real shipment and issue closure remain pending Shelby.
+
+## Real shipment
+
+Shipped November 7 after Shelby explicitly accepted the known chat-switch failure and incomplete release coverage (11 passed, 1 failed, 101 not run). Real Mac installed/reopened, service healthy after a between-turns restart; real Duo installed and opened, widget extension included. Physical widget appearance remains unverified. See [shipment evidence](../design/rate-limit-retry/real-delivery.json). Issue remains open for acceptance.

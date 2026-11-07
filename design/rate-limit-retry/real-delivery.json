@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-07T15:14:16.083853-05:00",
+  "sourceParent": "098dfd706d90aff902cdd4e9048700072f9866de",
+  "sourceCore": "368b1c2c611d53a717512c97ad69fe87842ffb7c",
+  "authorization": "Shelby: Ship despite the known chat-switch test failure and incomplete release coverage",
+  "mac": {
+    "bundleID": "com.shelbyklein.Chatterbox",
+    "executableSHA256": "c94b4241c67418876fad1bd2604dedd8e5f8518dcf77a5f4d9075e706c04412a",
+    "version": "0.1.0",
+    "build": "1",
+    "installed": true,
+    "reopened": true,
+    "installedMatchesBuild": true,
+    "serviceHealth": "ready",
+    "servicePID": 90204,
+    "serviceSHA256": "0fcee207d8970be09c05ff7af0e07f02595b0d126224d253dbc80d7bf302f337",
+    "restartReport": [
+      "2026-11-07 15:13:19 waiting for a gap between replies: restart once no reply has produced anything for 3s, at the latest 1200s from now",
+      "2026-11-07 15:13:28 restart rule: between turns",
+      "2026-11-07 15:13:28 restarting chatterboxd (was pid 85913)",
+      "2026-11-07 15:13:46 chatterboxd pid 90204, health ok after 18s; app pid 89598"
+    ]
+  },
+  "phone": {
+    "bundleID": "com.shelbyklein.Chatterbox.mobile",
+    "executableSHA256": "bae10a04e1e682138ce627d06d8461aa80e2f9e6138612aa0065a4522124d5f1",
+    "version": "1.0",
+    "build": "1",
+    "installed": true,
+    "launchCommandSucceeded": true,
+    "device": "Shelby's Duo",
+    "widgetEmbedded": true,
+    "physicalWidgetVisuallyVerified": false
+  },
+  "widget": {
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.widget",
+    "executableSHA256": "944fe90bd29b455b80e33c64767f0c12046be98c663d58da188a5721f0098da9",
+    "version": "1.0",
+    "build": "1"
+  },
+  "automationsHashUnchanged": true,
+  "testFlightUploaded": false,
+  "releaseSuite": {
+    "passed": 11,
+    "failed": 1,
+    "notRun": 101,
+    "knownFailure": "test-chat-switch.sh exit 133 at Coordinator.swift:11; old fade assertion; source and test unchanged",
+    "green": false,
+    "userAuthorizedProceeding": true
+  },
+  "logs": {
+    "mac": "build/rate-limit-retry-release-mac-install.log",
+    "phone": "build/rate-limit-retry-release-phone-install.log",
+    "suite": "build/rate-limit-retry-release-suite.log"
+  }
+}

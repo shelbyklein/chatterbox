@@ -3,7 +3,7 @@
   "sourceParent": "3d8121ccf831d4f214d38f60ac588bd007e4eb23",
   "sourceCore": "368b1c2c611d53a717512c97ad69fe87842ffb7c",
   "shipRequested": true,
-  "status": "Signed candidates ready; waiting for a decision on incomplete release coverage.",
+  "status": "Shipped after Shelby explicitly approved the known failure and incomplete coverage.",
   "releaseSuite": {
     "command": "scripts/tests-for.sh --run --all --fail-fast",
     "passed": 11,
@@ -43,5 +43,6 @@
     "removable": 0,
     "kept": 8,
     "applied": false
-  }
+  },
+  "disposition": "real-delivery.json"
 }
