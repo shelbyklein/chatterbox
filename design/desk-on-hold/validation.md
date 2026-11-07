@@ -18,3 +18,8 @@ Use a task card's menu to **Put on hold**, then **Resume** to return to the stat
 ## Captures and boundaries
 
 [Mac fixture](mac.png) was visually inspected. Final [iPhone Review hold](iphone-review.png), [iPhone To do hold](iphone-todo.png), [Duo Review hold](duo-review.png) and [Duo To do hold](duo-todo.png) were visually inspected: all six tabs visible at normal text size, readable cards and Resume/Open controls, no content clipping. Screenshots contain synthetic fixture content. Tests use local isolated servers, not real sources or models. The broad suite was not repeated for this focused Dev change; previously recorded unrelated chat-switch/chat-rendering failures and incomplete release coverage remain unresolved. No full-suite green or real shipment is claimed.
+
+
+## Dev delivery
+
+Source Core `2ca56b9`, parent `768de6b` pushed to main before delivery. Mac Dev installed and reopened, then its default restart selected an idle gap at 19:06:43; PID 72190 healthy at 19:06:46. A fresh read-only socket handshake confirms ready, On hold data and General automation support. Dev Desk state was backed up outside version control. The Dev app installed and opened directly on Shelby's Duo; no TestFlight. [Delivery proof](dev-delivery.json) records product identities/hashes and distinct install/launch results. Real app, service executable and Automations.json hashes are unchanged. Tidy report confirms both owned test devices shut down; no cleanup apply was run. No actual user task was moved for proof. Issue remains open for acceptance.
