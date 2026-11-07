@@ -85,6 +85,62 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         call("POST", "/v1/desk", try encode(Companion.DeskAddRequest(text: text, place: place, note: note)))
     }
 
+    let retryFile = root.appendingPathComponent("retry-attachment.txt")
+    try Data("Original attachment".utf8).write(to: retryFile)
+    let retryAttachment = Attachment(name: "Notes.txt", path: retryFile.path, mediaType: "text/plain", kind: .text)
+    let failedRequest = DisplayItem(kind: .user, text: "Should we roll Arcade into Button Test?", attachments: [retryAttachment], agent: .claude)
+    let failure = DisplayItem(kind: .notice, text: "Claude Code reported a problem: API Error: Request rejected (429) · All credentials are cooling down (rate_limit_error)")
+    let limitedSession = try runtime.insert(record("Rate-limit fixture", items: [failedRequest, failure]))
+    var retryCommands: [(String, JSON)] = []
+    limitedSession.remoteCommand = { method, body in
+        retryCommands.append((method, body))
+        if method == "settings", let backend = body["backend"]?.string.flatMap(Backend.init(rawValue:)) {
+            limitedSession.record.activeBackend = backend
+        }
+    }
+    let offer = Companion.RateLimitRetry(requestID: failedRequest.id, backend: "codex")
+    let retryPath = "/v1/chats/\(limitedSession.id)/retry-rate-limit"
+    let retryDetail = try Companion.decoder.decode(Companion.ChatDetail.self, from: call("GET", "/v1/chats/\(limitedSession.id)").body)
+    try check(retryDetail.rateLimitRetry == offer, "Claude's terminal rate limit offers Codex with the original request ID")
+    try check(request("POST", retryPath, try encode(offer), [:]).status == 401, "retry requires pairing")
+    try check(call("POST", retryPath, Data("{}".utf8)).status == 400, "malformed retry is rejected")
+    try check(call("POST", retryPath, try encode(Companion.RateLimitRetry(requestID: failedRequest.id, backend: "claude"))).status == 409
+        && retryCommands.isEmpty, "a retry cannot pick the blocked provider")
+    limitedSession.isRunning = true
+    try check(limitedSession.rateLimitedRequest == nil && call("POST", retryPath, try encode(offer)).status == 409, "a running turn cannot be retried or interrupted")
+    limitedSession.isRunning = false
+    limitedSession.record.openModel = "fixture-open-model"
+    try check(limitedSession.rateLimitedRequest == nil, "open-model failures do not offer a provider switch")
+    limitedSession.record.openModel = nil
+    limitedSession.record.items[1].text = "Claude Code reported a problem: authentication failed (401)"
+    try check(limitedSession.rateLimitedRequest == nil, "authentication failures do not claim a rate limit")
+    limitedSession.record.items[1] = DisplayItem(kind: .assistant, text: "Here is an example of a rate_limit_error (429).", phase: .final)
+    try check(limitedSession.rateLimitedRequest == nil, "ordinary reply text cannot trigger a retry offer")
+    limitedSession.record.items[1] = failure
+    limitedSession.record.items.append(DisplayItem(kind: .user, text: "A newer request"))
+    try check(call("POST", retryPath, try encode(offer)).status == 409 && retryCommands.isEmpty, "a stale button never retries an older request")
+    limitedSession.record.items = [failedRequest, failure]
+    try FileManager.default.removeItem(at: retryFile)
+    try check(call("POST", retryPath, try encode(offer)).status == 409 && retryCommands.isEmpty, "missing original attachments fail before changing provider")
+    try Data("Original attachment".utf8).write(to: retryFile)
+    let retryResponse = call("POST", retryPath, try encode(offer))
+    try check(retryResponse.status == 200 && retryCommands.map(\.0) == ["settings", "send"], "retry switches provider before resending in one request")
+    try check(retryCommands[0].1["backend"]?.string == "codex"
+        && retryCommands[1].1["text"]?.string == failedRequest.text, "retry uses Codex and the exact original prompt")
+    let retriedAttachments = try JSONDecoder().decode([Attachment].self, from: JSONEncoder().encode(retryCommands[1].1["attachments"]!))
+    try check(retriedAttachments == [retryAttachment] && limitedSession.record.items.last?.attachments == [retryAttachment], "retry retains the original attachment without a new upload")
+    try check(call("POST", retryPath, try encode(offer)).status == 409 && retryCommands.count == 2, "repeated stale retry cannot send twice")
+    limitedSession.record.items = [DisplayItem(kind: .user, text: "Codex request"), DisplayItem(kind: .notice, text: "Codex hit an error: You have hit your ChatGPT usage limit.")]
+    let codexRequest = limitedSession.record.items[0]
+    try check(limitedSession.rateLimitedRequest?.id == codexRequest.id, "Codex usage limits also expose the failed request")
+    let reverse = Companion.RateLimitRetry(requestID: codexRequest.id, backend: "claude")
+    try check(call("POST", retryPath, try encode(reverse)).status == 200 && retryCommands[2].1["backend"]?.string == "claude", "Codex failure switches to Claude on request")
+    limitedSession.record.items = [failedRequest, failure]
+    limitedSession.record.activeBackend = .codex
+    try check(limitedSession.rateLimitedRequest == nil, "manually switching away from a failed provider hides the old offer")
+    limitedSession.remoteCommand = nil
+    try runtime.remove(limitedSession.id)
+
     try check(request("GET", "/v1/desk", Data(), [:]).status == 401, "the Desk needs a paired token")
     try check(request("POST", "/v1/desk", try encode(Companion.DeskAddRequest(text: "x")), [:]).status == 401 && desk.requests.isEmpty, "adding needs one too")
     let empty = try deskOf(call("GET", "/v1/desk"))

@@ -145,6 +145,7 @@ def automation(id):
  return next((a for a in AUTOMATIONS if id.lower() in [i.lower() for i in a['ids']]),None)
 automations_reset()
 SENT={}
+RATE_LIMIT=None;RATE_RETRIES=[];RATE_RETRIED=None
 PRESSURE=None
 def pressure(level):
  if level=='ok':return {'level':'ok','updatedAt':'2099-01-01T00:00:00Z','updated':4070908800,'summary':'load 6.0 on 16 cores','memory':'normal','swapUsedGB':1.0,'swapGrowthGB':0,'load1':6,'load5':6,'load15':6,'cores':16,'thermal':'nominal','holding':[],'waiting':0}
@@ -156,6 +157,8 @@ def pressure(level):
    else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
 
 def reset():
+ global RATE_LIMIT,RATE_RETRIES,RATE_RETRIED
+ RATE_LIMIT=None;RATE_RETRIES=[];RATE_RETRIED=None
  global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE,WORK_LISTED
  PRESSURE=None
  RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False;WORK_LISTED=False
@@ -260,6 +263,20 @@ def detail(id):
   d['items'].append({'id':cid('about-outputs'),'kind':'assistant','text':"The board is live: https://snippets.shelbyklein.com/chatterbox/desk-board.html\n\n```draft\nSubject: Desk board\n\nHi team, the board is ready.\n```",'isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[
    {'id':cid('magnet-proof'),'name':'Board spec.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PROOF)},
    {'id':cid('magnet-photo'),'name':'desk-board.png','mediaType':'image/png','isImage':True,'revision':'1'}],'isQueued':False})
+ if RATE_LIMIT and id.lower()==cid('Chatterbox'):
+  source=RATE_LIMIT.get('backend','claude');target='codex' if source=='claude' else 'claude'
+  d['summary']=dict(s,backend=RATE_RETRIED or source,isRunning=RATE_LIMIT.get('running',False),isWaitingOnYou=False)
+  d['settings']=('Codex · GPT-6.1-Sol' if d['summary']['backend']=='codex' else 'Claude · Opus 5.5')
+  d['options']=dict(options,backend=d['summary']['backend'],model='gpt-6.1-sol' if d['summary']['backend']=='codex' else 'opus')
+  original=dict(items[0],text='Should we roll Arcade into Button Test?')
+  failure=dict(items[1],kind='notice',text=('Claude Code reported a problem: ' if source=='claude' else 'Codex hit an error: ')+('Authentication failed (401)' if RATE_LIMIT.get('ordinary') else 'API Error: Request rejected (429). This request would exceed your account rate limit. Please try again later.'))
+  d['items']=[original,failure]
+  if RATE_RETRIED:
+   d['revision']=2
+   d['items']+=[dict(original,id=cid('rate-retried')),dict(items[1],id=cid('rate-retry-answer'),text='Retry received by '+RATE_RETRIED+'.')]
+  elif not RATE_LIMIT.get('ordinary') and not RATE_LIMIT.get('running'):
+   d['rateLimitRetry']={'requestID':original['id'],'backend':target}
+  assert len({item['id'] for item in d['items']})==len(d['items'])
  return d
 RICH_ITEMS={
  'Galley':[
@@ -333,6 +350,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
  def do_POST(self):
   global FAIL,STARTED,LIST_DELAY,DESK_WAITING,DESK_INCOMING,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,AUTOMATION_RAN,AUTOMATION_REPORT_PREPARED,RICH,OFFLINE,WORK_LISTED
   body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or '{}')
+  global RATE_LIMIT,RATE_RETRIED
+  if self.path=='/test/rate-limit':RATE_LIMIT=body;return self.reply({'ok':True})
+  if self.path.startswith('/v1/chats/') and self.path.endswith('/retry-rate-limit'):
+   id=self.path.split('/')[3];offer=detail(id).get('rateLimitRetry')
+   if not offer or body.get('requestID','').lower()!=offer['requestID'].lower() or body.get('backend')!=offer['backend']:return self.reply({'error':'This request is no longer waiting for a retry.'},409)
+   RATE_RETRIES.append(body)
+   if RATE_LIMIT.get('fail'):return self.reply({'error':'Could not reach the Mac. Try again.'},503)
+   RATE_RETRIED=body['backend']
+   return self.reply(detail(id))
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
   global PRESSURE
   if self.path.startswith('/test/pressure/'):PRESSURE=pressure(self.path.rsplit('/',1)[1]);return self.reply({'ok':True})
@@ -540,6 +566,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    REMOVED.add(self.path.split('/')[3].lower());MUTATIONS.append('delete');return self.reply({'ok':True})
   self.send_error(404)
  def do_GET(self):
+  if self.path=='/test/rate-retries':return self.reply(RATE_RETRIES)
   if OFFLINE and self.path.startswith('/v1/'):time.sleep(8)
   if self.path=='/test/mutations':return self.reply(MUTATIONS)
   if self.path=='/test/desk-calls':return self.reply(DESK_CALLS)

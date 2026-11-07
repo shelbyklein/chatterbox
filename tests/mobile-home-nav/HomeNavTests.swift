@@ -2096,6 +2096,44 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Close Mac Screen"].tap()
  }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
+ @MainActor func testRateLimitRetry() async throws {
+  for source in ["claude","codex"] {
+   try await fixture("reset")
+   try await fixture("rate-limit",body:["backend":source])
+   let target=source=="claude" ? "Codex" : "Claude"
+   let app=XCUIApplication()
+   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort,
+                          "CHATTERBOX_PREFERENCES_SUITE":"rate-retry-"+UUID().uuidString]
+   app.launchArguments=["-mobileChatListPage","projects","-deskIntroduced","YES"]
+   app.launch()
+   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
+   let chat=app.buttons["chat-"+uuid("Chatterbox")]
+   XCTAssertTrue(chat.waitForExistence(timeout:10));chat.tap()
+   let retry=app.buttons["rate-limit-retry"]
+   XCTAssertTrue(retry.waitForExistence(timeout:10))
+   XCTAssertEqual(retry.label,"Switch to \(target) and ask again")
+   let sourceName=source=="claude" ? "Claude" : "Codex"
+   let explanation=app.staticTexts["\(sourceName) is rate-limited. Try \(target) instead."]
+   XCTAssertTrue(explanation.exists)
+   XCTAssertGreaterThanOrEqual(explanation.frame.minX,0)
+   XCTAssertLessThanOrEqual(explanation.frame.maxX,app.frame.width)
+   capture("rate-limit-"+source,app)
+   let composer=field("messageComposer",app)
+   composer.tap();composer.typeText("A separate draft")
+   app.scrollViews["chatTranscript"].swipeDown()
+   for _ in 0..<3 where !retry.isHittable {app.scrollViews["chatTranscript"].swipeUp()}
+   XCTAssertTrue(retry.isHittable);retry.tap()
+   XCTAssertTrue(app.staticTexts["Retry received by "+target.lowercased()+"."].waitForExistence(timeout:8))
+   XCTAssertEqual(composer.value as? String,"A separate draft","retry preserves the draft")
+   XCTAssertFalse(retry.exists,"the completed retry offer disappears")
+   let requests=try await fixture("rate-retries",method:"GET") as? [[String:Any]]
+   XCTAssertEqual(requests?.count,1)
+   XCTAssertEqual(requests?.first?["backend"] as? String,target.lowercased())
+   capture("rate-limit-retried-"+source,app)
+   app.terminate()
+  }
+ }
+
  @MainActor func testUsage() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
