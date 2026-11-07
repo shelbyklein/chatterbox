@@ -49,3 +49,7 @@ Rollback: revert only this task's source commits and reinstall the appropriate p
 ## Dev delivery
 
 Core `ed603d0`, parent source `1d60ba6` committed/pushed to main. Phone Dev installed and opened on Shelby's Duo. The device widget extension built and its signature verified; Dev does not embed it. Real app/service/configuration hashes stayed unchanged. [Delivery evidence](../design/widget-usage-bars/dev-delivery.json). Real widget activation awaits Ship; issue 63 remains open.
+
+## Real shipment
+
+Shipped the phone/widget November 7 from parent `b383c9f`, Core `ed603d0`. Final release run: 11 passed, the same approved chat-switch failure, 101 unrun; source and assertion unchanged. Retained Shelby's explicit approval for that known limitation. Installed on Shelby's Duo with widget extension; opening requires unlocking the phone. No Mac install/service restart or TestFlight. [Real delivery evidence](../design/widget-usage-bars/real-delivery.json). Physical widget appearance and user acceptance remain pending.
