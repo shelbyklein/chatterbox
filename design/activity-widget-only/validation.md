@@ -16,4 +16,4 @@ Baseline parent `e3ab4cf`, Core `e56b645`. Removed usage from the activity widge
 
 ## Delivery
 
-Pending Core/parent commits and phone Dev installation. Dev embeds no widgets, so real Home Screen activation requires Ship. No Mac install/service restart or TestFlight is planned.
+Core `b170c98` and parent source `87e8448` committed and pushed. Phone Dev installed on Shelby’s Duo; launch was denied because the device is locked (CoreDevice10002/FBS Locked). Signed device extension built and verified, with Usage and New Chat retained. Dev embeds no widgets, so real Home Screen activation requires Ship. Real Mac app/service/host and automation hashes unchanged. No Mac install/service restart or TestFlight. [Delivery metadata](dev-delivery.json).
