@@ -135,6 +135,60 @@ do {
     check(MacPressure.Thresholds(preferences: { _ in nil }) == .defaults, "nothing set: the defaults")
 }
 
+// Load counts only while the CPU is busy too: macOS's load counts threads ready to run, so a burst of
+// waking threads reads high with the cores mostly idle (2026-11-08: load 113 on 16 cores, CPU 18% in use).
+func loadCPU(_ value: Double, _ cpu: Double?) -> (Int) -> R { { _ in R(memory: .normal, swapUsed: 2 * GB, load1: value, cores: 16, cpuBusy: cpu) } }
+do {
+    var e = MacPressure.Evaluator()
+    var changes = run(&e, from: 0, to: 600, loadCPU(113, 0.18))
+    check(changes.isEmpty && e.level == .ok, "load 113 with the CPU 18% in use for 10 min: still OK")
+    check(e.summary.contains("load 113 on 16 cores, CPU 18% in use"), "the readings show the CPU: \(e.summary)")
+    changes = run(&e, from: 610, to: 670, loadCPU(60, 0.9))
+    check(changes.first?.0 == 670 && changes.first?.1.to == .overloaded, "load 60 with the CPU 90% in use for a minute: Overloaded")
+    check(e.reasons.first?.contains("load 60 on 16 cores (over 3\u{00D7}) for 1 min, CPU 90% in use") == true, "with the CPU in the why: \(e.reasons)")
+    // The load stays high but the CPU goes quiet: that counts as calm, so it steps down.
+    changes = run(&e, from: 680, to: 850, loadCPU(60, 0.2))
+    check(changes.isEmpty && e.level == .overloaded, "CPU quiet for under 3 min: still Overloaded")
+    changes = run(&e, from: 860, to: 860, loadCPU(60, 0.2))
+    check(changes.first?.0 == 860 && changes.first?.1.to == .ok, "CPU quiet for 3 min with load still 60: OK")
+}
+do {
+    // Busy needs the CPU sustained too: one quiet reading restarts the 2 minutes.
+    var e = MacPressure.Evaluator()
+    var changes = run(&e, from: 0, to: 110) { t in R(swapUsed: 2 * GB, load1: 30, cores: 16, cpuBusy: t == 60 ? 0.3 : 0.8) }
+    changes += run(&e, from: 120, to: 170, loadCPU(30, 0.8))
+    check(changes.isEmpty && e.level == .ok, "a CPU dip inside the 2 minutes restarts them: OK")
+    changes = run(&e, from: 180, to: 190, loadCPU(30, 0.8))
+    check(changes.first?.0 == 190 && changes.first?.1.to == .busy, "2 min busy CPU since the dip: Busy")
+    // Exactly at the line counts.
+    var edge = MacPressure.Evaluator()
+    check(run(&edge, from: 0, to: 120, loadCPU(30, 0.6)).first?.1.to == .busy, "CPU at exactly 60%: load counts")
+    // Unknown CPU (the first reading, or no counters): load counts alone, as before.
+    var unknown = MacPressure.Evaluator()
+    check(run(&unknown, from: 0, to: 60, loadCPU(60, nil)).first?.1.to == .overloaded, "CPU unknown: load counts alone")
+    // Memory, swap and heat don't need the CPU.
+    var memory = MacPressure.Evaluator()
+    check(run(&memory, from: 0, to: 0) { _ in R(memory: .critical, load1: 4, cpuBusy: 0.05) }.first?.1.to == .overloaded, "memory critical with an idle CPU: Overloaded")
+}
+do {
+    let set = { (prefs: [String: Any]) in MacPressure.Thresholds(preferences: { prefs[$0] }).loadNeedsCPU }
+    check(set([:]) == 0.6 && set(["pressure.loadCPUPercent": 75]) == 0.75 && set(["pressure.loadCPUPercent": "80"]) == 0.8,
+          "the CPU line: 60% by default, or the preference's percent")
+    check(set(["pressure.loadCPUPercent": 150]) == 0.6 && set(["pressure.loadCPUPercent": -1]) == 0.6 && set(["pressure.loadCPUPercent": "x"]) == 0.6,
+          "out-of-range or unreadable CPU percents keep the default")
+    var off = MacPressure.Thresholds(); off.loadNeedsCPU = set(["pressure.loadCPUPercent": 0])
+    var e = MacPressure.Evaluator(thresholds: off)
+    check(off.loadNeedsCPU == 0 && run(&e, from: 0, to: 60, loadCPU(60, 0.05)).first?.1.to == .overloaded, "0% turns the check off: load alone")
+}
+do {
+    // The CPU share from the kernel's tick counters [user, system, idle, nice].
+    check(MacPressure.cpuBusy(from: nil, to: [1, 1, 1, 1]) == nil, "no earlier reading: unknown")
+    check(MacPressure.cpuBusy(from: [10, 10, 10, 10], to: [10, 10, 10, 10]) == nil, "no ticks between: unknown")
+    check(MacPressure.cpuBusy(from: [0, 0, 0, 0], to: [150, 30, 800, 20]) == 0.2, "200 busy of 1000 ticks: 20%")
+    let wrap = UInt64(UInt32.max)
+    check(MacPressure.cpuBusy(from: [wrap - 99, 0, 0, 0], to: [100, 0, 200, 0]) == 0.5, "a counter that wrapped: 200 busy of 400 ticks")
+}
+
 // Agents' builds: half the cores at OK, a quarter under pressure, as CMake, make and Cargo read them.
 do {
     check(MacPressure.buildJobs(level: .ok, cores: 16) == 8 && MacPressure.buildJobs(level: .busy, cores: 16) == 4

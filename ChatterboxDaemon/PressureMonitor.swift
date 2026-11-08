@@ -3,7 +3,8 @@ import Darwin
 
 /// Watches how hard the Mac is working and holds Chatterbox's own work back before it's too
 /// much (MacPressure has the levels). Every 10 s, and at once on a memory pressure event, it
-/// reads memory pressure, swap (and its growth), the load averages against the cores and the
+/// reads memory pressure, swap (and its growth), the load averages against the cores, how much
+/// of the CPU was in use since the last look (load counts only while the CPU is busy too) and the
 /// thermal state, and works out OK, Busy or Overloaded. On a change it logs the level with the
 /// readings (chatterboxd.log), tells the app ("pressure.changed") and lets held work threads go
 /// (ChatSession+Pressure). Entering Overloaded sends one push (at most every 30 minutes).
@@ -120,7 +121,8 @@ import Darwin
                                   memory: r.memory.rawValue, swapUsedGB: gb(r.swapUsed), swapGrowthGB: gb(evaluator.swapGrowth),
                                   compressedGB: r.compressed.map(gb), load1: (r.load1 * 100).rounded() / 100, load5: (r.load5 * 100).rounded() / 100,
                                   load15: (r.load15 * 100).rounded() / 100, cores: r.cores, thermal: r.thermal.rawValue,
-                                  holding: Self.holding(evaluator.level, waiting: waiting, holdsWork: MacPressure.holdsWork), waiting: waiting)
+                                  holding: Self.holding(evaluator.level, waiting: waiting, holdsWork: MacPressure.holdsWork), waiting: waiting,
+                                  cpuPercent: r.cpuBusy.map { Int(($0 * 100).rounded()) })
     }
 
     /// What's held back at `level`, one line each.
@@ -200,6 +202,24 @@ import Darwin
             pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count) }
         }
         if result == KERN_SUCCESS { r.compressed = Int64(stats.compressor_page_count) * Int64(vm_kernel_page_size) }
+        r.cpuBusy = cpuBusySinceLastLook()
         return r
+    }
+
+    /// The CPU ticks (user, system, idle, nice; all cores) at the last look.
+    nonisolated(unsafe) private static var lastCPUTicks: [UInt64]?
+
+    /// How much of all the cores' time was in use since the last look, 0...1; nil the first time
+    /// (or if the counters can't be read). Called from the main thread only (tick).
+    nonisolated static func cpuBusySinceLastLook() -> Double? {
+        var info = host_cpu_load_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count) }
+        }
+        guard result == KERN_SUCCESS else { return nil }
+        let ticks = [info.cpu_ticks.0, info.cpu_ticks.1, info.cpu_ticks.2, info.cpu_ticks.3].map { UInt64($0) }
+        defer { lastCPUTicks = ticks }
+        return MacPressure.cpuBusy(from: lastCPUTicks, to: ticks)
     }
 }

@@ -9,19 +9,27 @@ holds its own work back before the Mac is swamped instead of cleaning up after.
 
 The service (`ChatterboxDaemon/PressureMonitor.swift`) reads every 10 s, and at once on a memory
 pressure event: `kern.memorystatus_vm_pressure_level`, `vm.swapusage` (and its growth),
-`getloadavg` against the cores (all processes on the Mac count), `ProcessInfo.thermalState`, and
-compressed memory (shown only).
+`getloadavg` against the cores (all processes on the Mac count), the share of CPU time in use since
+the last look (`HOST_CPU_LOAD_INFO` ticks), `ProcessInfo.thermalState`, and compressed memory
+(shown only).
+
+**Load counts only while the CPU is busy too** (Shelby 2026-11-08): at least 60% of the CPU in use
+(`pressure.loadCPUPercent`; 0 turns the check off), on every reading of the sustain window. macOS's
+load average counts threads ready to run, so bursts of waking threads read high with the cores
+mostly idle: load 113 on 16 cores with the CPU 18% in use put the Mac at Overloaded and held builds
+for nothing. With no CPU reading yet (the service's first look) load counts alone. Memory, swap and
+thermal conditions don't need the CPU.
 
 | Level | When (defaults; Settings → Background service) |
 |---|---|
-| OK | memory normal and 1-min load < 1.5× cores |
-| Busy | memory warning, or load > 1.5× cores for 2 min, or thermal serious |
-| Overloaded | memory critical, or swap grew > 1 GB in 5 min, or load > 3× cores for 1 min, or thermal critical |
+| OK | memory normal and not Busy's load (1-min load ≤ 1.5× cores, or the CPU under 60% in use) |
+| Busy | memory warning, or load > 1.5× cores with the CPU ≥ 60% in use for 2 min, or thermal serious |
+| Overloaded | memory critical, or swap grew > 1 GB in 5 min, or load > 3× cores with the CPU ≥ 60% in use for 1 min, or thermal critical |
 
 Up as soon as a condition holds (the load ones once sustained); down only after the lower level's
 conditions have held for 3 minutes. Preferences: `pressure.busyLoad`, `pressure.busyLoadSeconds`,
 `pressure.overloadedLoad`, `pressure.overloadedLoadSeconds`, `pressure.swapGrowthGB`,
-`pressure.swapGrowthMinutes`, `pressure.stepDownMinutes`, `pressureHoldsWork`. Changes are logged
+`pressure.swapGrowthMinutes`, `pressure.stepDownMinutes`, `pressure.loadCPUPercent`, `pressureHoldsWork`. Changes are logged
 in chatterboxd.log with the readings.
 
 ## What's held back

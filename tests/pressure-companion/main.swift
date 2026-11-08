@@ -14,5 +14,9 @@ let busy = Companion.Pressure(level: "busy", updatedAt: Date(), updated: 0, summ
                               load1: 30, load5: 20, load15: 10, cores: 16, thermal: "nominal", holding: ["Builds run one at a time"], waiting: 1)
 let again = try? Companion.decoder.decode(Companion.Pressure.self, from: Companion.encoder.encode(busy))
 check(again?.level == "busy" && again?.holding == busy.holding && again?.label == "Mac busy" && again?.waiting == 1, "a full reading round-trips")
+check(again?.cpuPercent == nil && decoded?.pressure?.cpuPercent == nil, "a reading without the CPU leaves it unknown")
+var withCPU = busy; withCPU.cpuPercent = 23
+let cpuAgain = try? Companion.decoder.decode(Companion.Pressure.self, from: Companion.encoder.encode(withCPU))
+check(cpuAgain?.cpuPercent == 23, "the CPU percent round-trips")
 if failures > 0 { exit(1) }
 print("All companion pressure checks passed")

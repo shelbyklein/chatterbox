@@ -12,7 +12,7 @@ func reading(_ level:String) -> Companion.Pressure {
         summary:over ? "load 52 on 16 cores (over 3\u{00D7}) for 1 min; swap grew 1.4 GB in 5 min" : busy ? "load 30 on 16 cores (over 1.5\u{00D7}) for 2 min" : "load 6.0 on 16 cores, memory normal, swap 1.0 GB, thermal nominal",
         reasons:[],memory:over ? "warning" : "normal",swapUsedGB:over ? 6.2 : 1.0,swapGrowthGB:over ? 1.4 : 0,compressedGB:over ? 27 : 3.1,
         load1:over ? 52 : busy ? 30 : 6,load5:over ? 40 : busy ? 26 : 6,load15:over ? 31 : busy ? 20 : 5,cores:16,thermal:"nominal",
-        holding:over ? PressureNames.over : busy ? PressureNames.busy : [],waiting:over || busy ? 2 : 0)
+        holding:over ? PressureNames.over : busy ? PressureNames.busy : [],waiting:over || busy ? 2 : 0,cpuPercent:over ? 91 : busy ? 72 : 12)
 }
 enum PressureNames {
     static let busy=["Builds run one at a time; agents' builds get a quarter of the cores, at lower priority","Simulators idle 5 minutes are shut down","New work threads wait to start until the Mac is OK","2 work threads waiting"]
