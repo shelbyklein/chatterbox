@@ -1,0 +1,49 @@
+{
+  "recordedAt": "2026-11-08T13:15:15.703820+00:00",
+  "issue": 67,
+  "sourceParent": "746507ecaf53173e7d0f31ab4f5b6b4528c2e0a3",
+  "sourceCore": "5d43157dee05c678fd8e70a7157e937783ec7b16",
+  "device": "Shelby's Duo",
+  "udid": "00008160-000C11243440000A",
+  "configuration": "Dev",
+  "installed": true,
+  "opened": true,
+  "installLog": "build/quick-actions-widget-install-phone.log",
+  "artifacts": {
+    "Chatterbox.app": {
+      "bundleIdentifier": "com.shelbyklein.Chatterbox.mobile.dev",
+      "flavor": "dev",
+      "signatureVerified": true,
+      "intent": {
+        "identifier": "SelectWidgetProviderIntent",
+        "openAppWhenRun": false,
+        "fullyQualifiedTypeName": "Chatterbox.SelectWidgetProviderIntent"
+      }
+    },
+    "ChatterboxWidget.appex": {
+      "bundleIdentifier": "com.shelbyklein.Chatterbox.mobile.widget",
+      "flavor": null,
+      "signatureVerified": true,
+      "intent": {
+        "identifier": "SelectWidgetProviderIntent",
+        "openAppWhenRun": false,
+        "fullyQualifiedTypeName": "ChatterboxWidget.SelectWidgetProviderIntent"
+      }
+    }
+  },
+  "widgetEmbeddedInDev": false,
+  "physicalHomeScreenVerified": false,
+  "nativeVisualRounds": 2,
+  "nativeWidgetFullTestsPassed": 5,
+  "nativeWidgetFinalTestsPassed": 1,
+  "nativeNavigationInitialTestsPassed": 3,
+  "nativeNavigationExpandedTestsPassed": 1,
+  "sourceCheckPassed": true,
+  "testSelectorChecksPassed": 10,
+  "realIsolationHashesUnchanged": 4,
+  "realShipped": false,
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "testFlightUploaded": false,
+  "releaseCoverage": "Focused Dev coverage passed; broad release coverage deferred to Ship. Known chat-switch baseline assertion failure and incomplete release coverage remain."
+}

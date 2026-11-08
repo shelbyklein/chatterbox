@@ -28,10 +28,14 @@ Medium uses the full-width target and two highlighted provider chips. Small keep
 
 - [x] Q1 Persist provider choice and implement the interactive field/chips widget. Acceptance: app-group store/model checks, actual App Intent selection/persistence checks, generic field link, native medium/small bounds and preserved incumbent widgets pass.
 - [x] Q2 Focus the new widget chat’s composer once after navigation. Acceptance: warm/cold URL entry and retry show a keyboard, allow typing without a focus tap, preserve previous drafts and send no messages; ordinary chat navigation does not gain autofocus.
-- [ ] Q3 Verify, inspect, commit/push and deliver Dev. Acceptance: scripts/test-widget.sh and focused native phone flows pass; two visual rounds maximum; project/source/signature/intent checks and actual phone install result recorded. Keep issue open pending Ship/physical acceptance.
+- [x] Q3 Verify, inspect, commit/push and deliver Dev. Acceptance: scripts/test-widget.sh and focused native phone flows pass; two visual rounds maximum; project/source/signature/intent checks and actual phone install result recorded. Keep issue open pending Ship/physical acceptance.
 
 ## Tests, scope and rollback
 
 Run scripts/tests-for.sh --why --since 8d8570c; scripts/test-widget.sh (including actual App Intent buttons) and MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testWidgetNewChats,HomeNavTests/HomeNavTests/testUsage,HomeNavTests/HomeNavTests/testNewChatPicksSettingsFirst MOBILE_TEST_RUNTIME=com.apple.CoreSimulator.SimRuntime.iOS-26-2 scripts/test-mobile-home-nav.sh iphone. Keep focused keyboard/render checks for ChatDetailView; do not substitute compilation for these flows. Include model persistence/URL checks, Xcode source/intent metadata and parent/Core diff checks. Inspect one native batch, fix findings together and confirm at most once. Full release checks deferred to Ship; known chat-switch mismatch/incomplete coverage remains recorded.
 
 Use Apple's AppIntent pattern, registered in app and widget targets: https://developer.apple.com/documentation/widgetkit/adding-interactivity-to-widgets-and-live-activities. Widget timeline reads the saved selection after intent completion; no LiveActivityIntent or openAppWhenRun. No widget networking, model/provider account routing changes, sends, project/Studio/Desk tasks, existing chat settings, permission defaults, credentials, pairing or schedule changes. New preference key only in the existing app group (Dev fallback is its own standard preferences); no migration or deletion. Roll back commits and reinstall using repo scripts; older code ignores the optional preference, and legacy links still work. Open questions: none.
+
+## Delivered to Dev
+
+Implementation parent `746507e`, Core `5d43157`. [Validation](../design/quick-actions-widget/validation.md) and [Dev delivery](../design/quick-actions-widget/dev-delivery.json): signed device artifacts/intent metadata verified, phone Dev installed and opened. Keep issue open for Ship and physical Home Screen acceptance; Dev has no embedded widget.

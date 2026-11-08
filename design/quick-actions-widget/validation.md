@@ -28,4 +28,4 @@ Original final captures:
 
 ## Delivery
 
-Phone Dev install and signed extension/intent metadata verification pending. No Mac install/restart, TestFlight, real configuration changes or real shipment authorized for this task.
+Phone Dev installed and opened on Shelby’s Duo using `scripts/install-phone.sh --dev "Shelby's Duo"`. Device app is `com.shelbyklein.Chatterbox.mobile.dev`, flavor `dev`, with no embedded widget. Both the Dev app and separately built device widget pass strict signature verification and register `SelectWidgetProviderIntent` metadata with `openAppWhenRun: false`. Real app/service/host binaries and Automations.json hashes are unchanged (4/4). No Mac install/restart or TestFlight. [Delivery record](dev-delivery.json). Physical Home Screen acceptance and real shipment remain pending Ship.
