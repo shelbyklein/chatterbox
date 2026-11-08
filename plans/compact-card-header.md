@@ -23,7 +23,7 @@ Direct user instruction authorizes implementation now. Baseline parent47f4551, C
 ## Tasks
 
 - [x] CH1 Move the shared text-card header icon to the trailing side of the title, retaining status and branch icon behavior. Acceptance: native Projects and Activity/Recent card captures place content correctly, nested and list navigation still work.
-- [ ] CH2 Run focused native checks, inspect once (one optional batched correction/confirmation maximum), commit/push and install phone Dev. Record evidence and keep issue open pending Ship and acceptance.
+- [x] CH2 Run focused native checks, inspect once (one optional batched correction/confirmation maximum), commit/push and install phone Dev. Record evidence and keep issue open pending Ship and acceptance.
 
 ## Verification and rollback
 
@@ -31,4 +31,4 @@ Use `scripts/tests-for.sh --why --since 47f4551`, then `MOBILE_TEST_ONLY=HomeNav
 
 ## Validation progress
 
-Coree0c601a implements the header. Native iPhone17Pro/iOS26.2 Activity/Recent tests passed in `build/mobile-home-nav.2FayYi`; Projects nesting, list/cards, thread open and Show-more/less passed in `build/mobile-home-nav.86R85d`. The pre-existing list hit-frame gap assertion was reproduced against unchanged Core348dfbc, then corrected to test non-overlapping tap targets; native screenshots verify the visible gap. [Evidence](../design/compact-card-header/validation.md). Source and whitespace checks passed. CH2 awaits direct Dev phone install and delivery record.
+Coree0c601a implements the header. Native iPhone17Pro/iOS26.2 Activity/Recent tests passed in `build/mobile-home-nav.2FayYi`; Projects nesting, list/cards, thread open and Show-more/less passed in `build/mobile-home-nav.86R85d`. The pre-existing list hit-frame gap assertion was reproduced against unchanged Core348dfbc, then corrected to test non-overlapping tap targets; native screenshots verify the visible gap. [Evidence](../design/compact-card-header/validation.md). Source and whitespace checks passed. CH2 complete: signed Dev build installed and opened directly on Shelby’s Duo. [Delivery record](../design/compact-card-header/dev-delivery.json). Physical-user acceptance and real Ship remain pending.

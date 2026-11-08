@@ -19,3 +19,7 @@ Coree0c601a. Activity Recent69.750s and Activity layouts33.421s passed in `build
 Second/final visual pass inspected original native [Projects cards](phone-projects-nested.png), [expanded list](phone-projects-list-cards-expanded.png), [Activity cards](activity-full-cards.png) and [Recent cards](activity-recent-cards.png). Titles/preview start at the upper left with no overlapping text or trailing icons; provider/branch icons and waiting/working/new-reply state remain visible. Expanded list cards retain their rounded edges and visible separation. Other captures are preserved alongside these. Synthetic fixture screenshots establish native simulator layout, not physical-phone acceptance.
 
 Source membership and both whitespace checks passed. Direct Dev delivery pending; no Mac install/restart, real-phone delivery or TestFlight.
+
+## Dev phone delivery
+
+Parent2b90be4/Coree0c601a committed and pushed to both main branches. `scripts/install-phone.sh --dev "Shelby's Duo"` built the Dev configuration, verified embedded frameworks, installed and successfully opened Chatterbox Dev on the paired physical Duo. Bundle `com.shelbyklein.Chatterbox.mobile.dev`; no widget, Mac install/service restart, real app install or TestFlight. Physical-user acceptance remains pending. [Delivery record](dev-delivery.json). Read-only tidy report run; unrelated old scratch left untouched.

@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-08T11:51:20.888353-05:00",
+  "source_parent": "2b90be4",
+  "source_core": "e0c601a",
+  "target": "Shelby's Duo",
+  "configuration": "Dev",
+  "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+  "flavor": "dev",
+  "installed": true,
+  "opened": true,
+  "physical_ui_acceptance": "pending Shelby",
+  "native_simulator": "iPhone 17 Pro, iOS 26.2",
+  "native_passed": [
+    "testActivityRecentThreads",
+    "testActivityThreadLayouts",
+    "testProjectsNestWorkThreads"
+  ],
+  "evidence": [
+    "build/compact-card-header-final-native.log",
+    "build/compact-card-header-projects-final.log",
+    "build/compact-card-header-phone-install.log"
+  ],
+  "real_delivery": false,
+  "mac_build_or_restart": false,
+  "testflight": false
+}
