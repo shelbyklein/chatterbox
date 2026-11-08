@@ -47,3 +47,12 @@ Core/ChatterboxMobile/ChatDetailView.swift test-mobile-home-nav.sh
 Shared/WidgetProviderIntent.swift test-widget.sh test-mobile-home-nav.sh
 ChatterboxMobile/ChatDetailView.swift test-mobile-home-nav.sh
 ChatterboxMobile/MobileStore.swift test-mobile-home-nav.sh
+
+Core/Chatterbox/Views/ArchivedThreadsView.swift test-archived-view.sh test-view-memory.sh
+Chatterbox/Views/ArchivedThreadsView.swift test-archived-view.sh test-view-memory.sh
+Core/Chatterbox/Views/ContentView.swift test-archived-view.sh
+Core/Chatterbox/Engine/AppModel.swift test-archived-view.sh test-view-memory.sh
+Core/Chatterbox/Views/WindowToolbar.swift test-archived-view.sh test-view-memory.sh
+Chatterbox/Views/ContentView.swift test-archived-view.sh
+Chatterbox/Engine/AppModel.swift test-archived-view.sh test-view-memory.sh
+Chatterbox/Views/WindowToolbar.swift test-archived-view.sh test-view-memory.sh

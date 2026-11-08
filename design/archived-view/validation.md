@@ -1,0 +1,13 @@
+# Archived center-pane validation
+
+Issue68. Baseline parent8a65585/Core5d43157; isolated archived-view worktrees keep concurrent Core/MacPressure work out of this delivery.
+
+`scripts/test-archived-view.sh` passed: 40 archived threads in date order, blank/multiword/case-insensitive title/Studio/available-preview search, actual native dock click, search reaching thread39 beyond the first screen, native card open without unarchiving/sending or draft changes, retained query after returning, toolbar title Archived, empty/no-match and wide/narrow rendering. The fixture uses isolated temporary data/preferences and no agent/provider. It exercises production ContentView and its native controls. Initial queued fixture starts were safely stopped to serialize the shared engine build and provision the required asset bundle in this fresh worktree; no behavioral failures occurred.
+
+`scripts/test-view-memory.sh` passed its existing remembered sections, native/repeated toolbar navigation, project Sidechats, empty sections and narrow sidebar checks, plus Archive transitions to/from threads and all main overview pages.
+
+One native visual inspection round completed. [Wide browser](archived-wide.png), [search](archived-search.png), [narrow browser](archived-narrow.png), [no matches](archived-no-match.png), [empty archive](archived-empty.png). These are original native fixture captures with synthetic conversations; sidebar/Studio context differs between captures because the test opens a Studio thread before returning. No clipping or layout correction needed. The sidebar remains available through the existing native narrow-window navigation.
+
+Search covers the list metadata and any already-loaded preview, not a full transcript index. It loads no archived transcripts. Existing archive/restore/send semantics and all actual records remain unchanged. Full release coverage is deferred until Ship, including the previously known chat-switch baseline failure; no green full-suite claim.
+
+Source/project, flavor and selector checks and Mac Dev delivery are recorded below when complete. No phone or real Mac install/restart authorized.
