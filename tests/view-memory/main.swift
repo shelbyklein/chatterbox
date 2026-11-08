@@ -47,6 +47,16 @@ app.setActivationPolicy(.accessory)
     model.showView(.chats)
     model.showView(.projects)
     precondition(at(sidechat) && !model.showingChatsSidebar,"Projects restores its Sidechat without jumping to Chats")
+    model.showingArchive=true
+    precondition(!model.showingHome && !model.showingSettings && !model.showingCommandCenter && !model.showingAutomations)
+    model.showView(.projects)
+    precondition(!model.showingArchive && at(sidechat),"section selection leaves Archive and restores its previous thread")
+    for action in [{model.showingHome=true}, {model.showingSettings=true}, {model.showingCommandCenter=true}, {model.showingAutomations=true}] {
+        model.showingArchive=true; action()
+        precondition(!model.showingArchive,"another center page must leave Archive")
+    }
+    model.showingArchive=true;model.selectedID=sidechat.id
+    precondition(!model.showingArchive,"opening an existing thread leaves Archive")
     let reveal=model.sidebarRevealRequest
     model.showView(.projects)
     precondition(at(sidechat) && model.sidebarRevealRequest == reveal+1,"repeated section clicks reveal the sidebar")
