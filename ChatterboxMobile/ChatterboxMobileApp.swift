@@ -4,6 +4,8 @@ import SwiftUI
 struct ChatterboxMobileApp: App {
     @UIApplicationDelegateAdaptor(MobilePushAppDelegate.self) private var delegate
     @State private var store = MobileStore()
+    @State private var widgetChat: WidgetChatShortcut?
+    @State private var widgetChatResult: UUID?
     @AppStorage(MobileAppearance.schemeKey, store: AppPreferences.defaults) private var scheme = "system"
     @AppStorage(MobileAppearance.claudeKey, store: AppPreferences.defaults) private var claudeColor = ReaderStyle.claudeDefault
     @AppStorage(MobileAppearance.codexKey, store: AppPreferences.defaults) private var codexColor = ReaderStyle.codexDefault
@@ -39,12 +41,28 @@ struct ChatterboxMobileApp: App {
             .preferredColorScheme(MobileAppearance.colorScheme(scheme))
             // Replies read like on the Mac, at a phone's size.
             .environment(\.readerStyle, .mobile)
-            .sheet(isPresented: Binding(get: { store.showingUsage }, set: { store.showingUsage = $0 })) {
-                MobileUsageView().environment(store)
+            .sheet(isPresented: Binding(get: { store.showingUsage || (store.isPaired && widgetChat != nil) }, set: {
+                if !$0 { store.showingUsage = false; widgetChat = nil }
+            }), onDismiss: {
+                // Open only after the sheet closes, as with other mobile navigation actions.
+                if let id = widgetChatResult { widgetChatResult = nil; MobilePushNotifications.shared.pendingChat = id }
+            }) {
+                if let shortcut = widgetChat {
+                    MobileWidgetNewChat(shortcut: shortcut) { widgetChatResult = $0 }.environment(store)
+                } else {
+                    MobileUsageView().environment(store)
+                }
             }
             .onOpenURL { url in
                 guard url.scheme == Flavor.current.urlScheme else { return }
+                if let shortcut = WidgetChatShortcut(url: url) {
+                    guard widgetChat == nil else { return }
+                    store.showingUsage = false
+                    widgetChat = shortcut
+                    return
+                }
                 if url.host == "usage" {
+                    guard widgetChat == nil else { return }
                     store.showingUsage = true
                     return
                 }

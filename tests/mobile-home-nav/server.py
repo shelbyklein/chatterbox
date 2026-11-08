@@ -2,6 +2,7 @@ import http.server,json,os,uuid,zlib,struct,datetime,time
 # Isolated fixture: six projects (one a worktree, one waiting on you), Studios, and the Desk.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47411'))
 NEWCHAT=[];CREATED=[]
+WIDGET_NEW=False;WIDGET_FAIL=False;WIDGET_DETAILS={}
 def cid(n):return str(uuid.uuid5(uuid.NAMESPACE_URL,'home:'+n))
 PROJECTS=[('Chatterbox','Shipped the Next Steps plugin and the new message box.',None,False),
  ('optimization','Speed up switching between long chats.','optimization',False),
@@ -158,6 +159,8 @@ def pressure(level):
    else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
 
 def reset():
+ global WIDGET_NEW,WIDGET_FAIL
+ WIDGET_NEW=False;WIDGET_FAIL=False;WIDGET_DETAILS.clear();CREATED.clear();NEWCHAT.clear()
  global USAGE_COLD,USAGE_READS,USAGE_REFRESHES
  USAGE_COLD=False;USAGE_READS=0;USAGE_REFRESHES=0
  global RATE_LIMIT,RATE_RETRIES,RATE_RETRIED
@@ -227,6 +230,7 @@ def chats():
  return out
 
 def detail(id):
+ if id.lower() in WIDGET_DETAILS:return WIDGET_DETAILS[id.lower()]
  work=next((w for w in WORK if cid(w[0])==id.lower()),None)
  if work:
   s=work_summary(work[0])
@@ -366,6 +370,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
    RATE_RETRIED=body['backend']
    return self.reply(detail(id))
   if self.path=='/test/reset':reset();return self.reply({'ok':True})
+  global WIDGET_NEW,WIDGET_FAIL
+  if self.path=='/test/widget-new-chats':WIDGET_NEW=True;return self.reply({'ok':True})
+  if self.path=='/test/widget-create-fails':WIDGET_FAIL=True;return self.reply({'ok':True})
+  if self.path=='/test/widget-create-works':WIDGET_FAIL=False;return self.reply({'ok':True})
   global PRESSURE
   if self.path.startswith('/test/pressure/'):PRESSURE=pressure(self.path.rsplit('/',1)[1]);return self.reply({'ok':True})
   if self.path.startswith('/v1/automations/'):
@@ -564,6 +572,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
    id=self.path.split('/')[3].lower();SENT.setdefault(id,[]).append(body.get('text',''))
    return self.reply(detail(id))
   if self.path=='/v1/chats':
+   if WIDGET_NEW:
+    if WIDGET_FAIL:return self.reply({'error':'Could not create chat. Try again.'},503)
+    CREATED.append(body);time.sleep(0.6)
+    result=detail(cid('SDHQ'));id=str(uuid.uuid4());agent=body['backend']
+    result['summary'].update({'id':id,'title':'New '+agent+' chat','project':None,'backend':agent,'isRunning':False,'isWaitingOnYou':False})
+    result['items']=[];result['settings']=body['settings']['model']+' · Medium'
+    result['options'].update(body['settings']|{'backend':agent})
+    WIDGET_DETAILS[id]=result
+    return self.reply(result)
    CREATED.append(body);return self.reply(detail(cid('SDHQ')))
   self.send_error(404)
  def do_DELETE(self):
@@ -615,6 +632,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/chats':
    time.sleep(LIST_DELAY);return self.reply(chats())
   if self.path=='/test/created':return self.reply(CREATED)
+  if self.path=='/test/widget-created':return self.reply(list(WIDGET_DETAILS))
   if self.path=='/test/sent':return self.reply(SENT)
   if self.path=='/test/new-chat-options':return self.reply(NEWCHAT)
   if self.path=='/test/promotions':return self.reply(PROMOTIONS)

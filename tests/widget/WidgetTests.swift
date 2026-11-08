@@ -1,6 +1,28 @@
 import XCTest
 
 final class WidgetTests: XCTestCase {
+    @MainActor func testNewChatWidget() {
+        for variant in ["dark", "light", "large-text"] {
+            let app = XCUIApplication()
+            app.launchEnvironment = ["WIDGET_KIND": "new-chat", "WIDGET_SIZE": "medium",
+                                     "WIDGET_LIGHT": variant == "light" ? "1" : "0",
+                                     "WIDGET_LARGE_TEXT": variant == "large-text" ? "1" : "0"]
+            app.launch()
+            let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
+            XCTAssertTrue(widget.waitForExistence(timeout: 10))
+            capture("new-chat-" + variant, app)
+            for (agent, model) in [("codex", "Sol"), ("claude", "Opus 5.5")] {
+                let link = app.descendants(matching: .any)["new-chat-widget-" + agent].firstMatch
+                XCTAssertTrue(link.exists && link.isHittable)
+                XCTAssertTrue(link.label.contains(model) && link.label.contains("Medium"))
+                XCTAssertTrue(widget.frame.contains(link.frame))
+                XCTAssertGreaterThanOrEqual(link.frame.height, 44)
+                link.tap()
+                XCTAssertEqual(app.staticTexts["opened-widget-link"].label, "chatterbox://new-chat/" + agent)
+            }
+            app.terminate()
+        }
+    }
     @MainActor func testBefore() {
         let app = XCUIApplication()
         app.launch()

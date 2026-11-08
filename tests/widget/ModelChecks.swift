@@ -14,6 +14,17 @@ import Foundation
 
 @main struct ModelChecks {
     @MainActor static func main() throws {
+        for shortcut in WidgetChatShortcut.allCases {
+            precondition(WidgetChatShortcut(url: shortcut.link) == shortcut)
+            precondition(shortcut.effort == "medium")
+        }
+        precondition(WidgetChatShortcut.codex.model == "gpt-6.1-sol")
+        precondition(WidgetChatShortcut.claude.model == "claude-opus-5-5")
+        for invalid in ["https://new-chat/codex", "chatterbox://new-chat/unknown", "chatterbox://chat/codex",
+                        "chatterbox://new-chat/codex/", "chatterbox://new-chat/codex?model=other",
+                        "chatterbox://new-chat/claude#other", "chatterbox://user@new-chat/codex", "chatterbox://new-chat:80/codex"] {
+            precondition(WidgetChatShortcut(url: URL(string: invalid)!) == nil)
+        }
         let now = Date(timeIntervalSince1970: 1_794_000_000)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

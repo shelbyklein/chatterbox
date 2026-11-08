@@ -36,3 +36,6 @@ Core/ChatterboxMobile/MobileStore.swift   test-mobile-home-nav.sh
 Core/ChatterboxWidget/                    test-widget.sh
 tests/widget/                            test-widget.sh
 Core/Chatterbox/Engine/ChatSession+Status.swift test-desk.sh
+
+ChatterboxMobile/ChatterboxMobileApp.swift test-mobile-home-nav.sh
+Core/ChatterboxMobile/MobileNewChat.swift test-mobile-home-nav.sh

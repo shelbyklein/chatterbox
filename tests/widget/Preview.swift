@@ -3,6 +3,7 @@ import WidgetKit
 
 @main
 struct WidgetPreviewApp: App {
+    @State private var openedLink = ""
     private var environment: [String: String] { ProcessInfo.processInfo.environment }
     private var family: WidgetFamily {
         switch environment["WIDGET_SIZE"] {
@@ -61,7 +62,9 @@ struct WidgetPreviewApp: App {
             VStack(spacing: 24) {
                 Text("Native widget fixture").font(.headline)
                 Group {
-                    if environment["WIDGET_KIND"] == "usage" {
+                    if environment["WIDGET_KIND"] == "new-chat" {
+                        ChatterboxNewChatWidgetView()
+                    } else if environment["WIDGET_KIND"] == "usage" {
                         ChatterboxUsageWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
                     } else {
                         ChatterboxWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
@@ -73,7 +76,10 @@ struct WidgetPreviewApp: App {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("widget-preview")
+                Text(openedLink).font(.caption).accessibilityIdentifier("opened-widget-link")
             }
+            .environment(\.openURL, OpenURLAction { url in openedLink = url.absoluteString; return .handled })
+            .environment(\.dynamicTypeSize, environment["WIDGET_LARGE_TEXT"] == "1" ? .xxxLarge : .large)
             .preferredColorScheme(environment["WIDGET_LIGHT"] == "1" ? .light : .dark)
         }
     }

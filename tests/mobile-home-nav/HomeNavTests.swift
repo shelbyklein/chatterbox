@@ -2162,6 +2162,53 @@ final class HomeNavTests: XCTestCase {
   capture("usage-after-cold-proxy",app)
   app.buttons["Done"].tap()
  }
+ @MainActor func testWidgetNewChats() async throws {
+  try await fixture("reset")
+  try await fixture("widget-new-chats")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort,
+                         "CHATTERBOX_TEST_PAIR_TOKEN":"fixture","CHATTERBOX_PREFERENCES_SUITE":"widget-new-chat-"+UUID().uuidString]
+  app.launch()
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15))
+  // A quick start also replaces an open Usage sheet, as when returning from Home.
+  XCUIDevice.shared.press(.home)
+  app.open(URL(string:"chatterbox://usage")!)
+  XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:10))
+  for (index,agent,model) in [(0,"codex","gpt-6.1-sol"),(1,"claude","claude-opus-5-5")] {
+   XCUIDevice.shared.press(.home)
+   if index==1 { app.terminate() } // Cold launch must retain the requested model too.
+   app.open(URL(string:"chatterbox://new-chat/"+agent)!)
+   XCTAssertTrue(app.staticTexts["New "+agent+" chat"].waitForExistence(timeout:15))
+   XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:5))
+   let created=try await fixture("created",method:"GET") as! [[String:Any]]
+   XCTAssertEqual(created.count,index+1,"exactly one fresh chat per widget tap")
+   XCTAssertEqual(created.last?["backend"] as? String,agent)
+   let settings=created.last?["settings"] as? [String:Any]
+   XCTAssertEqual(settings?["model"] as? String,model)
+   XCTAssertEqual(settings?["effort"] as? String,"medium")
+   XCTAssertNil(settings?["mode"],"ordinary permission defaults are preserved")
+   for key in ["studio","project","preset","desk"] { XCTAssertNil(created.last?[key]) }
+   let sent=try await fixture("sent",method:"GET") as! [String:Any]
+   XCTAssertTrue(sent.isEmpty,"opening a blank chat sends no message")
+   capture("widget-new-"+agent,app)
+  }
+  let ids=try await fixture("widget-created",method:"GET") as! [String]
+  XCTAssertEqual(Set(ids).count,2,"each tap creates its own session")
+  // Failure stays recoverable with the same fixed model; it cannot send a prompt.
+  try await fixture("widget-create-fails")
+  XCUIDevice.shared.press(.home)
+  app.open(URL(string:"chatterbox://new-chat/codex")!)
+  XCTAssertTrue(app.buttons["widget-chat-retry"].waitForExistence(timeout:10))
+  capture("widget-new-chat-error",app)
+  try await fixture("widget-create-works")
+  app.buttons["widget-chat-retry"].tap()
+  XCTAssertTrue(app.staticTexts["New codex chat"].waitForExistence(timeout:15))
+  let retried=try await fixture("created",method:"GET") as! [[String:Any]]
+  XCTAssertEqual(retried.count,3)
+  XCTAssertEqual((retried.last?["settings"] as? [String:Any])?["model"] as? String,"gpt-6.1-sol")
+  let afterRetrySent=try await fixture("sent",method:"GET") as! [String:Any]
+  XCTAssertTrue(afterRetrySent.isEmpty)
+ }
  @MainActor func testNewChatPicksSettingsFirst() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
