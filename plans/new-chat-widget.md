@@ -29,7 +29,7 @@ Direction: Operate; extend existing native widget surface, system type and blue/
 
 - [x] N1 Add shared fixed shortcuts and app URL lifecycle. Acceptance: strict URL parsing/model checks and native create/error/pairing flow using existing create endpoint with no message POSTs.
 - [x] N2 Add New Chat medium widget. Acceptance: two independent links, correct labels/settings, accessible targets fit light/dark/large text; preserve incumbent kinds.
-- [ ] N3 Run focused checks, inspect bounded native screenshots, commit/push and deliver Dev. Acceptance: model/widget and native URL flow pass, device extension verified, phone install result recorded. Keep issue open pending Ship/acceptance.
+- [x] N3 Run focused checks, inspect bounded native screenshots, commit/push and deliver Dev. Acceptance: model/widget and native URL flow pass, device extension verified, phone install result recorded. Keep issue open pending Ship/acceptance.
 
 ## Tests, boundaries and rollback
 

@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-07T19:50:20.778912-05:00",
+  "sourceParent": "e6df2d8",
+  "sourceCore": "e56b645",
+  "phone": {
+    "name": "Shelby's Duo",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.dev",
+    "installed": true,
+    "launchCommandSucceeded": true,
+    "widgetEmbedded": false
+  },
+  "widget": {
+    "kind": "ChatterboxNewChat",
+    "family": "systemMedium",
+    "deviceExtensionBuilt": true,
+    "signatureVerified": true,
+    "physicalWidgetVerified": false,
+    "realActivation": "pending Ship"
+  },
+  "shortcuts": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "effort": "medium"
+    },
+    "claude": {
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    }
+  },
+  "validation": {
+    "nativeWidgetTestsPassed": 6,
+    "nativeWidgetDurationSeconds": 91.879,
+    "nativePhoneFlowsPassed": 3,
+    "nativePhoneDurationSeconds": 111.541,
+    "confirmationWidgetTestsPassed": 1,
+    "confirmationDurationSeconds": 16.447,
+    "selectorRegressionTestsPassed": 10,
+    "visualPasses": 2,
+    "sentMessages": 0,
+    "syntheticNewSessionsVerified": true
+  },
+  "realMacAppServiceHostAndAutomationsHashesUnchanged": true,
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "testFlightUploaded": false,
+  "logs": [
+    "build/new-chat-widget-native.log",
+    "build/new-chat-widget-navigation.log",
+    "build/new-chat-widget-confirm.log",
+    "build/new-chat-widget-test-selection-checks.log",
+    "build/new-chat-widget-install-phone.log"
+  ]
+}

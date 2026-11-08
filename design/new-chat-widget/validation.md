@@ -14,7 +14,7 @@ First native batch inspected: widget light/dark/xxxLarge, new Codex/Claude blank
 
 ## Delivery
 
-Pending confirmation, commits and phone Dev installation. Dev embeds no Home Screen widget; activation requires Ship. No Mac installation/restart or TestFlight.
+Core `e56b645` and parent `e6df2d8` committed and pushed. Dev installed and opened on Shelby’s Duo. The device extension includes ChatterboxNewChat and passed strict signature verification. Dev embeds no Home Screen widget; activation requires Ship. Real Mac app/service/host and automation hashes unchanged. No Mac installation/restart or TestFlight. [Delivery metadata](dev-delivery.json).
 
 ## Native evidence
 
