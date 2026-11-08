@@ -23,3 +23,9 @@ Source membership and both whitespace checks passed. Direct Dev delivery pending
 ## Dev phone delivery
 
 Parent2b90be4/Coree0c601a committed and pushed to both main branches. `scripts/install-phone.sh --dev "Shelby's Duo"` built the Dev configuration, verified embedded frameworks, installed and successfully opened Chatterbox Dev on the paired physical Duo. Bundle `com.shelbyklein.Chatterbox.mobile.dev`; no widget, Mac install/service restart, real app install or TestFlight. Physical-user acceptance remains pending. [Delivery record](dev-delivery.json). Read-only tidy report run; unrelated old scratch left untouched.
+
+## Real iOS shipment — November 8
+
+Shelby authorized “ship card layout.” Parent064466f/Coree0c601a; `scripts/install-phone.sh "Shelby's Duo"` built Release, installed and successfully opened the real app directly on the Duo. Strict signature verification passed; bundle `com.shelbyklein.Chatterbox.mobile`. [Delivery record](real-delivery.json). Physical-user acceptance remains pending. No Mac install/service restart or TestFlight; both recorded installed Mac executable hashes remain unchanged. No work threads from this task required completion.
+
+Release command `scripts/tests-for.sh --run --all --fail-fast` completed: **12 passed, 1 failed, 101 not run**. Same known unchanged chat-switch policy precondition at Coordinator.swift:11, exit133. Shipped under Shelby’s explicit prior approval for this failure and incomplete coverage. Full suite is not green. The three focused native card/navigation flows passed before Dev delivery. Issue69 remains open for user acceptance/closure approval.
