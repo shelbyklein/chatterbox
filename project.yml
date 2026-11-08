@@ -253,6 +253,7 @@ targets:
     sources:
     - path: Core/ChatterboxWidget
     - path: Core/Shared/WidgetSnapshot.swift
+    - path: Core/Shared/WidgetProviderIntent.swift
     - path: Core/Shared/Flavor.swift
     info:
       path: ChatterboxWidget/Info.plist

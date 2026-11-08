@@ -45,7 +45,11 @@ struct ChatterboxMobileApp: App {
                 if !$0 { store.showingUsage = false; widgetChat = nil }
             }), onDismiss: {
                 // Open only after the sheet closes, as with other mobile navigation actions.
-                if let id = widgetChatResult { widgetChatResult = nil; MobilePushNotifications.shared.pendingChat = id }
+                if let id = widgetChatResult {
+                    widgetChatResult = nil
+                    store.pendingComposerFocus = id
+                    MobilePushNotifications.shared.pendingChat = id
+                }
             }) {
                 if let shortcut = widgetChat {
                     MobileWidgetNewChat(shortcut: shortcut) { widgetChatResult = $0 }.environment(store)

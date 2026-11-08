@@ -39,3 +39,11 @@ Core/Chatterbox/Engine/ChatSession+Status.swift test-desk.sh
 
 ChatterboxMobile/ChatterboxMobileApp.swift test-mobile-home-nav.sh
 Core/ChatterboxMobile/MobileNewChat.swift test-mobile-home-nav.sh
+
+Core/Shared/WidgetProviderIntent.swift test-widget.sh test-mobile-home-nav.sh
+
+Core/ChatterboxMobile/ChatDetailView.swift test-mobile-home-nav.sh
+
+Shared/WidgetProviderIntent.swift test-widget.sh test-mobile-home-nav.sh
+ChatterboxMobile/ChatDetailView.swift test-mobile-home-nav.sh
+ChatterboxMobile/MobileStore.swift test-mobile-home-nav.sh

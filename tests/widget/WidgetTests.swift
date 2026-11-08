@@ -2,25 +2,47 @@ import XCTest
 
 final class WidgetTests: XCTestCase {
     @MainActor func testNewChatWidget() {
-        for variant in ["dark", "light", "large-text"] {
+        for size in ["medium", "small"] {
+          for variant in ["dark", "light", "large-text"] {
             let app = XCUIApplication()
-            app.launchEnvironment = ["WIDGET_KIND": "new-chat", "WIDGET_SIZE": "medium",
+            app.launchEnvironment = ["WIDGET_KIND": "new-chat", "WIDGET_SIZE": size, "WIDGET_RESET_SELECTION": "1",
                                      "WIDGET_LIGHT": variant == "light" ? "1" : "0",
                                      "WIDGET_LARGE_TEXT": variant == "large-text" ? "1" : "0"]
             app.launch()
             let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
-            XCTAssertTrue(widget.waitForExistence(timeout: 10))
-            capture("new-chat-" + variant, app)
-            for (agent, model) in [("codex", "Sol"), ("claude", "Opus 5.5")] {
-                let link = app.descendants(matching: .any)["new-chat-widget-" + agent].firstMatch
-                XCTAssertTrue(link.exists && link.isHittable)
-                XCTAssertTrue(link.label.contains(model) && link.label.contains("Medium"))
-                XCTAssertTrue(widget.frame.contains(link.frame))
-                XCTAssertGreaterThanOrEqual(link.frame.height, 44)
-                link.tap()
-                XCTAssertEqual(app.staticTexts["opened-widget-link"].label, "chatterbox://new-chat/" + agent)
+            let field = app.descendants(matching: .any)["widget-new-chat-field"].firstMatch
+            let claude = app.buttons["widget-provider-claude"]
+            let codex = app.buttons["widget-provider-codex"]
+            XCTAssertTrue(field.waitForExistence(timeout: 10))
+            XCTAssertTrue(codex.isSelected && !claude.isSelected)
+            XCTAssertEqual(app.textFields.count, 0, "the widget offers a tap target, not text input")
+            claude.tap() // The actual App Intent button, not a fixture action.
+            XCTAssertTrue(app.staticTexts["Opus 5.5 · Medium"].waitForExistence(timeout: 10))
+            XCTAssertTrue(claude.isSelected && !codex.isSelected)
+            let opened = app.staticTexts["opened-widget-link"]
+            XCTAssertTrue(!opened.exists || opened.label.isEmpty, "selection must not open the app/chat URL")
+            for target in [field, claude, codex] {
+                XCTAssertTrue(target.isHittable && widget.frame.contains(target.frame))
+                XCTAssertGreaterThanOrEqual(target.frame.height, 44)
             }
+            let model = app.staticTexts["widget-selected-model"]
+            XCTAssertTrue(widget.frame.contains(model.frame), "selected model caption fits")
+            capture("quick-actions-" + size + "-" + variant, app)
+            if size == "medium", variant == "dark" {
+                app.terminate()
+                app.launchEnvironment["WIDGET_RESET_SELECTION"] = "0"
+                app.launch()
+                XCTAssertTrue(app.staticTexts["Opus 5.5 · Medium"].waitForExistence(timeout: 10), "intent choice survives process relaunch")
+                XCTAssertTrue(app.buttons["widget-provider-claude"].isSelected)
+                app.buttons["widget-provider-codex"].tap()
+                XCTAssertTrue(app.staticTexts["Sol · Medium"].waitForExistence(timeout: 10))
+                XCTAssertTrue(app.buttons["widget-provider-codex"].isSelected)
+                capture("quick-actions-codex", app)
+            }
+            app.descendants(matching: .any)["widget-new-chat-field"].firstMatch.tap()
+            XCTAssertEqual(app.staticTexts["opened-widget-link"].label, "chatterbox://new-chat", "the app resolves the latest shared selection at tap time")
             app.terminate()
+          }
         }
     }
     @MainActor func testBefore() {

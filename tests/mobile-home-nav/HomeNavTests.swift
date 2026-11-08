@@ -2177,7 +2177,7 @@ final class HomeNavTests: XCTestCase {
   for (index,agent,model) in [(0,"codex","gpt-6.1-sol"),(1,"claude","claude-opus-5-5")] {
    XCUIDevice.shared.press(.home)
    if index==1 { app.terminate() } // Cold launch must retain the requested model too.
-   app.open(URL(string:"chatterbox://new-chat/"+agent)!)
+   app.open(URL(string:index == 0 ? "chatterbox://new-chat" : "chatterbox://new-chat/"+agent)!)
    XCTAssertTrue(app.staticTexts["New "+agent+" chat"].waitForExistence(timeout:15))
    XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:5))
    let created=try await fixture("created",method:"GET") as! [[String:Any]]
@@ -2190,6 +2190,10 @@ final class HomeNavTests: XCTestCase {
    for key in ["studio","project","preset","desk"] { XCTAssertNil(created.last?[key]) }
    let sent=try await fixture("sent",method:"GET") as! [String:Any]
    XCTAssertTrue(sent.isEmpty,"opening a blank chat sends no message")
+   XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout:8), "widget launch raises the keyboard")
+   capture("widget-keyboard-"+agent,app)
+   field("messageComposer",app).typeText("Unsent widget draft for "+agent) // No tap: focus comes from the launch.
+   XCTAssertTrue((field("messageComposer",app).value as? String)?.contains("Unsent widget draft for "+agent) == true)
    capture("widget-new-"+agent,app)
   }
   let ids=try await fixture("widget-created",method:"GET") as! [String]
@@ -2205,9 +2209,18 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["New codex chat"].waitForExistence(timeout:15))
   let retried=try await fixture("created",method:"GET") as! [[String:Any]]
   XCTAssertEqual(retried.count,3)
+  XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout:8), "retry hands off keyboard focus too")
   XCTAssertEqual((retried.last?["settings"] as? [String:Any])?["model"] as? String,"gpt-6.1-sol")
   let afterRetrySent=try await fixture("sent",method:"GET") as! [String:Any]
   XCTAssertTrue(afterRetrySent.isEmpty)
+  // A later ordinary chat link restores its saved draft without taking keyboard focus.
+  XCUIDevice.shared.press(.home)
+  app.open(URL(string:"chatterbox://chat/"+ids[0])!)
+  let restored=field("messageComposer",app)
+  let draftRestored=XCTNSPredicateExpectation(predicate:NSPredicate(format:"value CONTAINS %@","Unsent widget draft for codex"),object:restored)
+  XCTAssertEqual(XCTWaiter.wait(for:[draftRestored],timeout:10),.completed)
+  XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout:8),"ordinary navigation does not steal focus")
+  capture("widget-return-saved-draft",app)
  }
  @MainActor func testNewChatPicksSettingsFirst() async throws {
   try await fixture("reset")

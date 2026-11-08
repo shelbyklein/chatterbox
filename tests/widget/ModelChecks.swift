@@ -25,6 +25,21 @@ import Foundation
                         "chatterbox://new-chat/claude#other", "chatterbox://user@new-chat/codex", "chatterbox://new-chat:80/codex"] {
             precondition(WidgetChatShortcut(url: URL(string: invalid)!) == nil)
         }
+        let selectionSuite = "com.shelbyklein.Chatterbox.WidgetModel." + UUID().uuidString
+        let selectionStore = UserDefaults(suiteName: selectionSuite)!
+        defer { selectionStore.removePersistentDomain(forName: selectionSuite) }
+        precondition(WidgetChatShortcut.selected(in: selectionStore) == .codex)
+        precondition(WidgetChatShortcut(url: WidgetChatShortcut.fieldLink, preferences: selectionStore) == .codex)
+        WidgetChatShortcut.select(.claude, in: selectionStore)
+        let freshReader = UserDefaults(suiteName: selectionSuite)!
+        precondition(WidgetChatShortcut.selected(in: freshReader) == .claude)
+        precondition(WidgetChatShortcut(url: WidgetChatShortcut.fieldLink, preferences: freshReader) == .claude)
+        WidgetChatShortcut.select(.codex, in: selectionStore)
+        precondition(WidgetChatShortcut(url: WidgetChatShortcut.fieldLink, preferences: freshReader) == .codex)
+        precondition(WidgetChatShortcut(url: WidgetChatShortcut.claude.link, preferences: freshReader) == .claude)
+        selectionStore.set("unknown", forKey: WidgetChatShortcut.selectionKey)
+        precondition(WidgetChatShortcut.selected(in: freshReader) == .codex)
+        print("PASS provider preference: default/invalid fallback, fresh readers, generic latest-selection and legacy URL resolution")
         let now = Date(timeIntervalSince1970: 1_794_000_000)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

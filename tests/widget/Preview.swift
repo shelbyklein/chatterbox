@@ -4,6 +4,14 @@ import WidgetKit
 @main
 struct WidgetPreviewApp: App {
     @State private var openedLink = ""
+    @AppStorage(WidgetChatShortcut.selectionKey, store: WidgetChatShortcut.preferences)
+    private var selectedProvider = WidgetChatShortcut.codex.rawValue
+
+    init() {
+        if ProcessInfo.processInfo.environment["WIDGET_RESET_SELECTION"] == "1" {
+            WidgetChatShortcut.preferences.removeObject(forKey: WidgetChatShortcut.selectionKey)
+        }
+    }
     private var environment: [String: String] { ProcessInfo.processInfo.environment }
     private var family: WidgetFamily {
         switch environment["WIDGET_SIZE"] {
@@ -67,7 +75,7 @@ struct WidgetPreviewApp: App {
                 Text("Native widget fixture").font(.headline)
                 Group {
                     if environment["WIDGET_KIND"] == "new-chat" {
-                        ChatterboxNewChatWidgetView()
+                        ChatterboxNewChatWidgetView(selection: WidgetChatShortcut(rawValue: selectedProvider) ?? .codex, family: family)
                     } else if environment["WIDGET_KIND"] == "usage" {
                         ChatterboxUsageWidgetView(entry: SnapshotEntry(date: .now, snapshot: snapshot), family: family)
                     } else {

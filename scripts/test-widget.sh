@@ -18,6 +18,11 @@ sync=sync.replace('WidgetCenter.shared.reloadAllTimelines()', 'Harness.reloads +
 source=widget.read_text().replace('@main\n','',1)
 source=source.replace('@Environment(\\.widgetFamily) private var family', 'var family: WidgetFamily = .systemMedium')
 (out/'Widget.swift').write_text(source)
+shared=(root/'Core/Shared/WidgetSnapshot.swift').read_text()
+shared=shared.replace('Flavor.current.appGroup.flatMap { UserDefaults(suiteName: $0) } ?? .standard',
+                      'UserDefaults(suiteName: "com.shelbyklein.Chatterbox.WidgetFixture.'+out.name+'")!')
+(out/'Shared.swift').write_text(shared)
+
 (out/'project.yml').write_text(f'''name: WidgetRegression
 options:
   deploymentTarget:
@@ -33,7 +38,8 @@ targets:
     sources:
       - path: {root}/tests/widget/Preview.swift
       - path: Widget.swift
-      - path: {root}/Core/Shared/WidgetSnapshot.swift
+      - path: Shared.swift
+      - path: {root}/Core/Shared/WidgetProviderIntent.swift
       - path: {root}/Core/Shared/Flavor.swift
     settings:
       base:
