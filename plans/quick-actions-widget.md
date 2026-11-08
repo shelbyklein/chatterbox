@@ -39,3 +39,9 @@ Use Apple's AppIntent pattern, registered in app and widget targets: https://dev
 ## Delivered to Dev
 
 Implementation parent `746507e`, Core `5d43157`. [Validation](../design/quick-actions-widget/validation.md) and [Dev delivery](../design/quick-actions-widget/dev-delivery.json): signed device artifacts/intent metadata verified, phone Dev installed and opened. Keep issue open for Ship and physical Home Screen acceptance; Dev has no embedded widget.
+
+## Real shipment — November 8
+
+Shelby authorized “ship widget updates.” Activity-only (#66) and quick actions (#67) shipped together from parent `53eedfc`, Core `5d43157`. Direct Release install on Shelby’s Duo succeeded on the repo-script retry after a transient remote connection failure. Launch was denied because the phone is locked (CoreDevice10002/FBS Locked). Open Chatterbox once after unlocking; physical Home Screen appearance/interactivity remains awaiting acceptance. The embedded widget and app signatures, shared real app-group entitlements and non-opening provider App Intent metadata passed checks on the final installed artifacts. No Mac install/restart or TestFlight; real Mac app/service/host and Automations hashes unchanged.
+
+Release run: **11 passed, 1 failed, 101 not run**. Same unchanged `test-chat-switch.sh` policy assertion at Coordinator.swift:11, exit133. Proceeded under Shelby’s existing explicit approval for that known failure and incomplete coverage. Full suite is not green. [Real delivery record](../design/quick-actions-widget/real-delivery.json). Keep issues open pending physical acceptance.

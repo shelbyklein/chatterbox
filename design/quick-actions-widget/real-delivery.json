@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-08T15:00:51.015186+00:00",
+  "sourceParent": "53eedfcc3230a34c790193277283180ce049b0ba",
+  "sourceCore": "5d43157dee05c678fd8e70a7157e937783ec7b16",
+  "issues": [
+    66,
+    67
+  ],
+  "authorization": "Shelby: ship widget updates. Existing explicit approval to proceed despite unchanged known chat-switch failure and incomplete release coverage retained.",
+  "phone": {
+    "device": "Shelby's Duo",
+    "udid": "00008160-000C11243440000A",
+    "installed": true,
+    "launchConfirmed": false,
+    "launchFailure": "Device locked (CoreDevice10002/FBS Locked); open Chatterbox after unlocking.",
+    "initialInstallFailure": "Transient remote device connection error CoreDevice3002/IXRemote5; repo-script retry succeeded.",
+    "widgetEmbedded": true
+  },
+  "bundles": {
+    "Chatterbox.app": {
+      "bundleIdentifier": "com.shelbyklein.Chatterbox.mobile",
+      "flavor": "real",
+      "signatureVerified": true,
+      "appGroups": [
+        "group.com.shelbyklein.Chatterbox"
+      ],
+      "intent": {
+        "identifier": "SelectWidgetProviderIntent",
+        "openAppWhenRun": false
+      },
+      "executableSHA256": "75e3059492d3c3cf067ec5753d6b48ca9bf3048596166a2c65c40270f08fb4dc"
+    },
+    "ChatterboxWidget.appex": {
+      "bundleIdentifier": "com.shelbyklein.Chatterbox.mobile.widget",
+      "flavor": null,
+      "signatureVerified": true,
+      "appGroups": [
+        "group.com.shelbyklein.Chatterbox"
+      ],
+      "intent": {
+        "identifier": "SelectWidgetProviderIntent",
+        "openAppWhenRun": false
+      },
+      "executableSHA256": "0d9d12bcaebaadd5c1d9d8ba84a7203eead5b109e92765123574bc2efb894f6b"
+    }
+  },
+  "widgets": {
+    "activityUsageRemoved": true,
+    "dedicatedUsageRetained": true,
+    "newChatQuickActions": true,
+    "newChatFamilies": [
+      "systemSmall",
+      "systemMedium"
+    ],
+    "selectionPersistsInAppGroup": true,
+    "keyboardFocusOnNewChat": true,
+    "physicalHomeScreenVerified": false
+  },
+  "releaseSuite": {
+    "command": "scripts/tests-for.sh --run --all --fail-fast",
+    "passed": 11,
+    "failed": 1,
+    "notRun": 101,
+    "failure": "test-chat-switch.sh exit133 at policy/Coordinator.swift:11; unchanged old fade assertion against intentional immediate switch",
+    "testAndImplementationUnchanged": true,
+    "green": false,
+    "approvedKnownLimitation": true
+  },
+  "focusedValidation": "Activity-only five native tests passed. Quick actions five full widget tests, one final widget confirmation, three phone flows and one expanded keyboard/draft confirmation passed. Original native captures inspected in two rounds.",
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "realMacAppServiceHostAndAutomationsHashesUnchanged": true,
+  "testFlightUploaded": false,
+  "workThreads": "No Ready task-owned work threads; existing threads already Done.",
+  "logs": [
+    "build/widget-updates-release.log",
+    "build/widget-updates-release-phone-build.log",
+    "build/widget-updates-release-phone-install.log",
+    "build/widget-updates-release-phone-retry.log",
+    "build/widget-updates-real-launch.json",
+    "build/widget-updates-release-tidy.log"
+  ]
+}

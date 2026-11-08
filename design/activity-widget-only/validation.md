@@ -17,3 +17,9 @@ Baseline parent `e3ab4cf`, Core `e56b645`. Removed usage from the activity widge
 ## Delivery
 
 Core `b170c98` and parent source `87e8448` committed and pushed. Phone Dev installed on Shelby’s Duo; launch was denied because the device is locked (CoreDevice10002/FBS Locked). Signed device extension built and verified, with Usage and New Chat retained. Dev embeds no widgets, so real Home Screen activation requires Ship. Real Mac app/service/host and automation hashes unchanged. No Mac install/service restart or TestFlight. [Delivery metadata](dev-delivery.json).
+
+## Real shipment — November 8
+
+Shelby authorized “ship widget updates.” Activity-only (#66) and quick actions (#67) shipped together from parent `53eedfc`, Core `5d43157`. Direct Release install on Shelby’s Duo succeeded on the repo-script retry after a transient remote connection failure. Launch was denied because the phone is locked (CoreDevice10002/FBS Locked). Open Chatterbox once after unlocking; physical Home Screen appearance/interactivity remains awaiting acceptance. The embedded widget and app signatures, shared real app-group entitlements and non-opening provider App Intent metadata passed checks on the final installed artifacts. No Mac install/restart or TestFlight; real Mac app/service/host and Automations hashes unchanged.
+
+Release run: **11 passed, 1 failed, 101 not run**. Same unchanged `test-chat-switch.sh` policy assertion at Coordinator.swift:11, exit133. Proceeded under Shelby’s existing explicit approval for that known failure and incomplete coverage. Full suite is not green. [Real delivery record](../quick-actions-widget/real-delivery.json). Keep issues open pending physical acceptance.
