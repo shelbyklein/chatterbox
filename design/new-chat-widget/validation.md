@@ -19,3 +19,9 @@ Core `e56b645` and parent `e6df2d8` committed and pushed. Dev installed and open
 ## Native evidence
 
 [Dark widget](new-chat-dark.png), [light widget](new-chat-light.png), [larger text](new-chat-large-text.png), [new Codex chat](widget-new-codex.png), [new Claude chat](widget-new-claude.png), [retry](widget-new-chat-error.png), [retained Usage entry](usage.png). Original simulator screenshots from isolated synthetic fixtures, iPhone17Pro/iOS26.2.
+
+## Real shipment
+
+Shelby explicitly requested “ship new chat widget”. Final-source full release selector: **11 passed, 1 failed, 101 not run**. Same unchanged test-chat-switch.sh exit 133 / Coordinator.swift:11 (old fade assertion); prior explicit user approval to proceed despite this known failure and incomplete coverage retained. Unrun scripts remain unverified; no green full-suite claim. Focused results above passed.
+
+The real phone app and signed embedded ChatterboxNewChat extension installed and opened on Shelby’s Duo. New Chat is a medium widget: Codex GPT-6.1-Sol/Medium and Claude Opus5.5/Medium. Existing Usage remains registered. Choose **Chatterbox → New Chat** in the Home Screen gallery. Actual Home Screen appearance remains pending physical acceptance. Real Mac app/service/host and Automations hashes unchanged; no Mac install/restart or TestFlight. No Ready work threads to clear. [Shipment metadata](real-delivery.json).

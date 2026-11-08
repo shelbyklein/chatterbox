@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-07T20:09:27.284401-05:00",
+  "sourceParent": "ab7dab2e06125385bb0e7af4a264df2d706d09fd",
+  "sourceCore": "e56b64531df5ec5a20ac1bdcf83886b0592d590f",
+  "authorization": "Shelby: ship new chat widget. Existing explicit approval to proceed despite known chat-switch failure and incomplete release coverage retained; same limitation reproduced.",
+  "phone": {
+    "device": "Shelby's Duo",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile",
+    "executableSHA256": "f29364c6d512d4e4862016afbc0c63e74f1f61b9867104fca62eb01ee1fd59db",
+    "installed": true,
+    "launchConfirmed": true,
+    "widgetEmbedded": true
+  },
+  "widget": {
+    "kind": "ChatterboxNewChat",
+    "family": "systemMedium",
+    "bundleID": "com.shelbyklein.Chatterbox.mobile.widget",
+    "executableSHA256": "780fbdfb2d8bb5ac2a1dde080a26f74a10f54141a15e8f4c0cb1e1c2dc1d5ddb",
+    "signatureVerified": true,
+    "usageWidgetRetained": true
+  },
+  "shortcuts": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "effort": "medium"
+    },
+    "claude": {
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    }
+  },
+  "physicalWidgetAppearanceVerified": false,
+  "releaseSuite": {
+    "command": "scripts/tests-for.sh --run --all --fail-fast",
+    "passed": 11,
+    "failed": 1,
+    "notRun": 101,
+    "failure": "test-chat-switch.sh exit 133 at tests/chat-switch/Coordinator.swift:11; old fade assertion against intentional immediate switch",
+    "testAndImplementationUnchanged": true,
+    "green": false,
+    "approvedKnownLimitation": true
+  },
+  "focusedValidation": "6 native widget tests, 3 native phone flows and a final new-widget contrast confirmation passed before shipping; 10 selector tests passed. Two visual rounds.",
+  "macInstalled": false,
+  "serviceRestarted": false,
+  "realMacAppServiceHostAndAutomationsHashesUnchanged": true,
+  "testFlightUploaded": false,
+  "deliveredWorkThreads": "No Ready work threads; existing threads already Done.",
+  "logs": [
+    "build/new-chat-widget-release-suite.log",
+    "build/new-chat-widget-release-phone-build.log",
+    "build/new-chat-widget-release-phone-install.log",
+    "build/new-chat-widget-release-bundle-check.json"
+  ]
+}
