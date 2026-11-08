@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-08T15:38:59.975196+00:00",
+  "issue": 68,
+  "authorization": "Shelby: ship archived view; existing explicit approval for the unchanged known chat-switch failure and incomplete release coverage retained.",
+  "sourceParent": "1c0360b6740cfd703229e32966075377e85bec30",
+  "sourceCore": "348dfbca66c1f1bb780dabc7ca4e74d93b137795",
+  "mac": {
+    "installed": true,
+    "opened": true,
+    "signatureVerified": true,
+    "appServiceHostMatchBuilt": true,
+    "executableSHA256": {
+      "Contents/MacOS/Chatterbox": "69d328cf4917e295a7e1584e03f5fbe98328f1f00a4f961366d9a202813635fe",
+      "Contents/MacOS/chatterboxd": "8b0b6c82942969b0e08486ccf50543b1dabbe7bca9534f466cb26b44f2fb123d",
+      "Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost": "c93fd1df9f59531de2cab7ca1a5814935dcd15ac84c9daa4e2e2d66dcc514829"
+    },
+    "serviceRestartRule": "between turns",
+    "serviceRestartAt": "2026-11-08 10:37:44",
+    "serviceHealthyAt": "2026-11-08 10:37:55",
+    "serviceHealth": "ok after10s",
+    "runtimeArchiveVerified": true,
+    "archiveCountsObserved": [
+      364,
+      365
+    ],
+    "searchResultsObserved": 1,
+    "searchCleared": true,
+    "leftOn": "Archived",
+    "screenshotLocalOnly": "build/archived-view-real-installed.png"
+  },
+  "releaseSuite": {
+    "command": "scripts/tests-for.sh --run --all --fail-fast",
+    "passed": 12,
+    "failed": 1,
+    "notRun": 101,
+    "failure": "test-chat-switch.sh exit133 at policy/Coordinator.swift:11; old fade assertion against intentional immediate switch",
+    "testAndPolicyUnchangedSincePriorShipment": true,
+    "approvedKnownLimitation": true,
+    "green": false
+  },
+  "realAutomationsHashUnchanged": true,
+  "phoneBuilt": false,
+  "testFlightUploaded": false,
+  "workThreads": "No task-owned Ready work threads to clear.",
+  "logs": [
+    "build/archived-view-release.log",
+    "build/archived-view-release-build.log",
+    "build/archived-view-real-install.log",
+    "build/archived-view-real-restart.log"
+  ],
+  "remaining": "User acceptance/issue closure approval pending."
+}
