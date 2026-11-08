@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-08T15:17:20.117823+00:00",
+  "issue": 68,
+  "sourceParent": "47825f100f9ac7ede445e087aef19e93389c001f",
+  "sourceCore": "348dfbca66c1f1bb780dabc7ca4e74d93b137795",
+  "implementedCore": "50eaf47",
+  "implementedParent": "ac1fe3a",
+  "concurrentMainPreserved": "Core ce51df6 pressure fix retained in landed348dfbc; parent0f14cc1 retained in landed47825f1",
+  "macDev": {
+    "installed": true,
+    "opened": true,
+    "bundle": "com.shelbyklein.Chatterbox.dev",
+    "appServiceHostMatchBuilt": true,
+    "signatureVerified": true,
+    "serviceRestartRule": "idle",
+    "serviceHealth": "ok after1s",
+    "restartAt": "2026-11-08 10:15:32",
+    "healthyAt": "2026-11-08 10:15:34",
+    "runtimeVerified": true,
+    "observedArchiveThreads": 4,
+    "observedSearchResultCount": 1,
+    "searchClearedBackToAll": true,
+    "screenshot": "dev-installed.png"
+  },
+  "validation": {
+    "archiveFixturePassed": true,
+    "navigationFixturePassed": true,
+    "bothRerunAgainstCombinedSource": true,
+    "selectorChecksPassed": 10,
+    "sourceCheckPassed": true,
+    "flavorRealAndDevPassed": true,
+    "visualInspectionRounds": 2
+  },
+  "realMacAppServiceHostAutomationsHashesUnchanged": true,
+  "phoneBuilt": false,
+  "testFlightUploaded": false,
+  "realShipped": false,
+  "remaining": "Real Ship and user acceptance pending; full release coverage deferred to Ship. Known chat-switch baseline failure remains."
+}

@@ -11,3 +11,9 @@ One native visual inspection round completed. [Wide browser](archived-wide.png),
 Search covers the list metadata and any already-loaded preview, not a full transcript index. It loads no archived transcripts. Existing archive/restore/send semantics and all actual records remain unchanged. Full release coverage is deferred until Ship, including the previously known chat-switch baseline failure; no green full-suite claim.
 
 Source/project, flavor and selector checks and Mac Dev delivery are recorded below when complete. No phone or real Mac install/restart authorized.
+
+## Landed and installed
+
+Core348dfbc and parent47825f1 retain both this feature and the concurrently completed pressure fix. Both archive and view-memory scripts passed again against that combined source. Source check passed, real and Dev flavor checks passed, selector suite10 checks passed. Selector also names broader AppModel callers; those unrelated flows were not all rerun for this focused Dev delivery.
+
+`install-dev.sh` installed/reopened only Mac Dev. Strict signature verified; installed app/service/host binaries match built artifacts. Default idle restart completed10:15:32, service healthy10:15:34. Native computer-use inspection clicked the actual installed Archived button, saw4 archived threads in the center pane, searched an available preview down to1, and cleared back to4. [Installed native screenshot](dev-installed.png); this was the second bounded visual pass, with no polishing needed. [Delivery record](dev-delivery.json). Real app/service/host and Automations hashes unchanged4/4. No phone build, TestFlight or real shipment.

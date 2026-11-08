@@ -28,10 +28,16 @@ Sidebar                         Center pane
 
 - [x] AR1 Implement the global archive query and navigation state. Verify complete inventory/order/search and transitions with `scripts/test-view-memory.sh`.
 - [x] AR2 Replace the popover with the center-pane card browser and toolbar state. Native test clicks the real entry, exercises search/open/return, renders wide/narrow/empty/no-match and checks bounds. Inspect once, fix findings together, confirm at most once.
-- [ ] AR3 Regenerate project if adding source, run source/flavor/mapped focused checks, commit/push Core then parent and install Mac Dev. Record exact results and revision-pinned proof; keep issue open pending real Ship and user acceptance.
+- [x] AR3 Regenerate project if adding source, run source/flavor/mapped focused checks, commit/push Core then parent and install Mac Dev. Record exact results and revision-pinned proof; keep issue open pending real Ship and user acceptance.
 
 ## Tests and boundaries
 
 Use `scripts/tests-for.sh --why --since 8a65585` and the mapped focused tests. Extend `scripts/test-view-memory.sh` for navigation and real center-pane/search rendering; preserve its existing section memory, Sidechat, empty-section and narrow-sidebar checks. Add selector mapping for the new view. Run `scripts/check-sources.sh`, `scripts/test-flavor.sh`, and diff checks. All builds use shared locks/fixed build folders; no phone build needed. Full release run deferred until Ship.
 
 No data migration, transcript preload for search, archive/delete/restore semantics, iOS, Desk, provider, service protocol, unrelated Mac pressure changes or real install. Opening a result remains read-only; existing send-to-unarchive behavior stays. Rollback: revert these commits and reinstall Dev with repo scripts; no user data or archive records are changed, so no data backup/migration needed. Open questions: none.
+
+## Verified Dev delivery
+
+Core implementation50eaf47, parentac1fe3a; integrated Core-first with concurrent completed pressure work into Core348dfbc/parent47825f1 and pushed main. Archive and view-memory fixtures passed again on the combined source. Ten selector checks, source regeneration/checks and real/Dev flavor checks passed. Two bounded visual rounds: native fixtures, then installed Dev.
+
+Mac Dev installed and reopened; idle restart at10:15:32 and health ok at10:15:34. Actual Archived entry opened the center page with4 existing Dev threads; preview search narrowed to1 and Clear returned to4. No messages sent, no archive status changed. Real Mac app/service/host and Automations hashes unchanged. [Validation](../design/archived-view/validation.md), [installed capture](../design/archived-view/dev-installed.png), [delivery](../design/archived-view/dev-delivery.json). Real Ship and user acceptance pending; keep issue open.
