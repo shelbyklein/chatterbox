@@ -30,61 +30,53 @@ final class WidgetTests: XCTestCase {
         capture("before-medium", app)
     }
 
-    @MainActor func testUsageSizes() {
+    @MainActor func testActivitySizes() {
         for size in ["small", "medium", "large"] {
             let app = XCUIApplication()
             app.launchEnvironment = ["WIDGET_SIZE": size]
             app.launch()
-            let claude = app.descendants(matching: .any)["widget-usage-claude"].firstMatch
-            let codex = app.descendants(matching: .any)["widget-usage-codex"].firstMatch
-            XCTAssertTrue(claude.waitForExistence(timeout: 10))
-            XCTAssertTrue(codex.exists)
-            XCTAssertTrue(claude.label.contains("5h 42%") && claude.label.contains("7d 81%"))
-            XCTAssertTrue(codex.label.contains("5h 12%"))
-            XCTAssertTrue(app.staticTexts["SDHQ"].exists)
+            XCTAssertTrue(app.staticTexts["SDHQ"].waitForExistence(timeout: 10))
             let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
-            for provider in [claude, codex] {
-                XCTAssertTrue(widget.frame.contains(provider.frame), "\(size): \(provider.label) fits")
-            }
-            capture("usage-" + size, app)
+            XCTAssertTrue(widget.frame.contains(app.staticTexts["SDHQ"].frame))
+            assertActivityOnly(app)
+            capture("activity-" + size, app)
             app.terminate()
         }
     }
 
-    @MainActor func testMissingAndStale() {
-        for state in ["empty", "stale"] {
+    @MainActor func testActivityStates() {
+        for state in ["empty", "stale", "working-only"] {
             let app = XCUIApplication()
             app.launchEnvironment = ["WIDGET_STATE": state, "WIDGET_LIGHT": "1"]
             app.launch()
-            let claude = app.descendants(matching: .any)["widget-usage-claude"].firstMatch
-            XCTAssertTrue(claude.waitForExistence(timeout: 10))
+            let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
+            XCTAssertTrue(widget.waitForExistence(timeout: 10))
             if state == "empty" {
-                XCTAssertTrue(app.staticTexts["Open Chatterbox to sync usage"].exists)
-                XCTAssertTrue(claude.label.contains("Not reported"))
-                XCTAssertTrue(app.descendants(matching: .any)["widget-usage-codex"].firstMatch.label.contains("Not reported"))
+                XCTAssertTrue(app.staticTexts["All caught up"].exists)
+            } else if state == "working-only" {
+                XCTAssertTrue(app.staticTexts["1 working"].exists)
+                let row = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Working Playcase Arcade")).firstMatch
+                XCTAssertTrue(row.exists && row.isHittable)
+                XCTAssertTrue(widget.frame.contains(row.frame))
             } else {
-                XCTAssertTrue(app.staticTexts["Last synced"].exists)
+                XCTAssertTrue(app.staticTexts["SDHQ"].exists)
+                XCTAssertFalse(app.staticTexts["Working Vispix"].exists, "stale work is not shown as currently working")
             }
-            capture("usage-" + state, app)
+            assertActivityOnly(app)
+            capture("activity-" + state, app)
+            if state == "working-only" {
+                app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Working Playcase Arcade")).firstMatch.tap()
+                XCTAssertEqual(app.staticTexts["opened-widget-link"].label, "chatterbox://chat/11111111-1111-1111-1111-111111111111")
+            }
             app.terminate()
         }
     }
 
-    @MainActor func testUsageBoundaries() {
-        for size in ["small", "medium", "large"] {
-            let app = XCUIApplication()
-            app.launchEnvironment = ["WIDGET_SIZE": size, "WIDGET_STATE": "boundaries", "WIDGET_LIGHT": "1"]
-            app.launch()
-            let claude = app.descendants(matching: .any)["widget-usage-claude"].firstMatch
-            let codex = app.descendants(matching: .any)["widget-usage-codex"].firstMatch
-            XCTAssertTrue(claude.waitForExistence(timeout: 10))
-            XCTAssertTrue(claude.label.contains("5h 0%") && claude.label.contains("7d 100%"))
-            XCTAssertTrue(codex.label.contains("5h —") && codex.label.contains("7d —"))
-            let widget = app.descendants(matching: .any)["widget-preview"].firstMatch
-            XCTAssertTrue(widget.frame.contains(claude.frame), "\(size): full and zero usage fit")
-            XCTAssertTrue(widget.frame.contains(codex.frame), "\(size): unknown and expired usage fit")
-            capture("usage-boundaries-" + size, app)
-            app.terminate()
+    @MainActor private func assertActivityOnly(_ app: XCUIApplication) {
+        XCTAssertFalse(app.staticTexts["Usage (% used)"].exists)
+        XCTAssertFalse(app.staticTexts["Open Chatterbox to sync usage"].exists)
+        for provider in ["claude", "codex"] {
+            XCTAssertFalse(app.descendants(matching: .any)["widget-usage-" + provider].firstMatch.exists)
         }
     }
 

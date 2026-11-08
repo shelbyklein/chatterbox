@@ -26,6 +26,10 @@ struct WidgetPreviewApp: App {
             result.usage?.claude = [] // Proxy quotas must work without Claude chat-process events.
         }
         if mode == "empty" { result = .empty }
+        if mode == "working-only" {
+            result.waiting = []; result.newReplies = []
+            result.working = [.init(chatID: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!, title: "Playcase Arcade", detail: nil, backend: "claude", date: .now)]
+        }
         if mode == "stale" {
             result.updatedAt = .now.addingTimeInterval(-7200)
             result.usage?.syncedAt = result.updatedAt
