@@ -21,5 +21,21 @@
   "install_log": "build/compact-card-header-real-phone-install.log",
   "mac_install_or_restart": false,
   "installed_mac_executables_unchanged": 2,
-  "testflight": false
+  "testflight": false,
+  "additional_installs": [
+    {
+      "date": "2026-11-08T22:35:34.826761-05:00",
+      "target": "iPhone 16 Pro",
+      "paired_name": "iPhone",
+      "source_parent": "38badd5",
+      "source_core": "e0c601a",
+      "configuration": "Release",
+      "installed": true,
+      "opened": true,
+      "strict_signature": "passed",
+      "install_log": "build/card-layout-16pro-install.log",
+      "product_source_unchanged": true,
+      "tests_repeated": false
+    }
+  ]
 }
