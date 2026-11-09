@@ -16,6 +16,18 @@ struct Entry:View {
 @MainActor func run() async throws {
  let root=ProcessInfo.processInfo.environment["CHATTERBOX_DATA_DIR"]!
  precondition(root.hasPrefix("/tmp/chatterbox-current-model."))
+ // Fable 5.2 before Claude Code's picker lists it: added just above Fable 5.1, as its 1M
+ // version, renamed; nothing added once Claude Code lists it itself.
+ let fable51=ClaudeCodeModel(value:"claude-fable-5-1[1m]",resolvedModel:"claude-fable-5-1[1m]",displayName:"Fable",
+  detail:"Fable 5.1 \u{00B7} Most capable for your hardest work",efforts:["low","medium","high","xhigh","max"])
+ let opus=ClaudeCodeModel(value:"opus",resolvedModel:"claude-opus-5-5",displayName:"Opus",detail:"Opus 5.5 \u{00B7} Best for everyday",efforts:["low","medium","high"])
+ let added=ClaudeModels.addingNewer([opus,fable51])
+ precondition(added.map(\.value)==["opus","claude-fable-5-2[1m]","claude-fable-5-1[1m]"],"Fable 5.2 goes above 5.1: \(added.map(\.value))")
+ precondition(added[1].fullName=="Fable 5.2" && added[1].efforts==fable51.efforts && added[1].summary=="Most capable for your hardest work","named Fable 5.2, same efforts and summary")
+ var listed=fable51; listed.value="claude-fable-5-2[1m]"; listed.resolvedModel="claude-fable-5-2[1m]"
+ precondition(ClaudeModels.addingNewer([listed,fable51]).count==2,"once Claude Code lists it, nothing is added")
+ precondition(ClaudeModels.addingNewer([opus]).count==1,"no Fable 5.1, nothing to follow")
+ print("PASS Fable 5.2 added above Fable 5.1")
  let preset=ModelPreset(title:"Arty",backend:.codex,model:"gpt-6-astra",effort:"medium")
  let presets=try JSONEncoder().encode([preset,
   ModelPreset(title:"Smarty",backend:.claude,model:"sonnet",effort:"medium"),
