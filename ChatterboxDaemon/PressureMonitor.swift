@@ -89,7 +89,7 @@ import Darwin
         MacPressure.holdsWork = Self.holdsWorkPreference
         let acts = actsForMac()
         if let change, let readings = evaluator.last {
-            RuntimeHooks.note("Mac pressure \(change.from.label) \u{2192} \(change.to.label): \(change.reasons.joined(separator: "; ")) [\(MacPressure.Evaluator.readingsLine(readings)), load \(MacPressure.Evaluator.load(readings.load5))/\(MacPressure.Evaluator.load(readings.load15)) over 5/15 min, swap +\(MacPressure.Evaluator.gigabytes(evaluator.swapGrowth)) in \(MacPressure.Evaluator.minutes(evaluator.thresholds.swapGrowthWindow))]")
+            RuntimeHooks.note("Mac pressure \(change.from.label) \u{2192} \(change.to.label): \(change.reasons.joined(separator: "; ")) [\(MacPressure.Evaluator.readingsLine(readings)), load \(MacPressure.Evaluator.load(readings.load5))/\(MacPressure.Evaluator.load(readings.load15)) over 5/15 min, swap +\(MacPressure.Evaluator.gigabytes(evaluator.swapGrowth)) in 5 min]")
             if acts { SimulatorSweeper.shared?.pressureChanged(level) }
             if change.to == .overloaded, acts, lastPush.map({ now.timeIntervalSince($0) >= 30 * 60 }) ?? true {
                 lastPush = now
@@ -122,7 +122,7 @@ import Darwin
                                   compressedGB: r.compressed.map(gb), load1: (r.load1 * 100).rounded() / 100, load5: (r.load5 * 100).rounded() / 100,
                                   load15: (r.load15 * 100).rounded() / 100, cores: r.cores, thermal: r.thermal.rawValue,
                                   holding: Self.holding(evaluator.level, waiting: waiting, holdsWork: MacPressure.holdsWork), waiting: waiting,
-                                  cpuPercent: r.cpuBusy.map { Int(($0 * 100).rounded()) })
+                                  cpuPercent: r.cpuBusy.map { Int(($0 * 100).rounded()) }, memoryPercent: r.memoryUsed.map { Int(($0 * 100).rounded()) })
     }
 
     /// What's held back at `level`, one line each.
@@ -201,7 +201,16 @@ import Darwin
         let result = withUnsafeMutablePointer(to: &stats) { pointer in
             pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count) }
         }
-        if result == KERN_SUCCESS { r.compressed = Int64(stats.compressor_page_count) * Int64(vm_kernel_page_size) }
+        if result == KERN_SUCCESS {
+            let page = Int64(vm_kernel_page_size)
+            r.compressed = Int64(stats.compressor_page_count) * page
+            // Used, as Activity Monitor counts it: app memory (internal less purgeable), wired
+            // and compressed, of all the Mac's memory.
+            let app = max(0, Int64(stats.internal_page_count) - Int64(stats.purgeable_count))
+            let used = (app + Int64(stats.wire_count) + Int64(stats.compressor_page_count)) * page
+            let total = Int64(ProcessInfo.processInfo.physicalMemory)
+            if total > 0 { r.memoryUsed = min(1, max(0, Double(used) / Double(total))) }
+        }
         r.cpuBusy = cpuBusySinceLastLook()
         return r
     }

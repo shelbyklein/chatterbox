@@ -81,7 +81,9 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   CMake reads them when it first configures a build folder; one configured before needs one
   reconfigure. `ccache -s` shows hits.
 - **The service holds Chatterbox's work back when the Mac is under pressure**
-  (plans/mac-pressure.md): at Busy builds go one at a time (three at OK) and new work threads wait to start; at
+  (plans/mac-pressure.md). Since November 9 only a truly critical Mac counts: Overloaded once
+  CPU or memory use stays over 95% for 2 minutes (Settings → Background service); Busy is off
+  by default, and load, swap and temperature no longer decide. at Busy builds go one at a time (three at OK) and new work threads wait to start; at
   Overloaded new builds wait ("waiting: the Mac is overloaded (…)") and work threads don't start
   their next turn. Agents run at nice +10 with build caps (`CMAKE_BUILD_PARALLEL_LEVEL`,
   `MAKEFLAGS`, `CARGO_BUILD_JOBS`) in their environment, in any project. Don't work around it;

@@ -321,17 +321,19 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               "released at once after reporting (the front thread's agent is kept)")
 
     // Pressure. A fake reader drives the service's monitor, with no sustain or calm windows.
-    var reading = MacPressure.Readings(memory: .normal, swapUsed: 1 << 30, load1: 4, load5: 4, load15: 4, cores: 16, thermal: .nominal)
-    var quick = MacPressure.Thresholds(); quick.busyLoadFor = 0; quick.overloadedLoadFor = 0; quick.stepDownAfter = 0
+    // Busy is off by default (only CPU or memory over 95% counts); turned on here at 80% CPU.
+    var reading = MacPressure.Readings(memory: .normal, swapUsed: 1 << 30, load1: 4, load5: 4, load15: 4, cores: 16, thermal: .nominal, cpuBusy: 0.1, memoryUsed: 0.5)
+    var quick = MacPressure.Thresholds(); quick.busyCPU = 0.8; quick.busyFor = 0; quick.criticalFor = 0; quick.stepDownAfter = 0
     let monitor = PressureMonitor(runtime: runtime, reader: { reading }, interval: 3600, thresholds: quick)
     monitor.actsForMac = { false }   // never the Mac's pressure.json or simulators
     var told: [Companion.Pressure] = []
     monitor.onChange = { told.append($0) }
     monitor.start()
     defer { monitor.stop(); MacPressure.current = .ok }
-    func level(_ load: Double) { reading.load1 = load; monitor.tick() }
+    /// 30: Busy (CPU 85%), 60: Overloaded (CPU 97%), 4: OK (CPU 10%), as the load numbers read before.
+    func level(_ load: Double) { reading.cpuBusy = load >= 60 ? 0.97 : load >= 30 ? 0.85 : 0.1; monitor.tick() }
     level(30)
-    try check(MacPressure.current == .busy && monitor.snapshot?.level == "busy" && told.last?.level == "busy", "load 30 on 16 cores: Busy, and the app is told")
+    try check(MacPressure.current == .busy && monitor.snapshot?.level == "busy" && told.last?.level == "busy", "CPU 85% (Busy on in this test): Busy, and the app is told")
 
     // Busy: a new work thread is made, with its task, but waits to start.
     let briefCount = lines("claude-input.jsonl").count

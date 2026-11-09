@@ -1,7 +1,7 @@
 import Foundation
 // The service's pressure level (Core/ChatterboxRuntime/MacPressure.swift) from recorded readings,
-// one every 10 s as PressureMonitor takes them: up as soon as a condition holds (the load ones
-// once sustained), down only after the lower level's conditions have held for 3 minutes.
+// one every 10 s as PressureMonitor takes them: Overloaded once CPU or memory has been over 95%
+// for 2 minutes, back to OK after 3 calm minutes.
 var failures = 0
 func check(_ ok: Bool, _ text: String) {
     if ok { print("PASS: \(text)") } else { print("FAIL: \(text)"); failures += 1 }
@@ -17,169 +17,87 @@ func run(_ e: inout MacPressure.Evaluator, from: Int, to: Int, _ readings: (Int)
     }
     return changes
 }
-func calm(_ t: Int) -> R { R(memory: .normal, swapUsed: 2 * GB, load1: 6, cores: 16) }
-func load(_ value: Double) -> (Int) -> R { { _ in R(memory: .normal, swapUsed: 2 * GB, load1: value, cores: 16) } }
+func calm(_ t: Int) -> R { R(memory: .normal, swapUsed: 2 * GB, load1: 6, cores: 16, cpuBusy: 0.3, memoryUsed: 0.6) }
+func use(cpu: Double?, memory: Double?) -> (Int) -> R { { _ in R(memory: .normal, swapUsed: 2 * GB, load1: 6, cores: 16, cpuBusy: cpu, memoryUsed: memory) } }
 
+// Only truly critical counts (Shelby, 2026-11-09): CPU or memory over 95% for 2 minutes.
 // Calm: OK, no change.
 do {
     var e = MacPressure.Evaluator()
     let changes = run(&e, from: 0, to: 600, calm)
     check(changes.isEmpty && e.level == .ok, "calm readings stay OK")
-    check(e.summary.contains("load 6.0 on 16 cores"), "at OK the summary is the readings: \(e.summary)")
+    check(e.summary.contains("CPU 30% in use, memory 60% used"), "at OK the summary is the readings: \(e.summary)")
 }
 
-// Busy by load: above 1.5x the cores (24) sustained 2 minutes; down after 3 calm minutes.
+// What used to trip it no longer does: high load, swap growing, memory warning, running hot.
 do {
     var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 110, load(30))
-    check(changes.isEmpty && e.level == .ok, "load 30 on 16 cores for under 2 min: still OK")
-    changes = run(&e, from: 120, to: 120, load(30))
-    check(changes.first?.0 == 120 && changes.first?.1.to == .busy && e.level == .busy, "sustained 2 min: Busy")
-    check(e.reasons.first?.contains("load 30 on 16 cores (over 1.5\u{00D7}) for 2 min") == true, "with why: \(e.reasons)")
-    changes = run(&e, from: 130, to: 300, load(10))
-    check(changes.isEmpty && e.level == .busy, "calm again for under 3 min: still Busy")
-    changes = run(&e, from: 310, to: 320, load(10))
-    check(changes.first?.0 == 310 && changes.first?.1.to == .ok, "calm for 3 min: back to OK")
+    var swap: Int64 = 0
+    let changes = run(&e, from: 0, to: 900) { t in
+        swap += GB / 2
+        return R(memory: .warning, swapUsed: swap, load1: 113, cores: 16, thermal: t > 300 ? .critical : .serious, cpuBusy: 0.9, memoryUsed: 0.9)
+    }
+    check(changes.isEmpty && e.level == .ok, "load 113, swap growing, memory warning, critical heat, CPU and memory at 90%: still OK")
 }
 
-// Flapping: load over and under the line never sustains, so it never goes Busy.
+// CPU over 95% for 2 minutes: Overloaded, straight from OK (never Busy); back to OK after 3 calm minutes.
 do {
     var e = MacPressure.Evaluator()
-    let changes = run(&e, from: 0, to: 900) { t in R(load1: (t / 10) % 6 == 5 ? 10 : 40, cores: 16) }
-    check(changes.isEmpty && e.level == .ok, "load that dips every minute isn't sustained: OK")
+    var changes = run(&e, from: 0, to: 110, use(cpu: 0.97, memory: 0.5))
+    check(changes.isEmpty && e.level == .ok, "CPU 97% for under 2 min: still OK")
+    changes = run(&e, from: 120, to: 120, use(cpu: 0.97, memory: 0.5))
+    check(changes.first?.0 == 120 && changes.first?.1 == MacPressure.Change(from: .ok, to: .overloaded, reasons: e.reasons), "2 min: Overloaded, from OK")
+    check(e.reasons == ["CPU 97% in use for 2 min"], "with why: \(e.reasons)")
+    changes = run(&e, from: 130, to: 300, use(cpu: 0.5, memory: 0.5))
+    check(changes.isEmpty && e.level == .overloaded, "calm for under 3 min: still Overloaded")
+    changes = run(&e, from: 310, to: 310, use(cpu: 0.5, memory: 0.5))
+    check(changes.first?.1 == MacPressure.Change(from: .overloaded, to: .ok, reasons: e.reasons), "calm for 3 min: straight back to OK")
 }
 
-// Overloaded by load: over 3x (48) for 1 minute, straight from OK; then down a step at a time.
+// Memory over 95% alone counts too, with the CPU idle.
 do {
     var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 50, load(60))
-    check(changes.isEmpty, "load 60 for under a minute: OK")
-    changes = run(&e, from: 60, to: 60, load(60))
-    check(changes.first?.1 == MacPressure.Change(from: .ok, to: .overloaded, reasons: e.reasons) && e.reasons.first?.contains("over 3\u{00D7}") == true,
-          "sustained a minute: Overloaded, from OK (\(e.reasons))")
-    changes = run(&e, from: 70, to: 240, load(30))
-    check(changes.isEmpty && e.level == .overloaded, "under 3x for under 3 min: still Overloaded")
-    changes = run(&e, from: 250, to: 250, load(30))
-    check(changes.first?.1.to == .busy && e.reasons.first?.contains("over 1.5\u{00D7}") == true, "under 3x for 3 min: Busy, still over 1.5x (\(e.reasons))")
-    // A spike back over 3x during the calm resets the clock, without going back up (not sustained).
-    changes = run(&e, from: 260, to: 400, load(8))
-    changes += run(&e, from: 410, to: 410, load(50))
-    changes += run(&e, from: 420, to: 580, load(8))
-    check(changes.isEmpty && e.level == .busy, "a spike resets the calm clock: still Busy")
-    changes = run(&e, from: 590, to: 600, load(8))
-    check(changes.first?.0 == 600 && changes.first?.1.to == .ok, "3 calm minutes after the spike: OK")
+    let changes = run(&e, from: 0, to: 120, use(cpu: 0.05, memory: 0.96))
+    check(changes.first?.0 == 120 && changes.first?.1.to == .overloaded && e.reasons == ["memory 96% used for 2 min"], "memory 96% for 2 min: Overloaded (\(e.reasons))")
 }
 
-// Overloaded to OK in one step when everything calms at once.
+// 95% exactly counts; a dip under it restarts the 2 minutes.
 do {
+    var edge = MacPressure.Evaluator()
+    check(run(&edge, from: 0, to: 120, use(cpu: 0.95, memory: 0.2)).first?.1.to == .overloaded, "CPU at exactly 95%: counts")
     var e = MacPressure.Evaluator()
-    _ = run(&e, from: 0, to: 60, load(60))
-    let changes = run(&e, from: 70, to: 250, load(4))
-    check(changes.count == 1 && changes[0].0 == 250 && changes[0].1.to == .ok, "from Overloaded straight to OK after 3 calm minutes")
+    let changes = run(&e, from: 0, to: 240) { t in t == 90 ? calm(t) : R(cores: 16, cpuBusy: 0.99, memoryUsed: 0.5) }
+    check(changes.first?.0 == 220 && changes.first?.1.to == .overloaded, "a dip at 90 s restarts the clock: Overloaded at 220 s")
 }
 
-// Swap growing over 1 GB in 5 minutes: Overloaded at once; calm only once the growth is out of
-// the window, then 3 minutes.
+// Memory use unknown (an older reading): the kernel's critical pressure counts in its place.
 do {
     var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 290) { t in R(swapUsed: 2 * GB + Int64(t) * GB / 1000, load1: 6, cores: 16) }   // +0.29 GB in 5 min
-    check(changes.isEmpty, "slow swap growth: OK")
-    changes = run(&e, from: 300, to: 400) { t in R(swapUsed: 2 * GB + Int64(t - 290) * GB / 80, load1: 6, cores: 16) }  // +1.4 GB in 110 s
-    let at = changes.first?.0 ?? -1
-    check(changes.first?.1.to == .overloaded && e.reasons.first?.contains("swap grew") == true, "swap +1 GB within 5 min: Overloaded at \(at) s (\(e.reasons))")
-    let top = 2 * GB + 110 * GB / 80
-    changes = run(&e, from: 410, to: 1100) { _ in R(swapUsed: top, load1: 6, cores: 16) }
-    let down = changes.first { $0.1.to == .ok }?.0 ?? -1
-    // The growth leaves the 5-minute window about 5 min after it began, then 3 calm minutes.
-    check(down >= at + 180 && down >= 300 + 300 + 180 - 120 && e.level == .ok, "swap steady: OK once the growth is out of the window and 3 min have passed (\(down) s)")
-    check(e.swapGrowth == 0, "no growth in the window now")
+    check(run(&e, from: 0, to: 120) { _ in R(memory: .critical, cores: 16, cpuBusy: 0.1) }.first?.1.to == .overloaded, "memory use unknown, kernel critical for 2 min: Overloaded")
+    var unknown = MacPressure.Evaluator()
+    check(run(&unknown, from: 0, to: 600) { _ in R(memory: .warning, load1: 80, cores: 16) }.isEmpty, "nothing known and no critical memory: OK")
 }
 
-// Memory pressure and thermal state: at once, up; down after 3 minutes.
+// Busy is off by default; set, it works as before (tests and the hold machinery use it).
 do {
-    var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 0) { _ in R(memory: .warning, load1: 4) }
-    check(changes.first?.1.to == .busy && e.reasons == ["memory pressure warning"], "memory warning: Busy at once")
-    changes = run(&e, from: 10, to: 10) { _ in R(memory: .critical, load1: 4) }
-    check(changes.first?.1 == MacPressure.Change(from: .busy, to: .overloaded, reasons: ["memory pressure critical"]), "memory critical: Overloaded at once")
-    changes = run(&e, from: 20, to: 190) { _ in R(memory: .warning, load1: 4) }
-    check(e.level == .overloaded, "warning again: Overloaded holds for 3 min")
-    changes = run(&e, from: 200, to: 200) { _ in R(memory: .warning, load1: 4) }
-    check(changes.first?.1.to == .busy && e.reasons == ["memory pressure warning"], "then Busy, for the warning")
-    changes = run(&e, from: 210, to: 400) { _ in R(memory: .normal, load1: 4) }
-    check(changes.first?.0 == 390 && changes.first?.1.to == .ok, "normal for 3 min: OK")
-
-    var hot = MacPressure.Evaluator()
-    changes = run(&hot, from: 0, to: 0) { _ in R(load1: 4, thermal: .serious) }
-    check(changes.first?.1.to == .busy && hot.reasons == ["thermal state serious"], "thermal serious: Busy")
-    changes = run(&hot, from: 10, to: 10) { _ in R(load1: 4, thermal: .critical) }
-    check(changes.first?.1.to == .overloaded, "thermal critical: Overloaded")
-    changes = run(&hot, from: 20, to: 200) { _ in R(load1: 4, thermal: .fair) }
-    check(hot.level == .ok, "fair for 3 min: OK")
+    var t = MacPressure.Thresholds(); t.busyCPU = 0.8
+    var e = MacPressure.Evaluator(thresholds: t)
+    var changes = run(&e, from: 0, to: 120, use(cpu: 0.85, memory: 0.5))
+    check(changes.first?.1.to == .busy && e.reasons == ["CPU 85% in use for 2 min"], "busyCPU 80%: CPU 85% for 2 min is Busy")
+    changes = run(&e, from: 130, to: 250, use(cpu: 0.97, memory: 0.5))
+    check(changes.first?.1.to == .overloaded, "then over 95% for 2 min: Overloaded")
 }
 
 // Thresholds from the preferences; nonsense values keep the defaults.
 do {
-    let prefs: [String: Any] = ["pressure.busyLoad": 2.0, "pressure.overloadedLoad": "4", "pressure.swapGrowthGB": 2, "pressure.stepDownMinutes": 1,
-                                "pressure.busyLoadSeconds": -5, "pressure.overloadedLoadSeconds": "x"]
-    let t = MacPressure.Thresholds(preferences: { prefs[$0] })
-    check(t.busyLoad == 2 && t.overloadedLoad == 4 && t.swapGrowth == 2 * GB && t.stepDownAfter == 60 && t.busyLoadFor == 120 && t.overloadedLoadFor == 60,
-          "preferences set the thresholds; bad values keep the defaults")
-    var e = MacPressure.Evaluator(thresholds: t)
-    var changes = run(&e, from: 0, to: 200, load(30))
-    check(changes.isEmpty, "load 30 is under 2x 16 cores: OK")
-    changes = run(&e, from: 210, to: 330, load(40))
-    check(changes.first?.1.to == .busy, "over 2x for 2 min: Busy")
-    changes = run(&e, from: 340, to: 400, load(5))
-    check(changes.first?.0 == 400 && changes.first?.1.to == .ok, "a 1-minute step down")
-    check(MacPressure.Thresholds(preferences: { _ in nil }) == .defaults, "nothing set: the defaults")
+    let set = { (prefs: [String: Any]) in MacPressure.Thresholds(preferences: { prefs[$0] }) }
+    let t = set(["pressure.criticalCPUPercent": 90, "pressure.criticalMemoryPercent": "92", "pressure.criticalSeconds": 60, "pressure.stepDownMinutes": 1])
+    check(t.criticalCPU == 0.9 && t.criticalMemory == 0.92 && t.criticalFor == 60 && t.stepDownAfter == 60 && t.busyCPU == nil, "set from the preferences")
+    let bad = set(["pressure.criticalCPUPercent": 150, "pressure.criticalMemoryPercent": 10, "pressure.criticalSeconds": -5])
+    check(bad == .defaults, "out of range: the defaults")
+    check(set([:]) == .defaults && MacPressure.Thresholds.defaults.criticalCPU == 0.95 && MacPressure.Thresholds.defaults.criticalMemory == 0.95, "nothing set: 95% / 95%")
 }
 
-// Load counts only while the CPU is busy too: macOS's load counts threads ready to run, so a burst of
-// waking threads reads high with the cores mostly idle (2026-11-08: load 113 on 16 cores, CPU 18% in use).
-func loadCPU(_ value: Double, _ cpu: Double?) -> (Int) -> R { { _ in R(memory: .normal, swapUsed: 2 * GB, load1: value, cores: 16, cpuBusy: cpu) } }
-do {
-    var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 600, loadCPU(113, 0.18))
-    check(changes.isEmpty && e.level == .ok, "load 113 with the CPU 18% in use for 10 min: still OK")
-    check(e.summary.contains("load 113 on 16 cores, CPU 18% in use"), "the readings show the CPU: \(e.summary)")
-    changes = run(&e, from: 610, to: 670, loadCPU(60, 0.9))
-    check(changes.first?.0 == 670 && changes.first?.1.to == .overloaded, "load 60 with the CPU 90% in use for a minute: Overloaded")
-    check(e.reasons.first?.contains("load 60 on 16 cores (over 3\u{00D7}) for 1 min, CPU 90% in use") == true, "with the CPU in the why: \(e.reasons)")
-    // The load stays high but the CPU goes quiet: that counts as calm, so it steps down.
-    changes = run(&e, from: 680, to: 850, loadCPU(60, 0.2))
-    check(changes.isEmpty && e.level == .overloaded, "CPU quiet for under 3 min: still Overloaded")
-    changes = run(&e, from: 860, to: 860, loadCPU(60, 0.2))
-    check(changes.first?.0 == 860 && changes.first?.1.to == .ok, "CPU quiet for 3 min with load still 60: OK")
-}
-do {
-    // Busy needs the CPU sustained too: one quiet reading restarts the 2 minutes.
-    var e = MacPressure.Evaluator()
-    var changes = run(&e, from: 0, to: 110) { t in R(swapUsed: 2 * GB, load1: 30, cores: 16, cpuBusy: t == 60 ? 0.3 : 0.8) }
-    changes += run(&e, from: 120, to: 170, loadCPU(30, 0.8))
-    check(changes.isEmpty && e.level == .ok, "a CPU dip inside the 2 minutes restarts them: OK")
-    changes = run(&e, from: 180, to: 190, loadCPU(30, 0.8))
-    check(changes.first?.0 == 190 && changes.first?.1.to == .busy, "2 min busy CPU since the dip: Busy")
-    // Exactly at the line counts.
-    var edge = MacPressure.Evaluator()
-    check(run(&edge, from: 0, to: 120, loadCPU(30, 0.6)).first?.1.to == .busy, "CPU at exactly 60%: load counts")
-    // Unknown CPU (the first reading, or no counters): load counts alone, as before.
-    var unknown = MacPressure.Evaluator()
-    check(run(&unknown, from: 0, to: 60, loadCPU(60, nil)).first?.1.to == .overloaded, "CPU unknown: load counts alone")
-    // Memory, swap and heat don't need the CPU.
-    var memory = MacPressure.Evaluator()
-    check(run(&memory, from: 0, to: 0) { _ in R(memory: .critical, load1: 4, cpuBusy: 0.05) }.first?.1.to == .overloaded, "memory critical with an idle CPU: Overloaded")
-}
-do {
-    let set = { (prefs: [String: Any]) in MacPressure.Thresholds(preferences: { prefs[$0] }).loadNeedsCPU }
-    check(set([:]) == 0.6 && set(["pressure.loadCPUPercent": 75]) == 0.75 && set(["pressure.loadCPUPercent": "80"]) == 0.8,
-          "the CPU line: 60% by default, or the preference's percent")
-    check(set(["pressure.loadCPUPercent": 150]) == 0.6 && set(["pressure.loadCPUPercent": -1]) == 0.6 && set(["pressure.loadCPUPercent": "x"]) == 0.6,
-          "out-of-range or unreadable CPU percents keep the default")
-    var off = MacPressure.Thresholds(); off.loadNeedsCPU = set(["pressure.loadCPUPercent": 0])
-    var e = MacPressure.Evaluator(thresholds: off)
-    check(off.loadNeedsCPU == 0 && run(&e, from: 0, to: 60, loadCPU(60, 0.05)).first?.1.to == .overloaded, "0% turns the check off: load alone")
-}
 do {
     // The CPU share from the kernel's tick counters [user, system, idle, nice].
     check(MacPressure.cpuBusy(from: nil, to: [1, 1, 1, 1]) == nil, "no earlier reading: unknown")

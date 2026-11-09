@@ -84,3 +84,12 @@ Tests: `scripts/test-pressure.sh` (levels from recorded readings, build caps, re
 fake process table), `test-build-lock.sh`, `test-simulator-sweeper.sh`, `test-work-threads.sh`
 (queue, hold, release, Start now, nice and env of an agent and its child, release after report),
 `test-mac-pressure.sh` (renders), `test-mobile-home-nav.sh` (`testPressureIndicator`).
+
+## Update 2026-11-09: only truly critical
+
+Shelby: the reader was far too strong; it should only report when CPU or memory is over 95%.
+Now Overloaded = CPU in use (HOST_CPU_LOAD_INFO) or memory used (app + wired + compressed, of
+physical memory) at or over 95% for 2 minutes; back to OK after 3 calm minutes. Busy is off by
+default (`Thresholds.busyCPU/busyMemory`, used by tests). Load averages, swap growth, memory
+pressure warning and thermal state are still shown but no longer decide the level. Settings keys:
+`pressure.criticalCPUPercent`, `pressure.criticalMemoryPercent`, `pressure.criticalSeconds`.
