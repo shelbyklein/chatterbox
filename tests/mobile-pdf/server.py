@@ -1,13 +1,29 @@
 import http.server,json,os,time,uuid,io
 from pathlib import Path
-from reportlab.pdfgen import canvas
 ROOT=Path(os.environ['CHATTERBOX_TEST_OUTPUT']); logs=[]; offline=False; mode="normal"
 CHAT='11111111-1111-1111-1111-111111111111'; FILE='22222222-2222-2222-2222-222222222222'
-buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=(612,792))
-for n in range(1,4):
- c.setFillColorRGB(.08,.20,.26);c.rect(0,0,612,792,fill=1,stroke=0)
- c.setFillColorRGB(1,1,1); c.setFont('Helvetica-Bold',32); c.drawString(48,680,'Mobile PDF Review'); c.setFont('Helvetica',18);c.drawString(48,620,f'Page {n} of 3');c.drawString(48,570,'Zoom, review, save and share.'); c.showPage()
-c.save();PDF=buf.getvalue()
+def tiny_pdf(pages):
+ """A minimal PDF (no third-party library): one page per list of content-stream lines, Helvetica."""
+ objs=['<< /Type /Catalog /Pages 2 0 R >>',None,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>']
+ kids=[]
+ for content in pages:
+  stream='\n'.join(content).encode('latin-1')
+  objs.append(f'<< /Length {len(stream)} >>\nstream\n'.encode('latin-1')+stream+b'\nendstream')
+  objs.append(f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {len(objs)} 0 R >>')
+  kids.append(f'{len(objs)} 0 R')
+ objs[1]=f'<< /Type /Pages /Kids [{" ".join(kids)}] /Count {len(kids)} >>'
+ out=bytearray(b'%PDF-1.4\n'); offsets=[]
+ for i,o in enumerate(objs,1):
+  offsets.append(len(out)); body=o if isinstance(o,bytes) else o.encode('latin-1')
+  out+=f'{i} 0 obj\n'.encode()+body+b'\nendobj\n'
+ xref=len(out)
+ out+=f'xref\n0 {len(objs)+1}\n0000000000 65535 f \n'.encode()+b''.join(f'{o:010d} 00000 n \n'.encode() for o in offsets)
+ out+=f'trailer\n<< /Size {len(objs)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n'.encode()
+ return bytes(out)
+PDF=tiny_pdf([['0.08 0.20 0.26 rg 0 0 612 792 re f','1 1 1 rg',
+               'BT /F2 32 Tf 48 680 Td (Mobile PDF Review) Tj ET',
+               f'BT /F1 18 Tf 48 620 Td (Page {n} of 3) Tj ET',
+               'BT /F1 18 Tf 48 570 Td (Zoom, review, save and share.) Tj ET'] for n in range(1,4)])
 summary={'id':CHAT,'title':'PDF review','backend':'codex','isRunning':False,'isWaitingOnYou':False,'updatedAt':'2026-10-02T00:00:00Z'}
 file={'id':FILE,'name':'Review proof.pdf','mediaType':'application/pdf','isImage':False,'revision':'fixture-1','byteCount':len(PDF)}
 class Handler(http.server.BaseHTTPRequestHandler):
