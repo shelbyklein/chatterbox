@@ -45,7 +45,14 @@ app.setActivationPolicy(.accessory)
     }
     precondition(waiting.isWaitingOnYou && !ready.isWaitingOnYou)
     try await render("pending-dark",true)
-    precondition(ThreadThumbnails.shared.images[waiting.id] != nil && ThreadThumbnails.shared.images[ready.id] != nil)
+    // Thumbnails load in the background: wait for them (up to 8 s; mid-suite the Mac is busy and
+    // 0.7 s wasn't always enough), then render again so the screenshot shows them.
+    let thumbnailsBy = Date().addingTimeInterval(8)
+    while ThreadThumbnails.shared.images[waiting.id] == nil || ThreadThumbnails.shared.images[ready.id] == nil {
+        precondition(Date() < thumbnailsBy, "Thumbnails never loaded")
+        try await Task.sleep(for:.milliseconds(50))
+    }
+    try await render("pending-dark",true)
     try await render("pending-light",false)
     waiting.record.items[1].approvalState = .approved
     precondition(!waiting.isWaitingOnYou)
