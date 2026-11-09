@@ -109,15 +109,14 @@ final class ComposerTests: XCTestCase {
     app.launchArguments=["-mobileChatListPage","projects","-drafts","{}"]
     app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
     app.launch()
-    // Activity lives in the ⋯ menu.
-    XCTAssertTrue(app.buttons["Connection"].firstMatch.waitForExistence(timeout:15))
-    app.buttons["Connection"].firstMatch.tap()
-    XCTAssertTrue(app.buttons["Activity"].waitForExistence(timeout:5)); app.buttons["Activity"].tap()
-    let entries=app.buttons.matching(identifier:"Regression Project, turn ended")
-    XCTAssertTrue(entries.firstMatch.waitForExistence(timeout:15))
-    XCTAssertEqual(entries.count,2)
+    // Activity is a tab of its own (it left the ⋯ menu).
+    let activityTab=app.tabBars.buttons["Activity"]
+    XCTAssertTrue(activityTab.waitForExistence(timeout:15)); activityTab.tap()
+    // Nothing working or unread here, so the project shows under Recent; tapping it opens the chat.
+    let entry=app.descendants(matching:.any).matching(identifier:"activity-recent-33333333-3333-3333-3333-333333333333").firstMatch
+    XCTAssertTrue(entry.waitForExistence(timeout:15), "Activity lists the project under Recent")
     capture(app,"activity-timeline")
-    entries.firstMatch.tap()
+    entry.tap()
     XCTAssertTrue(field(app).waitForExistence(timeout:10))
     capture(app,"activity-opened-chat")
   }
