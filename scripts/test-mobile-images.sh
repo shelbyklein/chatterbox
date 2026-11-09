@@ -79,6 +79,9 @@ simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator
 status=0
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
+# The test device is reused run to run (test-hygiene.sh), and the app's image cache with it: a
+# cached image is never requested, so the retry checks would see nothing. Start each run clean.
+xcrun simctl uninstall "$simulator" com.shelbyklein.Chatterbox.ImageRegression 2>/dev/null || true
 selection=("-only-testing:ImageTests")
 if [[ -n "${MOBILE_IMAGES_ONLY:-}" ]]; then selection=("-only-testing:ImageTests/ImageTests/$MOBILE_IMAGES_ONLY"); fi
 xcodebuild -testProductsPath "$products" -destination "platform=iOS Simulator,id=$simulator" \
