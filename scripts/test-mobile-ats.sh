@@ -6,15 +6,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # An explicit check: `${1:?}` ends the script before test-hygiene.sh's cleanup sees a failure,
 # and the run would count as passed without running.
-if [[ -z "${1:-}" ]]; then echo 'Usage: scripts/test-mobile-ats.sh 100.x.y.z [LAN-IP] (needs the Mac'"'"'s Tailscale IPv4 address; not run)' >&2; exit 2; fi
-probe_host=$1
-probe_lan=${2:-}
+# With no address given (the release suite), this Mac's own Tailscale and LAN addresses.
+probe_host=${1:-$(tailscale ip -4 2>/dev/null | head -1 || true)}
+probe_lan=${2:-$(ipconfig getifaddr en0 2>/dev/null || true)}
+if [[ -z "$probe_host" ]]; then echo 'Usage: scripts/test-mobile-ats.sh 100.x.y.z [LAN-IP] (needs the Mac'"'"'s Tailscale IPv4 address; Tailscale not found; not run)' >&2; exit 2; fi
+echo "Probing $probe_host${probe_lan:+ and $probe_lan}"
 artifacts=$(mktemp -d /tmp/chatterbox-ats.XXXXXX)
 cleanup() {
   echo "Numeric ATS artifacts: $artifacts"
 }
 trap cleanup EXIT
-xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -sdk iphonesimulator \
+xcodebuild -project Chatterbox.xcodeproj -scheme ChatterboxMobile -destination 'generic/platform=iOS Simulator' \
   -configuration Debug -derivedDataPath "$PWD/build/DerivedData-MobileTests" CODE_SIGNING_ALLOWED=NO build > "$artifacts/build.log" 2>&1
 # This run's own copies: the device is booted after the build slot goes back, and another run's
 # build could replace the shared one meanwhile.
