@@ -55,10 +55,10 @@ final class HistoryTests: XCTestCase {
         .count, count, "Foreground never forced a full refresh")
     capture("chat-foreground", app)
     // Return to the list and reopen, without sending anything.
-    let back = app.navigationBars.buttons.matching(
-      NSPredicate(format: "label CONTAINS %@", "Regression Mac")
-    ).firstMatch
-    if back.exists { back.tap() }
+    // The back button is named after the tab now, not the Mac.
+    let back = app.navigationBars.buttons.element(boundBy: 0)
+    XCTAssertTrue(back.waitForExistence(timeout: 3)); back.tap()
+    XCTAssertTrue(row.waitForExistence(timeout: 5), "back on the list")
     let next = try await control("/test/advance", post: true) as! [String: Any]
     let version2 = next["revision"] as! Int
     if row.exists { row.tap() }
