@@ -47,7 +47,9 @@ app.setActivationPolicy(.accessory)
         let request = VNRecognizeTextRequest()
         try VNImageRequestHandler(cgImage:image).perform([request])
         let recognized = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator:" ").lowercased()
-        precondition(recognized.contains(expected), "Missing rendered document: \(recognized)")
+        // Text recognition sometimes splits a word ("review flyer. pdf"): compare without spaces.
+        let squeezed = { (text: String) in text.replacingOccurrences(of: " ", with: "") }
+        precondition(squeezed(recognized).contains(squeezed(expected)), "Missing rendered document: \(recognized)")
         print("PASS rendered \(name)")
     }
     panel.orderOut(nil)
