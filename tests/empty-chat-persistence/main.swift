@@ -2,7 +2,10 @@ import AppKit
 import Foundation
 
 // Empty chats that carry user intent (a name, a Studio, a chosen agent or model) survive a
-// relaunch; an untouched "New chat" doesn't; deleting one removes its file.
+// relaunch; an untouched "New chat" doesn't; deleting one removes its file. Run twice by the
+// script: first to make the chats, then with --relaunch in a new process, which reads them back
+// (an in-process app holds the store's lock for its whole life, so a second AppModel in the
+// same process can't open it).
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
@@ -22,6 +25,12 @@ func check(_ ok: Bool, _ what: String) {
         return ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasSuffix(".json") }
     }
 
+    let idsFile = root.appendingPathComponent("test-ids.json")
+    if CommandLine.arguments.contains("--relaunch") {
+        let ids = try JSONDecoder().decode([String: UUID].self, from: Data(contentsOf: idsFile))
+        try await relaunch(studioID: ids["studio"]!, studioChatID: ids["studioChat"]!, blankID: ids["blank"]!, deleteID: ids["deleted"]!)
+        return
+    }
     var studioID = UUID(), studioChatID = UUID(), blankID = UUID(), deleteID = UUID()
     do {
         let model = AppModel()
@@ -57,6 +66,12 @@ func check(_ ok: Bool, _ what: String) {
         check(!conversationFiles().contains("\(deleteID.uuidString).json"), "deleting removes the file")
     }
 
+    try JSONEncoder().encode(["studio": studioID, "studioChat": studioChatID, "blank": blankID, "deleted": deleteID]).write(to: idsFile)
+    print("PASS written; relaunching")
+}
+
+/// The second process: what a fresh launch reads back.
+@MainActor func relaunch(studioID: UUID, studioChatID: UUID, blankID: UUID, deleteID: UUID) async throws {
     let again = AppModel()
     let back = again.sessions.first { $0.id == studioChatID }
     check(back != nil, "Studio chat is back after relaunch")

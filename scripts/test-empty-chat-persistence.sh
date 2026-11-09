@@ -16,4 +16,6 @@ swiftc -D DEBUG -Onone \
   -framework AVKit -framework WebKit -framework PDFKit \
   -o "$task_dir/test" @"$task_dir/files.txt" tests/empty-chat-persistence/main.swift
 "$task_dir/test"
+# A real relaunch: a new process reads back what the first wrote.
+"$task_dir/test" --relaunch
 echo "Empty chat persistence artifacts: $task_dir"
