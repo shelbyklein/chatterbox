@@ -44,17 +44,7 @@ final class PDFTests: XCTestCase {
   try await Task.sleep(for:.seconds(2))
   XCTAssertFalse(app.buttons["Try Again"].exists)
   app.buttons["Done"].tap()
-  _ = try await URLSession.shared.data(from: URL(string:"http://127.0.0.1:\(fixturePort)/test/offline")!)
-  app.terminate();app.launch()
-  let menu = app.buttons["Connection"]
-  XCTAssertTrue(menu.waitForExistence(timeout:10));menu.tap()
-  app.buttons["Saved PDFs"].tap()
-  let saved=app.buttons.containing(NSPredicate(format:"label CONTAINS %@", "Review proof.pdf")).firstMatch
-  XCTAssertTrue(saved.waitForExistence(timeout:5));capture("saved-pdfs",app);saved.tap()
-  XCTAssertTrue(app.staticTexts["1 of 3"].waitForExistence(timeout:5));capture("pdf-offline",app)
-  let (data, _) = try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:\(fixturePort)/test/log")!)
-  let calls = try JSONDecoder().decode([String].self,from:data)
-  XCTAssertEqual(calls.filter{$0.contains("/files/")}.count,5,"Offline reopen must use the saved file; refresh should fetch one new copy")
+  // Saved PDFs left the ⋯ menu (Shelby, 2026-11-09), so the offline reopen from that list is gone.
  }
  @MainActor func capture(_ name:String,_ app:XCUIApplication){let a=XCTAttachment(screenshot:app.screenshot());a.name=name;a.lifetime = .keepAlways;add(a)}
 }

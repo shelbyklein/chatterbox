@@ -11,6 +11,9 @@ final class PushUITests: XCTestCase {
   capture("push-opens-target-chat",app)
   let back=app.navigationBars.buttons.matching(NSPredicate(format:"label CONTAINS %@","Regression Mac")).firstMatch
   if back.exists { back.tap() }
+  // Notifications live in Settings, from the ⋯ menu.
+  XCTAssertTrue(app.buttons["Connection"].waitForExistence(timeout:5));app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5));app.buttons["Settings"].tap()
   let settings=app.buttons["Notifications"]
   XCTAssertTrue(settings.waitForExistence(timeout:5));settings.tap()
   XCTAssertTrue(app.switches["Notifications"].waitForExistence(timeout:5))

@@ -1790,18 +1790,27 @@ final class HomeNavTests: XCTestCase {
   return app.descendants(matching:.any).matching(NSPredicate(format:"label == %@",name)).firstMatch
  }
  /// Use the visible menu so launch-time defaults cannot mask a layout switch.
- @MainActor func setBrowsingCards(_ cards:Bool,_ app:XCUIApplication,studio:Bool=false) {
+ @MainActor func setBrowsingCards(_ cards:Bool,_ app:XCUIApplication,studio:Bool=false,file:StaticString=#filePath,line:UInt=#line) {
   let menu=app.buttons[studio ? "Studio options" : "Connection"]
   menu.tap()
   let choice=app.buttons[cards ? "Show as Cards" : "Show as List"]
   if choice.waitForExistence(timeout:1) {
-   // The Duo's tall menu scrolls; a choice may exist below its visible bounds.
+   // The menu may still be animating in: wait for it to settle before scrolling, since a drag
+   // outside the menu closes it.
+   let settled=Date().addingTimeInterval(2)
+   while !choice.isHittable && Date()<settled { Thread.sleep(forTimeInterval:0.1) }
+   // A long menu scrolls; the choice may be below its visible bottom. Drag from the menu's own
+   // lowest visible item (a drag that starts outside the menu closes it).
    for _ in 0..<4 where !choice.isHittable {
-    let window=app.windows.firstMatch
-    window.coordinate(withNormalizedOffset:CGVector(dx:0.65,dy:0.8)).press(forDuration:0.05,
-      thenDragTo:window.coordinate(withNormalizedOffset:CGVector(dx:0.65,dy:0.35)))
+    let column=choice.frame
+    let items=app.buttons.allElementsBoundByIndex.filter { $0.isHittable && $0.frame.minX >= column.minX-60 && $0.frame.maxX <= column.maxX+60 }
+    guard let lowest=items.max(by: { $0.frame.maxY < $1.frame.maxY }) else { break }
+    let start=lowest.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+    start.press(forDuration:0.05, thenDragTo:start.withOffset(CGVector(dx:0,dy:-250)))
+    Thread.sleep(forTimeInterval:0.4)   // let the scroll come to rest before checking
    }
-   XCTAssertTrue(choice.isHittable); choice.tap()
+   if !choice.isHittable { capture("debug-unreachable-\(line)",app) }
+   XCTAssertTrue(choice.isHittable,"\(cards ? "Show as Cards" : "Show as List") out of reach",file:file,line:line); choice.tap()
   } else { app.windows.firstMatch.coordinate(withNormalizedOffset:CGVector(dx:0.04,dy:0.08)).tap() }
  }
  @MainActor func activity(_ prefix:String,_ app:XCUIApplication) -> XCUIElement {
@@ -2037,66 +2046,6 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.navigationBars.staticTexts["Chatterbox"].exists || app.staticTexts["Chatterbox"].exists, "in the Chatterbox session")
   capture("feedback-composer",app)
  }
- /// Mac Screen from the ⋯ menu: with no Mac sign-in saved yet, it asks for one.
- @MainActor func testMacScreenAsksToSignIn() async throws {
-  try await fixture("reset")
-  let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
-  app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
-  app.buttons["Connection"].tap()
-  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5), "Mac Screen in the ⋯ menu")
-  XCTAssertFalse(app.staticTexts["127.0.0.1"].exists, "the menu doesn't list the Mac's addresses")
-  app.buttons["Mac Screen"].tap()
-  XCTAssertTrue(app.textFields["mac-screen-user"].waitForExistence(timeout:5) && app.secureTextFields["mac-screen-password"].exists, "it asks for the Mac's sign-in first")
-  capture("mac-screen-sign-in",app)
-  app.buttons["Close Mac Screen"].tap()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:5), "and closes back to the app")
- }
- /// Laptop layout (an open iPhone Duo held like a laptop): the Mac's screen on top, a Mac
- /// keyboard and trackpad below. The simulator can't bend at the fold, so Layout → Laptop.
- @MainActor func testMacScreenLaptopLayout() async throws {
-  try await fixture("reset")
-  let app = XCUIApplication()
-  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
-                           "CHATTERBOX_TEST_MAC_SCREEN":"1"]
-  app.launch()
-  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
-  app.buttons["Connection"].tap()
-  XCTAssertTrue(app.buttons["Mac Screen"].waitForExistence(timeout:5)); app.buttons["Mac Screen"].tap()
-  XCUIDevice.shared.orientation = .landscapeLeft
-  defer { XCUIDevice.shared.orientation = .portrait }
-  XCTAssertTrue(app.buttons["Mac Screen Options"].waitForExistence(timeout:5))
-  // Two displays (from the Mac's layout; Screen Sharing sends one picture): one at a time.
-  XCTAssertTrue(app.staticTexts["mac-screen-display"].waitForExistence(timeout:5), "a display switcher for two displays")
-  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "1 of 2")
-  app.buttons["Next Display"].tap()
-  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "2 of 2", "the arrow moves to the next display")
-  capture("mac-screen-display-2",app)
-  app.buttons["Previous Display"].tap()
-  XCTAssertEqual(app.staticTexts["mac-screen-display"].label, "1 of 2")
-  app.buttons["Mac Screen Options"].tap()
-  // Menu pickers list their choices right in the menu.
-  XCTAssertTrue(app.buttons["Laptop"].waitForExistence(timeout:5)); app.buttons["Laptop"].tap()
-  sleep(2)
-  capture("mac-screen-laptop",app)
-  XCTAssertTrue(app.descendants(matching: .any)["Trackpad"].waitForExistence(timeout:5), "a trackpad below")
-  XCTAssertTrue(app.descendants(matching: .any)["return"].exists && app.descendants(matching: .any)["⌘"].firstMatch.exists, "and a Mac keyboard")
-  XCTAssertGreaterThan(app.descendants(matching: .any)["return"].frame.minY, app.frame.height / 2 - 40, "the keyboard is on the bottom half")
-  let click = app.descendants(matching: .any)["Click"], arrow = app.descendants(matching: .any)["→"]
-  XCTAssertTrue(click.exists && click.frame.minX > arrow.frame.maxX - 2 && abs(click.frame.midY - arrow.frame.midY) < 2, "a click key at the bottom right")
-  // Caps Lock: a light on its key, and capital letters, until it's pressed again.
-  let caps=app.descendants(matching: .any)["caps"]
-  XCTAssertEqual(caps.value as? String, "off")
-  XCTAssertTrue(app.descendants(matching: .any)["a"].exists, "letters are lowercase with Caps Lock off")
-  caps.tap()
-  XCTAssertEqual(caps.value as? String, "on", "Caps Lock shows on")
-  XCTAssertTrue(app.descendants(matching: .any)["A"].exists && !app.descendants(matching: .any)["a"].exists, "and the letters turn capital")
-  capture("mac-screen-caps-lock",app)
-  caps.tap()
-  XCTAssertEqual(caps.value as? String, "off", "pressed again, it's off")
-  app.buttons["Close Mac Screen"].tap()
- }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
  @MainActor func testRateLimitRetry() async throws {
   for source in ["claude","codex"] {
@@ -2136,14 +2085,49 @@ final class HomeNavTests: XCTestCase {
   }
  }
 
+ /// The ⋯ menu is short (Shelby, 2026-11-09): Automations and Settings, then the view options;
+ /// Notifications, Appearance and Unpair live in Settings; Mac Screen, Activity History, Usage
+ /// and Saved PDFs are gone.
+ @MainActor func testSlimMenuAndSettings() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["Automations"].exists, "Automations and Settings")
+  for gone in ["Mac Screen","Activity History","Usage","Saved PDFs","Notifications","Appearance"] {
+   XCTAssertFalse(app.buttons[gone].exists, "\(gone) left the ⋯ menu")
+  }
+  let list = app.buttons["Show as List"], cards = app.buttons["Show as Cards"]
+  XCTAssertTrue((list.exists && list.isHittable) || (cards.exists && cards.isHittable), "the view options are reachable without scrolling")
+  capture("menu-slim",app)
+  app.buttons["Settings"].tap()
+  XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
+  XCTAssertTrue(app.buttons["Notifications"].exists && app.buttons["Appearance"].exists && app.buttons["settings-unpair"].exists, "Settings holds Notifications, Appearance and Unpair")
+  capture("settings",app)
+  app.buttons["Appearance"].tap()
+  XCTAssertTrue(app.navigationBars["Appearance"].waitForExistence(timeout:5) && app.buttons["Dark"].exists, "Appearance opens inside Settings")
+  app.navigationBars.buttons.element(boundBy:0).tap()
+  app.buttons["settings-unpair"].tap()
+  // On iPhone the confirmation is a popover; its own Unpair button is the question.
+  let confirm = app.buttons.matching(NSPredicate(format:"label == %@","Unpair")).firstMatch
+  XCTAssertTrue(confirm.waitForExistence(timeout:5), "Unpair asks first")
+  capture("settings-unpair-confirm",app)
+  if app.buttons["Cancel"].exists { app.buttons["Cancel"].tap() }
+  else { app.navigationBars["Settings"].tap() }   // a tap outside the popover dismisses it
+  XCTAssertTrue(confirm.waitForNonExistence(timeout:5), "dismissed without unpairing")
+  app.buttons["Done"].tap()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:5), "still paired")
+ }
  @MainActor func testUsage() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort, "CHATTERBOX_TEST_PAIR_TOKEN":"fixture"]
   app.launch()
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
-  app.buttons["Connection"].tap()
-  XCTAssertTrue(app.buttons["Usage"].waitForExistence(timeout:5));app.buttons["Usage"].tap()
+  // Usage opens from its Home Screen widget (it left the ⋯ menu).
+  app.open(URL(string:"chatterbox://usage")!)
   XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"Claude's 7-day window")
   XCTAssertTrue(app.staticTexts["12% used"].exists && app.staticTexts["65% left"].exists,"Codex and the proxy account")
   capture("usage",app)
@@ -2155,11 +2139,12 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Done"].tap()
   XCTAssertTrue(app.buttons["Done"].waitForNonExistence(timeout:5))
   try await fixture("usage-cold")
-  app.buttons["Connection"].tap();app.buttons["Usage"].tap()
+  app.open(URL(string:"chatterbox://usage")!)
   XCTAssertTrue(app.staticTexts["81% used"].waitForExistence(timeout:8),"cold quota check receives its bounded follow-up")
   XCTAssertTrue(app.staticTexts["65% left"].exists,"proxy quota arrives after the pending response")
   let reads=try await fixture("usage-state",method:"GET") as! [String:Int]
-  XCTAssertEqual(reads["reads"],2,"one initial read and one follow-up")
+  // Opening from the widget's link also brings the app forward, which reads once more.
+  XCTAssertTrue((2...3).contains(reads["reads"] ?? 0),"one initial read and one follow-up (plus the app coming forward): \(reads["reads"] ?? 0)")
   XCTAssertEqual(reads["refreshes"],0,"polling never forces another provider refresh")
   capture("usage-after-cold-proxy",app)
   app.buttons["Done"].tap()
@@ -2572,15 +2557,10 @@ final class HomeNavTests: XCTestCase {
     uxDismiss(app); uxDismiss(app)
    } else { uxDismiss(app) }
   }
-  // Usage (from the ⋯ menu).
-  if app.buttons["Connection"].waitForExistence(timeout:5) {
-   app.buttons["Connection"].tap()
-   if app.buttons["Usage"].waitForExistence(timeout:5) {
-    app.buttons["Usage"].tap()
-    if app.staticTexts["81% used"].waitForExistence(timeout:8) { try await uxShot("usage", app) }
-    uxDismiss(app)
-   } else { uxDismiss(app) }
-  }
+  // Usage (from its widget's link).
+  app.open(URL(string:"chatterbox://usage")!)
+  if app.staticTexts["81% used"].waitForExistence(timeout:8) { try await uxShot("usage", app) }
+  uxDismiss(app)
   // Light mode: the Desk and the working session.
   try await fixture("appearance",body:["value":"light"])
   try await Task.sleep(for:.seconds(1.5))
