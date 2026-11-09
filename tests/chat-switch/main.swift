@@ -48,13 +48,13 @@ app.setActivationPolicy(.accessory)
     model.selectedID = project.id
     try await wait {transition.switching}
     snap("02-outgoing-or-hidden")
+    // No fade since c36c9c9: the next chat shows at once, fully opaque and unshifted; only input
+    // waits for it to mount.
     try await wait {transition.displayedID==project.id}
-    precondition(transition.opacity==0 && transition.switching)
-    snap("03-hidden-swap")
-    try await wait {transition.opacity==1}
-    try await Task.sleep(for:.milliseconds(70))
-    snap("04-incoming")
+    precondition(transition.opacity==1 && transition.offset==0,"switched chat faded or slid")
+    snap("03-swapped")
     try await wait {!transition.switching}
+    snap("04-incoming")
     print("NATIVE selection-to-interactive: \(Int(Date().timeIntervalSince(switchStarted)*1000))ms (includes capture overhead)")
     snap("05-project")
     // Repeated picks through the actual ContentView task cancellation path.
@@ -83,7 +83,7 @@ app.setActivationPolicy(.accessory)
         let f=probe.convert(probe.bounds,to:nil)
         precondition(f.minX >= -0.5 && f.maxX<=800.5,"Animated pane outside window")
     }
-    print("PASS native hidden swap between chats, outgoing/incoming captures, rapid latest selection, unchanged drafts/transcripts, narrow pane bounds")
+    print("PASS native immediate swap between chats (no fade), captures, rapid latest selection, unchanged drafts/transcripts, narrow pane bounds")
     exit(0)
 }
 @MainActor func capture(_ window:NSWindow,_ url:URL) {
