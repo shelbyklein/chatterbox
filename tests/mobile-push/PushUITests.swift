@@ -9,7 +9,8 @@ final class PushUITests: XCTestCase {
   app.launch()
   XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@","I reviewed the layout")).firstMatch.waitForExistence(timeout:20))
   capture("push-opens-target-chat",app)
-  let back=app.navigationBars.buttons.matching(NSPredicate(format:"label CONTAINS %@","Regression Mac")).firstMatch
+  // Back to the list: the back button is named after the tab now, not the Mac.
+  let back=app.navigationBars.buttons.element(boundBy:0)
   if back.exists { back.tap() }
   // Notifications live in Settings, from the ⋯ menu.
   XCTAssertTrue(app.buttons["Connection"].waitForExistence(timeout:5));app.buttons["Connection"].tap()
@@ -19,7 +20,9 @@ final class PushUITests: XCTestCase {
   XCTAssertTrue(app.switches["Notifications"].waitForExistence(timeout:5))
   XCTAssertTrue(app.buttons["Reconnect Notifications"].exists)
   capture("mobile-notification-settings",app)
-  app.buttons["Done"].tap()
+  // Notifications is pushed inside Settings: back to Settings, whose Done closes it.
+  app.navigationBars.buttons.element(boundBy:0).tap()
+  XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout:5));app.buttons["Done"].tap()
   XCTAssertTrue(app.buttons["chat-33333333-3333-3333-3333-333333333333"].exists)
  }
  @MainActor func capture(_ name:String,_ app:XCUIApplication) {
