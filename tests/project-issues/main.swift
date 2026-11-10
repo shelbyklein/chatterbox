@@ -151,6 +151,15 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         .decode(Companion.IssueBoard.self)
     try check(!afterDelete.issues.contains { $0.id == filed.id }, "the app deletes")
 
+    // Make Project from the Mac (socket "promote"): the app may, an agent may not; the chat keeps
+    // its history and becomes a project in the folder chosen.
+    let newHome = root.appendingPathComponent("Loose project"); try FileManager.default.createDirectory(at: newHome, withIntermediateDirectories: true)
+    let promoteBody: JSON = ["chatID": .string(plain.id.uuidString), "request": try JSON.value(Companion.PromotionRequest(kind: .project, folder: newHome.path))]
+    do { _ = try await agent.request("promote", body: promoteBody); try check(false, "an agent may not promote") }
+    catch { try check(error.localizedDescription.contains("permission_denied"), "an agent may not make a project") }
+    _ = try await ui.request("promote", body: promoteBody)
+    try check(plain.record.projectFolder == newHome.resolvingSymlinksInPath().path && plain.title == "Loose chat", "Make Project: the loose chat is now a project in its folder, same chat")
+
     // The phone: the board by any session in the project, actions, the attachment file only from its place.
     let paired = server.respond(to: HTTPRequest(method: "POST", path: "/v1/pair", query: [:], headers: [:],
                                                 body: try Companion.encoder.encode(Companion.PairRequest(code: server.pairingCode, deviceName: "Issues fixture"))))

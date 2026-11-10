@@ -381,6 +381,12 @@ import CoreFoundation
             else {guard let decision=r.body["decision"]?.string.flatMap(DisplayItem.ApprovalState.init(rawValue:)),[.approved,.approvedForSession,.denied].contains(decision) else{throw RuntimeFailure("invalid_decision")};s.resolveApproval(id,decision)}
         case "archive":let s=try chat(r.body);s.setArchived(r.body["archived"]?.bool ?? true);return revision(s)
         case "rename":let s=try chat(r.body);s.setTitle(r.body["title"]?.string ?? "");return revision(s)
+        case "promote":
+            // Make Project / Move to Studio from the Mac (the phone uses /v1/chats/<id>/promote).
+            guard role=="ui" else{throw RuntimeFailure("permission_denied")}
+            let s=try chat(r.body)
+            guard let request=try? r.body["request"]?.decode(Companion.PromotionRequest.self) else{throw RuntimeFailure("Choose a Studio or project folder.")}
+            try runtime.promote(s,using:request);return revision(s)
         case "setBrief":
             guard role=="ui" else{throw RuntimeFailure("permission_denied")}
             let s=try chat(r.body);s.setBrief(r.body["brief"]?.string ?? "");return revision(s)
