@@ -331,6 +331,7 @@ targets:
     - path: Core/Chatterbox/Engine/ConnectorServer.swift
     - path: Core/Chatterbox/Engine/ConnectorTools.swift
     - path: Core/Chatterbox/Engine/DeskStore.swift
+    - path: Core/Chatterbox/Engine/ProjectIssues.swift
     - path: Core/Chatterbox/Engine/CompanionDocuments.swift
     - path: Core/Chatterbox/Engine/ProxyQuota.swift
     - path: Core/Chatterbox/Engine/CompanionMutationLedger.swift

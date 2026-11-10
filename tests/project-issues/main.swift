@@ -76,6 +76,13 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     }
     try check(announced.last == arcade.path, "a change is announced with the project's folder")
 
+    // More files later; filing by the project's folder (the Mac's board), not a session.
+    let later = root.appendingPathComponent("later.mov"); try Data([0, 0, 0, 20]).write(to: later)
+    try store.attach([later.path], to: first.id, in: arcade.path)
+    try check(store.board(for: arcade.path).issues.first { $0.id == first.id }?.attachments.map(\.mediaType) == ["image/png", "video/quicktime"], "attach adds a recording")
+    let byFolder = try store.operation(["action": "add", "project": .string(arcade.path), "title": "Filed from the board"], agent: nil).decode(Companion.ProjectIssue.self)
+    try check(byFolder.number == 3, "filed by the project's folder")
+    try store.delete(byFolder.id, in: arcade.path)
     // Update and move by hand; the board's order.
     try store.update(general.id, in: arcade.path, .init(notes: "Only with 30+ games.", game: "bowl", priority: "high", status: "review"))
     var board = store.board(for: arcade.path)

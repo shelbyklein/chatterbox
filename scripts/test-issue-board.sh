@@ -1,0 +1,10 @@
+#!/bin/bash
+source "$(dirname "$0")/lib/test-hygiene.sh"
+set -euo pipefail
+cd "$(dirname "$0")/.."
+fixture=$(mktemp -d /tmp/chatterbox-issue-board.XXXXXX)
+engine_dir=$(./scripts/build-test-engine.sh)
+products=build/DerivedData/Build/Products/Debug
+swiftc -I "$products" -I "$engine_dir" -L "$engine_dir" -lChatterboxTestEngine -Xlinker -rpath -Xlinker "$engine_dir" -D DEBUG -o "$fixture/test" tests/issue-board/main.swift
+CHATTERBOX_LEGACY_RUNTIME=1 CHATTERBOX_DATA_DIR="$fixture" CHATTERBOX_HOST_DIR="$fixture/host" CHATTERBOX_COMPANION_PORT=0 CHATTERBOX_HOST_BINARY="$PWD/build/DerivedData/Build/Products/Debug/Chatterbox.app/Contents/Helpers/ChatterboxHost.app/Contents/MacOS/ChatterboxHost" "$fixture/test"
+echo "Issue board evidence: $fixture"
