@@ -248,6 +248,7 @@
 		C2EF35311DD0F2CBAC488BFE /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AECAB552B28248B3461AC00 /* MarkdownText.swift */; };
 		C3403CDACA14D9380AB0727B /* ChatSession+Pressure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2367C74FBEB4B81AA36AE7F4 /* ChatSession+Pressure.swift */; };
 		C571AA7E4E3DC1956AE2D81A /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66E5A2ED4CB638E3E92864B6 /* ConnectView.swift */; };
+		C573963E8297CDCA18CFD8D9 /* ProjectIssues.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5A4298F486C4C767237A06 /* ProjectIssues.swift */; };
 		C5AA2B923B13F157E0B511FA /* TranscriptViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C729E82E41C2C9B2BFD9932 /* TranscriptViews.swift */; };
 		C5D8C1885A4B6CB4DFF3490F /* SlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA1859EDFB04B0FBAF13AFC /* SlashCommands.swift */; };
 		C794786D4F9D8290B05A4C21 /* ChatComputer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F39303FD805DEF3103AAB3 /* ChatComputer.swift */; };
@@ -390,6 +391,7 @@
 		0C729E82E41C2C9B2BFD9932 /* TranscriptViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptViews.swift; sourceTree = "<group>"; };
 		0DA9F0B419529549C12E3317 /* CompanionAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionAPI.swift; sourceTree = "<group>"; };
 		0E98231807B55AA7DF3DD005 /* RuntimePaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePaths.swift; sourceTree = "<group>"; };
+		0F5A4298F486C4C767237A06 /* ProjectIssues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectIssues.swift; sourceTree = "<group>"; };
 		104FB766C1256BFEA4FF6CB3 /* ImageReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageReviewView.swift; sourceTree = "<group>"; };
 		1128D953C085340C80B95088 /* ConnectorServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorServer.swift; sourceTree = "<group>"; };
 		11A999856A6EFF4D242DB292 /* ChatSession+Work.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Work.swift"; sourceTree = "<group>"; };
@@ -779,6 +781,7 @@
 				E9B61C2EF2A02F657ED19A6F /* PermissionModes.swift */,
 				A81413A73CF1A4475E1CF397 /* Pins.swift */,
 				83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */,
+				0F5A4298F486C4C767237A06 /* ProjectIssues.swift */,
 				09AB7F89AFDD18FEE5A95ADD /* ProjectSorting.swift */,
 				A125487FAFCF644CD583045D /* Prompts.swift */,
 				B5D32CF40094DDF52ACCB11B /* ProxyQuota.swift */,
@@ -1260,6 +1263,7 @@
 				D98132D716A8E1DE62D76D1A /* PreviewDestination.swift in Sources */,
 				AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */,
 				44A3E498036D57EEB3766443 /* ProjectIcons.swift in Sources */,
+				C573963E8297CDCA18CFD8D9 /* ProjectIssues.swift in Sources */,
 				C25D9B75AE6501C525DCF1A0 /* ProjectSorting.swift in Sources */,
 				6875959B38D397F1DFD46A74 /* Prompts.swift in Sources */,
 				E5EDA7BDB550296E04013793 /* ProxyQuota.swift in Sources */,

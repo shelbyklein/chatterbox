@@ -1,0 +1,152 @@
+#!/usr/bin/python3 -I
+"""A project's internal issue board in Chatterbox (plans/project-issues.md).
+
+  issue list [--game G] [--all]
+                    this project's issues, open work first (--all includes Done)
+  issue add "TITLE" [--game G] [--type bug|feature|polish] [--priority low|normal|high]
+                    [--notes TEXT] [--attach FILE]...
+                    file an issue: --game is a game's id or title from the project's
+                    catalog (catalog/games.json), else it's General; --attach copies a
+                    screenshot or recording in with it
+  issue games       the games issues can be filed under
+
+The project is this session's (found by $CHATTERBOX_CHAT_ID, or the session this runs under,
+or the one working in this folder; --chat ID to say). Shelby starts issues as threads from the
+board; agents file and read them. Check `issue list` first so an issue isn't filed twice.
+"""
+import argparse, json, os, socket, sys, uuid
+
+DATA = os.environ.get("CHATTERBOX_DATA_DIR") or os.path.expanduser("~/Library/Application Support/Chatterbox")
+
+
+def fail(message):
+    print(f"issue: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+class Service:
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_UNIX)
+        self.sock.settimeout(30)
+        try:
+            self.sock.connect(os.path.join(DATA, "daemon.sock"))
+        except OSError:
+            fail("Chatterbox's background service isn't running.")
+        self.file = self.sock.makefile("rwb")
+        self.request("hello", {"role": "agent"})
+
+    def request(self, operation, body):
+        rid = str(uuid.uuid4())
+        self.file.write((json.dumps({"version": 1, "id": rid, "operation": operation, "body": body}) + "\n").encode())
+        self.file.flush()
+        while True:
+            line = self.file.readline()
+            if not line:
+                fail("the background service closed the connection.")
+            reply = json.loads(line)
+            if reply.get("id") == rid:
+                if reply.get("error"):
+                    fail({"unsupported_operation": "this Chatterbox has no issue boards yet; its background service needs a restart on the newer version.",
+                          "permission_denied": "agents can only list and add issues; Shelby starts and moves them on the board."}
+                         .get(reply["error"], reply["error"]))
+                return reply.get("result")
+
+
+def folders(record):
+    found = [record.get(k) for k in ("projectFolder", "worktreeOf", "sidechatFolder", "studioFolder")]
+    found.append((record.get("codex") or {}).get("folder"))
+    return {os.path.realpath(f) for f in found if f}
+
+
+def claude_sessions():
+    """Session ids of the Claude Code processes this command runs under (its ancestors)."""
+    import subprocess
+    found, pid = [], os.getppid()
+    for _ in range(12):
+        if pid <= 1:
+            break
+        out = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+        if not out:
+            break
+        ppid, _, command = out.partition(" ")
+        words = command.split()
+        for flag in ("--resume", "--session-id"):
+            if flag in words and words.index(flag) + 1 < len(words):
+                found.append(words[words.index(flag) + 1])
+        pid = int(ppid)
+    return found
+
+
+def current_chat(service, given):
+    if given:
+        return given
+    if os.environ.get("CHATTERBOX_CHAT_ID"):
+        return os.environ["CHATTERBOX_CHAT_ID"]
+    chats = [c["record"] for c in service.request("list", {"summaryOnly": True}) or []]
+    for session in claude_sessions():
+        match = [r for r in chats if r.get("claudeSessionID") == session]
+        if len(match) == 1:
+            return match[0]["id"]
+    here = os.path.realpath(os.getcwd())
+    working = [c["record"] for c in service.request("list", {"workingOnly": True, "summaryOnly": True}) or [] if c.get("running")]
+    matches = [r for r in working if here in folders(r)]
+    if len(matches) == 1:
+        return matches[0]["id"]
+    fail("couldn't tell which project this is" + (": several sessions work in this folder." if matches else ".") + " Pass --chat ID.")
+
+
+STATUS = {"open": "Open", "inProgress": "In progress", "review": "Review", "done": "Done"}
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="issue", description="A project's issue board in Chatterbox.")
+    parser.add_argument("--chat", help="a session in the project (else this session)")
+    commands = parser.add_subparsers(dest="command", required=True)
+    listing = commands.add_parser("list", help="this project's issues")
+    listing.add_argument("--game")
+    listing.add_argument("--all", action="store_true", help="include Done")
+    add = commands.add_parser("add", help="file an issue")
+    add.add_argument("title")
+    add.add_argument("--game")
+    add.add_argument("--type", choices=["bug", "feature", "polish"], default="bug")
+    add.add_argument("--priority", choices=["low", "normal", "high"], default="normal")
+    add.add_argument("--notes")
+    add.add_argument("--attach", action="append", default=[], help="a file to attach (repeat for more)")
+    commands.add_parser("games", help="the games issues can be filed under")
+    args = parser.parse_args()
+    service = Service()
+    chat = current_chat(service, args.chat)
+
+    if args.command == "add":
+        body = {"action": "add", "chatID": chat, "title": args.title, "type": args.type, "priority": args.priority}
+        if args.game:
+            body["game"] = args.game
+        if args.notes:
+            body["notes"] = args.notes
+        if args.attach:
+            body["attachments"] = [os.path.realpath(os.path.expanduser(p)) for p in args.attach]
+        issue = service.request("issues", body) or {}
+        print(f"Filed #{issue.get('number')}: {issue.get('title')} ({issue.get('game') or 'General'}, {issue.get('type')}, {issue.get('priority')}).")
+        return
+    board = service.request("issues", {"action": "list", "chatID": chat}) or {}
+    games = {g["id"]: g["title"] for g in board.get("games", [])}
+    if args.command == "games":
+        if not games:
+            print("This project has no game catalog: issues go under General.")
+        for gid, title in games.items():
+            print(f"- {gid}: {title}")
+        return
+    issues = [i for i in board.get("issues", []) if args.all or i.get("status") != "done"]
+    if args.game:
+        wanted = args.game.lower()
+        issues = [i for i in issues if (i.get("game") or "general").lower() == wanted or games.get(i.get("game") or "", "").lower() == wanted]
+    if not issues:
+        print(f"No {'' if args.all else 'open '}issues on {board.get('projectName', 'this project')}'s board.")
+    for i in issues:
+        game = games.get(i.get("game") or "", i.get("game") or "General")
+        thread = f" [thread: {i['chatTitle']}]" if i.get("chatTitle") else ""
+        print(f"#{i['number']} {STATUS.get(i['status'], i['status'])} · {game} · {i['type']} · {i['priority']}: {i['title']}{thread}")
+
+
+if __name__ == "__main__":
+    main()

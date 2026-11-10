@@ -24,7 +24,7 @@ import CoreFoundation
             guard let self else{return}
             for id in self.subscribed {self.peers[id]?.send(RuntimeReply(event:event))}
             // What needs Shelby and what's working come from sessions: the Desk looks again.
-            if Self.deskEvents.contains(event.kind) {DeskStore.shared.sessionsChanged()}
+            if Self.deskEvents.contains(event.kind) {DeskStore.shared.sessionsChanged();ProjectIssueStore.shared.sessionsChanged()}
             // A deleted thread's task goes back to To do (plans/work-threads.md).
             if event.kind=="chat.deleted",let id=event.chatID {DeskStore.shared.threadDeleted(id)}
             if let chat=event.chatID.flatMap(self.runtime.session) {
@@ -232,6 +232,14 @@ import CoreFoundation
                 result = try runtime.execute(id: r.id, operation: r.operation, fingerprint: fingerprint) {
                     try .value(DeskStore.shared.ingest(manifest, in: s))
                 }
+            case "issues":
+                // Project issue boards (ProjectIssueStore): the app does everything; an agent may
+                // list its project's issues and file new ones (filed as that session's agent).
+                let action=r.body["action"]?.string ?? "list"
+                let who:String?=role=="ui" ? nil : ((try? chat(r.body))?.record.backend.rawValue ?? "claude")
+                if action=="list" {result=try ProjectIssueStore.shared.operation(r.body,agent:who);break}
+                let fingerprint=SHA256.hash(data:try r.body.encoded()).map{String(format:"%02x",$0)}.joined()
+                result=try runtime.execute(id:r.id,operation:r.operation,fingerprint:fingerprint) {try ProjectIssueStore.shared.operation(r.body,agent:who)}
             case "desk":
                 // The Desk (DeskStore): the app does everything; an agent may look, and propose work.
                 let action=r.body["action"]?.string ?? "get"

@@ -22,7 +22,7 @@ export CHATTERBOX_PREFERENCES_SUITE="chatterbox.work.$(basename "$task_dir")" CH
 mkdir -p "$CHATTERBOX_DATA_DIR"
 ./scripts/runtime-sources.sh > "$task_dir/sources"
 printf '%s\n' ChatterboxRuntime/RuntimeClient.swift \
- Chatterbox/Engine/CompanionServer.swift Chatterbox/Engine/ConnectorServer.swift Chatterbox/Engine/ConnectorTools.swift Chatterbox/Engine/DeskStore.swift \
+ Chatterbox/Engine/CompanionServer.swift Chatterbox/Engine/ConnectorServer.swift Chatterbox/Engine/ConnectorTools.swift Chatterbox/Engine/DeskStore.swift Chatterbox/Engine/ProjectIssues.swift \
  Chatterbox/Engine/CompanionDocuments.swift Chatterbox/Engine/ProxyQuota.swift Chatterbox/Engine/CompanionMutationLedger.swift Chatterbox/Engine/NextSteps.swift \
  Chatterbox/Engine/MobilePush.swift Chatterbox/Engine/Pins.swift Chatterbox/Support/HTTPFileTransfer.swift \
  Shared/CompanionRetry.swift Shared/PlaceSuggestion.swift >> "$task_dir/sources"
