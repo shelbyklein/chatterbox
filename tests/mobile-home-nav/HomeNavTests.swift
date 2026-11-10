@@ -1441,6 +1441,14 @@ final class HomeNavTests: XCTestCase {
   app.buttons["desk-resume-"+reviewTask].tap()
   XCTAssertTrue(ready.waitForExistence(timeout:8),"Resume restores Review rather than restarting preparation")
   XCTAssertTrue(app.buttons["desk-tab-ready"].isSelected)
+  // The Review card's own On Hold button (waiting on someone's reply), without the long-press menu.
+  let cardHold=app.buttons["desk-ready-hold-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(cardHold.waitForExistence(timeout:5),"a Review card shows On Hold")
+  capture("desk-review-hold-button",app)
+  cardHold.tap()
+  XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8),"its On Hold button moves it to On hold")
+  app.buttons["desk-resume-"+reviewTask].tap()
+  XCTAssertTrue(ready.waitForExistence(timeout:8))
   // Errors keep the original task, and do not falsely switch its lane.
   try await fixture("fail",body:["value":true]); putOnHold(ready)
   XCTAssertTrue(app.alerts["Couldn't update the Desk"].waitForExistence(timeout:5)); app.alerts.buttons["OK"].tap()
@@ -1457,8 +1465,9 @@ final class HomeNavTests: XCTestCase {
   app.buttons["desk-resume-"+questionTask].tap()
   XCTAssertTrue(question.waitForExistence(timeout:8),"idle question returns to Needs you")
   let calls=try await deskCalls()
-  XCTAssertEqual(calls.filter { $0["action"] as? String == "hold" }.count,3)
-  XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,3)
+  // Three by long-press, one by the Review card's On Hold button, each resumed.
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "hold" }.count,4)
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,4)
   XCTAssertFalse(calls.contains { ["start","complete","writeBack"].contains($0["action"] as? String ?? "") })
  }
  @MainActor func testDeskTasks() async throws {

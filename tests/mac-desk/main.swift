@@ -720,6 +720,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(desk.sections(in: model).onHold.isEmpty && desk.sections(in: model).ready.contains { $0.task == deferredTask },
           "native Resume button restores Review without starting work")
     check(sent.filter { ["hold", "resume"].contains($0["action"]?.string ?? "") }.suffix(2).map { $0["action"]?.string } == ["hold", "resume"], "hold/resume use explicit task actions")
+    // The Review card's own On hold button (waiting on someone's reply), no menu needed.
+    try await render(AnyView(ContentView()), 2600, 1000, "desk-review-hold")
+    check(frame("readyHold:\(deferred.id)") != nil, "a Review card shows On hold")
+    try await click("readyHold:\(deferred.id)")
+    check(desk.sections(in: model).onHold.first?.id == deferredTask && !desk.sections(in: model).ready.contains { $0.task == deferredTask },
+          "its On hold button moves it to On hold")
+    await desk.hold(deferredTask, resume: true)
     service.onHold = nil; desk.load(service)
     check(!desk.canHold, "older service hides unsupported hold controls")
 
