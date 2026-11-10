@@ -176,6 +176,22 @@ app.setActivationPolicy(.regular)
  let refit=blueWidth(render())
  precondition(abs(refit-fittedWidth) <= 2, "⌘0 fits it again (\(fittedWidth) → \(refit))")
  print("PASS: ⌘= zooms the picture in (\(fittedWidth) → \(zoomedWidth) pt tall), ⌘0 fits it again. Evidence: \(root)/zoomed.png")
+ // With zoom in place, a drag in Notes still makes a numbered box (the PDF review test's check).
+ panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls,initialTool:.notes) { _,_ in }.frame(width:1100,height:680))
+ panel.makeKeyAndOrderFront(nil)
+ try await Task.sleep(for:.milliseconds(900))
+ let from=CGPoint(x:150,y:250), to=CGPoint(x:400,y:420)
+ func windowPoint(_ p:CGPoint)->NSPoint { let h=panel.contentView!; return h.convert(NSPoint(x:p.x,y:h.isFlipped ? p.y : h.bounds.height-p.y),to:nil) }
+ func mouse(_ kind:NSEvent.EventType,_ p:CGPoint) { panel.sendEvent(NSEvent.mouseEvent(with:kind,location:windowPoint(p),modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:1)!) }
+ mouse(.leftMouseDown,from)
+ for step in 1...10 { try await Task.sleep(for:.milliseconds(30)); let t=CGFloat(step)/10; mouse(.leftMouseDragged,CGPoint(x:from.x+(to.x-from.x)*t,y:from.y+(to.y-from.y)*t)) }
+ mouse(.leftMouseUp,to)
+ try await Task.sleep(for:.milliseconds(500))
+ let boxed=render()
+ try boxed.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("drag-box.png"))
+ let badge=color(boxed,CGPoint(x:from.x-7,y:from.y))
+ precondition(badge.redComponent>0.8 && badge.blueComponent<0.4,"a drag in Notes makes a numbered box: \(badge)")
+ print("PASS: a drag in Notes still makes a numbered box. Evidence: \(root)/drag-box.png")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)} }
 app.run()
