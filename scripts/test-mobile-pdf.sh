@@ -77,6 +77,9 @@ xcodebuild -project "$artifacts/MobilePDFRegression.xcodeproj" -scheme Regressio
 simulator=$(test_simulator "${1:-iphone}" "$device_type" com.apple.CoreSimulator.SimRuntime.iOS-26-2)
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
+# The test device is reused run to run (test-hygiene.sh), and the app's saved PDFs with it: a
+# saved copy is never downloaded, so the download and cancel checks would see nothing. Start clean.
+xcrun simctl uninstall "$simulator" com.shelbyklein.Chatterbox.PDFRegression 2>/dev/null || true
 xcodebuild -testProductsPath "$products" -destination "platform=iOS Simulator,id=$simulator" \
   -resultBundlePath "$artifacts/results.xcresult" test-without-building
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"

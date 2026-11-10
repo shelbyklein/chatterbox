@@ -21,6 +21,10 @@ final class PDFTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["1 of 3"].waitForExistence(timeout:5))
   app.buttons["Save to Files"].tap()
   XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout:5));capture("pdf-export",app);app.buttons["Save"].tap()
+  // Files keeps what earlier runs saved (outside the app, so a reinstall doesn't clear it): an
+  // existing copy asks Replace or Keep Both, and the picker stays open until it's answered.
+  if app.buttons["Replace"].waitForExistence(timeout:2) { app.buttons["Replace"].tap() }
+  XCTAssertTrue(app.buttons["Save"].waitForNonExistence(timeout:5), "the Files picker closes")
   XCTAssertTrue(app.buttons["Refresh PDF"].waitForExistence(timeout:5))
   XCTAssertTrue(app.buttons["Share"].exists)
   app.buttons["Share"].tap()
