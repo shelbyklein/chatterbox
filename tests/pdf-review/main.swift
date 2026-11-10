@@ -33,8 +33,10 @@ app.setActivationPolicy(.regular)
 
  func bitmap(_ image:NSImage)->NSBitmapImageRep { NSBitmapImageRep(cgImage:image.cgImage(forProposedRect:nil,context:nil,hints:nil)!) }
  func sample(_ rep:NSBitmapImageRep,_ x:CGFloat,_ y:CGFloat)->NSColor { rep.colorAt(x:Int(x*CGFloat(rep.pixelsWide)),y:Int(y*CGFloat(rep.pixelsHigh)))!.usingColorSpace(.sRGB)! }
- func isBlue(_ c:NSColor)->Bool { c.blueComponent>0.7 && c.redComponent<0.3 }
- func isOrange(_ c:NSColor)->Bool { c.redComponent>0.8 && c.greenComponent>0.25 && c.blueComponent<0.3 }
+ // Clearly blue or orange: system colors render a little differently with appearance settings
+ // (blue seen at red 0.30), and thin strokes blend at their edges.
+ func isBlue(_ c:NSColor)->Bool { c.blueComponent>0.7 && c.redComponent<0.45 && c.blueComponent>c.redComponent+0.4 }
+ func isOrange(_ c:NSColor)->Bool { c.redComponent>0.7 && c.greenComponent>0.25 && c.redComponent>c.blueComponent+0.3 }
  func isWhite(_ c:NSColor)->Bool { c.redComponent>0.95 && c.greenComponent>0.95 && c.blueComponent>0.95 }
 
  // The page picture: 2000 px on the long side, top left where the page's is.
