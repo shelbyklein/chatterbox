@@ -39,13 +39,22 @@ app.setActivationPolicy(.regular)
  panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls,initialTool:.notes) { _,_ in }.frame(width:1700,height:680))
  try await Task.sleep(for:.milliseconds(1200))
  func render()->NSBitmapImageRep { let v=panel.contentView!;v.layoutSubtreeIfNeeded();let r=v.bitmapImageRepForCachingDisplay(in:v.bounds)!;v.cacheDisplay(in:v.bounds,to:r);return r }
- let before=render()
+ var before=render()
  let scale=CGFloat(before.pixelsWide)/before.size.width
  func color(_ r:NSBitmapImageRep,_ p:CGPoint)->NSColor { r.colorAt(x:Int(p.x*scale),y:Int(p.y*scale))!.usingColorSpace(.sRGB)! }
- func isBlue(_ c:NSColor)->Bool { c.blueComponent>0.7 && c.redComponent<0.3 }
+ // Clearly blue: the system's blue renders a little differently with appearance settings
+ // (seen red 0.30, green 0.64, blue 0.98).
+ func isBlue(_ c:NSColor)->Bool { c.blueComponent>0.7 && c.redComponent<0.45 && c.blueComponent>c.redComponent+0.4 }
  // The picture's right edge, along its middle row (view points, top-left origin).
  let midY=before.size.height/2
- guard let right=stride(from:before.size.width-1,through:0,by:-1).first(where:{ isBlue(color(before,CGPoint(x:$0,y:midY))) }) else { print("FAIL: the picture shows");exit(1) }
+ // The picture loads in the background: wait for it (up to 6 s) rather than one fixed pause.
+ let shownBy=Date().addingTimeInterval(6)
+ while !stride(from:0,to:before.size.width,by:20).contains(where:{ isBlue(color(before,CGPoint(x:$0,y:midY))) }) && Date()<shownBy {
+  try await Task.sleep(for:.milliseconds(200)); before=render()
+ }
+ guard let right=stride(from:before.size.width-1,through:0,by:-1).first(where:{ isBlue(color(before,CGPoint(x:$0,y:midY))) }) else {
+  try? before.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("wide-missing.png"))
+  print("FAIL: the picture shows (\(Int(before.size.width))×\(Int(before.size.height)); mid-row sample \(color(before,CGPoint(x:before.size.width/3,y:midY))))");exit(1) }
  // Above the Next arrow, which sits at the middle of the right edge.
  let target=CGPoint(x:right-14,y:midY-120)
  panel.makeKeyAndOrderFront(nil);app.activate(ignoringOtherApps:true)
@@ -96,7 +105,8 @@ app.setActivationPolicy(.regular)
   return CGRect(x:left,y:ys.first!,width:right-left+1,height:ys.last!-ys.first!+1)
  }
  func location(_ x:CGFloat,_ y:CGFloat,in rect:CGRect)->CGPoint {CGPoint(x:rect.minX+x*rect.width,y:rect.minY+y*rect.height)}
- func isOrange(_ c:NSColor)->Bool {c.redComponent>0.8 && c.greenComponent>0.25 && c.blueComponent<0.3}
+ // Clearly orange, allowing a thin stroke's edge blending into the lighter system blue.
+ func isOrange(_ c:NSColor)->Bool {c.redComponent>0.7 && c.greenComponent>0.25 && c.redComponent>c.blueComponent+0.3}
  var bounds=blueBounds(render())
  let points=[location(0.2,0.25,in:bounds),location(0.3,0.25,in:bounds),location(0.4,0.25,in:bounds),location(0.4,0.38,in:bounds)]
  func draw() async throws {
