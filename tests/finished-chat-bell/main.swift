@@ -43,19 +43,9 @@ app.setActivationPolicy(.regular)
  workingView.cacheDisplay(in:workingView.bounds,to:workingBitmap)
  try workingBitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/combined-sidebar.png"))
  workingPanel.close()
- let panel=NSPanel(contentRect:NSRect(x:80,y:80,width:430,height:580),styleMask:[.titled,.closable],backing:.buffered,defer:false)
- panel.appearance=NSAppearance(named:.darkAqua);panel.orderFrontRegardless()
- panel.contentView=NSHostingView(rootView:VStack(alignment:.leading){FinishedChatsBell();FinishedChatsList()}.padding(12).environment(model).environment(\.colorScheme,.dark))
- try await Task.sleep(for:.milliseconds(500))
- let view=panel.contentView!;view.layoutSubtreeIfNeeded()
- let bitmap=view.bitmapImageRepForCachingDisplay(in:view.bounds)!;view.cacheDisplay(in:view.bounds,to:bitmap)
- try bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root+"/finished-list.png"))
- // Actual list row click, local native event coordinates, verified by selected UUID/unread.
- let point=view.convert(NSPoint(x:150,y:view.isFlipped ? 130 : view.bounds.height-130),to:nil)
- for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-  panel.sendEvent(NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!)
- }
- try await Task.sleep(for:.milliseconds(150))
+ // The toolbar's Session activity popover is gone (Shelby, 2026-11-10): opening a finished chat
+ // the way the sidebar strip and menu bar do still reads it.
+ precondition(attention.openFinishedChat(a.id,in:model) && model.selectedID==a.id)
  let remaining=attention.finishedChats(in:model)
  precondition(remaining.count==1,"Click did not open/mark the native list row")
  precondition(!model.showingSettings && !attention.unread.contains(model.selectedID!))

@@ -91,7 +91,7 @@ func run() async throws {
     // AppKit adds four points of field padding to the constrained 200-point label.
     check((200...205).contains(titleWidth), "fixed title width reserves navigation space (\(titleWidth))")
     func checkGlobalBar(_ page: String) {
-        check(["views", "automations", "usage", "terminal", "finished", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
+        check(["views", "automations", "usage", "terminal", "settings", "newChat"].allSatisfy { !hidden($0) }, "same global controls on \(page)")
         check(abs((item("title")?.view?.frame.width ?? 0) - titleWidth) < 1, "title space unchanged on \(page)")
     }
     check(first.count >= 10, "toolbar has its items (\(first.count)) for \(a.projectName)")
@@ -116,7 +116,7 @@ func run() async throws {
     window.makeKeyAndOrderFront(nil)
     app.activate(ignoringOtherApps: true)
     let order = (window.toolbar?.items ?? []).map { $0.itemIdentifier.rawValue.replacingOccurrences(of: "chatterbox.", with: "") }
-    check(order.prefix(2) == ["title", "views"] && order.suffix(8) == ["usage", "terminal", "finished", "feedback", "NSToolbarSpaceItem", "settings", "newChat", "threadSidebar"]
+    check(order.prefix(2) == ["title", "views"] && order.suffix(7) == ["usage", "terminal", "feedback", "NSToolbarSpaceItem", "settings", "newChat", "threadSidebar"]
             && order.contains("newChat") && !order.contains("images") && !order.contains("remote"),
           "order: title, views; usage, terminal and Feedback; Settings, New Chat, then About this Thread (\(order))")
     save(window, "1-\(a.projectName)", out)
