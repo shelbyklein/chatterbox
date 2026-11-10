@@ -25,5 +25,5 @@ an issue holds title and notes, screenshots/attachments, priority, type (bug, fe
 - [x] I1 Service, CLI, phone routes; tests/project-issues (38 checks).
 - [x] I2 Mac board: in the project (toolbar/thread sidebar), grouped by game, status columns or
       sections, new/edit sheet with attachments (drop, paste), start/link, live via issues.changed.
-- [ ] I3 Phone board: from the project's session (About/rail), same groups, add with photos,
+- [x] I3 Phone board: from the project's session (About/rail), same groups, add with photos,
       start/link, attachments viewable.

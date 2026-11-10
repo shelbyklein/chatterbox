@@ -1653,6 +1653,39 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10), "Open goes back to the front thread")
  }
  /// About this session: tap the open session's title (a drop-down, or a column when wide).
+ /// A project's issue board (plans/project-issues.md, I3): from a project chat's About, issues
+ /// grouped by game; New Issue files one; an issue's page offers Start Thread.
+ @MainActor func testIssueBoard() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let sdhq=app.buttons["chat-"+uuid("SDHQ")]
+  XCTAssertTrue(sdhq.waitForExistence(timeout:10)); sdhq.tap()
+  openAbout(app)
+  let issues=app.buttons["about-issues"]
+  XCTAssertTrue(issues.waitForExistence(timeout:5), "a project chat's About offers Issues")
+  issues.tap()
+  let first=app.buttons["issue-1"]
+  XCTAssertTrue(first.waitForExistence(timeout:8), "the board lists #1")
+  XCTAssertTrue(app.buttons["issue-2"].exists, "and #2")
+  XCTAssertTrue(app.staticTexts.containing(NSPredicate(format:"label BEGINSWITH %@","Descent")).firstMatch.exists, "grouped under its game")
+  capture("issue-board",app)
+  // File one.
+  app.buttons["issue-new"].tap()
+  let title=app.textFields["issue-title"]
+  XCTAssertTrue(title.waitForExistence(timeout:5)); title.tap(); title.typeText("Bowl pins clip through the gutter")
+  capture("issue-new",app)
+  app.buttons["issue-save"].tap()
+  XCTAssertTrue(app.buttons["issue-3"].waitForExistence(timeout:8), "the new issue is on the board")
+  let calls=try await fixture("issue-calls",method:"GET") as! [[String:Any]]
+  XCTAssertEqual(calls.last?["action"] as? String,"add"); XCTAssertEqual(calls.last?["title"] as? String,"Bowl pins clip through the gutter")
+  // An issue's page.
+  app.buttons["issue-1"].tap()
+  XCTAssertTrue(app.buttons["issue-start"].waitForExistence(timeout:5), "an open issue offers Start Thread")
+  capture("issue-page",app)
+ }
  @MainActor func openAbout(_ app:XCUIApplication) {
   let title=app.buttons["chat-title"]
   XCTAssertTrue(title.waitForExistence(timeout:8))

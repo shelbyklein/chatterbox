@@ -158,6 +158,39 @@ def pressure(level):
   'holding':['New builds wait (running ones carry on, at lower priority)','Simulators no build or test is using are shut down',"Work threads don't start their next turn; new ones wait to start",'2 work threads waiting'] if level=='overloaded'
    else ['Builds run one at a time; agents\' builds get a quarter of the cores, at lower priority','New work threads wait to start until the Mac is OK','2 work threads waiting']}
 
+# Project issue boards (plans/project-issues.md, I3): SDHQ's board, in memory.
+ISSUES=[];ISSUE_CALLS=[]
+def issues_reset():
+ ISSUES.clear();ISSUE_CALLS.clear()
+ ISSUES.append({'id':cid('issue-1'),'number':1,'title':'Wordmark flickers on the title screen','notes':'Seen on the Duo.','game':'descent','type':'bug',
+  'priority':'high','status':'open','attachments':[],'createdBy':'you','createdAt':'2026-11-09T12:00:00Z','updatedAt':'2026-11-09T12:00:00Z'})
+ ISSUES.append({'id':cid('issue-2'),'number':2,'title':'Shelf scroll stutters','game':None,'type':'polish','priority':'normal','status':'review',
+  'attachments':[],'chatID':cid('Galley'),'chatTitle':'Galley','createdBy':'claude','createdAt':'2026-11-09T11:00:00Z','updatedAt':'2026-11-09T11:00:00Z'})
+def issue_board():
+ return {'project':'/fixture/sdhq','projectName':'SDHQ','games':[{'id':'descent','title':'Descent'},{'id':'bowl','title':'Bowl'}],'issues':ISSUES,'revision':len(ISSUE_CALLS)+1}
+def issue_action(body):
+ ISSUE_CALLS.append(body)
+ action=body.get('action');now='2026-11-09T13:00:00Z'
+ if action=='add':
+  n=max([i['number'] for i in ISSUES]+[0])+1
+  issue={'id':cid('issue-%d'%n),'number':n,'title':body['title'],'notes':body.get('notes') or None,'game':body.get('game'),'type':body.get('type','bug'),
+   'priority':body.get('priority','normal'),'status':'open','attachments':[{'name':u.get('name','Photo.jpg'),'path':'/fixture/'+u.get('name','Photo.jpg'),'mediaType':'image/jpeg'} for u in body.get('uploads',[])],
+   'createdBy':'you','createdAt':now,'updatedAt':now}
+  ISSUES.append(issue);return issue
+ match=[i for i in ISSUES if i['id']==body.get('id')]
+ if not match:return None
+ issue=match[0]
+ if action=='update':
+  for k in ['title','notes','type','priority','status']:
+   if k in body:issue[k]=body[k]
+  if 'game' in body:issue['game']=body['game'] or None
+ elif action=='delete':ISSUES.remove(issue)
+ elif action=='unlink':issue.pop('chatID',None);issue.pop('chatTitle',None);issue['status']='open'
+ elif action=='start':
+  issue['chatID']=cid('Galley');issue['chatTitle']='#%d %s'%(issue['number'],issue['title']);issue['status']='inProgress'
+  return detail(cid('Galley'))
+ return issue_board()
+
 def reset():
  global WIDGET_NEW,WIDGET_FAIL
  WIDGET_NEW=False;WIDGET_FAIL=False;WIDGET_DETAILS.clear();CREATED.clear();NEWCHAT.clear()
@@ -168,7 +201,7 @@ def reset():
  global RICH,OFFLINE,SIDECHAT,ABOUT,PRESSURE,WORK_LISTED
  PRESSURE=None
  RICH=False;OFFLINE=False;SIDECHAT=False;ABOUT=False;WORK_LISTED=False
- desk_reset();tasks_reset()
+ desk_reset();tasks_reset();issues_reset()
  automations_reset()
  global PINNED
  PINNED[:]=['Loose chat','SDHQ']
@@ -362,6 +395,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/usage-cold':
    USAGE_COLD=True;USAGE_READS=0;USAGE_REFRESHES=0;return self.reply({'ok':True})
   if self.path=='/test/rate-limit':RATE_LIMIT=body;return self.reply({'ok':True})
+  if self.path=='/v1/issues':
+   result=issue_action(body)
+   return self.reply(result) if result is not None else self.reply({'error':'That issue is gone.'},404)
   if self.path.startswith('/v1/chats/') and self.path.endswith('/retry-rate-limit'):
    id=self.path.split('/')[3];offer=detail(id).get('rateLimitRetry')
    if not offer or body.get('requestID','').lower()!=offer['requestID'].lower() or body.get('backend')!=offer['backend']:return self.reply({'error':'This request is no longer waiting for a retry.'},409)
@@ -598,6 +634,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/test/automation-calls':return self.reply(AUTOMATION_CALLS)
   if self.path=='/v1/automations':return self.reply(AUTOMATIONS)
   if self.path=='/v1/desk':return self.reply(desk())
+  if self.path=='/test/issue-calls':return self.reply(ISSUE_CALLS)
+  if self.path.startswith('/v1/issues?'):return self.reply(issue_board())
   if self.path=='/v1/desk/places':return self.reply(PLACES)
   if self.path.startswith('/v1/desk/') and self.path.split('?')[0].endswith('/threads'):
    import urllib.parse

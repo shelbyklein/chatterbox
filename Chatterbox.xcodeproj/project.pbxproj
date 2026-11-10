@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00D0193DF3583B1B3AEE3468 /* PlaceSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */; };
 		014303E35CBFA0DAA254EC00 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080FC1114275CCF21740784E /* Models.swift */; };
+		02D5BBF6275CE0C50429DD6D /* MobileIssueBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECF7D36F90592F7130D3626 /* MobileIssueBoard.swift */; };
 		08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F590872692259FADBC73667E /* DocumentViewer.swift */; };
 		088AB733159394D33015A471 /* MobileUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674F51BEFACA28D2BA78382A /* MobileUsageView.swift */; };
 		0A214F2ADBCFE126AC279AE6 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
@@ -344,10 +345,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -366,10 +367,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -586,6 +587,7 @@
 		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
 		FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAutomations.swift; sourceTree = "<group>"; };
 		FD67624B5CA24DEA04249F80 /* AttentionColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttentionColor.swift; sourceTree = "<group>"; };
+		FECF7D36F90592F7130D3626 /* MobileIssueBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileIssueBoard.swift; sourceTree = "<group>"; };
 		FFF0CC86D7009BBBC7D1ABD6 /* ChatPromotionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPromotionSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -714,6 +716,7 @@
 				A5B20D59A3D5FC367257785A /* MobileDesk.swift */,
 				5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */,
 				BDB68753D283B424C6C820BC /* MobileImageCache.swift */,
+				FECF7D36F90592F7130D3626 /* MobileIssueBoard.swift */,
 				B7E0882B1086EDE675468281 /* MobileMedia.swift */,
 				3672ECCC996A617811EFDB0B /* MobileNewChat.swift */,
 				9F0AFE1BA90D359718CB671D /* MobileNewReplies.swift */,
@@ -1360,6 +1363,7 @@
 				7D98140779CCC373AFFFB11A /* MobileDesk.swift in Sources */,
 				5A603897A9E87CC8D5BA7122 /* MobileHTMLPreview.swift in Sources */,
 				43B0A3322E761957B18BA06F /* MobileImageCache.swift in Sources */,
+				02D5BBF6275CE0C50429DD6D /* MobileIssueBoard.swift in Sources */,
 				3F9ACF6416461B4A49E77584 /* MobileMedia.swift in Sources */,
 				993DFFA82BE0A9F3C2EE2939 /* MobileNewChat.swift in Sources */,
 				E4F8091F2F78D12B024AD7F2 /* MobileNewReplies.swift in Sources */,

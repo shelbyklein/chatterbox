@@ -83,6 +83,14 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let byFolder = try store.operation(["action": "add", "project": .string(arcade.path), "title": "Filed from the board"], agent: nil).decode(Companion.ProjectIssue.self)
     try check(byFolder.number == 3, "filed by the project's folder")
     try store.delete(byFolder.id, in: arcade.path)
+    // The phone's photos arrive as uploads, written in and copied like any file.
+    let photo = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
+    let uploaded = try store.operation(["action": "add", "project": .string(arcade.path), "title": "Photo from the phone",
+                                        "uploads": [["name": "../../IMG_0042.jpg", "data": .string(photo.base64EncodedString())]]], agent: nil)
+        .decode(Companion.ProjectIssue.self)
+    try check(uploaded.attachments.count == 1 && uploaded.attachments[0].name == "IMG_0042.jpg" && uploaded.attachments[0].mediaType == "image/jpeg"
+              && (try? Data(contentsOf: URL(fileURLWithPath: uploaded.attachments[0].path))) == photo, "an uploaded photo is attached (its name kept to the file part)")
+    try store.delete(uploaded.id, in: arcade.path)
     // Update and move by hand; the board's order.
     try store.update(general.id, in: arcade.path, .init(notes: "Only with 30+ games.", game: "bowl", priority: "high", status: "review"))
     var board = store.board(for: arcade.path)
