@@ -8,7 +8,15 @@ fixture=$(mktemp -d /tmp/chatterbox-model-layout.XXXXXX)
 import sys
 from pathlib import Path
 source=Path('Core/Chatterbox/Views/ChatView.swift').read_text()
-layout=source[source.index('private struct ComposerStatusLayout: Layout'):]
+start=source.index('private struct ComposerStatusLayout: Layout')
+# Just that struct (its braces matched): views added after it in ChatView.swift need the whole app.
+depth=0;end=None
+for i in range(source.index('{',start),len(source)):
+    if source[i]=='{':depth+=1
+    elif source[i]=='}':
+        depth-=1
+        if depth==0:end=i+1;break
+layout=source[start:end]+'\n'
 Path(sys.argv[1],'layout.swift').write_text('import SwiftUI\n'+layout.replace('private struct ComposerStatusLayout','struct ComposerStatusLayout',1))
 PY
 swiftc "$fixture/layout.swift" tests/model-status-layout/main.swift -o "$fixture/test"
