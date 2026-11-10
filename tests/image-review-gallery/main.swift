@@ -148,6 +148,34 @@ app.setActivationPolicy(.regular)
   try rendered.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("reply-\(count).png"))
  }
  print("PASS: pen drawing, Undo, gallery drafts, resized alignment, exported pixel coordinates and send payload; original unchanged; numbered marks and image clipboard. Evidence: \(root)/pen.png")
+ // Zoom (Shelby, 2026-11-09): ⌘= zooms in so the picture overflows its fitted size; ⌘0 fits again.
+ panel.setContentSize(NSSize(width:1100,height:680))
+ panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls) { _,_ in }.frame(width:1100,height:680))
+ panel.makeKeyAndOrderFront(nil);app.activate(ignoringOtherApps:true)
+ try await Task.sleep(for:.milliseconds(900))
+ // The picture fills the canvas's width when fitted, so its height shows the zoom: blue down a
+ // column clear of the arrows and the "Image 1" text.
+ func blueWidth(_ r:NSBitmapImageRep)->Int {
+  let x:CGFloat=140
+  return stride(from:0,to:r.size.height,by:1).filter { isBlue(color(r,CGPoint(x:x,y:$0))) }.count
+ }
+ let fittedWidth=blueWidth(render())
+ func key(_ characters:String,_ code:UInt16) async throws {
+  for kind in [NSEvent.EventType.keyDown,.keyUp] {
+   panel.sendEvent(NSEvent.keyEvent(with:kind,location:.zero,modifierFlags:.command,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:panel.windowNumber,context:nil,characters:characters,charactersIgnoringModifiers:characters,isARepeat:false,keyCode:code)!)
+   try await Task.sleep(for:.milliseconds(80))
+  }
+  try await Task.sleep(for:.milliseconds(500))
+ }
+ try await key("=",24)
+ let zoomedRender=render()
+ let zoomedWidth=blueWidth(zoomedRender)
+ try zoomedRender.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:root).appendingPathComponent("zoomed.png"))
+ precondition(zoomedWidth > fittedWidth + 50, "⌘= zooms in: the picture is taller than fitted (\(fittedWidth) → \(zoomedWidth) pt)")
+ try await key("0",29)
+ let refit=blueWidth(render())
+ precondition(abs(refit-fittedWidth) <= 2, "⌘0 fits it again (\(fittedWidth) → \(refit))")
+ print("PASS: ⌘= zooms the picture in (\(fittedWidth) → \(zoomedWidth) pt tall), ⌘0 fits it again. Evidence: \(root)/zoomed.png")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)} }
 app.run()
