@@ -67,7 +67,13 @@ app.setActivationPolicy(.accessory)
     }
     for backend in [Backend.claude,.codex] {try await openTools(backend,"button-"+backend.rawValue)}
     try await shot(ToolsSettingsView().environment(model),NSSize(width:760,height:900),"chatterbox.png",root)
-    try await shot(ProjectToolsSheet(folder:folder,name:"SDHQ").environment(model),NSSize(width:680,height:900),"project.png",root)
+    try await shot(ToolsSheet.project(folder,name:"SDHQ").environment(model),NSSize(width:680,height:900),"project.png",root)
+    // Each Studio has its own level: its Tools sheet, and a Studio chat's summary names it.
+    let brandStudio=Studio(name:"Brand",folder:root+"/studio");try fm.createDirectory(atPath:brandStudio.folder,withIntermediateDirectories:true)
+    model.studios=[brandStudio]
+    try await shot(ToolsSheet.studio(brandStudio).environment(model),NSSize(width:680,height:900),"studio.png",root)
+    var studioRecord=ConversationRecord(model:"default",effort:"",personality:.neutral);studioRecord.studioID=brandStudio.id
+    try await shot(SessionToolsSummary(session:model.insertSession(studioRecord)).padding(16).frame(width:320).environment(model),NSSize(width:320,height:360),"popover-studio.png",root)
     // The toolbar's Tools popover for a Claude and a Codex chat in the project.
     try #"{"mcpServers":{"wordpress":{"command":"wp-mcp"}}}"#.write(toFile:folder+"/.mcp.json",atomically:true,encoding:.utf8)
     var sets=ToolScopes.load();sets[ToolScope.project(folder).key]?.off.append(ToolKey.server("graft"));try ToolScopes.save(sets)

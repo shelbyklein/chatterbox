@@ -105,6 +105,18 @@ func digest(_ path:String) -> String {
     let ep=ToolScopes.effective(for:projectChat), es=ToolScopes.effective(for:studioChat), eplain=ToolScopes.effective(for:plain)
     try check(eplain.servers.map(\.name)==["linear"],"a plain chat gets Chatterbox-wide")
     try check(Set(es.servers.map(\.name))==["linear","figma"] && es.isOff(ToolKey.server("inspo")),"a Studio chat gets Chatterbox-wide + Studios, with its offs")
+    // Each Studio has its own set: the old shared one is copied into each, then one can differ.
+    var st2=ConversationRecord(model:"default",effort:"",personality:.neutral);st2.studioID=UUID()
+    let otherStudioChat=try runtime.insert(st2)
+    let migrated=try ToolScopes.migrateStudios([st.studioID!,st2.studioID!])
+    try check(migrated,"the shared Studios set is migrated")
+    var perStudio=ToolScopes.load()
+    try check(perStudio["studios"]==nil && perStudio[ToolScope.studio(st.studioID!).key]==perStudio[ToolScope.studio(st2.studioID!).key],"each Studio gets its own copy; the shared one is gone")
+    let again=try ToolScopes.migrateStudios([st.studioID!])
+    try check(!again,"migration runs once")
+    perStudio[ToolScope.studio(st2.studioID!).key]?.servers.removeAll();try ToolScopes.save(perStudio)
+    try check(ToolScopes.effective(for:otherStudioChat).servers.map(\.name)==["linear"] && Set(ToolScopes.effective(for:studioChat).servers.map(\.name))==["linear","figma"],"one Studio's change leaves the other Studio alone")
+    try check(ToolScopes.effective(_:[.chatterbox,.studio(UUID())],sets:[:]).isEmpty,"a Studio with no set and no old shared set adds nothing")
     try check(ep.servers.map(\.name)==["wp"],"a project can turn off a Chatterbox-wide server for itself")
     try check(ep.isOff(ToolKey.skill("impeccable")),"Chatterbox-wide offs reach every level")
     var side=projectChat.record;side.id=UUID();side.projectFolder=nil;side.sidechatOf=projectChat.id;side.sidechatProjectFolder=project
@@ -134,7 +146,7 @@ func digest(_ path:String) -> String {
     try check(stray.isEmpty,"servers Codex doesn't have aren't named")
     try check(projectChat.codexToolsConfig(ep,codexServers:[])["mcp_servers.wp"]==nil,"a Claude-only server stays out of Codex")
     let key1=studioChat.codexConfigurationKey
-    var sets=ToolScopes.load();sets["studios"]?.off.removeAll{$0==ToolKey.codexApps};try ToolScopes.save(sets)
+    var sets=ToolScopes.load();sets[ToolScope.studio(st.studioID!).key]?.off.removeAll{$0==ToolKey.codexApps};try ToolScopes.save(sets)
     try check(studioChat.codexConfigurationKey != key1,"a change reloads the Codex thread")
     try check(item(.server,"sdhq-db")?.source == .project && ToolDiscovery.codexServerNames(projectFolder:project).contains("sdhq-db"),"a project's .codex/config.toml servers are found, and can be switched off")
 
