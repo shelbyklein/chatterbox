@@ -33,10 +33,30 @@ final class ScrollTests: XCTestCase {
   app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", part)).firstMatch
  }
  @MainActor func readingAnchor(_ app: XCUIApplication) throws -> XCUIElement {
-  // Lazy rows can be in accessibility before they are visible.
-  let visible = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Answer "))
-   .allElementsBoundByIndex.first { $0.isHittable && $0.frame.minY > app.navigationBars.firstMatch.frame.maxY }
-  return try XCTUnwrap(visible)
+  // Every row is in accessibility (the transcript isn't lazy): read the tree once and take the
+  // first "Answer" row inside the visible transcript, rather than asking each row in turn,
+  // which takes seconds over 60 rows (long enough for a held send to time out).
+  let transcript = app.scrollViews["chatTranscript"]
+  let top = max(transcript.frame.minY, app.navigationBars.firstMatch.frame.maxY), bottom = transcript.frame.maxY
+  func rows(_ s: XCUIElementSnapshot) -> [XCUIElementSnapshot] { [s] + s.children.flatMap(rows) }
+  let row = try rows(transcript.snapshot()).first {
+   $0.elementType == .staticText && $0.label.hasPrefix("Answer ") && $0.frame.minY > top && $0.frame.maxY < bottom
+  }
+  let label = try XCTUnwrap(row?.label)
+  return app.staticTexts.containing(NSPredicate(format: "label == %@", label)).firstMatch
+ }
+ /// Opening a chat and scrolling up straight away, while it still pins the newest message, once
+ /// froze the app in a LazyVStack layout loop (3 in 3 runs of this test). Several times over.
+ @MainActor func testFreezeOnEarlyScroll() async throws {
+  for _ in 0..<4 {
+   try await control("reset")
+   let app = openChat()
+   // Straight away, while opening still pins the newest message (as the failing tests do).
+   for _ in 0..<3 { app.scrollViews["chatTranscript"].swipeDown(velocity: .slow) }
+   readOlder(app)
+   XCTAssertTrue(app.scrollViews["chatTranscript"].exists)
+   app.terminate()
+  }
  }
  @MainActor func readOlder(_ app: XCUIApplication) {
   let transcript = app.scrollViews["chatTranscript"]
@@ -223,7 +243,7 @@ final class ScrollTests: XCTestCase {
   let start = origin.withOffset(CGVector(dx: field.frame.midX, dy: top))
   let end = origin.withOffset(CGVector(dx: field.frame.midX, dy: min(top + 300, field.frame.minY - 30)))
   start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
-  let anchor = try XCTUnwrap(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Answer ")).allElementsBoundByIndex.first { $0.isHittable })
+  let anchor = try readingAnchor(app)
   let label = String(anchor.label.prefix(10)), before = anchor.frame
   try await control("release")
   try await Task.sleep(for: .seconds(3))

@@ -1,4 +1,3 @@
 # Test scripts that fail intermittently for a known reason. tests-for.sh still runs and reports
 # them, but their failure doesn't stop a --fail-fast run or fail the run. Remove a line once
 # the cause is fixed. One per line: path  # why, and since when.
-scripts/test-mobile-scroll.sh  # the phone app's main thread sometimes spins in LazyVStack layout while scrolling up into older rows (since Nov 2026)

@@ -3,6 +3,9 @@ from pathlib import Path
 # Isolated fixture: one long project chat whose reply "streams" when the test calls /test/advance.
 PORT=int(os.environ.get('CHATTERBOX_TEST_PORT','47410'))
 CHAT='33333333-3333-3333-3333-333333333333'
+# A token per server run: the app keeps images on disk between runs on the same simulator,
+# so a run's image revision must be new for the tall-image test to see it load.
+RUN=uuid.uuid4().hex[:8]
 revision=1; extra=[]; streamed=0; send_delay=0; show_image=False; portrait=False; image_requests=0
 image_gate=threading.Event();image_gate.set()
 IMAGE='22222222-2222-2222-2222-222222222222'
@@ -19,7 +22,7 @@ def items():
   out.append(item(f'u{n}','user',f'Question {n:02d}'))
   out.append(item(f'a{n}','assistant',f'Answer {n:02d}. '+'This is a reply with enough words to wrap across a few lines on a phone. '*3))
   if n==28 and show_image:
-   out[-1]['attachments']=[dict(id=IMAGE,name='Reading proof.png',mediaType='image/png',isImage=True,revision='portrait-'+str(revision) if portrait else 'reading-1')]
+   out[-1]['attachments']=[dict(id=IMAGE,name='Reading proof.png',mediaType='image/png',isImage=True,revision=f'portrait-{RUN}-{revision}' if portrait else f'reading-{RUN}')]
  if streamed:out.append(item('stream','assistant','Streaming reply. '+'More text arrives. '*streamed*4,True))
  return out+extra
 def detail():
