@@ -23,6 +23,18 @@ import Darwin
     let session = ChatSession(record: ConversationRecord(model: "default", effort: "", personality: .neutral))
     try check(service.environment(for: session)["FIXTURE_API"] == "fixture-only-original-value", "unscoped chat receives key in environment")
     try check(service.note(for: session)?.contains("$FIXTURE_API") == true && service.note(for: session)?.contains("fixture-only-original-value") == false, "agent note contains variable reference only")
+    // A key the service can't read yet (Keychain access not granted): kept out of the
+    // environment, and the agent is told it's saved and how to allow it.
+    let blocked = SecretEntry(name: "Blocked API", variable: "BLOCKED_API")
+    try writer.save(blocked, value: "fixture-only-blocked-value")
+    try FileManager.default.removeItem(at: RuntimePaths.data.appendingPathComponent("test-secret-\(blocked.id.uuidString)"))
+    try service.reload()
+    try check(service.environment(for: session)["BLOCKED_API"] == nil && service.unavailable(for: session) == [blocked], "an unreadable key stays out of the environment")
+    let blockedNote = service.note(for: session) ?? ""
+    try check(blockedNote.contains("$BLOCKED_API") && blockedNote.contains("Allow Background Access") && blockedNote.contains("$FIXTURE_API"), "the agent hears it's saved and how to allow it")
+    writer.remove(blocked)
+    try service.reload()
+    try check(service.unavailable(for: session).isEmpty, "removing it clears the notice")
     try check(service.redact("token=fixture-only-original-value") == "token=••••(FIXTURE_API)", "saved value redacted from transcript")
     let fingerprint = service.fingerprint(for: session)
     try writer.save(entry, value: "fixture-only-replacement-value")
