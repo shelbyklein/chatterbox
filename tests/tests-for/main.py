@@ -152,7 +152,7 @@ class RunnerChecks(unittest.TestCase):
         r = self.run_runner('--run', '--all', '--fail-fast')
         self.assertEqual(r.returncode, 1)
         self.assertEqual((self.root / 'trace').read_text().splitlines(), ['first', 'failure'])
-        self.assertIn(f'1 passed, 1 failed, {total - 2} not run', r.stdout)
+        self.assertIn(f'1 passed, 1 failed, 0 known flaky failed, {total - 2} not run', r.stdout)
         self.assertIn('remaining checks are NOT verified', r.stdout)
         self.assertEqual((self.root / 'build/test-logs/test-b-fail.log').read_text().strip(), 'failure')
         self.assertFalse((self.root / 'build/test-logs/test-c-after.log').exists())
@@ -162,12 +162,21 @@ class RunnerChecks(unittest.TestCase):
         r = self.run_runner('--run', '--all')
         self.assertEqual(r.returncode, 1)
         self.assertEqual((self.root / 'trace').read_text().splitlines(), ['first', 'failure', 'after'])
-        self.assertIn(f'{total - 1} passed, 1 failed, 0 not run', r.stdout)
+        self.assertIn(f'{total - 1} passed, 1 failed, 0 known flaky failed, 0 not run', r.stdout)
+
+    def test_known_flaky_failure_is_reported_but_does_not_stop_or_fail(self):
+        total = self.prepare_run()
+        (self.root / 'scripts/known-flaky.txt').write_text('# comment\nscripts/test-b-fail.sh  # fixture hang\n')
+        r = self.run_runner('--run', '--all', '--fail-fast')
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertEqual((self.root / 'trace').read_text().splitlines(), ['first', 'failure', 'after'])
+        self.assertIn(f'{total - 1} passed, 0 failed, 1 known flaky failed, 0 not run', r.stdout)
+        self.assertIn('known flaky scripts/test-b-fail.sh (7): fixture hang', r.stdout)
 
     def test_success_and_empty_run_report_no_unrun_checks(self):
         r = self.run_runner('--run', '--all', '--fail-fast')
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn('0 failed, 0 not run', r.stdout)
+        self.assertIn('0 failed, 0 known flaky failed, 0 not run', r.stdout)
         r = self.run_runner('--run', '--since', self.base, '--fail-fast')
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn('nothing changed', r.stderr)

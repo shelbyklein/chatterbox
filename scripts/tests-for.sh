@@ -10,7 +10,9 @@
 #   scripts/tests-for.sh --run …   run the listed tests one after another (logs in build/test-logs),
 #                                  then print which passed and failed
 #   scripts/tests-for.sh --run --fail-fast …  stop at the first failure; report unrun scripts
-# Routine Dev: --run --fail-fast FILE… or --since BASE. Batch/release: --run --all --fail-fast.
+# Routine Dev: --run --fail-fast FILE… or --since BASE. Full suite: --run --all (it keeps going).
+# A script named in scripts/known-flaky.txt is run and reported, but its failure doesn't stop a
+# --fail-fast run or fail the run: it's listed under "known flaky" until it's fixed and removed.
 #
 # Worked out from the test scripts themselves, so it stays right as they change. A test covers a
 # changed file when
@@ -220,9 +222,21 @@ def matches(pattern, path):
 
 # --- Run ------------------------------------------------------------------------------------
 
+def known_flaky():
+    f = ROOT / 'scripts' / 'known-flaky.txt'
+    if not f.exists():
+        return {}
+    flaky = {}
+    for line in f.read_text().splitlines():
+        name, _, why = line.partition('#')
+        if name.strip():
+            flaky[name.strip()] = why.strip()
+    return flaky
+
 def run_all(names):
     logs = ROOT / 'build' / 'test-logs'
     logs.mkdir(parents=True, exist_ok=True)
+    flaky = known_flaky()
     results = []
     for n in names:
         log = logs / (Path(n).stem + '.log')
@@ -230,16 +244,21 @@ def run_all(names):
         with log.open('w') as out:
             code = subprocess.run(['./' + n], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT).returncode
         results.append((code, n, log))
-        print(f'    {"pass" if code == 0 else f"FAIL ({code})"}  {log.relative_to(ROOT)}', flush=True)
-        if code and args.fail_fast:
+        label = 'pass' if code == 0 else (f'known flaky, FAIL ({code})' if n in flaky else f'FAIL ({code})')
+        print(f'    {label}  {log.relative_to(ROOT)}', flush=True)
+        if code and args.fail_fast and n not in flaky:
             break
-    failed = [r for r in results if r[0]]
+    failed = [r for r in results if r[0] and r[1] not in flaky]
+    flaked = [r for r in results if r[0] and r[1] in flaky]
     remaining = len(names) - len(results)
-    print(f'\n{len(results) - len(failed)} passed, {len(failed)} failed, {remaining} not run')
+    print(f'\n{len(results) - len(failed) - len(flaked)} passed, {len(failed)} failed, '
+          f'{len(flaked)} known flaky failed, {remaining} not run')
     if remaining:
         print('Stopped after the first failure; remaining checks are NOT verified.')
     for code, n, log in failed:
         print(f'  FAIL {n} ({code}): {log.relative_to(ROOT)}')
+    for code, n, log in flaked:
+        print(f'  known flaky {n} ({code}): {flaky[n] or "see scripts/known-flaky.txt"} ({log.relative_to(ROOT)})')
     return 1 if failed else 0
 
 if everything:

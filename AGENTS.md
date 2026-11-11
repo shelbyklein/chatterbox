@@ -18,6 +18,12 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   On the phone: `scripts/install-phone.sh --dev "Shelby's Duo"`.
 - **The real app updates only when Shelby says ship**, batched: then `scripts/ship.sh` (or
   `install.sh`) and `scripts/restart-service.sh` for the real service, as below.
+- **Except tiny, low-risk changes, which go straight to the real app (Shelby, November 11).**
+  The app is only Shelby's, so a change like a symbol, a word, a color or spacing, Mac or phone,
+  skips Dev: verify it (below), commit it, then `scripts/install.sh` + `scripts/restart-service.sh`
+  (and `scripts/install-phone.sh "Shelby's Duo"` for the phone). Say it went straight to the real
+  app. Anything touching behavior, data, the service's protocol, or several files' logic goes
+  through Dev as above. A bad one is undone with `scripts/rollback.sh`.
 - **After a Dev delivery, offer a Ship button** instead of "say ship when you want it": end the
   reply with an action block (the app shows its lines as one-tap buttons that send the text as
   Shelby's message), e.g.
@@ -113,23 +119,28 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   `source "$(dirname "$0")/lib/test-hygiene.sh"`; new ones must too. On exit it stops what the run
   started and deletes app bundles in its temp folders, keeping logs and screenshots.
   `KEEP_TEST_BUILDS=1` keeps the builds for debugging.
-- **Focused tests for routine work; the full suite for a batch/release (Shelby, November 6).**
+- **Tests match the change; the full suite only on a schedule or on request (Shelby, November 11).**
   Run the tests covering each change before Dev delivery, using `scripts/tests-for.sh --why`
   and `scripts/tests-for.sh --run --fail-fast FILE…`. With no files it compares the current
   checkout with origin/main, including Core and uncommitted/new files. When work is already
   committed/pushed, use `--since BASE` with the parent commit before the change or batch:
   `scripts/tests-for.sh --run --fail-fast --since BASE`. It follows that commit's Core gitlink,
   so a clean pushed checkout cannot hide committed Core changes. Record the baseline and results.
-  Keep focused UI/gesture/rendered checks for affected mobile views; do not replace them with
-  a compile or a smaller test that drops their coverage. `scripts/test-map.txt` adds links the
-  selector cannot infer; add one when new coverage is missed.
-  Do not repeat the full suite for every edit or Dev install. Before a batched real shipment,
-  run `scripts/tests-for.sh --run --all --fail-fast` once against the batch's final source.
-  Full/overnight runs can also be requested separately; do not schedule one without a request.
-  Logs are in `build/test-logs`. A fail-fast run reports passed, failed and not-run counts;
-  unrun tests are unverified. Keep known baseline failures recorded rather than repeatedly
-  running the same unrelated blocker on each edit. Disclose release blockers and incomplete
-  coverage before shipping; only Shelby can choose to proceed with them. Never call that green.
+  Weigh the tests by the change:
+  - *Look or wording only* (a symbol, text, color, spacing, no logic): a build of the affected
+    platform plus a look at it (a screenshot or a render test's image). No simulator suites.
+  - *Behavior*: the focused tests from `tests-for.sh`, including UI/gesture/rendered checks for
+    affected mobile views; don't swap those for a compile or a smaller test.
+  `scripts/test-map.txt` adds links the selector cannot infer; add one when coverage is missed.
+  **Shipping takes the focused tests of what's in it, not the full suite.** Run the full suite
+  (`scripts/tests-for.sh --run --all`, which keeps going past failures) only when Shelby asks
+  or on a schedule she set; start it with `scripts/detach.sh` so it outlives the session.
+  `scripts/known-flaky.txt` lists tests that fail intermittently for a known reason: they're
+  still run and reported ("known flaky"), but don't stop `--fail-fast` or fail the run. Add a
+  line only for a diagnosed intermittent failure, with why; remove it once fixed.
+  Logs are in `build/test-logs`. A fail-fast run reports passed, failed, known-flaky and not-run
+  counts; unrun tests are unverified. Disclose failures and incomplete coverage when reporting
+  a ship; never call that green. A bad ship is undone with `scripts/rollback.sh` (below).
 - **Never stop a process blind.** An idle-looking host can be carrying live chats. Use `safe_stop`
   from `scripts/lib/safe-stop.sh`, which refuses when Claude or Codex work runs under the process.
   Never kill `chatterboxd` or `ChatterboxHost` directly.
@@ -142,8 +153,16 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   Restarts with `--now` while replies run need the user's go-ahead. `--dev` restarts Chatterbox Dev's
   service instead (report in `Application Support/Chatterbox Dev/Diagnostics`).
 - **Install only with `scripts/install-dev.sh` (Dev), or `scripts/ship.sh` / `scripts/install.sh`
-  (the real app, when Shelby says ship).** Never `open` either app from an agent shell: it would
-  inherit the service's `CHATTERBOX_*` variables.
+  (the real app, when Shelby says ship or for a tiny change as above).** Never `open` either app
+  from an agent shell: it would inherit the service's `CHATTERBOX_*` variables.
+- **Every real install keeps the app it replaced** (zipped in `build/previous`, with its commit).
+  `scripts/rollback.sh` puts it back and queues the real service's restart (the service is inside
+  the app); run again, it goes forward. `scripts/rollback.sh --show` says what's installed and kept.
+- **Long runs go through `scripts/detach.sh NAME CMD…`** (full suites, freeze hunts, anything
+  over a few minutes): it runs in its own session, so it survives the agent session ending, and
+  writes `build/runs/NAME.log` and `NAME.status` ("exit N" when done). Wait on the status file.
+- **Phone UI tests have a time limit:** `xcodebuild test-without-building` runs (build-lock.sh)
+  give each test 180 s (`CHATTERBOX_TEST_ALLOWANCE=N`), so a hung app fails in about 3 minutes.
 - **Routine delivery has standing approval (Shelby, October 10, 2026; updated November 6).**
   After requested work is verified, install/reopen Chatterbox Dev (`install-dev.sh`) and queue
   any needed Dev service restart with the default idle-wait behavior. Build only the platforms

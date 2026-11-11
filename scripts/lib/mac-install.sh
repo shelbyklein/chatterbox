@@ -13,8 +13,23 @@ mac_install_bundle() {
   osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null || true
   for i in {1..20}; do pgrep -xq Chatterbox || break; sleep 0.25; done
 
+  # Keep the app being replaced (its service is inside it) for scripts/rollback.sh: zipped, so
+  # macOS doesn't offer a second Chatterbox, with the commit it was built from.
+  if [[ -d /Applications/Chatterbox.app ]]; then
+    mkdir -p build/previous
+    rm -f build/previous/Chatterbox.app.zip.tmp
+    # Best effort: a failed copy only means no rollback, never a failed install.
+    if ditto -c -k --keepParent /Applications/Chatterbox.app build/previous/Chatterbox.app.zip.tmp \
+       && mv -f build/previous/Chatterbox.app.zip.tmp build/previous/Chatterbox.app.zip; then
+      cp -f build/previous/installed-commit build/previous/previous-commit 2>/dev/null || rm -f build/previous/previous-commit
+    else
+      echo "Couldn't keep the previous app for rollback; installing anyway." >&2
+    fi
+  fi
   rm -rf /Applications/Chatterbox.app
   ditto "$BUILD" /Applications/Chatterbox.app
+  mkdir -p build/previous
+  echo "${MAC_INSTALL_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null) (Core $(git -C Core rev-parse --short HEAD 2>/dev/null))}" > build/previous/installed-commit || true
   codesign --verify --deep --strict /Applications/Chatterbox.app
   # Chats' agents publish web snippets with `snippet` (bin/snippet), from their shell's PATH.
   mkdir -p "$HOME/.local/bin"

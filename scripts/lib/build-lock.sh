@@ -263,7 +263,14 @@ xcodebuild() {
   for arg in "$@"; do
     case "$arg" in
       # Runs tests already built: no build slot (the device's simulator slot is the limit).
-      test-without-building) _build_lock_run command xcodebuild "$@"; return ;;
+      # Each test gets a time limit, so a hung app fails in about 3 minutes, not 10
+      # (the slowest passing test takes under 2). CHATTERBOX_TEST_ALLOWANCE=N seconds changes it.
+      test-without-building)
+        local limits=()
+        [[ " $* " == *" -test-timeouts-enabled "* ]] || limits=(-test-timeouts-enabled YES
+          -default-test-execution-time-allowance "${CHATTERBOX_TEST_ALLOWANCE:-180}"
+          -maximum-test-execution-time-allowance "$(( ${CHATTERBOX_TEST_ALLOWANCE:-180} * 2 ))")
+        _build_lock_run command xcodebuild "$@" ${limits[@]+"${limits[@]}"}; return ;;
       -jobs) explicit=1 ;;
       -exportArchive|-version|-list|-showBuildSettings|-showsdks|-showdestinations|-resolvePackageDependencies|-help|-usage|-checkFirstLaunchStatus|-runFirstLaunch) jobs=0 ;;
     esac

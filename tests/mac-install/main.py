@@ -96,7 +96,12 @@ class Delivery(unittest.TestCase):
         opened = next(e for e in events if e[0] == 'open')
         self.assertEqual(opened[1], ['/Applications/Chatterbox.app', '--args', '--fixture', 'two words'])
         self.assertIsNone(opened[3])
-        self.assertFalse(any(e[0] == 'git' for e in events))
+        # Only reading which commit is installed (for scripts/rollback.sh), never committing.
+        self.assertFalse(any(e[0] == 'git' and 'rev-parse' not in e[1] for e in events))
+        # The app being replaced is kept, zipped, before it's removed.
+        names = [e[0] for e in events]
+        keep = next(i for i, e in enumerate(events) if e[0] == 'ditto' and '-c' in e[1])
+        self.assertLess(keep, next(i for i, e in enumerate(events) if e[0] == 'ditto' and '-c' not in e[1]))
 
     def test_failures_leave_installed_app_untouched(self):
         for failure in ('build', 'signature', 'push', 'commit'):
