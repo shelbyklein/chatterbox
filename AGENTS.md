@@ -163,6 +163,7 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   writes `build/runs/NAME.log` and `NAME.status` ("exit N" when done). Wait on the status file.
 - **Phone UI tests have a time limit:** `xcodebuild test-without-building` runs (build-lock.sh)
   give each test 180 s (`CHATTERBOX_TEST_ALLOWANCE=N`), so a hung app fails in about 3 minutes.
+  A test that's long by design sets its own `executionTimeAllowance` (up to 600 s), with why.
 - **Routine delivery has standing approval (Shelby, October 10, 2026; updated November 6).**
   After requested work is verified, install/reopen Chatterbox Dev (`install-dev.sh`) and queue
   any needed Dev service restart with the default idle-wait behavior. Build only the platforms

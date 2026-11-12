@@ -228,12 +228,12 @@ mkdir -p "$fixture/lock/slot-1"; echo $$ > "$fixture/lock/slot-1/pid"; echo /els
   for _ in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
   if kill -0 "$pid" 2>/dev/null; then pkill -P "$pid"; kill "$pid"; echo "waited for the build slot" >> "$fixture/twb.out"; fi )
 twb=$(cat "$fixture/twb.out")
-[[ "$twb" == $'-testProductsPath p test-without-building -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 360\nslot-1' ]] || fail "test-without-building got: $twb"
+[[ "$twb" == $'-testProductsPath p test-without-building -test-timeouts-enabled YES -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 600\nslot-1' ]] || fail "test-without-building got: $twb"
 # A run's own limits are kept; CHATTERBOX_TEST_ALLOWANCE changes the default.
 own=$(PATH="$fixture/bin:$PATH" CHATTERBOX_BUILD_SLOTS=1 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild test-without-building -test-timeouts-enabled NO" 2>&1)
 [[ "$own" == "test-without-building -test-timeouts-enabled NO" ]] || fail "own limits got: $own"
 set_=$(PATH="$fixture/bin:$PATH" CHATTERBOX_BUILD_SLOTS=1 CHATTERBOX_TEST_ALLOWANCE=60 bash -c "source '$root/scripts/lib/build-lock.sh'; xcodebuild test-without-building" 2>&1)
-[[ "$set_" == *"-default-test-execution-time-allowance 60 -maximum-test-execution-time-allowance 120" ]] || fail "allowance got: $set_"
+[[ "$set_" == *"-default-test-execution-time-allowance 60 -maximum-test-execution-time-allowance 600" ]] || fail "allowance got: $set_"
 rm -rf "$fixture/lock/slot-1"
 pass "test-without-building: ran at once, no -jobs, a 180 s time limit per test, the other script's slot untouched"
 

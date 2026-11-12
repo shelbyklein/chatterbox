@@ -1727,17 +1727,25 @@ final class HomeNavTests: XCTestCase {
   openChatterbox()
   let list=app.descendants(matching:.any)["session-sidebar-pane"]
   let column=app.descendants(matching:.any)["aboutColumn"]
-  // The session's tools on its bar: About, Session Settings, its actions, Feedback.
-  let about=app.buttons["about-rail-button"], settings=app.buttons["rail-settings"]
-  XCTAssertTrue(about.waitForExistence(timeout:5) && settings.exists && app.buttons["Session Menu"].exists, "the session's bar has About, Session Settings and its menu")
-  XCTAssertFalse(about.isSelected, "About starts closed")
-  XCTAssertFalse(column.exists)
+  // Wide, the session's bar carries nothing (iOS folded it into a floating pill): the title
+  // opens About, which has the session's actions.
+  let about=app.buttons["chat-title"]
+  XCTAssertTrue(about.waitForExistence(timeout:5))
+  XCTAssertFalse(app.buttons["rail-settings"].exists || app.buttons["Session Menu"].exists || app.buttons["about-rail-button"].exists,
+                 "no toolbar of the session's own beside the list's")
+  XCTAssertFalse(column.exists, "About starts closed")
   about.tap()
   XCTAssertTrue(column.waitForExistence(timeout:5), "About slides in")
   XCTAssertTrue(list.exists, "the session list stays on the left")
   XCTAssertGreaterThan(column.frame.minX, list.frame.maxX, "About is on the right, beside the conversation")
   XCTAssertGreaterThan(column.frame.maxX, app.windows.firstMatch.frame.maxX - 2, "along the right edge")
-  XCTAssertTrue(app.buttons["about-rail-button"].isSelected, "its button shows as selected while it's open")
+  // Its actions, as the narrow layout's ⋯ has them.
+  let actions=app.buttons["about-actions"]
+  XCTAssertTrue(actions.waitForExistence(timeout:5), "About has the session's actions"); actions.tap()
+  XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout:3) && app.buttons["Restart Thread"].exists && app.buttons["Archive"].exists)
+  capture("duo-about-actions", app)
+  app.buttons["Rename"].tap()
+  XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout:3), "Rename from About renames the session"); app.alerts.firstMatch.buttons["Cancel"].tap()
   let chip=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"]
   XCTAssertTrue(chip.waitForExistence(timeout:5), "its sections, the work threads too")
   // The action buttons fit: none cut off.
@@ -1745,10 +1753,6 @@ final class HomeNavTests: XCTestCase {
    XCTAssertLessThanOrEqual(app.buttons[id].frame.maxX, column.frame.maxX + 1, "\(id) fits the column")
   }
   capture("duo-about-column", app)
-  XCTAssertTrue(settings.isHittable && app.buttons["about-rail-button"].isHittable, "the session's bar stays in reach beside About")
-  // Session Settings, straight from the bar.
-  settings.tap()
-  XCTAssertTrue(app.navigationBars["Session Settings"].waitForExistence(timeout:5)); app.navigationBars["Session Settings"].buttons["Done"].tap()
   // A work thread peeks in the same column; Back returns to About.
   chip.tap()
   let peek=app.descendants(matching:.any)["peekColumn"]
@@ -1764,7 +1768,6 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.descendants(matching:.any)["aboutColumn"].waitForExistence(timeout:5), "About's open state is remembered")
   app.buttons["about-column-close"].tap()
   XCTAssertTrue(app.descendants(matching:.any)["aboutColumn"].waitForNonExistence(timeout:5), "Close hides it")
-  XCTAssertFalse(app.buttons["about-rail-button"].isSelected)
  }
  /// The Desk on its own preferences: a fresh install, which opens on it.
  @MainActor func deskApp() -> XCUIApplication {
@@ -2436,6 +2439,7 @@ final class HomeNavTests: XCTestCase {
  /// review. Waits for each screen; skips a step whose control isn't there rather than failing.
  /// MOBILE_TEST_ONLY=HomeNavTests/HomeNavTests/testUXPanelTour on iphone, ipad or duo.
  @MainActor func testUXPanelTour() async throws {
+  executionTimeAllowance = 600  // 27 screens, about 4 minutes: past the default 3-minute limit
   try await fixture("reset"); try await fixture("rich")
   XCUIDevice.shared.orientation = .portrait
   // The Desk, on a fresh install (it opens there).
