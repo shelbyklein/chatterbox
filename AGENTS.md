@@ -12,21 +12,19 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
 47431 on this Mac only) and iPhone app (Chatterbox Dev, no widget). Its identities are all in
 `Core/Shared/Flavor.swift`; the build configuration `Dev` makes it.
 
-- **New work is installed to Dev:** `scripts/install-dev.sh` builds this checkout, replaces only
-  Chatterbox Dev, restarts only Dev's service (after its replies finish; `--now` doesn't wait) and
-  reopens only Dev's app. Restart Dev's service alone with `scripts/restart-service.sh --dev`.
-  On the phone: `scripts/install-phone.sh --dev "Shelby's Duo"`.
-- **The real app updates only when Shelby says ship**, batched: then `scripts/ship.sh` (or
-  `install.sh`) and `scripts/restart-service.sh` for the real service, as below.
-- **Except tiny, low-risk changes, which go straight to the real app (Shelby, November 11).**
-  The app is only Shelby's, so a change like a symbol, a word, a color or spacing, Mac or phone,
-  skips Dev: verify it (below), commit it, then `scripts/install.sh` + `scripts/restart-service.sh`
-  (and `scripts/install-phone.sh "Shelby's Duo"` for the phone). Say it went straight to the real
-  app. Anything touching behavior, data, the service's protocol, or several files' logic goes
-  through Dev as above. A bad one is undone with `scripts/rollback.sh`.
-- **After a Dev delivery, offer a Ship button** instead of "say ship when you want it": end the
-  reply with an action block (the app shows its lines as one-tap buttons that send the text as
-  Shelby's message), e.g.
+- **Finished work goes straight to the real app (Shelby, November 13).** The app is only
+  Shelby's, and Dev-then-ship doubled every delivery. Once a change's tests pass (below), commit
+  it and install it for real: `scripts/install.sh` + `scripts/restart-service.sh` on the Mac
+  (only when the Mac app or service changed), `scripts/install-phone.sh "Shelby's Duo"` for the
+  phone. Say what was installed. A bad Mac install is undone with `scripts/rollback.sh`.
+- **Dev is for risky changes and on request.** Use Chatterbox Dev first when a change touches
+  the service's saved data or its protocol with the hosts or the phone, when it can't be tested
+  and a mistake would break every chat, or when Shelby asks: `scripts/install-dev.sh` builds
+  this checkout, replaces only Chatterbox Dev, restarts only Dev's service (after its replies
+  finish; `--now` doesn't wait) and reopens only Dev's app
+  (`scripts/restart-service.sh --dev` restarts Dev's service alone; on the phone,
+  `scripts/install-phone.sh --dev "Shelby's Duo"`). Say why it went to Dev, and end the reply
+  with a Ship button:
 
   ````
   ```actions
@@ -34,7 +32,6 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   ```
   ````
 
-  Add another line only for an obvious next step (`Start the next part | start the next part`).
   A button only sends text; tapping Ship is Shelby saying ship.
 - **After a ship, clear the work threads it delivered:** `work done <id>` (or `work done --ready`)
   from their front thread, so their tasks leave the Desk's Ready column. Tooling that doesn't ship
@@ -120,7 +117,7 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   started and deletes app bundles in its temp folders, keeping logs and screenshots.
   `KEEP_TEST_BUILDS=1` keeps the builds for debugging.
 - **Tests match the change; the full suite only on a schedule or on request (Shelby, November 11).**
-  Run the tests covering each change before Dev delivery, using `scripts/tests-for.sh --why`
+  Run the tests covering each change before installing it, using `scripts/tests-for.sh --why`
   and `scripts/tests-for.sh --run --fail-fast FILE…`. With no files it compares the current
   checkout with origin/main, including Core and uncommitted/new files. When work is already
   committed/pushed, use `--since BASE` with the parent commit before the change or batch:
@@ -131,6 +128,11 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
     platform plus a look at it (a screenshot or a render test's image). No simulator suites.
   - *Behavior*: the focused tests from `tests-for.sh`, including UI/gesture/rendered checks for
     affected mobile views; don't swap those for a compile or a smaller test.
+  - *A small phone change* runs only the tests of the screen it touches, not a whole phone
+    suite (the navigation suite is 53 tests, 25 minutes): pick them by name with
+    `MOBILE_TEST_ONLY="HomeNavTests/HomeNavTests/testA,…" scripts/test-mobile-home-nav.sh iphone`
+    (`MOBILE_SCROLL_ONLY=testA` for the scroll suite). The whole suite runs for a broad change
+    (navigation, the store, shared rows) or when Shelby asks. Say which tests ran.
   `scripts/test-map.txt` adds links the selector cannot infer; add one when coverage is missed.
   **Shipping takes the focused tests of what's in it, not the full suite.** Run the full suite
   (`scripts/tests-for.sh --run --all`, which keeps going past failures) only when Shelby asks
@@ -152,8 +154,8 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   `~/Library/Application Support/Chatterbox/Diagnostics/service-restart.txt`.
   Restarts with `--now` while replies run need the user's go-ahead. `--dev` restarts Chatterbox Dev's
   service instead (report in `Application Support/Chatterbox Dev/Diagnostics`).
-- **Install only with `scripts/install-dev.sh` (Dev), or `scripts/ship.sh` / `scripts/install.sh`
-  (the real app, when Shelby says ship or for a tiny change as above).** Never `open` either app
+- **Install only with `scripts/install.sh` / `scripts/ship.sh` (the real app) or
+  `scripts/install-dev.sh` (Dev).** Never `open` either app
   from an agent shell: it would inherit the service's `CHATTERBOX_*` variables.
 - **Every real install keeps the app it replaced** (zipped in `build/previous`, with its commit).
   `scripts/rollback.sh` puts it back and queues the real service's restart (the service is inside
@@ -165,12 +167,11 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   give each test 180 s (`CHATTERBOX_TEST_ALLOWANCE=N`), so a hung app fails in about 3 minutes.
   A test that's long by design sets its own `executionTimeAllowance` (up to 600 s), with why.
 - **Routine delivery has standing approval (Shelby, October 10, 2026; updated November 6).**
-  After requested work is verified, install/reopen Chatterbox Dev (`install-dev.sh`) and queue
-  any needed Dev service restart with the default idle-wait behavior. Build only the platforms
+  After requested work is verified, install it (the real app, as above; Dev for a risky change)
+  and queue any needed service restart with the default idle-wait behavior. Build only the platforms
   affected by the change; Mac-only work does not need an iOS build.
   For phone changes, prefer a direct install while Shelby's paired phone is reachable at home:
-  `scripts/install-phone.sh --dev "Shelby's Duo"` for development, or
-  `scripts/install-phone.sh "Shelby's Duo"` when Shelby says ship. Do not archive or upload to
+  `scripts/install-phone.sh "Shelby's Duo"` (`--dev` for a change being tried in Dev). Do not archive or upload to
   TestFlight on every delivery. Use the existing internal TestFlight group when Shelby requests
   TestFlight or remote distribution; an unreachable phone alone is not a reason to upload.
   Give a brief heads-up before the Mac app reopens and report Mac installation, service status
