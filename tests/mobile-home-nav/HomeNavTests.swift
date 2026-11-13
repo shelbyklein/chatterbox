@@ -1832,6 +1832,9 @@ final class HomeNavTests: XCTestCase {
  @MainActor func tab(_ name:String,_ app:XCUIApplication) -> XCUIElement {
   let phone=app.tabBars.buttons[name]
   if phone.exists { return phone }
+  // Chats · All is a segmented switch; the page's title (with New Chat beside it) has the same name.
+  let segment=app.segmentedControls.buttons[name]
+  if segment.exists { return segment }
   return app.descendants(matching:.any).matching(NSPredicate(format:"label == %@",name)).firstMatch
  }
  /// Use the visible menu so launch-time defaults cannot mask a layout switch.
@@ -2662,6 +2665,24 @@ final class HomeNavTests: XCTestCase {
    "SDHQ": "A13D6820-B24D-575B-BF53-A51A5CFE48CF", "Loose chat": "DE705550-FFB1-5E01-980B-CDD999137340",
    "PlayCase Magnets": "CA155E08-F8EA-5578-922C-9F837067459E", "magnet-photo": "614FA2D3-393E-555B-8A8F-95D567E9B9DD",
    "studio": "2A955822-AC32-5554-95DF-BB415831052F", "Crystal concept": "7AEBD7DD-A239-547D-A2E7-BD7CA3DC8E5E"][name]!
+ }
+ /// New Chat sits beside the page's title (a closed Duo puts the bar's buttons on its side rail);
+ /// a tap on the title itself doesn't start a chat.
+ @MainActor func testNewChatBesideTitle() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  XCTAssertTrue(tab("Activity",app).waitForExistence(timeout:15)); tab("Activity",app).tap()
+  let title=app.staticTexts["Activity"].firstMatch, newChat=app.buttons["New Chat"].firstMatch
+  XCTAssertTrue(title.waitForExistence(timeout:5) && newChat.exists)
+  XCTAssertLessThan(abs(newChat.frame.midY-title.frame.midY), 12, "New Chat on the title's row")
+  XCTAssertGreaterThan(newChat.frame.midX, title.frame.midX, "after the name")
+  capture("new-chat-beside-title", app)
+  title.tap(); try await Task.sleep(for:.seconds(1))
+  XCTAssertFalse(app.navigationBars["New Chat"].exists, "tapping the title doesn't start a chat")
+  newChat.tap()
+  XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens from its button")
  }
  @MainActor func capture(_ name: String, _ app: XCUIApplication) {
   let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
