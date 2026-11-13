@@ -33,6 +33,11 @@ Studios (`~/Chatterbox Dev/Studios`), ports (phone 47421, Bonjour `_chatterbox-d
   ````
 
   A button only sends text; tapping Ship is Shelby saying ship.
+- **Every shipped change gets a changelog line (Shelby, November 13).** Add one plain-language
+  line per user-visible change to today's day in `Core/Shared/Changelog.swift` (newest day
+  first; a new day goes on top), in the same commit as the change. It's what Settings → What's
+  New shows on the Mac and the phone, and the note after an update. Write it for Shelby: what
+  she'll notice and where, no code names. Internal tooling and tests don't get one.
 - **After a ship, clear the work threads it delivered:** `work done <id>` (or `work done --ready`)
   from their front thread, so their tasks leave the Desk's Ready column. Tooling that doesn't ship
   is marked done once it's on main.

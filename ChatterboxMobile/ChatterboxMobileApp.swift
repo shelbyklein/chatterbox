@@ -181,6 +181,8 @@ struct ChatterboxTabs: View {
                 .tag(page.rawValue)
             }
         }
+        // What changed, once after an update brings new lines (Shared/Changelog.swift).
+        .whatsNewNote()
         // Feedback: the screenshot in Mark Up, then into the Chatterbox session's message box.
         .fullScreenCover(item: Binding(get: { store.feedbackSketch }, set: { store.feedbackSketch = $0 })) { request in
             SketchView(request: request) { image in store.placeFeedback(image) }
