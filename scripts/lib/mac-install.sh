@@ -44,6 +44,8 @@ mac_install_bundle() {
   ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/work "$HOME/.local/bin/work"
   # …and file and read a project's internal issues with `issue` (bin/issue, plans/project-issues.md).
   ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/issue "$HOME/.local/bin/issue"
+  # …and hand information to another session with `tell` (bin/tell).
+  ln -sf /Applications/Chatterbox.app/Contents/Resources/bin/tell "$HOME/.local/bin/tell"
   # Chats' shells carry the background service's environment (CHATTERBOX_DATA_DIR and friends),
   # and `open` hands the caller's environment to the app. Launch it without any of them.
   clean_open() {

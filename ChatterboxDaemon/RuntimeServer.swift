@@ -398,6 +398,14 @@ import CoreFoundation
             // An agent may start one only from a chat that's mid-reply (its own).
             guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
             return .string(try DaemonContext(runtime).newSidequest(of:parent,task:task).id.uuidString)
+        case "tell":
+            // One session's agent hands another information (bin/tell). An agent sends only from
+            // its own chat while it's mid-reply; the receiving agent hears a <session_message>.
+            let from=try chat(r.body)
+            guard role=="ui" || (role=="agent" && from.isRunning) else{throw RuntimeFailure("permission_denied")}
+            guard let to=r.body["to"]?.string.flatMap(UUID.init(uuidString:)).flatMap(runtime.session) else{throw RuntimeFailure("chat_not_found")}
+            try from.tell(to,r.body["text"]?.string ?? "")
+            return .string(to.title)
         case "returnSidequest":
             let s=try chat(r.body)
             guard let parent=s.record.sidequestOf.flatMap(runtime.session) else{throw RuntimeFailure("chat_not_found")}

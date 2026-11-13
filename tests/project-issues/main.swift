@@ -160,6 +160,70 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     _ = try await ui.request("promote", body: promoteBody)
     try check(plain.record.projectFolder == newHome.resolvingSymlinksInPath().path && plain.title == "Loose chat", "Make Project: the loose chat is now a project in its folder, same chat")
 
+    // Session messages (socket "tell", bin/tell): one session's agent hands another information.
+    // Both mid-reply (queued, no agent process starts); Codex, so nothing reaches Claude.
+    var a = record("Deploy notes"); a.activeBackend = .codex
+    var b = record("Release checklist"); b.activeBackend = .codex
+    let sender = try runtime.insert(a), receiver = try runtime.insert(b)
+    func tell(_ from: ChatSession, _ to: ChatSession, _ text: String, as client: RuntimeClient? = nil) async throws -> JSON {
+        try await (client ?? agent).request("tell", body: ["chatID": .string(from.id.uuidString), "to": .string(to.id.uuidString), "text": .string(text)])
+    }
+    func refused(_ from: ChatSession, _ to: ChatSession, _ text: String, _ reason: String) async throws {
+        do { _ = try await tell(from, to, text); try check(false, "refused: \(reason)") }
+        catch { try check(error.localizedDescription.contains(reason), "refused (\(reason)): \(error.localizedDescription)") }
+    }
+    try await refused(sender, receiver, "hello", "permission_denied") // not mid-reply: not its own turn
+    sender.isRunning = true; receiver.isRunning = true
+    _ = sender.appendItem(DisplayItem(kind: .user, text: "Ship the release"))
+    let titled = try await tell(sender, receiver, "The deploy URL is https://example.test/v2")
+    try check(titled.string == "Release checklist", "tell answers the receiving session's title")
+    let arrived = receiver.record.items.last { $0.kind == .user && $0.text.contains("<session_message") }
+    try check(arrived?.automatic == true && arrived?.detail == "From \u{201C}Deploy notes\u{201D}"
+              && arrived?.text.contains(#"hops="1""#) == true && arrived?.text.contains("https://example.test/v2") == true,
+              "it arrives as a <session_message>, labeled with the sender, marked as Chatterbox's own")
+    try await refused(sender, sender, "me", "That's this session.")
+    try await refused(sender, receiver, "   ", "The message is empty.")
+    // A reply goes back once; the reply can't be answered, so two sessions never loop.
+    receiver.record.items[receiver.record.items.lastIndex { $0.kind == .user }!].queued = nil // its turn now
+    _ = try await tell(receiver, sender, "Got it, thanks")
+    let reply = sender.record.items.last { $0.kind == .user && $0.text.contains("<session_message") }
+    try check(reply?.text.contains(#"hops="2""#) == true && reply?.text.contains("don't answer it with `tell`") == true, "the reply is hop 2, and says not to answer")
+    sender.record.items[sender.record.items.lastIndex { $0.kind == .user }!].queued = nil
+    try await refused(sender, receiver, "And another thing", "can't be answered with another message")
+    // A few per turn, not a stream.
+    let chatty = try runtime.insert(record("Chatty")); chatty.isRunning = true
+    _ = chatty.appendItem(DisplayItem(kind: .user, text: "Tell everyone"))
+    for n in 1...3 { _ = try await tell(chatty, receiver, "Note \(n)") }
+    try await refused(chatty, receiver, "Note 4", "the most one turn may send")
+    // Archived sessions don't take messages.
+    let gone = try runtime.insert(record("Old thread")); gone.setArchived(true)
+    _ = chatty.appendItem(DisplayItem(kind: .user, text: "New turn"))
+    try await refused(chatty, gone, "hi", "is archived")
+    print("PASS session messages: delivered labeled, one reply back, no loops, a few per turn, not to archived or itself")
+
+    // bin/tell, the agents' command, against this service.
+    let repo = FileManager.default.currentDirectoryPath // the script runs from the checkout
+    func run(_ arguments: [String], chat: ChatSession) async throws -> (Int32, String) {
+        let process = Process(); process.executableURL = URL(fileURLWithPath: repo + "/bin/tell"); process.arguments = arguments
+        var env = ProcessInfo.processInfo.environment; env["CHATTERBOX_CHAT_ID"] = chat.id.uuidString; process.environment = env
+        let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
+        return try await withCheckedThrowingContinuation { done in
+            process.terminationHandler = { p in done.resume(returning: (p.terminationStatus, String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")) }
+            do { try process.run() } catch { done.resume(throwing: error) }
+        }
+    }
+    _ = chatty.appendItem(DisplayItem(kind: .user, text: "Another turn"))
+    let found = try await run(["--list", "release"], chat: chatty)
+    try check(found.0 == 0 && found.1.contains("Release checklist") && !found.1.contains("Deploy notes"), "tell --list finds sessions by title: \(found.1)")
+    let read = try await run(["--read", "Deploy notes", "--last", "3"], chat: chatty)
+    try check(read.0 == 0 && read.1.contains("Ship the release"), "tell --read shows its latest messages: \(read.1)")
+    let sentByCLI = try await run(["release checklist", "From the command line"], chat: chatty)
+    try check(sentByCLI.0 == 0 && sentByCLI.1.contains("Sent to \u{201C}Release checklist\u{201D}"), "tell sends by title: \(sentByCLI.1)")
+    try check(receiver.record.items.contains { $0.text.contains("From the command line") }, "and it arrives")
+    let missing = try await run(["no such session", "hi"], chat: chatty)
+    try check(missing.0 != 0 && missing.1.contains("no session is called"), "an unknown session is named in the error")
+    print("PASS tell: --list, --read and sending by title, from an agent's shell")
+
     // The phone: the board by any session in the project, actions, the attachment file only from its place.
     let paired = server.respond(to: HTTPRequest(method: "POST", path: "/v1/pair", query: [:], headers: [:],
                                                 body: try Companion.encoder.encode(Companion.PairRequest(code: server.pairingCode, deviceName: "Issues fixture"))))
