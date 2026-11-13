@@ -146,6 +146,45 @@ app.setActivationPolicy(.accessory)
     let unauthorized = try await URLSession.shared.data(for:make("127.0.0.1","/v1/chats/\(regular.id)/fork","POST",Data("{}".utf8),"revoked-token"))
     precondition((unauthorized.1 as! HTTPURLResponse).statusCode == 401)
     print("PASS unauthenticated mutation rejected before replay")
+    // Images and files: a dead address (home Wi-Fi when away) is found by the quick check, not
+    // by waiting out the image's minute; the image goes to the address that answers.
+    do {
+        var sent: [(String, String)] = []
+        func image(_ checkFirst: Bool) async throws -> String {
+            sent = []
+            return try await CompanionRetry.load(hosts:["dead","alive"],method:"GET",request:{host,probe in
+                make(host,probe ? "/v1/addresses":"/v1/chats/x/files/y","GET")
+            },validate:{_,_ in},checkFirst:{_ in checkFirst},send:{request in
+                sent.append((request.url!.host!,request.url!.path))
+                if request.url!.host == "dead" { throw URLError(.timedOut) }
+                return (Data("image".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+            }).host
+        }
+        let checked = try await image(true)
+        precondition(checked == "alive")
+        precondition(sent.map{$0.0+$0.1} == ["dead/v1/addresses","alive/v1/addresses","alive/v1/chats/x/files/y"],
+                     "only the quick check goes to the dead address: \(sent)")
+        let unchecked = try await image(false)
+        precondition(unchecked == "alive" && sent.first!.1 == "/v1/chats/x/files/y", "without it, the image itself waits on the dead one")
+        // Mutations keep their own preflight; checkFirst never adds a second one.
+        var probes = 0
+        _ = try? await CompanionRetry.load(hosts:["alive"],method:"POST",request:{host,probe in
+            make(host,probe ? "/v1/addresses":"/v1/chats","POST")
+        },validate:{_,_ in},checkFirst:{_ in true},send:{request in
+            if request.url!.path == "/v1/addresses" { probes += 1 }
+            return (Data("{}".utf8),HTTPURLResponse(url:request.url!,statusCode:200,httpVersion:nil,headerFields:nil)!)
+        })
+        precondition(probes == 1, "one preflight for a mutation")
+    }
+    print("PASS slow reads check an address answers first: a dead one costs the quick check, not the image's minute")
+    do {
+        let ts: (String) -> Bool = { $0.hasPrefix("100.") }
+        let saved = ["10.0.0.20","100.95.61.124","Mac.local","192.168.1.40","10.0.0.156"]
+        let pruned = CompanionRetry.prunedHosts(saved,current:["10.0.0.156","10.0.0.73"],isTailscale:ts)
+        precondition(pruned == ["100.95.61.124","Mac.local","10.0.0.156","10.0.0.73"], "\(pruned)")
+        precondition(CompanionRetry.prunedHosts(saved,current:[],isTailscale:ts) == saved, "an empty answer prunes nothing")
+    }
+    print("PASS stale home-network addresses are pruned; Tailscale and names are kept; new ones join")
     server.stop()
 }
 Task { do { try await run(); exit(0) } catch { print("FAIL",error); exit(1) } }
