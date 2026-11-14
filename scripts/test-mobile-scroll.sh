@@ -80,7 +80,13 @@ status=0
 printf '%s' "$simulator" > "$artifacts/simulator"
 xcrun simctl ui "$simulator" appearance dark
 selection=("-only-testing:ScrollTests")
-if [[ -n "${MOBILE_SCROLL_ONLY:-}" ]]; then selection=("-only-testing:ScrollTests/ScrollTests/$MOBILE_SCROLL_ONLY"); fi
+if [[ -n "${MOBILE_SCROLL_ONLY:-}" ]]; then
+  selection=()
+  IFS=',' read -r -a selected_tests <<< "$MOBILE_SCROLL_ONLY"
+  for selected_test in "${selected_tests[@]}"; do
+    selection+=("-only-testing:ScrollTests/ScrollTests/$selected_test")
+  done
+fi
 xcodebuild -testProductsPath "$products" -destination "platform=iOS Simulator,id=$simulator" \
   -resultBundlePath "$artifacts/results.xcresult" "${selection[@]}" test-without-building || status=$?
 xcrun xcresulttool export attachments --path "$artifacts/results.xcresult" --output-path "$artifacts/screenshots"

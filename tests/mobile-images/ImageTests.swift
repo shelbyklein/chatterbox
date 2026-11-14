@@ -20,11 +20,12 @@ final class ImageTests: XCTestCase {
         return try JSONDecoder().decode([String: Int].self, from: data)
     }
 
-    @MainActor func open(_ mode: String) async throws -> XCUIApplication {
+    @MainActor func open(_ mode: String, missingVisibility: Bool = false) async throws -> XCUIApplication {
         try await control("reset", mode: mode)
         let app = XCUIApplication()
         app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
         app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort]
+        if missingVisibility { app.launchEnvironment["CHATTERBOX_TEST_IMAGE_VISIBILITY"] = "missing" }
         app.launch()
         let chat = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
         XCTAssertTrue(chat.waitForExistence(timeout: 15))
@@ -138,6 +139,35 @@ final class ImageTests: XCTestCase {
         XCTAssertTrue(app.images["chat-image-" + imageID].waitForExistence(timeout: 10))
         XCTAssertFalse(progress.exists)
         capture("image-download-complete", app)
+    }
+
+    /// A visible row whose viewport callback never arrived must still honor Download.
+    /// Foreground return replaces its .task, as do host/visibility changes in normal use.
+    @MainActor func testIdleDownloadSurvivesForegroundReturnWithoutVisibility() async throws {
+        let app = try await open("progress", missingVisibility: true)
+        let download = app.buttons["download-image-" + imageID]
+        XCTAssertTrue(download.waitForExistence(timeout: 5))
+        XCTAssertTrue(download.isHittable)
+        let before = try await counts()
+        XCTAssertNil(before[imageID], "The missing callback leaves a genuinely idle image")
+        download.tap()
+        let progress = app.staticTexts["image-progress-" + imageID]
+        XCTAssertTrue(progress.waitForExistence(timeout: 5), "Tapping idle Download must start a transfer")
+        let quarter = NSPredicate(format: "label BEGINSWITH %@", "25%")
+        await fulfillment(of: [expectation(for: quarter, evaluatedWith: progress)], timeout: 8)
+        capture("idle-download-started", app)
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 1)
+        app.activate()
+        XCTAssertTrue(progress.waitForExistence(timeout: 8), "A requested download must resume without a visibility callback or another tap")
+        await fulfillment(of: [expectation(for: quarter, evaluatedWith: progress)], timeout: 8)
+        let resumed = try await counts()
+        XCTAssertEqual(resumed[imageID], 2, "Foreground return restarts the cancelled transfer")
+        capture("idle-download-resumed", app)
+        try await control("advance")
+        try await control("release")
+        XCTAssertTrue(app.images["chat-image-" + imageID].waitForExistence(timeout: 10))
+        capture("idle-download-complete", app)
     }
 
     @MainActor func testDownloadWithUnknownTotalShowsReceivedBytes() async throws {

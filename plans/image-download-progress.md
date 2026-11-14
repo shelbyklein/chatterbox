@@ -46,3 +46,13 @@ Core5cdbbb0. Detached `image-progress-verified` exit0: six image UI tests, seven
 ## Delivered
 
 Parent81410b1/Core5cdbbb0 committed and pushed; real Release app installed and opened on Shelby’s Duo (iOS27.3), strict signature passed. [Delivery record](../design/image-download-progress/delivery.json). All selected tests passed; native captures inspected. No Mac/service/Dev install or TestFlight. No work threads existed. Keep issue70 open for physical-user acceptance; unrelated existing screenshot modifications remain uncommitted.
+
+
+## Follow-up: idle Download returns without showing the image
+
+Shelby's November14 screenshot shows idle Download buttons for two real PNG files in the reported Concept Art sidequest; both source files exist. The previous tests covered retry/restart after automatic visibility detection, but not an idle manual request with missing visibility. In code, manual intent is consumed before the download finishes; visibility, address or foreground changes can cancel that task and leave no eligible replacement. This is a confirmed cancellation path in code, not yet a confirmed on-device trigger. The physical diagnostic runner failed to install on the Duo beta (Root install style is not supported); no app data was changed.
+
+Target UI remains the sketch above: Download -> progress -> image, with no navigation away required. Scope remains image-request lifecycle only; caching, retry limits, routing/protocol, pairing, data and other platforms stay unchanged. Readiness R1-R13 pass; same linear current-session execution and rollback. No blocking questions. Add a DEBUG-only fixture for a missing visibility callback, tap the real idle button, background and return during a paused transfer; old code must reproduce the idle fallback and fixed code must resume and display the image. Run all image tests plus affected scroll cases, inspect native captures, then commit/push and install real Duo. Physical acceptance remains pending.
+
+- [x] IP4 Reproduce idle manual-download cancellation with a native regression, then retain manual intent through visibility/address changes and foreground return. Acceptance: idle tap starts a request; after foreground return it resumes without a second tap; completion displays the image; automatic offscreen cancellation still passes.
+- [ ] IP5 Run focused image/scroll verification, inspect the new native capture, commit/push and install real Duo. Acceptance: record actual results and installation separately, including the blocked physical probe and pending user acceptance.

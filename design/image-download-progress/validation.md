@@ -29,3 +29,18 @@ Core product/changelog committed as5cdbbb0. The test fixture now exercises real 
 ## Real phone delivery
 
 Parent81410b1/Core5cdbbb0 were committed/pushed Core-first, then `scripts/install-phone.sh "Shelby's Duo"` built Release and reported **Installed and opened on Shelby's Duo**. Real bundle `com.shelbyklein.Chatterbox.mobile`; strict signature verification passed. The paired Duo reports iOS27.3. Physical UI acceptance is pending Shelby; the native captures above are simulator evidence. No Mac/service/Dev installation or TestFlight. `work list` reported no work threads. The read-only tidy report was started detached; no cleanup was applied. [Delivery record](delivery.json).
+
+
+## Idle Download follow-up — November14
+
+Physical acceptance found a gap after the first install: two referenced Concept Art PNGs remained at idle Download. Both original files exist (2,034,569 and1,511,972 bytes). Existing Mac log entries show prior successful124KB/51KB transfers, but have no timestamps/chat IDs, so they do not prove these new taps reached the Mac. Do not infer an on-phone root cause from those lines.
+
+A new native regression suppresses the viewport callback in DEBUG only, taps the real idle Download button, pauses a real PNG transfer at25%, backgrounds/returns, then releases it. The previous code starts the request but loses manual intent on task replacement: progress disappears after returning, only one request reaches the fixture, and the final image never displays. Baseline artifacts `build/mobile-images.nu3vOW`, log `build/runs/image-idle-before.log`:1 test failed with4 assertions. After the test completed, Xcode stalled collecting diagnostics; it was stopped using safe_stop after preserving the failure log. This deliberate failing baseline is separate from final verification.
+
+The fix retains a manual request until success/failure or genuine view departure. Task identity uses effective eligibility, so visibility changes cannot cancel a deliberate download. Backgrounding still cancels network work; returning resumes a requested image even if viewport detection remains missing. Automatic offscreen cancellation and bounded retry behavior stay intact. Manual foreground taps also remain valid during an inactive scene transition. No protocol/data/cache-format change.
+
+Final detached `image-idle-fixed` exit0:7 image UI tests passed (116.534s), including the new idle/foreground regression15.585s;2 selected scroll cases passed (49.277s: tall-image reading position and reactivation). Image artifacts `build/mobile-images.zGYcM4`, scroll `build/mobile-scroll.2oqllT`. Full navigation/release suites were not run for this image-only lifecycle change. Source membership, selector mapping and whitespace checks passed; comma-separated scroll test selection exercised both intended cases.
+
+One batched native capture inspection: [idle tap starts progress](idle-download-started.png), [progress resumes without another tap](idle-download-resumed.png), [completed image](idle-download-complete.png). Tests verify the exact2 fixture requests and final decoded image; screenshots are native simulator evidence, not the actual Concept Art images. The reactivation captures omit some surrounding system/app chrome; the targeted progress and image remain visible. No layout changes were made.
+
+Physical diagnostic runner could not install on the current Duo beta:Root install style is not supported. Two attempts (standalone/hosted) failed before running; a device app inventory confirmed neither probe bundle was installed. This blocks direct verification of the user's exact taps, not the simulator regression. Real installation and physical acceptance are recorded separately. Keep issue70 open.
