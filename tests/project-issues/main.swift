@@ -235,6 +235,12 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(phoneBoard.status == 200 && (try Companion.decoder.decode(Companion.IssueBoard.self, from: phoneBoard.body)).issues.count == 2, "the phone's board")
     let phoneAdd = call("POST", "/v1/issues", try Companion.encoder.encode(["action": "add", "chatID": project.id.uuidString, "title": "From the phone", "priority": "low"]))
     try check(phoneAdd.status == 200 && (try Companion.decoder.decode(Companion.ProjectIssue.self, from: phoneAdd.body)).priority == "low", "the phone files one")
+    // The phone's Archived list: archived sessions, searchable by title.
+    let archivedAll = try Companion.decoder.decode([Companion.ChatSummary].self, from: call("GET", "/v1/archived").body)
+    try check(archivedAll.contains { $0.title == "Old thread" } && !archivedAll.contains { $0.title == "Release checklist" }, "Archived lists archived sessions only")
+    let archivedFound = try Companion.decoder.decode([Companion.ChatSummary].self, from: call("GET", "/v1/archived", query: ["q": "old THREAD"]).body)
+    try check(archivedFound.map(\.title) == ["Old thread"], "and searches them by title")
+    try check((try Companion.decoder.decode([Companion.ChatSummary].self, from: call("GET", "/v1/archived", query: ["q": "nothing like it"]).body)).isEmpty, "a search with no match finds none")
     let file = call("GET", "/v1/issues/attachment", query: ["path": first.attachments[0].path])
     try check(file.status == 200 && file.fileURL?.path == first.attachments[0].path && file.contentType == "image/png", "the attachment is served")
     try check(call("GET", "/v1/issues/attachment", query: ["path": shot.path]).status == 404, "nothing outside the issues' own folder")
