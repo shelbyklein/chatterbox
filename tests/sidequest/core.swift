@@ -67,7 +67,10 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     try await wait("parent carries on") {!parent.isRunning && parent.items.filter {$0.kind == .assistant}.count > parentReplies}
     try check(true,"the original agent carries on from the answer")
     try check(quest.record.sidequestReturned != nil && quest.unreturnedSidequestReply == nil,"the reply is recorded as sent back")
-    try check(quest.record.archivedAt != nil,"the sidequest archives itself once it reports back")
+    try check(quest.record.archivedAt == nil,"the sidequest stays open once it reports back: it asks to be archived")
+    try check(SidequestArchiveAsk.asks(isSidequest:true,returned:quest.record.sidequestReturned != nil,running:false,archived:false,id:quest.id),"and asks")
+    SidequestArchiveAsk.keep(quest.id)
+    try check(!SidequestArchiveAsk.asks(isSidequest:true,returned:true,running:false,archived:false,id:quest.id),"Keep Open stops the asking")
 
     // Chatting on in the sidequest doesn't bounce every answer back.
     let returnedCount=parent.items.filter {$0.sidequest == quest.id && $0.kind == .user}.count
