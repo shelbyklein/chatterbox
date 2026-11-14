@@ -18,6 +18,7 @@ revision = 1
 counts = {}
 recovered = False
 gate = threading.Event()
+advance = threading.Event()
 
 def chunk(kind, data):
     return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data))
@@ -25,6 +26,8 @@ def chunk(kind, data):
 # A real, opaque blue/teal PNG, with stable 2:1 dimensions matching the placeholder.
 rows = b''.join(b'\0' + bytes((25, 135, 190) if y < 80 else (35, 175, 155)) * 320 for y in range(160))
 PNG = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!IIBBBBB', 320, 160, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows)) + chunk(b'IEND', b'')
+# Same real picture, uncompressed so partial transfers have measurable byte counts.
+PROGRESS_PNG = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!IIBBBBB', 320, 160, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows, level=0)) + chunk(b'IEND', b'')
 
 def summary():
     return dict(id=CHAT, title='Image retries', project='Image retries', backend='claude',
@@ -60,13 +63,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
-        global mode, revision, counts, recovered, gate
+        global mode, revision, counts, recovered, gate, advance
         body = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
         if self.path == '/v1/pair':
             return self.reply(dict(token='fixture', macName='Image Regression Mac', addresses=['127.0.0.1']))
         if self.path == '/test/reset':
             gate.set()
+            advance.set()
             gate = threading.Event()
+            advance = threading.Event()
             mode = body.get('mode', 'transient')
             revision += 1
             counts = {}
@@ -77,6 +82,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply({})
         if self.path == '/test/release':
             gate.set()
+            return self.reply({})
+        if self.path == '/test/advance':
+            advance.set()
             return self.reply({})
         self.send_error(404)
 
@@ -89,6 +97,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             attempt = counts[file]
             (ROOT / 'requests.json').write_text(json.dumps(counts))
             if file == IMAGE:
+                if mode in ('progress', 'unknown-length'):
+                    final, halfway = gate, advance
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'image/png')
+                    if mode == 'progress':
+                        self.send_header('Content-Length', str(len(PROGRESS_PNG)))
+                    self.end_headers()
+                    quarter = len(PROGRESS_PNG) // 4
+                    try:
+                        self.wfile.write(PROGRESS_PNG[:quarter]); self.wfile.flush()
+                        halfway.wait(timeout=45)
+                        self.wfile.write(PROGRESS_PNG[quarter:quarter * 2]); self.wfile.flush()
+                        final.wait(timeout=45)
+                        self.wfile.write(PROGRESS_PNG[quarter * 2:])
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
+                    return
                 if mode == 'slow' and attempt == 1:
                     gate.wait(timeout=20)
                 elif not recovered and (mode in ('permanent', 'manual') or attempt == 1):

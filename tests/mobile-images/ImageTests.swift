@@ -111,4 +111,45 @@ final class ImageTests: XCTestCase {
         XCTAssertFalse(app.buttons["retry-image-" + imageID].exists)
         capture("image-after-cancelled-load", app)
     }
+
+    @MainActor func testDownloadProgressAndExplicitRestart() async throws {
+        let app = try await open("progress")
+        let progress = app.staticTexts["image-progress-" + imageID]
+        let quarter = NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@ AND label CONTAINS %@", "25%", "KB", " of ")
+        XCTAssertTrue(progress.waitForExistence(timeout: 10))
+        await fulfillment(of: [expectation(for: quarter, evaluatedWith: progress)], timeout: 10)
+        capture("image-download-quarter", app)
+        let restart = app.buttons["restart-image-" + imageID]
+        XCTAssertTrue(restart.isHittable)
+        restart.tap()
+        // The old paused transfer is cancelled; a new request is sent without leaving chat.
+        for _ in 0..<20 {
+            if try await counts()[imageID] == 2 { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let restarted = try await counts()
+        XCTAssertEqual(restarted[imageID], 2)
+        await fulfillment(of: [expectation(for: quarter, evaluatedWith: progress)], timeout: 10)
+        try await control("advance")
+        let half = NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@", "50%", "KB")
+        await fulfillment(of: [expectation(for: half, evaluatedWith: progress)], timeout: 10)
+        capture("image-download-half-after-restart", app)
+        try await control("release")
+        XCTAssertTrue(app.images["chat-image-" + imageID].waitForExistence(timeout: 10))
+        XCTAssertFalse(progress.exists)
+        capture("image-download-complete", app)
+    }
+
+    @MainActor func testDownloadWithUnknownTotalShowsReceivedBytes() async throws {
+        let app = try await open("unknown-length")
+        let progress = app.staticTexts["image-progress-" + imageID]
+        let bytes = NSPredicate(format: "label CONTAINS %@", "KB downloaded")
+        XCTAssertTrue(progress.waitForExistence(timeout: 10))
+        await fulfillment(of: [expectation(for: bytes, evaluatedWith: progress)], timeout: 10)
+        XCTAssertFalse(progress.label.contains("%"), "Do not invent a percent without a total")
+        capture("image-download-unknown-total", app)
+        try await control("advance")
+        try await control("release")
+        XCTAssertTrue(app.images["chat-image-" + imageID].waitForExistence(timeout: 10))
+    }
 }

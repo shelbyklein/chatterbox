@@ -56,3 +56,7 @@ Core/Chatterbox/Views/WindowToolbar.swift test-archived-view.sh test-view-memory
 Chatterbox/Views/ContentView.swift test-archived-view.sh
 Chatterbox/Engine/AppModel.swift test-archived-view.sh test-view-memory.sh
 Chatterbox/Views/WindowToolbar.swift test-archived-view.sh test-view-memory.sh
+Core/ChatterboxMobile/ChatDetailView.swift test-mobile-images.sh
+Core/ChatterboxMobile/ChatDetailView.swift test-mobile-scroll.sh
+Core/ChatterboxMobile/MobileStore.swift test-mobile-images.sh
+Core/ChatterboxMobile/MobileStore.swift test-mobile-idempotency.sh
