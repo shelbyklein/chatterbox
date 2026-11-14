@@ -31,7 +31,7 @@ Shelby requested this change and said Continue after the agent handoff. Continue
 
 - [x] IP1 Review and finish the handoff implementation, preserve historical changelog entries, and guard progress state across restarted transfers. Acceptance: only current transfer callbacks update the placeholder; idle/loading/error states all offer the intended action.
 - [x] IP2 Add and run slow-stream native tests, including restart and missing total, and inspect native captures. Acceptance: percentages/data advance before completion, restart increments the fixture's request count, image displays after release, and existing image/scroll/server-request checks remain covered.
-- [ ] IP3 Commit/push and directly install the real phone app. Acceptance: installer reports actual installation/launch separately; record results, limitations and any phone reachability failure.
+- [x] IP3 Commit/push and directly install the real phone app. Acceptance: installer reports actual installation/launch separately; record results, limitations and any phone reachability failure.
 
 ## Verification and rollback
 
@@ -42,3 +42,7 @@ After tests pass, commit Core product/changelog, then parent tests/plan/captures
 ## Verified source
 
 Core5cdbbb0. Detached `image-progress-verified` exit0: six image UI tests, seven scroll UI tests and the request-safety suite passed. One native visual round verified25%/50% progress, restart, unknown total and completion. [Evidence](../design/image-download-progress/validation.md). Source membership/whitespace checks pass. Real phone installation is next; unrelated design screenshots stay untouched.
+
+## Delivered
+
+Parent81410b1/Core5cdbbb0 committed and pushed; real Release app installed and opened on Shelby’s Duo (iOS27.3), strict signature passed. [Delivery record](../design/image-download-progress/delivery.json). All selected tests passed; native captures inspected. No Mac/service/Dev install or TestFlight. No work threads existed. Keep issue70 open for physical-user acceptance; unrelated existing screenshot modifications remain uncommitted.

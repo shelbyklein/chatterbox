@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-14T11:20:36.389545-05:00",
+  "source_parent": "81410b1",
+  "source_core": "5cdbbb0",
+  "target": "Shelby's Duo",
+  "reported_os": "iOS 27.3",
+  "configuration": "Release",
+  "bundleID": "com.shelbyklein.Chatterbox.mobile",
+  "installed": true,
+  "opened": true,
+  "strict_signature": "passed",
+  "image_ui_tests": {
+    "passed": 6,
+    "failed": 0,
+    "artifact": "build/mobile-images.OKGthZ"
+  },
+  "scroll_ui_tests": {
+    "passed": 7,
+    "failed": 0,
+    "artifact": "build/mobile-scroll.RcKNxI"
+  },
+  "request_safety_suite": "passed",
+  "focused_run": "build/runs/image-progress-verified.log",
+  "focused_status": "exit 0",
+  "install_log": "build/image-progress-phone-install.log",
+  "full_suite_run": false,
+  "mac_install_or_restart": false,
+  "testflight": false,
+  "work_threads": "none",
+  "physical_user_acceptance": "pending"
+}

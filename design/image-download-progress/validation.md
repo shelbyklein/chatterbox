@@ -25,3 +25,7 @@ Source membership and both whitespace checks passed. The request-envelope and sc
 Detached `image-progress-verified` completed **exit0**. Six image UI tests passed; all seven scroll UI tests passed (238.341s total), including early-scroll freeze, sending, streaming, tall-image loading, preview and app reactivation. The request-safety script passed its authenticated HTTP/replay checks, uncertainty and definitive-failure behavior, quick dead-address probe, and stale-address pruning. Scroll artifacts: `build/mobile-scroll.RcKNxI`; image artifacts: `build/mobile-images.OKGthZ`. No failed or unrun cases within these selected suites. Broader navigation/full release suites were not run for this image-only change.
 
 Core product/changelog committed as5cdbbb0. The test fixture now exercises real partial transfers; selector mappings explicitly connect image and request-safety coverage. Source membership and whitespace checks passed. Phone delivery pending.
+
+## Real phone delivery
+
+Parent81410b1/Core5cdbbb0 were committed/pushed Core-first, then `scripts/install-phone.sh "Shelby's Duo"` built Release and reported **Installed and opened on Shelby's Duo**. Real bundle `com.shelbyklein.Chatterbox.mobile`; strict signature verification passed. The paired Duo reports iOS27.3. Physical UI acceptance is pending Shelby; the native captures above are simulator evidence. No Mac/service/Dev installation or TestFlight. `work list` reported no work threads. The read-only tidy report was started detached; no cleanup was applied. [Delivery record](delivery.json).
