@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-14T11:50:57.542745-05:00",
+  "source_parent": "fb9231e",
+  "source_core": "a35c1c8",
+  "target": "Shelby's Duo",
+  "reported_os": "iOS 27.3",
+  "configuration": "Release",
+  "bundleID": "com.shelbyklein.Chatterbox.mobile",
+  "installed": true,
+  "opened": true,
+  "strict_signature": "passed",
+  "image_ui_tests": {
+    "passed": 7,
+    "failed": 0,
+    "artifact": "build/mobile-images.zGYcM4"
+  },
+  "scroll_ui_tests": {
+    "passed": 2,
+    "failed": 0,
+    "selected": [
+      "testReadingPositionHoldsWhileTallImageLoads",
+      "testReadingPositionSurvivesReactivation"
+    ],
+    "artifact": "build/mobile-scroll.2oqllT"
+  },
+  "focused_run": "build/runs/image-idle-fixed.log",
+  "focused_status": "exit 0",
+  "install_log": "build/runs/image-idle-phone-install.log",
+  "full_suite_run": false,
+  "mac_install_or_restart": false,
+  "testflight": false,
+  "work_threads": "none",
+  "physical_probe": "runner installation blocked before execution; no probe apps installed",
+  "physical_user_acceptance": "pending; exact Concept Art image taps unverified"
+}
