@@ -42,7 +42,7 @@ DESK_HOLD_ENABLED=False;DESK_HELD=[];DESK_HELD_RECORDS={}
 # Tasks and work threads (plans/work-threads.md), off unless a test asks (/test/tasks): tasks linked
 # to the working, ready and done threads; the Chatterbox project's session as a front thread with
 # two work threads (one working, one ready). Starts and task changes are recorded in DESK_CALLS.
-TASKS=False;DESK_LINKED=[]
+TASKS=False;DESK_LINKED=[];DESK_FOLLOWED=[]
 WORK=[('work-columns','Desk board columns','working'),('work-tabs','Phone tabs','ready')]
 # Chatterbox's work threads in the session list too, right after it (/test/work-listed): the two
 # above and three more, newest first by hour; Desk board columns (working) is the oldest, Highlights
@@ -94,10 +94,10 @@ def desk():
    task=next((t for t in DESK_LINKED if t['chatID'].lower()==item[key].lower()),None)
    out.append(item|({'task':task['id'],'taskText':task['text']} if task else {}))
   return out
- return d|{'needsYou':tagged(DESK_WAITING,'chatID'),'working':tagged(working,'id'),'ready':tagged(DESK_READY,'id'),'done':tagged(DESK_DONE,'id'),'linked':DESK_LINKED}
+ return d|{'needsYou':tagged(DESK_WAITING,'chatID'),'working':tagged(working,'id'),'ready':tagged(DESK_READY,'id'),'done':tagged(DESK_DONE,'id'),'linked':DESK_LINKED,'followed':DESK_FOLLOWED}
 def tasks_reset(on=False):
- global TASKS,DESK_LINKED
- TASKS=on
+ global TASKS,DESK_LINKED,DESK_FOLLOWED
+ TASKS=on;DESK_FOLLOWED=[]
  DESK_LINKED=[{'id':cid('task-'+n),'text':t,'chatID':cid(n)} for n,t in [('Galley','Finish the typography engine'),('Coach Archie','Coach jacket mockups'),
   ('PlayCase Magnets','Store photos for the magnets'),('Chatterbox','Ship the Next Steps plugin')]]+[{'id':cid('task-Crystal concept'),'text':'Crystal stand concept','chatID':cid('Crystal concept'),'completedAt':stamp(90)}]
 def work_summary(key):
@@ -495,6 +495,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
     DESK_SOURCE_PULL={'routineID':cid('source-routine'),'lastRequestedAt':stamp(0),'threadID':cid('Chatterbox'),'isRunning':True,'needsYou':False}
     DESK_REVISION+=1
    return self.reply(desk())
+  if self.path in ('/v1/desk/follow','/v1/desk/unfollow'):
+   # Show on the Desk: a session without a task, on or off it.
+   action=self.path.rsplit('/',1)[1];chat=body.get('chatID','').upper()
+   DESK_CALLS.append({'action':action,'body':body})
+   if action=='follow' and chat not in DESK_FOLLOWED:DESK_FOLLOWED.append(chat)
+   if action=='unfollow':DESK_FOLLOWED[:]=[c for c in DESK_FOLLOWED if c!=chat]
+   DESK_REVISION+=1;return self.reply(desk())
   if self.path=='/v1/desk/task':
    # Make this a task: linked at once, named for its thread.
    DESK_CALLS.append({'action':'makeTask','body':body})

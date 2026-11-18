@@ -1475,6 +1475,30 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,4)
   XCTAssertFalse(calls.contains { ["start","complete","writeBack"].contains($0["action"] as? String ?? "") })
  }
+ /// Show on the Desk: a session without a task gets the switch in its ⋯ menu; on, the Mac is
+ /// asked to follow it (its questions then show in Needs you); off again, to unfollow it.
+ @MainActor func testShowOnDesk() async throws {
+  try await fixture("reset"); try await fixture("tasks")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
+  let loose=app.buttons["chat-"+uuid("Loose chat")]
+  XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
+  XCTAssertTrue(app.buttons["Session Menu"].waitForExistence(timeout:5)); app.buttons["Session Menu"].tap()
+  let toggle=app.descendants(matching:.any)["menu-show-on-desk"]
+  XCTAssertTrue(toggle.waitForExistence(timeout:5), "a session without a task: Show on the Desk")
+  capture("phone-show-on-desk-menu",app)
+  toggle.tap()
+  var follows: [[String:Any]] = []
+  for _ in 0..<20 { follows=try await deskCalls().filter { $0["action"] as? String == "follow" }; if !follows.isEmpty { break }; try await Task.sleep(for:.milliseconds(250)) }
+  XCTAssertEqual(((follows.last?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), uuid("Loose chat"), "the Mac is asked to follow it")
+  app.buttons["Session Menu"].tap()
+  XCTAssertTrue(toggle.waitForExistence(timeout:5)); toggle.tap()
+  var unfollows: [[String:Any]] = []
+  for _ in 0..<20 { unfollows=try await deskCalls().filter { $0["action"] as? String == "unfollow" }; if !unfollows.isEmpty { break }; try await Task.sleep(for:.milliseconds(250)) }
+  XCTAssertFalse(unfollows.isEmpty, "switched off: the Mac is asked to unfollow it")
+ }
  @MainActor func testDeskTasks() async throws {
   try await fixture("reset"); try await fixture("tasks")
   let app=deskApp(); app.launch()

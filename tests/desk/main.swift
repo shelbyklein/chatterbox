@@ -219,6 +219,19 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     busy.isRunning = true
     let sidechat = try model.newSidechat(of: dogear)
     sidechat.isRunning = true
+    // Only sessions on the Desk report to Needs you: without a task, none of them yet; Show on
+    // the Desk (follow) puts one on, on every device, and unfollow takes it off again.
+    let offDesk = try deskOf(call("GET", "/v1/desk"))
+    try check(offDesk.followed == [] && !offDesk.needsYou.contains { [approval.id, plan.id, asking.id, replied.id].contains($0.chatID) },
+              "needs you: sessions without a task stay off the Desk until shown on it")
+    let offSession = try runtime.insert(record("Not on the Desk", items: [
+        DisplayItem(kind: .user, text: "Hi"), DisplayItem(kind: .approval, text: "Run rm -rf build", approvalState: .pending)]))
+    try check(deskOf(call("POST", "/v1/desk/follow", try encode(Companion.DeskSessionRequest(chatID: offSession.id)))).needsYou.contains { $0.chatID == offSession.id },
+              "Show on the Desk: its approval is in Needs you")
+    let unfollowed = try deskOf(call("POST", "/v1/desk/unfollow", try encode(Companion.DeskSessionRequest(chatID: offSession.id))))
+    try check(!unfollowed.needsYou.contains { $0.chatID == offSession.id } && unfollowed.followed == [], "off the Desk again: gone from Needs you")
+    // The rest of these checks: every session here on the Desk (sidechats and sidequests follow their parent).
+    for session in model.sessions where session.id != offSession.id { _ = call("POST", "/v1/desk/follow", try encode(Companion.DeskSessionRequest(chatID: session.id))) }
     let now = try deskOf(call("GET", "/v1/desk"))
     func waiting(_ chat: ChatSession) -> Companion.DeskWaiting? { now.needsYou.first { $0.chatID == chat.id } }
     try check(waiting(approval)?.kind == "approval" && waiting(approval)?.text == "Run deploy.sh" && waiting(approval)?.place == "USA Archery"
@@ -280,6 +293,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let branch = try runtime.insert(branchRecord)
     branch.isRunning = true
     _ = try makeTask(branch)
+    _ = call("POST", "/v1/desk/follow", try encode(Companion.DeskSessionRequest(chatID: building.id)))
     let named1 = try deskOf(call("GET", "/v1/desk"))
     let buildingWaiting = named1.needsYou.first { $0.chatID == building.id }
     let list = try Companion.decoder.decode(Companion.ChatList.self, from: call("GET", "/v1/chats").body)
