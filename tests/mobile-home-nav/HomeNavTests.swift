@@ -361,8 +361,10 @@ final class HomeNavTests: XCTestCase {
   else { app.buttons["Show as Cards"].tap(); try await Task.sleep(for: .seconds(1)); app.buttons["Connection"].tap(); app.buttons["Show as List"].tap() }
   try await Task.sleep(for: .seconds(1))
   XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists, "Projects list has no embedded Activity")
-  XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest isn't listed on its own")
-  XCTAssertTrue(app.staticTexts["Codex: Render four ribbon options"].exists, "its chat's row names it")
+  // A sidequest is a row in its chat's family, right under the chat.
+  let quest=app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"]
+  XCTAssertTrue(quest.waitForExistence(timeout:5), "the sidequest is listed with its chat")
+  XCTAssertGreaterThan(quest.frame.minY, app.buttons["chat-" + uuid("SDHQ")].frame.minY, "under SDHQ")
   capture("1-chats-list",app)
   // Cards, two to a row (from the ⋯ menu, with the sort). The shared test device can keep cards
   // from an earlier run: back to the list first.
@@ -1550,8 +1552,14 @@ final class HomeNavTests: XCTestCase {
   let optimization=app.buttons["chat-"+uuid("optimization")], sdhq=app.buttons["chat-"+uuid("SDHQ")]
   XCTAssertTrue(optimization.exists && sdhq.exists)
   XCTAssertGreaterThan(family.frame.width, optimization.frame.width * 1.8, "the family card spans the page")
-  XCTAssertEqual(optimization.frame.minY, sdhq.frame.minY, accuracy: 2, "other projects still share a row")
-  XCTAssertFalse(app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"].exists, "a sidequest still isn't listed on its own")
+  // SDHQ's sidequest is a row inside SDHQ's card, not a card of its own.
+  let sdhqFamily=app.descendants(matching:.any)["family-"+uuid("SDHQ")]
+  let quest=app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"]
+  if !sdhqFamily.exists { app.swipeUp() }
+  XCTAssertTrue(sdhqFamily.waitForExistence(timeout:5) && quest.exists, "SDHQ and its sidequest are one card")
+  XCTAssertTrue(sdhqFamily.frame.insetBy(dx:-1, dy:-1).contains(quest.frame), "the sidequest is inside SDHQ's card")
+  let magnets=app.buttons["chat-"+uuid("PlayCase Magnets")], galley=app.buttons["chat-"+uuid("Galley")]
+  if magnets.exists && galley.exists { XCTAssertEqual(magnets.frame.minY, galley.frame.minY, accuracy: 2, "other projects still share a row") }
   tab("Activity",app).tap()
   // Activity shows a waiting work thread under its front thread's name.
   let needs=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@", "Needs you: Chatterbox · needs you in Highlights sync")).firstMatch
