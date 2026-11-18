@@ -49,6 +49,7 @@
 		240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667AC120BEF5177C4AB1C659 /* MobileStore.swift */; };
 		2588794624F1D967F91D5936 /* MobileAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */; };
 		25A75E689316C0AFEEA9CE52 /* WebPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABAE1B34A7039850D52C275 /* WebPane.swift */; };
+		2646E7E9E27ECFE174A49C61 /* MobileImageTrace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D454EF40A6635C026460C23C /* MobileImageTrace.swift */; };
 		265E9D78EEBB723103EEF085 /* ConversationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB73F11534DDADDA5F5063E8 /* ConversationRuntime.swift */; };
 		276EB339DC400FBCFE8D603E /* WideFormStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C151709A832C444A1409D2 /* WideFormStyle.swift */; };
 		27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */; };
@@ -349,10 +350,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -371,10 +372,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -554,6 +555,7 @@
 		D07846B056A3EC031B8C536B /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
 		D23F411A39522520E8F10339 /* ModelPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPicker.swift; sourceTree = "<group>"; };
 		D3AE88BF63DE274A9EC0194F /* Backend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backend.swift; sourceTree = "<group>"; };
+		D454EF40A6635C026460C23C /* MobileImageTrace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileImageTrace.swift; sourceTree = "<group>"; };
 		D6355B8F4A31DEFDB359A6F1 /* MobilePressure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePressure.swift; sourceTree = "<group>"; };
 		D944B8AFFEB2AA62F5B2CB73 /* StudioOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioOverview.swift; sourceTree = "<group>"; };
 		DA7B261809F485895B247E18 /* ArchivedThreadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedThreadsView.swift; sourceTree = "<group>"; };
@@ -722,6 +724,7 @@
 				A5B20D59A3D5FC367257785A /* MobileDesk.swift */,
 				5A73BD0BC4502C3B3EDEDC9F /* MobileHTMLPreview.swift */,
 				BDB68753D283B424C6C820BC /* MobileImageCache.swift */,
+				D454EF40A6635C026460C23C /* MobileImageTrace.swift */,
 				FECF7D36F90592F7130D3626 /* MobileIssueBoard.swift */,
 				B7E0882B1086EDE675468281 /* MobileMedia.swift */,
 				3672ECCC996A617811EFDB0B /* MobileNewChat.swift */,
@@ -1374,6 +1377,7 @@
 				7D98140779CCC373AFFFB11A /* MobileDesk.swift in Sources */,
 				5A603897A9E87CC8D5BA7122 /* MobileHTMLPreview.swift in Sources */,
 				43B0A3322E761957B18BA06F /* MobileImageCache.swift in Sources */,
+				2646E7E9E27ECFE174A49C61 /* MobileImageTrace.swift in Sources */,
 				02D5BBF6275CE0C50429DD6D /* MobileIssueBoard.swift in Sources */,
 				3F9ACF6416461B4A49E77584 /* MobileMedia.swift in Sources */,
 				993DFFA82BE0A9F3C2EE2939 /* MobileNewChat.swift in Sources */,

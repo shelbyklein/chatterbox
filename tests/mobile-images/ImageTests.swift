@@ -47,6 +47,31 @@ final class ImageTests: XCTestCase {
         XCTAssertFalse(app.images["chat-image-" + imageID].isHittable)
     }
 
+    /// The Duo case (2026-11-18): the image belongs to a finished reply while the next reply
+    /// streams below it, so the transcript changes on every refresh. It must still load by
+    /// itself, without leaving and coming back.
+    @MainActor func testImageLoadsWhileTheNextReplyStreams() async throws {
+        try await control("reset", mode: "streaming")
+        let app = XCUIApplication()
+        app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
+        app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort]
+        app.launch()
+        let chat = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
+        XCTAssertTrue(chat.waitForExistence(timeout: 15)); chat.tap()
+        XCTAssertTrue(app.staticTexts["Visible image retry proof."].waitForExistence(timeout: 10))
+        let image = app.images["chat-image-" + imageID]
+        if !image.waitForExistence(timeout: 8) {
+            capture("streaming-image-not-loaded", app)
+            let download = app.buttons["download-image-" + imageID]
+            XCTAssertFalse(download.exists, "it should have loaded by itself; it waited for a tap")
+            if download.exists { download.tap() }
+            XCTAssertTrue(image.waitForExistence(timeout: 8), "and the Download tap must load it")
+        }
+        capture("streaming-image-loaded", app)
+        let requests = try await counts()
+        XCTAssertGreaterThanOrEqual(requests[imageID] ?? 0, 1)
+    }
+
     @MainActor func testVisibleImageRecoversAutomaticallyAndUsesCache() async throws {
         let app = try await open("transient")
         try await Task.sleep(for: .seconds(5))

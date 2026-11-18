@@ -29,9 +29,11 @@ PNG = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!IIBBBBB', 320, 160, 8,
 # Same real picture, uncompressed so partial transfers have measurable byte counts.
 PROGRESS_PNG = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!IIBBBBB', 320, 160, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows, level=0)) + chunk(b'IEND', b'')
 
+streamed = 0
+
 def summary():
     return dict(id=CHAT, title='Image retries', project='Image retries', backend='claude',
-                isRunning=False, isWaitingOnYou=False, updatedAt='2026-10-21T00:00:00Z')
+                isRunning=mode == 'streaming', isWaitingOnYou=False, updatedAt='2026-10-21T00:00:00Z')
 
 def item(key, text, image=None):
     files = [] if image is None else [dict(id=image, name='Retry proof.png', mediaType='image/png',
@@ -40,8 +42,19 @@ def item(key, text, image=None):
                 text=text, isStreaming=False, isCommentary=False, isPending=False, attachments=files, isQueued=False)
 
 def detail():
+    global streamed
     items = [item('older', 'An older image stays offscreen.', OLDER)]
     items += [item(str(n), f'Earlier reply {n}. ' + 'Read older messages here. ' * 18) for n in range(15)]
+    if mode == 'streaming':
+        # As on the Duo: the image belongs to a finished reply (a render it names), and the
+        # next reply streams below it, so the transcript changes on every refresh.
+        latest = item('latest', 'Visible image retry proof.', IMAGE)
+        latest['kind'] = 'assistant'
+        streamed += 1
+        items += [latest, dict(id=str(uuid.uuid5(uuid.NAMESPACE_URL, 'streaming')), kind='assistant',
+                               text='Uploading V17 to the Duo print queue. ' * streamed, isStreaming=True,
+                               isCommentary=False, isPending=False, attachments=[], isQueued=False)]
+        return dict(revision=revision + streamed, summary=summary(), settings='Claude', items=items, earlierCount=0)
     items += [item('latest', 'Visible image retry proof.', IMAGE)]
     return dict(revision=revision, summary=summary(), settings='Claude', items=items, earlierCount=0)
 
@@ -73,6 +86,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             gate = threading.Event()
             advance = threading.Event()
             mode = body.get('mode', 'transient')
+            global streamed
+            streamed = 0
             revision += 1
             counts = {}
             recovered = False
@@ -124,6 +139,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path == '/v1/addresses':
             return self.reply(dict(addresses=['127.0.0.1']))
         if self.path.startswith('/v1/chats/' + CHAT):
+            if mode == 'streaming':
+                return self.reply(detail())
             return self.reply(dict(unchanged=True, revision=revision) if f'?since={revision}' in self.path else detail())
         self.send_error(404)
 
