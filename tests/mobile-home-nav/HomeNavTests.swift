@@ -1220,11 +1220,11 @@ final class HomeNavTests: XCTestCase {
   let magnets=uuid("PlayCase Magnets"), chatterbox=uuid("Chatterbox"), crystal=uuid("Crystal concept")
   let complete=app.buttons["desk-complete-"+magnets]
   XCTAssertTrue(complete.waitForExistence(timeout:5)); complete.tap()
-  XCTAssertTrue(app.buttons["desk-ready-"+magnets].waitForNonExistence(timeout:8), "completed, it leaves Ready")
+  XCTAssertTrue(app.descendants(matching:.any)["desk-ready-"+magnets].waitForNonExistence(timeout:8), "completed, it leaves Ready")
   var call=try await deskCalls().last
   XCTAssertEqual(call?["action"] as? String, "complete"); XCTAssertEqual(((call?["body"] as? [String:Any])?["chatID"] as? String)?.uppercased(), magnets)
   XCTAssertEqual(deskCounts(app)[3], "Review, 1"); XCTAssertEqual(deskCounts(app)[4], "Done, 2", "and goes to Done")
-  let card=app.buttons["desk-ready-"+chatterbox]
+  let card=app.descendants(matching:.any)["desk-ready-"+chatterbox]
   if deskPhone(app) {
    // A partial swipe shows Complete; a full one completes.
    card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
@@ -1258,7 +1258,7 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset")
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("ready",app)
-  let card=app.buttons["desk-ready-"+uuid("Chatterbox")]
+  let card=app.descendants(matching:.any)["desk-ready-"+uuid("Chatterbox")]
   XCTAssertTrue(card.waitForExistence(timeout:5)); card.press(forDuration:1.2)
   XCTAssertTrue(app.buttons["Mark Complete"].waitForExistence(timeout:5) && app.buttons["Open"].exists, "the card's menu")
   app.buttons["Silence"].tap()
@@ -1421,7 +1421,7 @@ final class HomeNavTests: XCTestCase {
   func held(_ id:String) -> XCUIElement { app.descendants(matching:.any).matching(identifier:"desk-held-"+id).firstMatch }
   let reviewTask="F08C3C80-D01C-51C1-9DB6-BF82C0C3FCE9", questionTask="A55713B5-FB36-53B1-8C16-B2EE04F19893"
   select("ready")
-  let ready=app.buttons["desk-ready-"+uuid("PlayCase Magnets")]
+  let ready=app.descendants(matching:.any)["desk-ready-"+uuid("PlayCase Magnets")]
   putOnHold(ready)
   XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8))
   XCTAssertTrue(app.buttons["desk-tab-on-hold"].isSelected)
@@ -1509,7 +1509,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((call?["body"] as? [String:Any])?["replace"] as? Bool, true, "Link Anyway sends replace")
   // Unlink, from a Ready card's menu: back to To do.
   deskColumn("ready",app)
-  let ready=app.buttons["desk-ready-"+uuid("PlayCase Magnets")]
+  let ready=app.descendants(matching:.any)["desk-ready-"+uuid("PlayCase Magnets")]
   XCTAssertTrue(ready.waitForExistence(timeout:5)); ready.press(forDuration:1.2)
   XCTAssertTrue(app.buttons["Unlink Task"].waitForExistence(timeout:5), "a task card's menu: Unlink Task"); app.buttons["Unlink Task"].tap()
   XCTAssertTrue(ready.waitForNonExistence(timeout:8), "unlinked, it leaves Ready")
@@ -1590,7 +1590,11 @@ final class HomeNavTests: XCTestCase {
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
   deskColumn("ready",app)
-  let front=app.buttons["desk-ready-"+uuid("Chatterbox")]
+  // The card's text isn't a button: a touch there (often a scroll starting) stays on the Desk.
+  let cardText=app.descendants(matching:.any)["desk-ready-"+uuid("Chatterbox")]
+  XCTAssertTrue(cardText.waitForExistence(timeout:5)); cardText.tap()
+  XCTAssertFalse(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:2), "tapping the text doesn't open the session")
+  let front=app.buttons["desk-ready-open-"+uuid("Chatterbox")]
   XCTAssertTrue(front.waitForExistence(timeout:5)); front.tap()
   XCTAssertTrue(app.staticTexts["Hi! This is Chatterbox."].waitForExistence(timeout:10))
   // No Work strip: a pill under the title counts the running work threads.
