@@ -2006,6 +2006,14 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(working.waitForExistence(timeout:15))
   XCTAssertTrue(app.otherElements["activity-cards"].exists || app.descendants(matching:.any)["activity-cards"].exists)
   XCTAssertGreaterThan(working.frame.height,90,"Activity cards have normal thread-card height")
+  // SDHQ's working sidequest is a row inside SDHQ's card, not a card of its own.
+  let sdhqFamily=app.descendants(matching:.any)["activity-family-"+uuid("SDHQ")]
+  let quest=app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"]
+  for _ in 0..<3 where !sdhqFamily.exists { app.swipeUp() }
+  XCTAssertTrue(sdhqFamily.waitForExistence(timeout:5) && quest.exists, "a sidequest sits in its session's Activity card")
+  XCTAssertTrue(sdhqFamily.frame.insetBy(dx:-1,dy:-1).contains(quest.frame), "inside SDHQ's card")
+  capture("activity-sidequest-family",app)
+  for _ in 0..<3 where !working.isHittable { app.swipeDown() }
   capture("activity-full-cards",app)
   working.press(forDuration:1)
   XCTAssertTrue(app.buttons["Dismiss from Activity"].waitForExistence(timeout:5),"cards retain Activity commands")
