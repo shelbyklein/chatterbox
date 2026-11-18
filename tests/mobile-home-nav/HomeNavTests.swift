@@ -771,8 +771,11 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["desk-reopen-"+uuid("Crystal concept")].waitForExistence(timeout:5), "Done: Reopen")
   // Tapping a card opens its session in its own tab, as a notification does.
   app.buttons["desk-tab-needs-you"].tap()
-  app.buttons["desk-waiting-"+deskID("approval")].tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "the card opens the session")
+  // The card's text isn't a button (a touch there is often a scroll starting); Open opens.
+  app.descendants(matching:.any)["desk-waiting-"+deskID("approval")].tap()
+  XCTAssertFalse(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:2), "tapping the text stays on the Desk")
+  app.buttons["desk-open-"+deskID("approval")].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10), "Open opens the session")
   capture("desk-opened-session", app)
   deskTab(app).tap()
   XCTAssertTrue(app.buttons["desk-tab-needs-you"].waitForExistence(timeout:5) && app.buttons["desk-tab-needs-you"].isSelected, "back on the Desk, the same column")
@@ -802,7 +805,7 @@ final class HomeNavTests: XCTestCase {
   let width=app.windows.firstMatch.frame.width
   let needs=deskHeader("needs-you",app).frame
   XCTAssertTrue(needs.minX >= 0 && needs.maxX <= width, "shown at Needs you (\(needs), \(width) wide)")
-  let approval=app.buttons["desk-waiting-"+deskID("approval")], questions=app.buttons["desk-waiting-"+deskID("questions")]
+  let approval=app.descendants(matching:.any)["desk-waiting-"+deskID("approval")], questions=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   XCTAssertEqual(approval.frame.minX, questions.frame.minX, accuracy:2, "Needs you's cards in its column")
   XCTAssertGreaterThan(questions.frame.minY, approval.frame.maxY - 1, "one above the other")
   XCTAssertTrue(approval.frame.minX >= needs.minX - 20 && approval.frame.maxX <= needs.minX + 340, "inside it")
@@ -1134,7 +1137,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskSilence() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
-  let card=app.buttons["desk-waiting-"+deskID("approval")]
+  let card=app.descendants(matching:.any)["desk-waiting-"+deskID("approval")]
   XCTAssertTrue(card.waitForExistence(timeout:20))
   guard deskPhone(app) else { return }
   // Named as the session lists name it: by its project, its own title under that.
@@ -1169,7 +1172,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(deskCounts(app)[2], "Needs you, 2")
   XCTAssertTrue(app.buttons["desk-silenced-row"].waitForNonExistence(timeout:5), "nothing silenced: no row")
   // All the way across: it only shows Silence; nothing is silenced without a tap.
-  let questions=app.buttons["desk-waiting-"+deskID("questions")]
+  let questions=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   XCTAssertTrue(questions.waitForExistence(timeout:5))
   questions.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5))
    .press(forDuration:0.05,thenDragTo:questions.coordinate(withNormalizedOffset:CGVector(dx:-0.3,dy:0.5)),withVelocity:.default,thenHoldForDuration:0.05)
@@ -1199,7 +1202,7 @@ final class HomeNavTests: XCTestCase {
  @MainActor func testDeskSilenceMenu() async throws {
   try await fixture("reset")
   let app=deskApp(); app.launch()
-  let card=app.buttons["desk-waiting-"+deskID("questions")]
+  let card=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   XCTAssertTrue(card.waitForExistence(timeout:20)); card.press(forDuration:1.2)
   let item=app.buttons["Silence"]
   XCTAssertTrue(item.waitForExistence(timeout:5), "Silence in the card's menu")
@@ -1208,7 +1211,7 @@ final class HomeNavTests: XCTestCase {
   let calls=try await deskCalls()
   XCTAssertEqual(calls.last?["action"] as? String, "silence")
   XCTAssertEqual(((calls.last?["body"] as? [String:Any])?["id"] as? String)?.uppercased(), deskID("questions"))
-  XCTAssertTrue(app.buttons["desk-waiting-"+deskID("approval")].exists, "the other stays")
+  XCTAssertTrue(app.descendants(matching:.any)["desk-waiting-"+deskID("approval")].exists, "the other stays")
  }
  /// Review: Mark Complete archives a session into Done (the Mac is asked);
  /// on a phone a card swiped left shows Complete, and swiped all the way completes at once.
@@ -1459,7 +1462,7 @@ final class HomeNavTests: XCTestCase {
   app.buttons["desk-resume-"+deskID("banner")].tap()
   XCTAssertTrue(app.buttons["desk-start-"+deskID("banner")].waitForExistence(timeout:8),"unstarted task returns to To do")
   select("needs-you")
-  let question=app.buttons["desk-waiting-"+deskID("questions")]
+  let question=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   putOnHold(question)
   XCTAssertTrue(held(questionTask).waitForExistence(timeout:8))
   app.buttons["desk-resume-"+questionTask].tap()
@@ -2472,7 +2475,7 @@ final class HomeNavTests: XCTestCase {
   }
   // A Needs-you card swiped left: Silence (a phone; wide, a sideways drag scrolls the board).
   deskColumn("needs-you",app)
-  let card=app.buttons["desk-waiting-"+deskID("questions")]
+  let card=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   if card.waitForExistence(timeout:5) {
    card.coordinate(withNormalizedOffset:CGVector(dx:0.85,dy:0.5))
     .press(forDuration:0.05,thenDragTo:card.coordinate(withNormalizedOffset:CGVector(dx:0.6,dy:0.5)),withVelocity:.slow,thenHoldForDuration:0.1)
