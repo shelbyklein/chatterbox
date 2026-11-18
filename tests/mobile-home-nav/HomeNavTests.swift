@@ -127,6 +127,8 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
+  // Below the fold on a phone (nested sidequests add rows above it).
+  for _ in 0..<4 where !loose.waitForExistence(timeout:3) || !loose.isHittable { app.swipeUp() }
   XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
   XCTAssertTrue(app.staticTexts["Email draft"].waitForExistence(timeout:10), "the draft shows as an email card")
   XCTAssertTrue(app.buttons["draft-subject"].exists && app.buttons["draft-mail"].exists, "with the subject apart and Mail")
@@ -154,6 +156,8 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
+  // Below the fold on a phone (nested sidequests add rows above it).
+  for _ in 0..<4 where !loose.waitForExistence(timeout:3) || !loose.isHittable { app.swipeUp() }
   XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
   let ship=app.buttons["Ship to the real app"]
   XCTAssertTrue(ship.waitForExistence(timeout:10), "the newest reply's buttons show")
@@ -171,23 +175,21 @@ final class HomeNavTests: XCTestCase {
   let sent=try JSONSerialization.jsonObject(with:data) as! [String:[String]]
   XCTAssertEqual(sent[uuid("Loose chat").lowercased()],["ship"],"sent once, to this chat")
  }
- /// A loose session about a Studio's work: the card offers that Studio and moves it there.
- @MainActor func testPlaceSuggestion() async throws {
+ /// A loose session about a Studio's work no longer suggests moving it there (removed
+ /// 2026-11-18: never used, rarely right). Moving stays in the session's menu.
+ @MainActor func testNoPlaceSuggestion() async throws {
   try await fixture("reset")
   let app=XCUIApplication()
   app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
+  // Below the fold on a phone (nested sidequests add rows above it).
+  for _ in 0..<4 where !loose.waitForExistence(timeout:3) || !loose.isHittable { app.swipeUp() }
   XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
-  let move=app.buttons["Move to USA Archery"]
-  XCTAssertTrue(move.waitForExistence(timeout:10), "the card names the Studio that fits")
-  capture("place-suggestion",app)
-  move.tap()
-  let gone=expectation(for:NSPredicate(format:"exists == false"),evaluatedWith:move); await fulfillment(of:[gone],timeout:8)
-  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:\(fixturePort)/test/promotions")!)
-  let moved=(try JSONSerialization.jsonObject(with:data) as? [String:Any])?["Loose chat"] as? [String:Any]
-  XCTAssertEqual(moved?["kind"] as? String,"studio"); XCTAssertNotNil(moved?["studioID"], "moved into the existing Studio")
+  XCTAssertTrue(app.buttons["Session Menu"].waitForExistence(timeout:10))
+  XCTAssertFalse(app.descendants(matching:.any)["place-suggestion"].waitForExistence(timeout:3), "no suggestion card")
+  XCTAssertFalse(app.buttons["Move to USA Archery"].exists)
  }
  /// Archiving the open session, beside the list: the right side clears, the list stays.
  @MainActor func testArchiveClearsTheSession() async throws {
@@ -1484,6 +1486,8 @@ final class HomeNavTests: XCTestCase {
   app.launch()
   XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15)); tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
+  // Below the fold on a phone (nested sidequests add rows above it).
+  for _ in 0..<4 where !loose.waitForExistence(timeout:3) || !loose.isHittable { app.swipeUp() }
   XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
   XCTAssertTrue(app.buttons["Session Menu"].waitForExistence(timeout:5)); app.buttons["Session Menu"].tap()
   let toggle=app.descendants(matching:.any)["menu-show-on-desk"]
@@ -2070,6 +2074,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10)); back()
   tab("Chats",app).tap()
   let loose=app.buttons["chat-"+uuid("Loose chat")]
+  // Below the fold on a phone (nested sidequests add rows above it).
+  for _ in 0..<4 where !loose.waitForExistence(timeout:3) || !loose.isHittable { app.swipeUp() }
   XCTAssertTrue(loose.waitForExistence(timeout:10)); loose.tap()
   XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10)); back()
   tab("Activity",app).tap()
