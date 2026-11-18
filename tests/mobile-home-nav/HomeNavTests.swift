@@ -2280,7 +2280,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
   app.buttons["New Chat"].firstMatch.tap()
-  XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
+  // From Projects it starts as a New Project; Start in → Chats makes it an ordinary chat.
+  XCTAssertTrue(app.navigationBars["New Project"].waitForExistence(timeout:5), "New Chat opens a sheet, not a chat")
+  pickPlace("Chats", app)
+  XCTAssertTrue(app.navigationBars["New Chat"].waitForExistence(timeout:5))
   XCTAssertTrue(app.staticTexts["Effort"].firstMatch.waitForExistence(timeout:5), "it shows the effort")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "and no favorites")
   // The name comes first, then the provider, with its models under it, above the effort.
@@ -2335,6 +2338,46 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(created.last?["title"] as? String,"Logo ideas","and the name given")
   XCTAssertEqual(created.last?["desk"] as? Bool,true,"and put on the Desk")
   XCTAssertNil((created.last?["settings"] as? [String:Any])?["openModel"] as? String,"a Codex model leaves the open model")
+ }
+ /// "Start in" in New Chat's sheet: Chats, each Studio, or New Project….
+ func pickPlace(_ label:String, _ app:XCUIApplication) {
+  let place=app.buttons["new-chat-place"]
+  for _ in 0..<3 where !place.waitForExistence(timeout:3) || !place.isHittable { app.swipeDown() }
+  place.tap()
+  let item=app.buttons[label].firstMatch
+  XCTAssertTrue(item.waitForExistence(timeout:5), "Start in lists \(label)"); item.tap()
+ }
+ /// New Project from the Projects page: the sheet starts as New Project; a Mac folder is chosen
+ /// and a subfolder named; Start makes the chat, then that folder's project, and opens it.
+ @MainActor func testNewProjectFromNewChat() async throws {
+  try await fixture("reset")
+  let app=XCUIApplication()
+  app.launchEnvironment=["CHATTERBOX_TEST_HOST":"127.0.0.1","CHATTERBOX_TEST_CODE":"123456","CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  XCTAssertTrue(app.buttons["chat-"+uuid("SDHQ")].waitForExistence(timeout:15))
+  app.buttons["New Chat"].firstMatch.tap()
+  XCTAssertTrue(app.navigationBars["New Project"].waitForExistence(timeout:5), "from Projects, New starts a project")
+  let start=app.buttons["new-chat-start"]
+  XCTAssertTrue(start.waitForExistence(timeout:5)); XCTAssertFalse(start.isEnabled, "no folder yet: Start waits")
+  let name=app.textFields["new-chat-name"]
+  XCTAssertTrue(name.waitForExistence(timeout:5)); name.tap(); name.typeText("Kite Shop\n")
+  let browse=app.buttons["new-project-browse"]
+  for _ in 0..<3 where !browse.isHittable { app.swipeUp() }
+  browse.tap()
+  XCTAssertTrue(app.buttons["Use Folder"].waitForExistence(timeout:5)); app.collectionViews.buttons["Projects"].firstMatch.tap()
+  XCTAssertTrue(app.staticTexts["/Users/fixture/Projects"].waitForExistence(timeout:5)); app.buttons["Use Folder"].tap()
+  let chosen=app.descendants(matching:.any)["new-project-folder"]
+  XCTAssertTrue(chosen.waitForExistence(timeout:5) && chosen.label=="/Users/fixture/Projects", "the chosen folder shows")
+  XCTAssertTrue(start.isEnabled, "a folder, and the name for the new subfolder: ready")
+  capture("phone-new-project",app)
+  start.tap()
+  let opened=expectation(for:NSPredicate(format:"exists == false"),evaluatedWith:app.navigationBars["New Project"]); await fulfillment(of:[opened],timeout:10)
+  let (data,_)=try await URLSession.shared.data(from:URL(string:"http://127.0.0.1:\(fixturePort)/test/promotions")!)
+  let made=(try JSONSerialization.jsonObject(with:data) as? [String:Any])?["Loose chat"] as? [String:Any]
+  XCTAssertEqual(made?["kind"] as? String,"project")
+  XCTAssertEqual(made?["folder"] as? String,"/Users/fixture/Projects", "in the chosen folder")
+  XCTAssertEqual(made?["newFolderName"] as? String,"Kite Shop", "a new subfolder named like the chat")
  }
  /// Comments on a PDF, as with the Mac's Image Review: from the page being read, tap a spot and
  /// drag a box, with a note for each, on two pages. Add to Message puts the feedback in the
