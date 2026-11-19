@@ -103,6 +103,10 @@ struct Entry:View {
  let titleBefore=claude.title,sentBefore=claude.items.filter{$0.kind == .user}.count
  try save(chatView,"title-double-clicked")
  guard let editor=chatPanel.firstResponder as? NSTextView,editor.string==titleBefore else {print("FAIL: double-clicking the title didn't start editing it (first responder: \(String(describing:chatPanel.firstResponder)), text: \((chatPanel.firstResponder as? NSTextView)?.string ?? "-"))");exit(1)}
+ // A working chat updates all the time: the rename must stay open through updates.
+ claude.isRunning=true
+ for n in 0..<6 {claude.contextUsage[.claude]=ContextUsage(used:44000+n*1000,window:100000);try await Task.sleep(for:.milliseconds(150))}
+ guard chatPanel.firstResponder===editor else {print("FAIL: the rename closed when the chat updated (first responder: \(String(describing:chatPanel.firstResponder)))");exit(1)}
  editor.selectAll(nil);editor.insertText("Renamed in place",replacementRange:editor.selectedRange())
  try save(chatView,"title-editing")
  for type in [NSEvent.EventType.keyDown,.keyUp] {
@@ -111,6 +115,7 @@ struct Entry:View {
  try await Task.sleep(for:.milliseconds(400))
  precondition(claude.title=="Renamed in place","Return should save the new name, got \(claude.title)")
  precondition(claude.items.filter{$0.kind == .user}.count==sentBefore,"renaming must not send a message")
+ claude.isRunning=false
  try save(chatView,"title-renamed")
  setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","380",1)
  var project=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
