@@ -1,12 +1,21 @@
 # Shared real-Mac delivery steps; sourced by the Bash delivery entry points.
 # Caller holds the DerivedData lock through build, publication and bundle copy.
 MAC_DERIVED_DATA=build/DerivedData
-BUILD="$MAC_DERIVED_DATA/Build/Products/Debug/Chatterbox.app"
+# The installed app is optimized (Release): the Debug build ran the sidebar and streaming
+# replies several times slower (Shelby, 2026-11-19). MAC_CONFIGURATION=Debug installs Debug.
+MAC_CONFIGURATION="${MAC_CONFIGURATION:-Release}"
+BUILD="$MAC_DERIVED_DATA/Build/Products/$MAC_CONFIGURATION/Chatterbox.app"
 mac_build() {
-  xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \
+  xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration "$MAC_CONFIGURATION" \
     -derivedDataPath "$MAC_DERIVED_DATA" build -quiet
   [[ -d "$BUILD" ]] || { echo "No build at $BUILD." >&2; return 1; }
   codesign --verify --deep --strict "$BUILD"
+  # Tests run the Debug build's host and app (build/DerivedData/Build/Products/Debug): keep it
+  # current too. Mostly replayed from the compilation cache.
+  if [[ "$MAC_CONFIGURATION" != Debug ]]; then
+    xcodebuild -project Chatterbox.xcodeproj -scheme Chatterbox -configuration Debug \
+      -derivedDataPath "$MAC_DERIVED_DATA" build -quiet || echo "The Debug build (for tests) failed; the install goes on." >&2
+  fi
 }
 
 mac_install_bundle() {
