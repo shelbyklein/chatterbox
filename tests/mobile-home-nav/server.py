@@ -458,9 +458,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
    if not DESK_HOLD_ENABLED:return self.reply({'error':'unsupported'},404)
    if FAIL:return self.reply({'error':'Fixture hold failed. Try again.'},409)
    id=self.path.split('/')[3].lower();action=self.path.rsplit('/',1)[1]
-   DESK_CALLS.append({'action':action,'id':id})
+   DESK_CALLS.append({'action':action,'id':id,'reason':body.get('reason')})
    if action=='hold':
-    if id in DESK_HELD_RECORDS:return self.reply(desk())
+    if id in DESK_HELD_RECORDS:
+     for h in DESK_HELD:
+      if h['id']==id:h['reason']=body.get('reason')
+     DESK_REVISION+=1;return self.reply(desk())
     task=next((t for t in DESK_LINKED if t['id'].lower()==id),None)
     found=None
     for lane,items,key in [('incoming',DESK_INCOMING,'id'),('ready',DESK_READY,'id'),('needsYou',DESK_WAITING,'chatID')]:
@@ -468,7 +471,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
      if match:found=(lane,match);items.remove(match);break
     if found is None:return self.reply({'error':'Wait for the reply to finish.'},409)
     lane,item=found;DESK_HELD_RECORDS[id]=(lane,item)
-    DESK_HELD.append({'id':id,'text':task['text'] if task else item['text'],'heldAt':stamp(),
+    DESK_HELD.append({'id':id,'reason':body.get('reason'),'text':task['text'] if task else item['text'],'heldAt':stamp(),
                       'place':item.get('place') or (item.get('proposed') or {}).get('name'),
                       'chatID':task['chatID'] if task else None,'note':item.get('note')})
    else:

@@ -1086,6 +1086,16 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         && !pausedBoard.incoming.contains { $0.id == heldTask.id }, "held task occupies exactly one lane and keeps its thread")
     let holdDate = desk.tasks.first { $0.id == heldTask.id }?.heldAt
     try desk.hold(heldTask.id)
+    // Waiting for response: a reason on the hold. Holding again only changes the reason; a
+    // plain hold has none; an unknown reason is dropped; resume clears it (checked below).
+    try check(pausedBoard.onHold?.first { $0.id == heldTask.id }?.reason == nil, "a plain hold has no reason")
+    let waitingBoard = try deskOf(call("POST", "/v1/desk/\(heldTask.id)/hold", Data(#"{"reason":"response"}"#.utf8)))
+    let waitingItem = waitingBoard.onHold?.first { $0.id == heldTask.id }
+    try check(waitingItem?.reason == "response" && waitingItem?.label == "Waiting for response"
+        && desk.tasks.first { $0.id == heldTask.id }?.heldAt == holdDate, "waiting for response: a reason on the same hold")
+    try desk.hold(heldTask.id, reason: "nonsense")
+    try check(desk.tasks.first { $0.id == heldTask.id }?.heldReason == nil, "an unknown reason is a plain hold")
+    try desk.hold(heldTask.id, reason: "response")
     let repeatHeld = try desk.add(.init(text: "New intake title", origin: "email:held-budget", confidence: "yes", reason: "New pass"))
     try check(repeatHeld.id == heldTask.id && desk.tasks.first { $0.id == heldTask.id }?.heldAt == holdDate,
               "repeated hold and source reimport preserve hold and stable identity")
@@ -1093,9 +1103,11 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let heldReload = DeskStore(file: root.appendingPathComponent("desk.json"))
     try check(heldReload.tasks.first { $0.id == heldTask.id }?.heldAt == holdDate && heldSession.record.items == heldItemsBefore,
               "hold survives source refresh and disk reload without changing the prepared conversation")
+    try check(heldReload.tasks.first { $0.id == heldTask.id }?.heldReason == "response", "and so does waiting for response")
     let resumed = try await ui.request("desk", body: ["action": "resume", "id": .string(heldTask.id.uuidString)]).decode(Companion.Desk.self)
     try check(resumed.onHold?.contains { $0.id == heldTask.id } == false && resumed.ready?.contains { $0.task == heldTask.id } == true,
               "socket resume restores Review without restarting or unlinking")
+    try check(desk.tasks.first { $0.id == heldTask.id }?.heldReason == nil, "resume clears the reason")
     heldSession.isRunning = true
     try check(call("POST", "/v1/desk/\(heldTask.id)/hold").status == 409 && desk.tasks.first { $0.id == heldTask.id }?.heldAt == nil,
               "hold refuses a live reply instead of stopping or hiding it")

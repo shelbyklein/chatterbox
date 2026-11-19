@@ -1453,7 +1453,15 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(cardHold.waitForExistence(timeout:5),"a Review card shows On Hold")
   capture("desk-review-hold-button",app)
   cardHold.tap()
+  // It asks why: waiting for someone's response, or just on hold.
+  XCTAssertTrue(app.buttons["Waiting for response"].waitForExistence(timeout:5) && app.buttons["On hold"].exists, "Hold asks why")
+  app.buttons["Waiting for response"].tap()
   XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8),"its On Hold button moves it to On hold")
+  let heldLabel=app.staticTexts["desk-held-label-"+reviewTask].firstMatch
+  XCTAssertTrue(heldLabel.waitForExistence(timeout:5) && heldLabel.label=="Waiting for response", "the card says it's waiting for a response: \(heldLabel.label)")
+  capture("desk-waiting-for-response",app)
+  let waitingCall=try await deskCalls().last { $0["action"] as? String == "hold" }
+  XCTAssertEqual(waitingCall?["reason"] as? String,"response","the Mac is told why")
   app.buttons["desk-resume-"+reviewTask].tap()
   XCTAssertTrue(ready.waitForExistence(timeout:8))
   // Errors keep the original task, and do not falsely switch its lane.
