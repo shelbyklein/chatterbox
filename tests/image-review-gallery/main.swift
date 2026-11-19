@@ -24,7 +24,7 @@ app.setActivationPolicy(.regular)
  let middle=Attachment(name:urls[1].lastPathComponent,path:urls[1].path,mediaType:"image/png",kind:.image)
  let panel=NSPanel(contentRect:NSRect(x:40,y:80,width:1100,height:680),styleMask:[.titled,.nonactivatingPanel],backing:.buffered,defer:false)
  panel.appearance=NSAppearance(named:.darkAqua)
- panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:middle,gallery:urls) { _,_ in }.frame(width:1100,height:680))
+ panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:middle,gallery:urls,initialTool:.pen) { _,_ in }.frame(width:1100,height:680))
  panel.orderFrontRegardless()
  try await Task.sleep(for:.milliseconds(1200))
  let view=panel.contentView!;view.layoutSubtreeIfNeeded()
@@ -75,7 +75,7 @@ app.setActivationPolicy(.regular)
  var sentText=""
  var sentFiles:[Attachment]=[]
  let original=try Data(contentsOf:urls[0])
- panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls) { text,files in sentText=text;sentFiles=files })
+ panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls,initialTool:.pen) { text,files in sentText=text;sentFiles=files })
  try await Task.sleep(for:.milliseconds(600))
  func press(_ label:String) async throws {
   // Coordinates checked against the rendered native fixture. Standalone hosting
@@ -160,7 +160,7 @@ app.setActivationPolicy(.regular)
  print("PASS: pen drawing, Undo, gallery drafts, resized alignment, exported pixel coordinates and send payload; original unchanged; numbered marks and image clipboard. Evidence: \(root)/pen.png")
  // Zoom (Shelby, 2026-11-09): ⌘= zooms in so the picture overflows its fitted size; ⌘0 fits again.
  panel.setContentSize(NSSize(width:1100,height:680))
- panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls) { _,_ in }.frame(width:1100,height:680))
+ panel.contentView=NSHostingView(rootView:ImageReviewView(attachment:blue,gallery:urls,initialTool:.pen) { _,_ in }.frame(width:1100,height:680))
  panel.makeKeyAndOrderFront(nil);app.activate(ignoringOtherApps:true)
  try await Task.sleep(for:.milliseconds(900))
  // The picture fills the canvas's width when fitted, so its height shows the zoom: blue down a
