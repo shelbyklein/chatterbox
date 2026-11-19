@@ -129,6 +129,7 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     // Review and On hold cards are accordions (title and actions until opened): these two start
     // open, so the checks below see inside them; the accordion itself is checked further down.
     UserDefaults.standard.set([proofs.id, lid.id].map(\.uuidString).joined(separator: ","), forKey: Companion.DeskCardExpansion.key)
+    UserDefaults.standard.removeObject(forKey: DeskColumnFolds.key)
     let reopenedElsewhere = model.insertSession(finishedRecord("Reopened elsewhere", "Done.", ago: 90_000))
     let chatterbox = Companion.DeskPlace(kind: "project", id: plan.id, name: "Chatterbox", detail: "The Chatterbox Mac app, its service, and the iPhone app.")
     let usaPlace = Companion.DeskPlace(kind: "studio", id: usa.id, name: "USA Archery",
@@ -544,10 +545,11 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
           "Unlink sends unlink with the task; its thread leaves Working")
     service.linked = (service.linked ?? []) + [.init(id: sdhqTask, text: "Refresh the SDHQ menus", chatID: sdhq.id)]; desk.load(service)
     // Link a thread: every thread in the place; one carrying a task asks first.
-    try await render(AnyView(DeskLinkPopover(request: badge, place: chatterbox, desk: desk) {}.background(Color(nsColor: .windowBackgroundColor))), 380, 260, "desk-link")
+    try await render(AnyView(DeskLinkPopover(request: badge, place: chatterbox, desk: desk) {}.background(Color(nsColor: .windowBackgroundColor))), 420, 420, "desk-link")
     check(sent.last == ["action": "threads", "id": .string(badge.id.uuidString), "all": true, "place": try JSON.value(chatterbox)],
           "Link asks for every thread in the place (\(String(describing: sent.last)))")
     check(frame("linkThread:\(sameWork.id)") != nil && frame("linkThread:\(similar.id)") != nil, "each thread there to pick")
+    check(frame("linkSearch") != nil, "Link a thread has a search box")
     try await click("linkThread:\(sameWork.id)")
     check(frame("linkAnyway") != nil && !sent.contains { $0["action"]?.string == "link" }, "a thread carrying a task asks first; nothing sent yet")
     try snapshot("desk-link-confirm")
@@ -751,12 +753,25 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     desk.load(service)
     model.showDesk()
     try await render(AnyView(ContentView()), 2200, 1000, "desk-calm-working")
-    check(frame("empty:needsYou") != nil && frame("empty:todo") != nil && frame("empty:ready") != nil && frame("empty:done") != nil
-          && frame("empty:working") == nil && frame("working:\(sdhq.id)") != nil, "empty columns say so in a line; Working shows its cards")
+    // Empty columns close to a narrow strip by themselves; Working, with cards, stays open.
+    func width(_ key: String) -> CGFloat { frame("section:" + key)?.width ?? 0 }
+    check(["needsYou", "todo", "ready", "done"].allSatisfy { frame("collapsed:" + $0) != nil && width($0) < 60 }
+          && width("working") > 300 && frame("working:\(sdhq.id)") != nil, "empty columns collapse; Working shows its cards")
+    // A click opens an empty column (it says it's empty in a line); its collapse button closes it.
+    try await click("collapsed:todo")
+    check(width("todo") > 300 && frame("empty:todo") != nil, "a click opens a collapsed column: \(width("todo"))")
+    try await click("collapse:todo")
+    check(width("todo") < 60 && UserDefaults.standard.string(forKey: DeskColumnFolds.key) ?? "" == "", "its collapse button closes it again, back to automatic")
+    // A column with cards collapses by hand, and stays so until opened.
+    try await click("collapse:working")
+    check(width("working") < 60 && UserDefaults.standard.string(forKey: DeskColumnFolds.key) == "working:closed", "a column with cards collapses by hand")
+    try snapshot("desk-columns-collapsed")
+    try await click("collapsed:working")
+    check(width("working") > 300, "and opens again")
     check(desk.sections(in: model).summary == "2 working", "header: 2 working; the plan's session, answered, carries no task (\(desk.sections(in: model).summary))")
     ribbons.isRunning = false; sdhq.isRunning = false; plan.isRunning = false; untasked.isRunning = false
     try await render(AnyView(ContentView()), 2200, 1000, "desk-empty")
-    check(keys.allSatisfy { frame("empty:" + $0) != nil } && desk.sections(in: model).summary == "All clear", "nothing at all: every column empty, All clear")
+    check(keys.allSatisfy { (frame("section:" + $0)?.width ?? 999) < 60 } && desk.sections(in: model).summary == "All clear", "nothing at all: every column collapsed, All clear")
 
     // Work threads: a front thread's Work strip (each with its state), a work thread's header.
     func workRecord(_ title: String, items: [DisplayItem] = [], archived: Bool = false) -> ConversationRecord {
