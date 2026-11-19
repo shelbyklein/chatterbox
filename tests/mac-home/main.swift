@@ -119,7 +119,7 @@ app.setActivationPolicy(.accessory)
     let collapsed=ThreadFamilyLimit.visible(model.sidechats(of:parent),expanded:false,updatedAt:\.lastActivity) { $0.isRunning || $0.isWaitingOnYou }
     precondition(collapsed.shown.map(\.id)==[side.id,works[0].id,works[4].id] && collapsed.hidden==3, "newest first, three shown, the working one among them")
     setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","300",1)
-    SidebarDebug.families=[:]; SidebarDebug.rows=[:]; SidebarDebug.familyToggles=[:]; FamilyExpansion.shared.ids=[]
+    SidebarDebug.families=[:]; SidebarDebug.rows=[:]; SidebarDebug.familyToggles=[:]; FamilyExpansion.shared.ids=[]; FamilyExpansion.shared.collapsed=[]
     try await render(AnyView(ContentView()),300,900,"mac-list-cards")
     guard let family=SidebarDebug.families[parent.id] else { fatalError("No family card for Chatterbox") }
     for thread in [parent,side,works[0],works[4],branch] {
@@ -134,6 +134,21 @@ app.setActivationPolicy(.accessory)
     try await Task.sleep(for:.milliseconds(400)); try snapshot("mac-list-cards-expanded")
     precondition(FamilyExpansion.shared.ids.contains(parent.id), "Show more expands the family")
     for work in works { precondition(SidebarDebug.rows[work.id].map { SidebarDebug.families[parent.id]!.insetBy(dx:-1,dy:-1).contains($0) } == true, "\(work.title) shows once expanded") }
+    // Hide: the family folds to its parent and one line ("7 threads · 1 working"); that line opens it.
+    guard let hide=SidebarDebug.familyHide[parent.id] else { fatalError("No Hide") }
+    try await click(point(hide))
+    try await Task.sleep(for:.milliseconds(400)); try snapshot("mac-family-collapsed")
+    precondition(FamilyExpansion.shared.collapsed.contains(parent.id) && SidebarDebug.familyCollapsed[parent.id] != nil, "Hide collapses the family to a line")
+    precondition((AppPreferences.defaults.stringArray(forKey:"sidebarCollapsedFamilies") ?? []).contains(parent.id.uuidString), "and it's remembered")
+    try await click(point(SidebarDebug.familyCollapsed[parent.id]!))
+    try await Task.sleep(for:.milliseconds(400))
+    precondition(!FamilyExpansion.shared.collapsed.contains(parent.id), "the line opens it again")
+    // Hovering a temporary session (a sidechat): Archive and Delete at its right; not on its parent.
+    TemporaryRowActions.forceHover=true; SidebarDebug.rowActions=[:]
+    try await render(AnyView(ContentView()),300,900,"mac-temporary-row-actions")
+    TemporaryRowActions.forceHover=false
+    precondition(SidebarDebug.rowActions[side.id] != nil && SidebarDebug.rowActions[parent.id] == nil, "a temporary session's row offers Archive and Delete")
+    if let actions=SidebarDebug.rowActions[side.id], let row=SidebarDebug.rows[side.id] { precondition(row.insetBy(dx:-1,dy:-1).contains(actions), "inside its row, at the right") }
     // Cards: the same three inside the front thread's card, then Show more.
     UserDefaults.standard.set(true, forKey: "macProjectsSidebarCards")
     FamilyExpansion.shared.ids=[]; MacHomeDebug.childRows=[:]; MacHomeDebug.familyToggles=[:]
