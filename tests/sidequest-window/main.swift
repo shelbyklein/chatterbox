@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 // A chat with a sidequest open: the sidequest floats in its bottom right, then shrinks to a
-// bubble, then closes. No agents run. Evidence: open.png, bubble.png.
+// bubble by default, then opened, then closes. No agents run. Evidence: bubble.png, open.png.
 let app=NSApplication.shared
 app.setActivationPolicy(.accessory)
 @MainActor func shot(_ window:NSWindow,_ name:String,_ root:URL) throws {
@@ -32,12 +32,14 @@ app.setActivationPolicy(.accessory)
     window.appearance=NSAppearance(named:.darkAqua)
     window.contentView=NSHostingView(rootView:ChatView(session:parent).environment(model).environment(\.colorScheme,.dark).frame(width:1100,height:760))
     window.orderFrontRegardless()
+    // A new sidequest starts as its bubble; opened, it shows full size.
+    UserDefaults.standard.removeObject(forKey:"sidequestWindowCollapsed-"+side.id.uuidString)
     try await Task.sleep(for:.milliseconds(900))
-    try shot(window,"open.png",root)
-    precondition(model.selectedID==parent.id,"showing the sidequest doesn't leave the chat")
-    UserDefaults.standard.set(true,forKey:"sidequestWindowCollapsed-"+side.id.uuidString)
-    try await Task.sleep(for:.milliseconds(500))
     try shot(window,"bubble.png",root)
+    precondition(model.selectedID==parent.id,"showing the sidequest doesn't leave the chat")
+    UserDefaults.standard.set(false,forKey:"sidequestWindowCollapsed-"+side.id.uuidString)
+    try await Task.sleep(for:.milliseconds(500))
+    try shot(window,"open.png",root)
     UserDefaults.standard.removeObject(forKey:"sidequestWindowCollapsed-"+side.id.uuidString)
     // In card view the sidequest sits inside its chat's card.
     precondition(model.showsInsideParentCard(side) && model.sidequests(of:parent).map(\.id)==[side.id],"the sidequest belongs inside its chat's card")
