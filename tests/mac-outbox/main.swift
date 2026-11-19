@@ -237,6 +237,10 @@ final class Proxy: @unchecked Sendable {
     try await wait("the Mac shows the phone's name", seconds: 5) { project.title == "Named on the phone" }
     try await wait("the slow change lands") { await onService(projectID)?.tags == ["Plain", "Beta"] }
     try await Task.sleep(for: .seconds(3.5))
+    // The breadcrumbs say which request timed out, for which session, and how long it really took.
+    let crumbs = Diagnostics.breadcrumbText
+    try check(crumbs.contains("Timed out after 2.0 s: metadata in \u{201C}"), "a timeout names its request and session:\n\(crumbs.suffix(800))")
+    try check(crumbs.contains("The service answered metadata in \u{201C}") && crumbs.contains("too late"), "a late answer says how long the service took:\n\(crumbs.suffix(800))")
     let afterSlow = await onService(projectID)
     try check(afterSlow?.title == "Named on the phone" && afterSlow?.tags == ["Plain", "Beta"], "the late send didn't clobber the phone's name (service: \(afterSlow?.title ?? "?"))")
     try check(project.title == "Named on the phone" && project.tags == ["Plain", "Beta"], "the Mac shows both")
