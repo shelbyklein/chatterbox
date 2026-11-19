@@ -769,7 +769,12 @@ final class HomeNavTests: XCTestCase {
   // Review, and Done.
   app.buttons["desk-tab-ready"].tap()
   XCTAssertTrue(app.buttons["desk-complete-"+uuid("PlayCase Magnets")].waitForExistence(timeout:5) && app.buttons["desk-complete-"+uuid("Chatterbox")].exists, "Ready: Mark Complete on each")
-  XCTAssertTrue(app.staticTexts["Finished the product photos for the store."].exists, "with what it last said")
+  // Cards are accordions: the title and buttons, then the rest on a tap of the title.
+  XCTAssertFalse(app.staticTexts["Finished the product photos for the store."].exists, "closed: no details yet")
+  capture("desk-ready-closed", app)
+  let magnetsTitle=app.buttons["desk-ready-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(magnetsTitle.waitForExistence(timeout:5)); magnetsTitle.tap()
+  XCTAssertTrue(app.staticTexts["Finished the product photos for the store."].waitForExistence(timeout:5), "opened: what it last said")
   capture("desk-ready", app)
   app.buttons["desk-tab-done"].tap()
   XCTAssertTrue(app.buttons["desk-reopen-"+uuid("Crystal concept")].waitForExistence(timeout:5), "Done: Reopen")
@@ -1457,6 +1462,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["Waiting for response"].waitForExistence(timeout:5) && app.buttons["On hold"].exists, "Hold asks why")
   app.buttons["Waiting for response"].tap()
   XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8),"its On Hold button moves it to On hold")
+  // The held card is closed (its title, marked as waiting): open it for the label.
+  let heldTitle=app.buttons["desk-held-toggle-"+reviewTask]
+  XCTAssertTrue(heldTitle.waitForExistence(timeout:5) && heldTitle.label.hasPrefix("Waiting for response: "), heldTitle.label)
+  heldTitle.tap()
   let heldLabel=app.staticTexts["desk-held-label-"+reviewTask].firstMatch
   XCTAssertTrue(heldLabel.waitForExistence(timeout:5) && heldLabel.label=="Waiting for response", "the card says it's waiting for a response: \(heldLabel.label)")
   capture("desk-waiting-for-response",app)

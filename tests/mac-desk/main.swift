@@ -126,6 +126,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     let readyArchived = model.insertSession(reArchived)
     var flyersRecord = inStudio(finishedRecord("Camp flyers", "Sent to print.", ago: 86_400)); flyersRecord.archivedAt = now.addingTimeInterval(-3600)
     let flyers = model.insertSession(flyersRecord)
+    // Review and On hold cards are accordions (title and actions until opened): these two start
+    // open, so the checks below see inside them; the accordion itself is checked further down.
+    UserDefaults.standard.set([proofs.id, lid.id].map(\.uuidString).joined(separator: ","), forKey: Companion.DeskCardExpansion.key)
     let reopenedElsewhere = model.insertSession(finishedRecord("Reopened elsewhere", "Done.", ago: 90_000))
     let chatterbox = Companion.DeskPlace(kind: "project", id: plan.id, name: "Chatterbox", detail: "The Chatterbox Mac app, its service, and the iPhone app.")
     let usaPlace = Companion.DeskPlace(kind: "studio", id: usa.id, name: "USA Archery",
@@ -419,6 +422,13 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(frame("confidence:\(resultsEmail.id)") != nil && frame("confidence:\(badge.id)") != nil && frame("confidence:\(order.id)") == nil,
           "scored tasks show Yes or No with the reason; an unscored one shows nothing")
     check(frame("auto:\(proofs.id)") != nil && frame("auto:\(lid.id)") == nil, "an auto-started card says Started automatically")
+    // The accordion: a click on the title closes the card to its title and actions, another opens it.
+    try await click("readyToggle:\(lid.id)")
+    check(frame("readySilence:\(lid.id)") == nil && frame("complete:\(lid.id)") != nil && frame("readyOpen:\(lid.id)") != nil,
+          "a closed Review card: its title and actions only")
+    try snapshot("desk-card-closed")
+    try await click("readyToggle:\(lid.id)")
+    check(frame("readySilence:\(lid.id)") != nil, "a click on the title opens it again")
     func inside(_ card: String, _ column: String) -> Bool {
         guard let card = frame(card), let column = frame("section:" + column) else { return false }
         return card.minX >= column.minX - 0.5 && card.maxX <= column.maxX + 0.5
