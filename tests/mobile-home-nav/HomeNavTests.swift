@@ -384,8 +384,17 @@ final class HomeNavTests: XCTestCase {
   // A chat open: the left-edge swipe is Back, not a tab switch.
   app.buttons["chat-" + uuid("SDHQ")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
-  XCTAssertTrue(app.buttons["Sidequest to Codex: Render four ribbon options, working"].waitForExistence(timeout: 5), "the chat lists its sidequest")
+  let questIcon=app.buttons["Sidequest to Codex: Render four ribbon options, working"]
+  XCTAssertTrue(questIcon.waitForExistence(timeout: 5), "the chat lists its sidequest")
+  XCTAssertLessThan(questIcon.frame.width, 60, "a sidequest is a small icon, not a full-width row")
   capture("2-sidequest-strip", app)
+  // Tapping the icon shows its task, with Open (dismissed here without opening).
+  questIcon.tap()
+  XCTAssertTrue(app.buttons["sidequest-open"].waitForExistence(timeout: 5), "tapping a sidequest icon shows its task")
+  XCTAssertTrue(app.staticTexts["Render four ribbon options"].exists)
+  capture("2-sidequest-popover", app)
+  app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)).tap()
+  XCTAssertTrue(app.buttons["sidequest-open"].waitForNonExistence(timeout: 5))
   // Session Settings, a top-level button on the session's bar (also in About's Status).
   XCTAssertTrue(app.buttons["rail-settings"].waitForExistence(timeout: 5)); app.buttons["rail-settings"].tap()
   // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
@@ -436,6 +445,11 @@ final class HomeNavTests: XCTestCase {
   XCTAssertFalse(activity("Working: ",app).exists || activity("New reply: ",app).exists, "Studio cards have no embedded Activity")
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForExistence(timeout:10))
   XCTAssertFalse(app.images["Latest image in No image"].exists)
+  // Coach Archie's sidequest is an icon under its card, not a card of its own.
+  let studioQuest=app.buttons["Sidequest to Codex: Sleeve mockups"]
+  XCTAssertTrue(studioQuest.waitForExistence(timeout:5), "a Studio session's sidequest is an icon under it")
+  XCTAssertFalse(app.buttons["chat-"+"112F7A2C-3667-557E-9BB7-EEB0E47BE869"].exists, "not a card of its own")
+  XCTAssertLessThan(studioQuest.frame.width, 60)
   capture("studio-card-thumbnails",app)
   let search = app.searchFields.firstMatch
   XCTAssertTrue(search.exists)
@@ -483,6 +497,7 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Show as List"].tap()
   XCTAssertTrue(app.buttons.matching(identifier: "chat-" + "F982B462-68F5-509B-8E10-9946C3F0A1B1").firstMatch.waitForExistence(timeout:5))
   XCTAssertTrue(app.images["Latest image in Coach Archie"].waitForNonExistence(timeout:5),"the gallery switches to text rows")
+  XCTAssertTrue(app.buttons["Sidequest to Codex: Sleeve mockups"].exists && !app.buttons["chat-"+"112F7A2C-3667-557E-9BB7-EEB0E47BE869"].exists, "list rows carry sidequests as icons too")
   capture("studio-list",app)
   tab("Projects",app).tap()
  }
