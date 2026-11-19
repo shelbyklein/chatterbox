@@ -20,7 +20,11 @@ mac_build() {
 
 mac_install_bundle() {
   osascript -e 'tell application "Chatterbox" to quit' 2>/dev/null || true
-  for i in {1..20}; do pgrep -xq Chatterbox || break; sleep 0.25; done
+  # Up to 30 s: quitting can wait on windows saving. One that never quits keeps running the
+  # old version, and opening it again only brings that copy forward (reported at the end).
+  for i in {1..120}; do pgrep -xq Chatterbox || break; sleep 0.25; done
+  local still_running
+  still_running=$(pgrep -x Chatterbox || true)
 
   # Keep the app being replaced (its service is inside it) for scripts/rollback.sh: zipped, so
   # macOS doesn't offer a second Chatterbox, with the commit it was built from.
@@ -66,6 +70,10 @@ mac_install_bundle() {
     clean_open /Applications/Chatterbox.app --args "$@"
   else
     clean_open /Applications/Chatterbox.app
+  fi
+  if [[ -n "$still_running" ]] && kill -0 $still_running 2>/dev/null; then
+    echo "Installed, but Chatterbox didn't quit (pid $still_running), so it's still running the old version. Quit it (⌘Q) and open it again." >&2
+    return 3
   fi
   echo "Installed and opened Chatterbox."
 }
