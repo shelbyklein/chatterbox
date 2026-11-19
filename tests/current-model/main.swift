@@ -91,6 +91,27 @@ struct Entry:View {
  }
  try await Task.sleep(for:.milliseconds(500))
  try save(chatView,"claude-presets-expanded")
+ // Double-clicking the session's name renames it in place: type, Return saves.
+ chatPanel.makeKeyAndOrderFront(nil)
+ let titlePoint=chatView.convert(NSPoint(x:70,y:chatView.isFlipped ? 28 : chatView.bounds.height-28),to:nil)
+ for count in [1,2] {
+  for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+   app.postEvent(NSEvent.mouseEvent(with:type,location:titlePoint,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:chatPanel.windowNumber,context:nil,eventNumber:count,clickCount:count,pressure:1)!,atStart:false)
+  }
+ }
+ try await Task.sleep(for:.milliseconds(500))
+ let titleBefore=claude.title,sentBefore=claude.items.filter{$0.kind == .user}.count
+ try save(chatView,"title-double-clicked")
+ guard let editor=chatPanel.firstResponder as? NSTextView,editor.string==titleBefore else {print("FAIL: double-clicking the title didn't start editing it (first responder: \(String(describing:chatPanel.firstResponder)), text: \((chatPanel.firstResponder as? NSTextView)?.string ?? "-"))");exit(1)}
+ editor.selectAll(nil);editor.insertText("Renamed in place",replacementRange:editor.selectedRange())
+ try save(chatView,"title-editing")
+ for type in [NSEvent.EventType.keyDown,.keyUp] {
+  chatPanel.sendEvent(NSEvent.keyEvent(with:type,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:chatPanel.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!)
+ }
+ try await Task.sleep(for:.milliseconds(400))
+ precondition(claude.title=="Renamed in place","Return should save the new name, got \(claude.title)")
+ precondition(claude.items.filter{$0.kind == .user}.count==sentBefore,"renaming must not send a message")
+ try save(chatView,"title-renamed")
  setenv("CHATTERBOX_TEST_SIDEBAR_ONLY","380",1)
  var project=ConversationRecord(model:"opus",effort:"medium",personality:.pragmatic)
  project.projectFolder=root+"/project";project.projectNickname="Sample Project";project.title="Sample Project"
@@ -102,7 +123,7 @@ struct Entry:View {
   side.contentView=NSHostingView(rootView:ContentView().environment(model).environment(\.colorScheme,.dark))
   try await Task.sleep(for:.milliseconds(700));try save(side.contentView!,chats ? "chats-list" : "projects-cards")
  }
- print("PASS: one named model pill renders; actual picker opens and preserves settings; separate default Cards/List sidebars rendered. Evidence: \(root)")
+ print("PASS: double-clicking the title renames the session; one named model pill renders; actual picker opens and preserves settings; separate default Cards/List sidebars rendered. Evidence: \(root)")
 }
 Task { @MainActor in do {try await run();exit(0)}catch{print(error);exit(1)} }
 app.run()
