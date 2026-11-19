@@ -72,6 +72,31 @@ final class ImageTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(requests[imageID] ?? 0, 1)
     }
 
+    /// A Download tap while the next reply streams (the transcript refreshes under the tap),
+    /// with no viewport signal at all: the tap alone must fetch the picture.
+    @MainActor func testDownloadTapWhileTheNextReplyStreams() async throws {
+        try await control("reset", mode: "streaming")
+        let app = XCUIApplication()
+        app.launchArguments = ["-mobileChatListPage", "projects", "-drafts", "{}"]
+        app.launchEnvironment = ["CHATTERBOX_TEST_HOST": "127.0.0.1", "CHATTERBOX_TEST_CODE": "123456", "CHATTERBOX_TEST_PORT": fixturePort,
+                                 "CHATTERBOX_TEST_IMAGE_VISIBILITY": "missing"]
+        app.launch()
+        let chat = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
+        XCTAssertTrue(chat.waitForExistence(timeout: 15)); chat.tap()
+        let download = app.buttons["download-image-" + imageID]
+        XCTAssertTrue(download.waitForExistence(timeout: 10), "no viewport signal: it waits for a tap")
+        try await Task.sleep(for: .seconds(3))   // several streaming refreshes first
+        let before = try await counts()
+        XCTAssertNil(before[imageID], "not requested before the tap")
+        for _ in 0..<3 where !download.isHittable { app.scrollViews["chatTranscript"].swipeUp() }
+        download.tap()
+        let image = app.images["chat-image-" + imageID]
+        let loaded = image.waitForExistence(timeout: 8)
+        capture(loaded ? "streaming-tap-loaded" : "streaming-tap-did-nothing", app)
+        let after = try await counts()
+        XCTAssertTrue(loaded, "the tap fetched nothing; requests: \(after[imageID] ?? 0)")
+    }
+
     @MainActor func testVisibleImageRecoversAutomaticallyAndUsesCache() async throws {
         let app = try await open("transient")
         try await Task.sleep(for: .seconds(5))
