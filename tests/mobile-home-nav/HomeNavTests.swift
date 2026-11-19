@@ -2027,13 +2027,22 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(working.waitForExistence(timeout:15))
   XCTAssertTrue(app.otherElements["activity-cards"].exists || app.descendants(matching:.any)["activity-cards"].exists)
   XCTAssertGreaterThan(working.frame.height,90,"Activity cards have normal thread-card height")
-  // SDHQ's working sidequest is a row inside SDHQ's card, not a card of its own.
+  // SDHQ's working sidequest is an icon inside SDHQ's card, not a card of its own.
   let sdhqFamily=app.descendants(matching:.any)["activity-family-"+uuid("SDHQ")]
   let quest=app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"]
   for _ in 0..<3 where !sdhqFamily.exists { app.swipeUp() }
   XCTAssertTrue(sdhqFamily.waitForExistence(timeout:5) && quest.exists, "a sidequest sits in its session's Activity card")
   XCTAssertTrue(sdhqFamily.frame.insetBy(dx:-1,dy:-1).contains(quest.frame), "inside SDHQ's card")
+  XCTAssertLessThan(quest.frame.width,60,"a sidequest is a small icon, not a row")
   capture("activity-sidequest-family",app)
+  // Tapping the icon shows its title, with Open.
+  quest.tap()
+  XCTAssertTrue(app.buttons["quest-open"].waitForExistence(timeout:5),"tapping a sidequest icon shows its title")
+  capture("activity-sidequest-popover",app)
+  app.buttons["quest-open"].tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10),"Open opens the sidequest")
+  let questBack=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+  questBack.tap()
   for _ in 0..<3 where !working.isHittable { app.swipeDown() }
   capture("activity-full-cards",app)
   working.press(forDuration:1)
