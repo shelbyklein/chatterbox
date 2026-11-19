@@ -165,8 +165,8 @@ app.setActivationPolicy(.accessory)
     precondition(works[1].isWaitingOnYou && Attention.shared.workNeedingYou(in:model).map(\.id)==[works[1].id], "a work thread needing you is listed for its front thread's row")
     try await render(AnyView(SidebarActivityStrip().frame(width:280).padding(8).background(Color(nsColor:.windowBackgroundColor))),300,220,"mac-activity-work-needs-you")
     works[1].record.items.removeLast()
-    // Sidequests sit indented under the session that sent it (its name above when only the
-    // sidequest is listed); a new reply's dot is its model's color.
+    // A sidequest is an icon on the row of the session that sent it (its name shown plainly
+    // when only the sidequest is listed); a new reply's dot is its model's color.
     var questRecord=parent.record; questRecord.id=UUID(); questRecord.title="Sidequest · Render four ribbon options"
     questRecord.items=[]; questRecord.projectFolder=nil; questRecord.sidequestOf=parent.id; questRecord.sidechatOf=parent.id; questRecord.activeBackend = .claude
     let quest=model.insertSession(questRecord)
