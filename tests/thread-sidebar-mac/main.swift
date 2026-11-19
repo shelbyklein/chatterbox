@@ -79,6 +79,11 @@ func check(_ ok: Bool, _ what: String) { print((ok ? "ok   " : "FAIL ") + what);
     record.brief = "Phase 3 of the typography engine: hyphenation, kerning pairs and Knuth-Plass line breaking. Tests in TypographyTests; specimen PDF for review."
     record.items = [
         DisplayItem(kind: .user, text: "Phase 3: finish the typography engine, then show me the specimen."),
+        // Skills used: Claude's Skill tool twice, and Codex reading a skill's SKILL.md.
+        DisplayItem(kind: .tool, timestamp: Date().addingTimeInterval(-600), text: "Using the dev-plan skill", tool: "Skill"),
+        DisplayItem(kind: .tool, timestamp: Date().addingTimeInterval(-300), text: "Using the dev-plan skill", tool: "Skill"),
+        DisplayItem(kind: .shell, timestamp: Date().addingTimeInterval(-120), text: "Running `cat ~/.codex/skills/.system/imagegen/SKILL.md`",
+                    detail: "cat /Users/x/.codex/skills/.system/imagegen/SKILL.md"),
         DisplayItem(kind: .image, text: "", attachments: [Attachment(name: "kerning-pairs.png", path: kerning.path, mediaType: "image/png", kind: .image)]),
         DisplayItem(kind: .assistant, text: "The specimen is at `\(pdf.path)`, and the cover proof at `\(proof.path)`.\n\n![Specimen](\(specimen.path))\n\nPublished for review: https://snippets.shelbyklein.com/galley/specimen.html (public).", phase: .final),
         DisplayItem(kind: .assistant, text: "Here's the note for the printer:\n\n```draft\nSubject: Galley proofs for Thursday\n\nHi Dana, the specimen pages are ready for a press check.\n```", phase: .final),
@@ -139,6 +144,9 @@ func check(_ ok: Bool, _ what: String) { print((ok ? "ok   " : "FAIL ") + what);
           "sections run in order: Status, Where, Task & work, Outputs, Notes, Tools, Runs here")
     for button in ["files", "terminal", "images"] { check(seen["threadSidebar:header:\(button)"] != nil, "header has \(button.capitalized)") }
     check(seen["threadSidebar:workThreads"] != nil, "Task & work lists the work threads")
+    let skillUses = ThreadSkillUse.collect(galley.items)
+    check(skillUses.map(\.name) == ["imagegen", "dev-plan"] && skillUses.last?.count == 2,
+          "Skills used: each skill once, newest first, with its count (\(skillUses.map { "\($0.name)×\($0.count)" }))")
     check(seen["threadSidebar:start"] != nil, "Task & work has the start actions (work thread, sidequest, sidechat, PC, presets)")
     check(seen["threadSidebar:model"] != nil, "Status has the model row")
     check(seen["threadSidebar:context"] != nil, "Status shows context: the session knows it")
