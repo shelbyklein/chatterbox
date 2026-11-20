@@ -32,6 +32,7 @@ struct ChatterboxApp: App {
                     .keyboardShortcut("n", modifiers: [.command, .option])
                 Button("New Codex Chat") { model.askNewChat(backend: .codex) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("New Gemini Chat") { model.askNewChat(backend: .gemini) }
                 Divider()
                 Button("New Project\u{2026}") { model.showingNewProject = true }
                     .keyboardShortcut("n", modifiers: [.command, .control])
