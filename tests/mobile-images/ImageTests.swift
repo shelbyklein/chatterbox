@@ -163,6 +163,27 @@ final class ImageTests: XCTestCase {
         capture("image-after-cancelled-load", app)
     }
 
+    /// The Duo case (2026-11-19): leaving a chat while its picture loads and opening it again.
+    /// Returning, iOS showed and removed the transcript's rows in the same instant, the
+    /// "removed" marked the picture off screen, and nothing marked it back: it waited until
+    /// a scroll. It must load on return, with no scrolling and no tap.
+    @MainActor func testReturningToChatLoadsImageWithoutScrolling() async throws {
+        let app = try await open("slow")
+        try await Task.sleep(for: .seconds(1))
+        let before = try await counts()
+        XCTAssertEqual(before[imageID], 1)
+        let back = app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
+        let chat = app.buttons["chat-33333333-3333-3333-3333-333333333333"]
+        XCTAssertTrue(chat.waitForExistence(timeout: 10))
+        try await control("release")
+        chat.tap()
+        XCTAssertTrue(app.staticTexts["Visible image retry proof."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.images["chat-image-" + imageID].waitForExistence(timeout: 8), "the picture loads on return without scrolling or a tap")
+        XCTAssertFalse(app.buttons["download-image-" + imageID].exists)
+        capture("image-after-returning", app)
+    }
+
     @MainActor func testDownloadProgressAndExplicitRestart() async throws {
         let app = try await open("progress")
         let progress = app.staticTexts["image-progress-" + imageID]
