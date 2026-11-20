@@ -2543,6 +2543,50 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(both.hasPrefix(text + "\n\nFeedback on magnet-photo.png. The attached image is annotated."), both)
   XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 2 image"].exists, "the pages' copies are still there")
  }
+ /// Side by side (a phone on its side, the open Duo), the notes panel can be put away so the
+ /// page takes the whole width; placing a note brings it back, ready to type.
+ @MainActor func testReviewNotesPanelHides() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
+                           "CHATTERBOX_PREFERENCES_SUITE":"notes-panel-"+UUID().uuidString]
+  app.launch()
+  defer { XCUIDevice.shared.orientation = .portrait }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  let chat = app.buttons["chat-"+uuid("PlayCase Magnets")]
+  XCTAssertTrue(chat.waitForExistence(timeout:10)); chat.tap()
+  let pdf = app.buttons["Review PDF: Magnet proof.pdf"]
+  XCTAssertTrue(pdf.waitForExistence(timeout:10)); pdf.tap()
+  XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:10)); app.buttons["Comment"].tap()
+  let page = app.descendants(matching:.any)["reviewPicture"]
+  XCTAssertTrue(page.waitForExistence(timeout:5))
+  XCUIDevice.shared.orientation = .landscapeLeft
+  let toggle = app.buttons["reviewNotesToggle"]
+  XCTAssertTrue(toggle.waitForExistence(timeout:5), "side by side, the notes panel has a hide button")
+  let overall = field("reviewOverallNote",app)
+  XCTAssertTrue(overall.waitForExistence(timeout:5))
+  try await Task.sleep(for:.seconds(1))
+  let shownCenter = page.frame.midX
+  capture("review-notes-shown",app)
+  toggle.tap()
+  XCTAssertTrue(overall.waitForNonExistence(timeout:5), "the notes panel goes away")
+  try await Task.sleep(for:.seconds(1))
+  // The page's area takes the room: it centres in the whole width (a portrait page stays
+  // as tall as it was; a wide spread also grows).
+  XCTAssertGreaterThan(page.frame.midX, shownCenter + 100, "the page takes the room")
+  capture("review-notes-hidden",app)
+  // Placing a note brings the panel back, with the note ready to type in.
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.4)).tap()
+  let note = field("reviewNote-1",app)
+  XCTAssertTrue(note.waitForExistence(timeout:5), "a new note brings the panel back")
+  try await Task.sleep(for:.milliseconds(600))
+  note.typeText("Bigger header")
+  XCTAssertEqual(note.value as? String, "Bigger header", "the note takes the typing")
+  toggle.tap()
+  XCTAssertTrue(note.waitForNonExistence(timeout:5))
+  XCTAssertTrue(app.buttons["Show Notes, 1"].exists, "hidden, the button counts the notes")
+  capture("review-notes-hidden-count",app)
+ }
  /// Comment on an image from the full-screen viewer: one spot with a note and an overall note.
  @MainActor func testImageComments() async throws {
   try await fixture("reset")
