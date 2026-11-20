@@ -2470,6 +2470,9 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["permission-fullAccess"].isSelected, "Full access is the one chosen")
   XCTAssertTrue(caution.exists, "Full access chosen: its caution shows")
   XCTAssertFalse(app.buttons["permission-readOnly"].isSelected)
+  // One row of icons, not a row per choice (Shelby, 2026-11-20).
+  XCTAssertEqual(app.buttons["permission-readOnly"].frame.midY, app.buttons["permission-fullAccess"].frame.midY, accuracy: 2, "the choices sit in one row")
+  XCTAssertLessThan(app.buttons["permission-fullAccess"].frame.height, 80, "each an icon")
   capture("new-chat-sheet",app)
   // Put on the Desk: off unless turned on.
   let desk=app.switches["new-chat-desk"]
