@@ -83,7 +83,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(menu.waitForExistence(timeout:5), "the rail has the page's ••• menu")
   capture("open-placeholder-buttons",app)
   menu.tap()
-  XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["menu-feedback"].exists, "it's the same menu")
+  XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["menu-usage"].exists, "it's the same menu")
  }
  /// A native iPad stand-in for a bent Duo: an asymmetric fold catches a fixed
  /// sidebar width, an equal split, and the old maximum width.
@@ -378,7 +378,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
   // Starts from list mode: an earlier run on this simulator may have left cards on.
   app.buttons["Connection"].tap()
-  XCTAssertTrue(app.buttons["menu-feedback"].waitForExistence(timeout:3), "Feedback is in the ••• menu too (the open Duo's bar can leave it out)")
+  XCTAssertTrue(app.buttons["menu-usage"].waitForExistence(timeout:3), "Usage is in the ••• menu")
   if app.buttons["Show as List"].waitForExistence(timeout:2) { app.buttons["Show as List"].tap() }
   else { app.buttons["Show as Cards"].tap(); try await Task.sleep(for: .seconds(1)); app.buttons["Connection"].tap(); app.buttons["Show as List"].tap() }
   try await Task.sleep(for: .seconds(1))
