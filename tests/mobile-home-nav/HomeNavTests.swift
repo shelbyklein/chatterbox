@@ -426,7 +426,14 @@ final class HomeNavTests: XCTestCase {
   app.navigationBars["Session Settings"].buttons["Done"].tap()
   XCTAssertTrue(app.navigationBars["Session Settings"].waitForNonExistence(timeout:5))
   // Session Settings, a top-level button on the session's bar (also in About's Status).
-  XCTAssertTrue(app.buttons["rail-settings"].waitForExistence(timeout: 5)); app.buttons["rail-settings"].tap()
+  // Closed: the name on the left, the model on the right, and the sidebar's button where the
+  // agent's glyph was.
+  XCTAssertLessThan(app.buttons["chat-title"].frame.midX, modelLine.frame.midX, "the name left of the model")
+  XCTAssertEqual(app.buttons["chat-title"].frame.midY, modelLine.frame.midY, accuracy: 6, "on one line")
+  XCTAssertFalse(app.buttons["rail-settings"].exists, "no agent glyph button")
+  XCTAssertTrue(app.buttons["header-sidebar"].exists, "the sidebar's button instead")
+  capture("2-chat-header", app)
+  modelLine.tap()
   // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
   XCTAssertTrue(app.staticTexts["Model"].waitForExistence(timeout: 5) && app.buttons["Open models"].exists, "Session Settings lists the providers")
   XCTAssertFalse(app.buttons["favorite-1"].exists, "no favorites")
