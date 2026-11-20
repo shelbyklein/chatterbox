@@ -118,9 +118,39 @@ flowchart LR
 - **The exact mode IDs and model IDs `agy acp` exposes, and whether it sends `usage_update` or supports images.** T1 answers these. The plan adapts names, not structure.
 - **One process per chat or shared.** T1 decides from `agy acp`'s session handling.
 
-## Protocol notes
+## Protocol notes (T1, 2026-11-20)
 
-(Filled by T1.)
+`agy` 1.5.13 is installed at `~/.local/bin/agy` and already signed in. It listed the account's models with no login step. The probe scripts and transcripts are `assets/gemini-agent/probe*.py` and `acp-probe*.log`.
+
+- **Start:** `agy acp` (stdio JSON-RPC, ACP protocol version 1). `initialize` returns:
+  - `loadSession: true`;
+  - prompt capabilities: `image: true`, `embeddedContext: true`;
+  - `sessionCapabilities`: `resume`, `close`, `load`, `list`, `additionalDirectories`;
+  - `_meta.antigravity.systemPrompt.append: true`;
+  - auth methods `oauth-personal` (used), `oauth-business`, `gemini-api-key`, `agent-platform`.
+- **New session:** `session/new {cwd, mcpServers}` returns `sessionId`, plus:
+  - `models` (ids carry effort: `gemini-4-neon-high` and so on);
+  - `modes`;
+  - `configOptions`, three of them:
+    - `model`: `gemini-4-neon` (default), `gemini-4-carbon`, `gemini-4-argon`, `gemini-4-hydrogen`, three Orchestrators, `gemini-3.8-flash`, `claude-opus-5-5`, `claude-sonnet-5-5`, `gpt-oss-120b-medium`;
+    - `thought_level`: `low`, `medium`, `high` (default), `xhigh`;
+    - `mode`: `default`, `accept-edits`, `auto`, `plan`.
+- **Changing settings:** `session/set_config_option {sessionId, configId, value}` for the model and `thought_level`, and `session/set_mode {sessionId, modeId}`. Each echoes `config_option_update` / `current_mode_update`.
+- **Mode meanings** (from agy): `default` asks before edits and commands; `accept-edits` approves workspace edits; `auto` approves edits and safe commands and asks before irreversible actions; `plan` plans before executing. `--dangerously-skip-permissions` approves everything (a bypass flag, only at launch).
+- **Updates (`session/update`):**
+  - `agent_message_chunk` and `agent_thought_chunk` carry `{content:{type:text,text}}`;
+  - `tool_call` and `tool_call_update` carry `toolCallId`, `name`, `args`/`rawInput`, `status`, `kind`, `title`, `locations`;
+  - `usage_update {used, size}` gives context fill (size 1,048,576);
+  - also `session_info_update {title}`, `available_commands_update`, `config_option_update`, `current_mode_update`.
+- **Permissions:** a `session/request_permission` request whose `toolCall` includes `content:[{type:diff,path,newText}]`. The options are `allow` (`allow_once`) and `deny` (`reject_once`). Reply `{outcome:{outcome:"selected",optionId}}`.
+- **Prompt result:** `{stopReason, usage:{inputTokens,outputTokens,cachedReadTokens,thoughtTokens,totalTokens}}`.
+- **Cancel:** the `session/cancel` notification returns `stopReason: cancelled`.
+- **Images:** `{type:image, mimeType, data(base64)}` works.
+- **Resume:** `session/load` in a new process took 1.1 s, replayed the old turn (6 updates) and kept the memory. `session/resume` (advertised) resumes without a replay; use it, and fall back to `load` and ignore updates until the reply.
+- **Decision: one `agy acp` process per chat,** hosted like Claude's (`kind: "gemini"`). Each chat holds its own `sessionId`, and resuming is fast and cheap.
+- **Effort:** use `thought_level`, named with the existing effort names (Low/Medium/High/Extra High).
+- **Model list:** take it from `configOptions.model`. Chatterbox shows the Gemini and Orchestrator entries; the Claude and GPT entries through agy are hidden, since Claude and Codex have their own agents.
+- **Usage:** context fill from `usage_update`; no account limits are exposed.
 
 ## Work preparation
 
