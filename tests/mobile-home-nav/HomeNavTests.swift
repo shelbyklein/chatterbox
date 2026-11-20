@@ -2586,8 +2586,7 @@ final class HomeNavTests: XCTestCase {
   capture("pdf-review-sent",app)
   // Comments on the photo are a message of their own.
   let photo = app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
-  XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap()
-  XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:5)); app.buttons["Comment"].tap()
+  XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap() // opens ready to comment
   let picture = app.descendants(matching:.any)["reviewPicture"]
   XCTAssertTrue(picture.waitForExistence(timeout:5))
   picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
@@ -2651,7 +2650,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(chat.waitForExistence(timeout:10)); chat.tap()
   let photo = app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
   XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap()
-  XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:5), "Comment beside Mark Up"); app.buttons["Comment"].tap()
+  // A chat picture opens ready to comment, with Draw, Save, Share and Copy in its bar.
+  XCTAssertTrue(app.descendants(matching:.any)["reviewPicture"].waitForExistence(timeout:5), "tapping a picture opens it in comment mode")
+  for button in ["Draw", "Save to Photos", "Share", "Copy"] { XCTAssertTrue(app.buttons[button].exists, "\(button) in the bar") }
+  capture("image-comment-mode",app)
   let picture = app.descendants(matching:.any)["reviewPicture"]
   XCTAssertTrue(picture.waitForExistence(timeout:5))
   picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
