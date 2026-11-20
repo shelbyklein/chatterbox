@@ -391,7 +391,7 @@ final class HomeNavTests: XCTestCase {
   // Tapping the icon shows its task, with Open (dismissed here without opening).
   questIcon.tap()
   XCTAssertTrue(app.buttons["sidequest-open"].waitForExistence(timeout: 5), "tapping a sidequest icon shows its task")
-  XCTAssertTrue(app.staticTexts["Render four ribbon options"].exists)
+  XCTAssertTrue(app.staticTexts["Render ribbons"].exists, "the popover shows the sidequest's short title, not its whole brief")
   capture("2-sidequest-popover", app)
   app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)).tap()
   XCTAssertTrue(app.buttons["sidequest-open"].waitForNonExistence(timeout: 5))
@@ -2510,13 +2510,17 @@ final class HomeNavTests: XCTestCase {
   page.coordinate(withNormalizedOffset:CGVector(dx:0.75,dy:0.85)).tap()
   let third = field("reviewNote-1",app)
   XCTAssertTrue(third.waitForExistence(timeout:5)); third.typeText("Add the price here\n")
-  XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label BEGINSWITH %@","Page 2, 2 marks")).firstMatch.exists, "the other marked page is listed")
+  XCTAssertTrue(third.waitForNonExistence(timeout:5), "Return closes the note's bubble")
   capture("pdf-review-page-3",app)
-  app.buttons["Previous Page"].tap()
-  XCTAssertTrue(app.staticTexts["Page 2 of 3"].waitForExistence(timeout:5))
-  XCTAssertEqual(field("reviewNote-1",app).value as? String, "Make the title bigger", "page 2's notes are kept")
+  // Review lists every note, page by page; the overall note is there too.
+  app.buttons["reviewList"].tap()
+  XCTAssertTrue(app.buttons["reviewListNote-2-1"].waitForExistence(timeout:5) && app.buttons["reviewListNote-2-2"].exists
+                && app.buttons["reviewListNote-3-1"].exists, "Review lists the notes of both pages")
+  XCTAssertTrue(app.staticTexts["Make the title bigger"].exists, "page 2's notes are kept")
   let overall = field("reviewOverallNote",app)
   overall.tap(); overall.typeText("Otherwise ready to print.")
+  capture("pdf-review-list",app)
+  app.buttons["reviewListDone"].tap()
   // Send sends it: the feedback goes to the session, not into the message box.
   app.buttons["reviewSend"].tap()
   XCTAssertTrue(composer.waitForExistence(timeout:10))
@@ -2548,15 +2552,14 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(photoFeedback.hasPrefix("Feedback on magnet-photo.png. The attached image is annotated."), photoFeedback)
   XCTAssertFalse((composer.value as? String ?? "").contains("Feedback on"), "nothing left waiting in the box")
  }
- /// Side by side (a phone on its side, the open Duo), the notes panel can be put away so the
- /// page takes the whole width; placing a note brings it back, ready to type.
- @MainActor func testReviewNotesPanelHides() async throws {
+ /// A note is written in a bubble by its mark, not in a panel: it opens where you tap, Return
+ /// closes it, Review lists every note, and a listed note opens its bubble again.
+ @MainActor func testReviewNoteBubble() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort,
-                           "CHATTERBOX_PREFERENCES_SUITE":"notes-panel-"+UUID().uuidString]
+                           "CHATTERBOX_PREFERENCES_SUITE":"note-bubble-"+UUID().uuidString]
   app.launch()
-  defer { XCUIDevice.shared.orientation = .portrait }
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   let chat = app.buttons["chat-"+uuid("PlayCase Magnets")]
   XCTAssertTrue(chat.waitForExistence(timeout:10)); chat.tap()
@@ -2565,32 +2568,28 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:10)); app.buttons["Comment"].tap()
   let page = app.descendants(matching:.any)["reviewPicture"]
   XCTAssertTrue(page.waitForExistence(timeout:5))
-  XCUIDevice.shared.orientation = .landscapeLeft
-  let toggle = app.buttons["reviewNotesToggle"]
-  XCTAssertTrue(toggle.waitForExistence(timeout:5), "side by side, the notes panel has a hide button")
-  let overall = field("reviewOverallNote",app)
-  XCTAssertTrue(overall.waitForExistence(timeout:5))
   try await Task.sleep(for:.seconds(1))
-  let shownCenter = page.frame.midX
-  capture("review-notes-shown",app)
-  toggle.tap()
-  XCTAssertTrue(overall.waitForNonExistence(timeout:5), "the notes panel goes away")
-  try await Task.sleep(for:.seconds(1))
-  // The page's area takes the room: it centres in the whole width (a portrait page stays
-  // as tall as it was; a wide spread also grows).
-  XCTAssertGreaterThan(page.frame.midX, shownCenter + 100, "the page takes the room")
-  capture("review-notes-hidden",app)
-  // Placing a note brings the panel back, with the note ready to type in.
-  page.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.4)).tap()
+  XCTAssertFalse(field("reviewOverallNote",app).exists, "no notes panel beside or under the page")
+  let pageFrame = page.frame
+  page.coordinate(withNormalizedOffset:CGVector(dx:0.3,dy:0.25)).tap()
   let note = field("reviewNote-1",app)
-  XCTAssertTrue(note.waitForExistence(timeout:5), "a new note brings the panel back")
-  try await Task.sleep(for:.milliseconds(600))
+  XCTAssertTrue(note.waitForExistence(timeout:5), "a tap opens a bubble to write in")
+  let tapY = pageFrame.minY + pageFrame.height * 0.25
+  XCTAssertLessThan(abs(note.frame.midY - tapY), 140, "the bubble sits by the mark (\(note.frame) vs y \(tapY))")
+  try await Task.sleep(for:.milliseconds(400))
   note.typeText("Bigger header")
-  XCTAssertEqual(note.value as? String, "Bigger header", "the note takes the typing")
-  toggle.tap()
-  XCTAssertTrue(note.waitForNonExistence(timeout:5))
-  XCTAssertTrue(app.buttons["Show Notes, 1"].exists, "hidden, the button counts the notes")
-  capture("review-notes-hidden-count",app)
+  capture("review-bubble-typing",app)
+  note.typeText("\n")
+  XCTAssertTrue(note.waitForNonExistence(timeout:5), "Return closes the bubble")
+  capture("review-bubble-closed",app)
+  app.buttons["reviewList"].tap()
+  let listed = app.buttons["reviewListNote-1-1"]
+  XCTAssertTrue(listed.waitForExistence(timeout:5) && app.staticTexts["Bigger header"].exists, "Review lists the note")
+  capture("review-list",app)
+  listed.tap() // the row's middle, away from its words: the whole row opens the note
+  XCTAssertTrue(field("reviewNote-1",app).waitForExistence(timeout:6), "a listed note opens its bubble again")
+  XCTAssertEqual(field("reviewNote-1",app).value as? String, "Bigger header")
+  capture("review-bubble-reopened",app)
  }
  /// Comment on an image from the full-screen viewer: one spot with a note and an overall note.
  @MainActor func testImageComments() async throws {
@@ -2611,8 +2610,11 @@ final class HomeNavTests: XCTestCase {
   picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
   let first = field("reviewNote-1",app)
   XCTAssertTrue(first.waitForExistence(timeout:5)); first.typeText("Make the magnet red\n")
+  app.buttons["reviewList"].tap()
   let overall = field("reviewOverallNote",app)
+  XCTAssertTrue(overall.waitForExistence(timeout:5))
   overall.tap(); overall.typeText("Brighter background")
+  app.buttons["reviewListDone"].tap()
   capture("image-review",app)
   app.buttons["reviewSend"].tap()
   XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10))
