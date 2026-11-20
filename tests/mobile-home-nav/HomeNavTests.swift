@@ -1704,11 +1704,22 @@ final class HomeNavTests: XCTestCase {
   // No Work strip: a pill under the title counts the running work threads.
   XCTAssertTrue(app.descendants(matching:.any)["workingPill"].waitForExistence(timeout:8), "the title's pill: work threads running")
   XCTAssertFalse(app.descendants(matching:.any)["work-strip"].exists, "no Work strip above the transcript")
-  // About (the title): each work thread with its state, among the sections.
+  // About: a swipe in from the right edge opens it (the title does too).
+  let window=app.windows.firstMatch
+  window.coordinate(withNormalizedOffset:CGVector(dx:0.995,dy:0.5)).press(forDuration:0.05, thenDragTo:window.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.5)))
+  XCTAssertTrue(app.descendants(matching:.any)["aboutPanel"].waitForExistence(timeout:5), "swiping in from the right edge opens the sidebar")
   openAbout(app)
   let columns=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"], tabs=app.buttons["work-chip-CFD6F12A-EE25-5C7D-BCE0-C004F850001E"]
   XCTAssertTrue(columns.waitForExistence(timeout:8) && tabs.exists, "About lists each work thread")
   XCTAssertEqual(columns.label, "Work thread Desk board columns, Working"); XCTAssertEqual(tabs.label, "Work thread Phone tabs, Ready", "with its state")
+  // Notes first, what it made, the Actions, its tools, where it works; then status.
+  let order=["notes","outputs","work","tools","place","status"].map { app.descendants(matching:.any)["about-section-"+$0].frame.minY }
+  XCTAssertEqual(order, order.sorted(), "sections in Shelby's order: \(order)")
+  let panel=app.descendants(matching:.any)["aboutPanel"]
+  for _ in 0..<4 where !app.buttons["about-rename"].exists { panel.swipeUp() }
+  XCTAssertTrue(app.buttons["about-rename"].exists && app.buttons["about-archive"].exists, "Actions has the session's own actions")
+  capture("about-actions-section",app)
+  for _ in 0..<4 { panel.swipeDown() }
   for section in ["status","place","work","outputs","notes","tools","runs"] {
    XCTAssertTrue(app.descendants(matching:.any)["about-section-"+section].exists, "About shows its "+section+" section")
   }
@@ -1847,12 +1858,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(list.exists, "the session list stays on the left")
   XCTAssertGreaterThan(column.frame.minX, list.frame.maxX, "About is on the right, beside the conversation")
   XCTAssertGreaterThan(column.frame.maxX, app.windows.firstMatch.frame.maxX - 2, "along the right edge")
-  // Its actions, as the narrow layout's ⋯ has them.
-  let actions=app.buttons["about-actions"]
-  XCTAssertTrue(actions.waitForExistence(timeout:5), "About has the session's actions"); actions.tap()
-  XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout:3) && app.buttons["Restart Thread"].exists && app.buttons["Archive"].exists)
+  // Its actions, in About's Actions section (what the narrow layout's ⋯ has).
+  let rename=app.buttons["about-rename"]
+  XCTAssertTrue(rename.waitForExistence(timeout:5), "About has the session's actions")
+  XCTAssertTrue(app.buttons["about-restart"].exists && app.buttons["about-archive"].exists)
   capture("duo-about-actions", app)
-  app.buttons["Rename"].tap()
+  rename.tap()
   XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout:3), "Rename from About renames the session"); app.alerts.firstMatch.buttons["Cancel"].tap()
   let chip=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"]
   XCTAssertTrue(chip.waitForExistence(timeout:5), "its sections, the work threads too")
