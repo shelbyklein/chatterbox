@@ -363,6 +363,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout: 10))
   app.buttons["chat-" + uuid("SDHQ")].tap()
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout: 10))
+  XCTAssertTrue(app.buttons["scroll-reply-start"].waitForExistence(timeout: 5), "an up arrow to the start of the latest reply")
   edgeSwipe(app, fromLeft: true)
   try await Task.sleep(for: .seconds(1.5))
   print("CALIBRATION back worked:", app.buttons["chat-" + uuid("SDHQ")].exists)
@@ -512,12 +513,12 @@ final class HomeNavTests: XCTestCase {
   let briefText=app.textViews["brief-text"]
   XCTAssertTrue(briefText.waitForExistence(timeout:5));briefText.tap();briefText.typeText("Keep the crystal facets sharp.")
   capture("brief-editor",app)
-  app.navigationBars["Session Brief"].buttons["Save"].tap()
+  app.navigationBars["Note"].buttons["Save"].tap()
   let briefs=try await fixture("briefs",method:"GET") as? [String:String]
   XCTAssertEqual(briefs?["Crystal concept"],"Keep the crystal facets sharp.","the Brief reaches the Mac")
   openAbout(app)
   XCTAssertTrue(app.buttons["Note: Keep the crystal facets sharp."].waitForExistence(timeout:5),"About shows the Brief that was set")
-  app.buttons["about-brief"].tap();app.navigationBars["Session Brief"].buttons["Cancel"].tap()
+  app.buttons["about-brief"].tap();app.navigationBars["Note"].buttons["Cancel"].tap()
   app.navigationBars.buttons.element(boundBy:0).tap()
   app.buttons["studios-index"].tap()
   openStudio("studio-1",app)
@@ -2540,6 +2541,12 @@ final class HomeNavTests: XCTestCase {
   let pdf = app.buttons["Review PDF: Magnet proof.pdf"]
   XCTAssertTrue(pdf.waitForExistence(timeout:10)); pdf.tap()
   XCTAssertTrue(app.staticTexts["1 of 3"].waitForExistence(timeout:10))
+  // Spreads: pages two at a time; then back to single pages for the rest of the test.
+  let spreads=app.buttons["pdf-spreads"]
+  XCTAssertTrue(spreads.waitForExistence(timeout:5) && spreads.isEnabled, "a spreads button for a multi-page PDF")
+  spreads.tap(); XCTAssertTrue(app.buttons["Show Single Pages"].waitForExistence(timeout:3), "spreads on")
+  try await Task.sleep(for:.seconds(1)); capture("pdf-spreads",app)
+  spreads.tap(); XCTAssertTrue(app.buttons["Show as Spreads"].waitForExistence(timeout:3), "back to single pages")
   app.swipeUp()
   XCTAssertTrue(app.staticTexts["2 of 3"].waitForExistence(timeout:5))
   XCTAssertTrue(app.buttons["Comment"].isEnabled, "Comment in the PDF viewer's bottom bar")
