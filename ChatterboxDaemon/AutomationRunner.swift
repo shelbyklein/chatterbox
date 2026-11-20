@@ -20,11 +20,31 @@ import Foundation
         tick()
     }
 
-    private func tick() {
+    /// What was last logged for each automation, so a run that keeps waiting isn't logged
+    /// every minute.
+    private var logged: [UUID: String] = [:]
+
+    func tick(now: Date = Date()) {
         let state = ProjectAutomations.loadState()
-        for automation in ProjectAutomations.load() where ProjectAutomations.isDue(automation, state: state[automation.id.uuidString]) {
-            do { _ = try run(automation, manual: false) }
-            catch { RuntimeHooks.note("Automation \u{201C}\(automation.title)\u{201D} didn't run: \(error.localizedDescription)") }
+        for automation in ProjectAutomations.load() where ProjectAutomations.isDue(automation, state: state[automation.id.uuidString], now: now) {
+            do { _ = try run(automation, manual: false); logged[automation.id] = nil }
+            catch let missing as AutomationTargetMissing {
+                // Its project or session is gone: skip this time (once, not every minute, which
+                // logged ~14,000 lines on 2026-11-20) and try again at the next scheduled time.
+                var all = ProjectAutomations.loadState()
+                var day = all[automation.id.uuidString] ?? AutomationRunState()
+                day.skippedAt = now
+                day.problem = missing.message
+                all[automation.id.uuidString] = day
+                try? ProjectAutomations.saveState(all)
+                RuntimeHooks.note("Automation \u{201C}\(automation.title)\u{201D} skipped: \(missing.message) It will try again at its next time.")
+            } catch {
+                let message = error.localizedDescription
+                if logged[automation.id] != message {
+                    logged[automation.id] = message
+                    RuntimeHooks.note("Automation \u{201C}\(automation.title)\u{201D} is waiting: \(message)")
+                }
+            }
         }
     }
 
@@ -41,10 +61,14 @@ import Foundation
                 throw RuntimeFailure("Its last run is still going.")
             }
         }
-        let project = try reportSession(for: automation)
+        let project: ChatSession
+        do { project = try reportSession(for: automation) }
+        catch { throw AutomationTargetMissing(message: error.localizedDescription) }
         let quest = try startRun(automation, project, manual)
         state.lastRun = Date()
         state.threadID = quest.id
+        state.problem = nil
+        state.skippedAt = nil
         all[automation.id.uuidString] = state
         try ProjectAutomations.saveState(all)
         RuntimeHooks.note("Ran automation \u{201C}\(automation.title)\u{201D}")
@@ -87,4 +111,10 @@ import Foundation
         return try model.runtime.insert(record)
     }
 
+}
+
+/// A run couldn't start because its project chat or reporting session is gone or unusable.
+struct AutomationTargetMissing: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }

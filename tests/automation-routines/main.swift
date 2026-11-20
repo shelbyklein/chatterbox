@@ -334,6 +334,26 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     do { _ = try runner.run(general[6], manual: false); throw RuntimeFailure("parallel weekday accepted") }
     catch { try check(error.localizedDescription.contains("still going"), "another weekday cannot overlap an active general run") }
     runtime.session(generalRun)?.isRunning = false
+    // A routine whose project chat is gone: skipped once and recorded, not retried every minute.
+    let keptRoutines = try Data(contentsOf: ProjectAutomations.configFile)
+    var orphan = ProjectAutomation(projectFolder: "/tmp/chatterbox-closed-project-\(UUID().uuidString)", title: "Orphan",
+                                   template: .custom, instructions: "Check")
+    orphan.createdAt = Date().addingTimeInterval(-8 * 86_400)
+    try ProjectAutomations.save([orphan])
+    let orphanStarted = started.count
+    do { _ = try runner.run(orphan, manual: false); throw RuntimeFailure("missing project accepted") }
+    catch { try check(error is AutomationTargetMissing, "a closed project is reported as a missing target") }
+    try check(ProjectAutomations.isDue(orphan, state: ProjectAutomations.loadState()[orphan.id.uuidString]), "it is due before the skip")
+    runner.tick()
+    let skippedState = ProjectAutomations.loadState()[orphan.id.uuidString]
+    try check(started.count == orphanStarted && skippedState?.skippedAt != nil && skippedState?.problem?.contains("isn't open") == true,
+              "the skip is recorded with its reason")
+    try check(!ProjectAutomations.isDue(orphan, state: skippedState), "a skipped run isn't due again until its next time")
+    let nextWeek = Date().addingTimeInterval(7 * 86_400 + 60)
+    try check(ProjectAutomations.isDue(orphan, state: skippedState, now: nextWeek), "it tries again at its next scheduled time")
+    runner.tick()
+    try check(ProjectAutomations.loadState()[orphan.id.uuidString]?.skippedAt == skippedState?.skippedAt, "a second tick doesn't skip again")
+    try keptRoutines.write(to: ProjectAutomations.configFile, options: .atomic)
     let generalDesk = call("POST", "/v1/desk/check-sources")
     try check(generalDesk.status == 200 && started.last!.automation.projectFolder == nil
               && started.last!.automation.instructions.contains(morningText), "Desk source check runs the general routine without a development project")
