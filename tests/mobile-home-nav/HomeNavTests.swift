@@ -359,6 +359,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["chat-" + uuid("SDHQ")].waitForExistence(timeout:15))
   // Starts from list mode: an earlier run on this simulator may have left cards on.
   app.buttons["Connection"].tap()
+  XCTAssertTrue(app.buttons["menu-feedback"].waitForExistence(timeout:3), "Feedback is in the ••• menu too (the open Duo's bar can leave it out)")
   if app.buttons["Show as List"].waitForExistence(timeout:2) { app.buttons["Show as List"].tap() }
   else { app.buttons["Show as Cards"].tap(); try await Task.sleep(for: .seconds(1)); app.buttons["Connection"].tap(); app.buttons["Show as List"].tap() }
   try await Task.sleep(for: .seconds(1))
