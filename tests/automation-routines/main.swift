@@ -45,7 +45,16 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
         return a
     }
     let morning = (1...7).map { automation("ClickUp + Outlook morning priorities", morningText, weekday: $0, hour: 8, minute: 30, model: "gpt-5.5", effort: "high") }
+    AppPreferences.defaults.removeObject(forKey: ProjectAutomations.deskSourceKey)
     try check(try ProjectAutomations.deskSourceRoutine(in: morning).count == 7, "Desk source check selects the explicit routine across weekdays")
+    // Renamed (as "USAA Updates" on 2026-11-19): still found, by the routine it remembered.
+    let renamed = morning.map { var day = $0; day.title = "USAA Updates"; return day }
+    try check(try ProjectAutomations.deskSourceRoutine(in: renamed).first?.id == morning[0].id, "a renamed source routine is still the Desk's")
+    // Never remembered and renamed: found by what it reads (ClickUp and Outlook).
+    AppPreferences.defaults.removeObject(forKey: ProjectAutomations.deskSourceKey)
+    try check(try ProjectAutomations.deskSourceRoutine(in: renamed).count == 7 || !(morningText.contains("ClickUp") && morningText.contains("Outlook")),
+              "a renamed routine that reads ClickUp and Outlook is found by what it does")
+    AppPreferences.defaults.removeObject(forKey: ProjectAutomations.deskSourceKey)
     do { _ = try ProjectAutomations.deskSourceRoutine(in: []); throw RuntimeFailure("missing source routine accepted") }
     catch let error as NSError { try check(error.domain == "DeskSources", "missing source routine reports setup needed") }
     let runMessage = ProjectAutomations.message(for: morning[0], manual: false)
@@ -59,6 +68,7 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let other = automation("ClickUp + Outlook morning priorities", "Only Outlook.", weekday: 3, hour: 8, minute: 30, model: "gpt-5.5", effort: "high")
     let paused = automation("Broken links", "Crawl for broken links.", weekday: 6, hour: 16, folder: goneFolder, backend: nil, enabled: false)
     // In the file, the days of a routine needn't sit together.
+    AppPreferences.defaults.removeObject(forKey: ProjectAutomations.deskSourceKey)
     do { _ = try ProjectAutomations.deskSourceRoutine(in: morning + [other]); throw RuntimeFailure("ambiguous source routines accepted") }
     catch let error as NSError { try check(error.domain == "DeskSources", "ambiguous source routines cannot start unrelated work") }
     try ProjectAutomations.save(Array(morning[0..<3]) + [weekly] + Array(morning[3...]) + [other, paused])
