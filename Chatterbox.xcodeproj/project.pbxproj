@@ -209,6 +209,7 @@
 		9C54FDAC108989E71F2445CB /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
 		9DF7EBF422F384BBAE453053 /* CompanionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7512E0CF8399135EBA039ADD /* CompanionSettingsView.swift */; };
 		9ED58E7DD7E344630B0255D3 /* SidequestViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B655CB0300FF39415543F26 /* SidequestViews.swift */; };
+		9F48E4FCE4F68EC2D5BF67CB /* MobileRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F870DC2E8E6B8DC7328004F /* MobileRail.swift */; };
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A2CF3A4ECA3016DE2E5734D2 /* Changelog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5768EE0C60193EDBD4709097 /* Changelog.swift */; };
@@ -351,10 +352,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -373,10 +374,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -515,6 +516,7 @@
 		975B4C8301A9C31E898E446F /* ChatListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatListView.swift; sourceTree = "<group>"; };
 		9C4CA0CF0AC2654218DD2FE2 /* ChatSwitchTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSwitchTransition.swift; sourceTree = "<group>"; };
 		9F0AFE1BA90D359718CB671D /* MobileNewReplies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileNewReplies.swift; sourceTree = "<group>"; };
+		9F870DC2E8E6B8DC7328004F /* MobileRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileRail.swift; sourceTree = "<group>"; };
 		9FD98C94B6B0110116CCF659 /* NextSteps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextSteps.swift; sourceTree = "<group>"; };
 		A09288A3CF85309BDD4A2156 /* MobileWidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileWidgetSync.swift; sourceTree = "<group>"; };
 		A125487FAFCF644CD583045D /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
@@ -736,6 +738,7 @@
 				DDDD1A808C8E02B195BEAB09 /* MobilePDFViewer.swift */,
 				D6355B8F4A31DEFDB359A6F1 /* MobilePressure.swift */,
 				406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */,
+				9F870DC2E8E6B8DC7328004F /* MobileRail.swift */,
 				8367DD0495A8C4F6033D6D20 /* MobileReviewView.swift */,
 				1358FF8D7EC801AC99C84139 /* MobileSidequests.swift */,
 				667AC120BEF5177C4AB1C659 /* MobileStore.swift */,
@@ -1390,6 +1393,7 @@
 				6DA818645AA618460684665B /* MobilePDFViewer.swift in Sources */,
 				DCC0C72E301398D351C55323 /* MobilePressure.swift in Sources */,
 				22DD258AFC5A17209F364B57 /* MobilePushNotifications.swift in Sources */,
+				9F48E4FCE4F68EC2D5BF67CB /* MobileRail.swift in Sources */,
 				E35FCB708846090328BF61D2 /* MobileReviewView.swift in Sources */,
 				7904D08F33166A1CD2A1A29F /* MobileSidequests.swift in Sources */,
 				240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */,

@@ -67,8 +67,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertLessThan(sidebar.frame.maxX-search.frame.maxX,36,"search should fill its pane, without a second camera/rail inset")
   capture("duo-sidebar-content-insets",app)
  }
- /// The open Duo with no session open: the empty right column still has the page's ••• and
- /// Feedback (iOS shows that column's buttons down the side rail), not an empty rail.
+ /// The open Duo: the rail under the clock has the page's ••• and Feedback with no session
+ /// open (MobileRail.swift), not an empty strip.
  @MainActor func testOpenScreenPlaceholderHasButtons() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
@@ -79,9 +79,8 @@ final class HomeNavTests: XCTestCase {
   if min(app.windows.firstMatch.frame.width, app.windows.firstMatch.frame.height) < 600 { XCUIDevice.shared.orientation = .landscapeLeft }
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   guard app.staticTexts["Choose a Session"].waitForExistence(timeout:10) else { throw XCTSkip("no two-column layout on this device") }
-  let menu = app.buttons["placeholder-menu"]
-  XCTAssertTrue(menu.waitForExistence(timeout:5), "the empty column has the page's ••• menu")
-  XCTAssertGreaterThanOrEqual(app.buttons.matching(identifier:"Feedback").count + app.buttons.matching(NSPredicate(format:"label == %@","Feedback")).count, 1)
+  let menu = app.buttons["rail-menu"]
+  XCTAssertTrue(menu.waitForExistence(timeout:5), "the rail has the page's ••• menu")
   capture("open-placeholder-buttons",app)
   menu.tap()
   XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["menu-feedback"].exists, "it's the same menu")
@@ -127,6 +126,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15));tab("Projects",app).tap()
   let project=app.buttons["chat-"+uuid("SDHQ")]
   XCTAssertTrue(project.waitForExistence(timeout:10));project.tap()
+  XCTAssertFalse(app.descendants(matching:.any)["open-rail"].exists, "closed, iOS's own rail has the buttons: no second column")
   XCTAssertTrue(app.staticTexts["Hi! This is SDHQ."].waitForExistence(timeout:10))
   XCTAssertFalse(app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch.exists)
   capture("closed-phone-conversation",app)

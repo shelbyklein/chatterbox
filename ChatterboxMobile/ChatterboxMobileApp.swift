@@ -164,6 +164,7 @@ struct ChatterboxTabs: View {
     var body: some View {
         TabView(selection: Binding(get: { selectedTab }, set: { tab = $0 })) {
             MobileDeskView()
+                .environment(\.railTab, Self.desk)
                 .tabItem { Label("Desk", systemImage: "lamp.desk") }
                 .badge(store.latestDesk.map(MobileDeskView.waiting) ?? 0)
                 .tag(Self.desk)
@@ -176,11 +177,14 @@ struct ChatterboxTabs: View {
                         ChatListView(fixedPage: page, isSelected: selectedTab == page.rawValue)
                     }
                 }
+                .environment(\.railTab, page.rawValue)
                 .tabItem { Label(page.title, systemImage: page.icon) }
                 .badge(waiting(on: page))
                 .tag(page.rawValue)
             }
         }
+        // The open Duo's rail: Back, Session Settings, ⋯ and Feedback under the clock (MobileRail.swift).
+        .overlay { MobileRailColumn(tab: selectedTab) }
         // What changed, once after an update brings new lines (Shared/Changelog.swift).
         .whatsNewNote()
         // Feedback: the screenshot in Mark Up, then into the Chatterbox session's message box.
