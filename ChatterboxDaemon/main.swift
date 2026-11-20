@@ -28,6 +28,13 @@ Task { @MainActor in
         let pressure=PressureMonitor(runtime:runtime);PressureMonitor.shared=pressure
         pressure.onChange={snapshot in runtime.publishUIRequest("pressure.changed",payload:(try? JSON.value(snapshot)) ?? .null)}
         pressure.start()
+        // A provider's limit at 50%, 20% or 5% left: the phone gets a push, the Mac app a
+        // notification (Usage.swift; once per level per window).
+        UsageLimits.shared.onWarning={warning in
+            RuntimeHooks.note("Usage warning: \(warning.title). \(warning.body)")
+            MobilePush.shared.post(title:warning.title,body:warning.body,chat:nil,kind:"usage")
+            runtime.publishUIRequest("usage.warning",payload:["title":.string(warning.title),"body":.string(warning.body)])
+        }
         NotificationCenter.default.addObserver(forName:Notification.Name("ChatterboxRuntimeOpenPin"),object:nil,queue:.main){note in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }
