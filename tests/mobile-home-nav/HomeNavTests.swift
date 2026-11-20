@@ -2459,8 +2459,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(made?["newFolderName"] as? String,"Kite Shop", "a new subfolder named like the chat")
  }
  /// Comments on a PDF, as with the Mac's Image Review: from the page being read, tap a spot and
- /// drag a box, with a note for each, on two pages. Add to Message puts the feedback in the
- /// message box with a marked-up copy of each marked page; comments on the photo then follow it.
+ /// drag a box, with a note for each, on two pages. Send sends the feedback to the session at
+ /// once, with a marked-up copy of each marked page; comments on the photo go as their own message.
  @MainActor func testPDFComments() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
@@ -2517,19 +2517,23 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(field("reviewNote-1",app).value as? String, "Make the title bigger", "page 2's notes are kept")
   let overall = field("reviewOverallNote",app)
   overall.tap(); overall.typeText("Otherwise ready to print.")
-  app.buttons["Add to Message"].tap()
+  // Send sends it: the feedback goes to the session, not into the message box.
+  app.buttons["reviewSend"].tap()
   XCTAssertTrue(composer.waitForExistence(timeout:10))
-  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 2 image"].waitForExistence(timeout:10), "page 2, marked up, waits to be sent")
-  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 3 image"].exists, "and page 3")
-  let text = composer.value as? String ?? ""
+  let magnets = uuid("PlayCase Magnets").lowercased()
+  func sentTexts() async throws -> [String] { ((try await fixture("sent",method:"GET") as? [String:Any])?[magnets] as? [String]) ?? [] }
+  var waited = 0
+  while try await sentTexts().isEmpty && waited < 20 { try await Task.sleep(for:.milliseconds(500)); waited += 1 }
+  let text = try await sentTexts().first ?? ""
+  XCTAssertFalse(app.buttons["Remove Marked up Magnet proof page 2 image"].exists, "the marked-up pages went with it, not left waiting")
   XCTAssertTrue(text.hasPrefix("Feedback on Magnet proof.pdf. Marked-up copies of pages 2, 3 are attached"), text)
   for line in ["Page 2:", "1. spot at top left", ": Make the title bigger", "2. area at center", ": Swap in the new photo",
                "Page 3:", "1. spot at bottom right", ": Add the price here", "Overall: Otherwise ready to print."] {
    XCTAssertTrue(text.contains(line), "missing \(line) in \(text)")
   }
   XCTAssertFalse(text.contains("bigger\n\n") || text.contains("photo\n\n2."), "Return ends a note without a line break in it")
-  capture("pdf-review-composer",app)
-  // Comments on the photo go after what's already in the box.
+  capture("pdf-review-sent",app)
+  // Comments on the photo are a message of their own.
   let photo = app.descendants(matching:.any)["chat-image-"+uuid("magnet-photo").lowercased()]
   XCTAssertTrue(photo.waitForExistence(timeout:10)); photo.tap()
   XCTAssertTrue(app.buttons["Comment"].waitForExistence(timeout:5)); app.buttons["Comment"].tap()
@@ -2537,11 +2541,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(picture.waitForExistence(timeout:5))
   picture.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
   XCTAssertTrue(field("reviewNote-1",app).waitForExistence(timeout:5)); field("reviewNote-1",app).typeText("Use this photo\n")
-  app.buttons["Add to Message"].tap()
-  XCTAssertTrue(app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10))
-  let both = composer.value as? String ?? ""
-  XCTAssertTrue(both.hasPrefix(text + "\n\nFeedback on magnet-photo.png. The attached image is annotated."), both)
-  XCTAssertTrue(app.buttons["Remove Marked up Magnet proof page 2 image"].exists, "the pages' copies are still there")
+  app.buttons["reviewSend"].tap()
+  waited = 0
+  while try await sentTexts().count < 2 && waited < 20 { try await Task.sleep(for:.milliseconds(500)); waited += 1 }
+  let photoFeedback = try await sentTexts().last ?? ""
+  XCTAssertTrue(photoFeedback.hasPrefix("Feedback on magnet-photo.png. The attached image is annotated."), photoFeedback)
+  XCTAssertFalse((composer.value as? String ?? "").contains("Feedback on"), "nothing left waiting in the box")
  }
  /// Side by side (a phone on its side, the open Duo), the notes panel can be put away so the
  /// page takes the whole width; placing a note brings it back, ready to type.
@@ -2609,12 +2614,17 @@ final class HomeNavTests: XCTestCase {
   let overall = field("reviewOverallNote",app)
   overall.tap(); overall.typeText("Brighter background")
   capture("image-review",app)
-  app.buttons["Add to Message"].tap()
-  XCTAssertTrue(app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10), "the marked-up copy waits to be sent")
-  let text = field("messageComposer",app).value as? String ?? ""
+  app.buttons["reviewSend"].tap()
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10))
+  let magnets = uuid("PlayCase Magnets").lowercased()
+  var text = ""
+  for _ in 0..<20 where text.isEmpty {
+   text = (((try await fixture("sent",method:"GET") as? [String:Any])?[magnets] as? [String]) ?? []).first ?? ""
+   if text.isEmpty { try await Task.sleep(for:.milliseconds(500)) }
+  }
   XCTAssertTrue(text.hasPrefix("Feedback on magnet-photo.png. The attached image is annotated."), text)
   XCTAssertTrue(text.contains("1. spot at center") && text.contains(": Make the magnet red") && text.contains("Overall: Brighter background"), text)
-  capture("image-review-composer",app)
+  capture("image-review-sent",app)
  }
  // MARK: UX panel tour (design/ux-panel/screens)
 
@@ -2754,8 +2764,7 @@ final class HomeNavTests: XCTestCase {
       let second=field("reviewNote-2",app)
       if second.waitForExistence(timeout:5) { second.typeText("Brighter background here\n") }
       try await uxShot("image-comments", app)
-      app.buttons["Add to Message"].tap()
-      if app.buttons["Remove Marked up magnet-photo image"].waitForExistence(timeout:10) { try await uxShot("composer-attachment", app) }
+      app.buttons["reviewSend"].tap()
      }
     }
    }
