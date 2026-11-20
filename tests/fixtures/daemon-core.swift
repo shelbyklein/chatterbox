@@ -13,6 +13,8 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
     let root=RuntimePaths.data
     UserDefaults.standard.setVolatileDomain([
         "claudePath":ProcessInfo.processInfo.environment["FAKE_PROVIDER"]!,"codexPath":ProcessInfo.processInfo.environment["FAKE_PROVIDER"]!,
+        // Never the real agy (Gemini's lifecycle is test-gemini-agent.sh, with its own fake).
+        "agyPath":root.appendingPathComponent("no-agy").path,
         "easyCLIProxyEnabled":false,"remoteControlClaudeChats":false
     ], forName:UserDefaults.argumentDomain)
     var runtime:ConversationRuntime?=try ConversationRuntime(root:root)
@@ -46,7 +48,8 @@ func check(_ condition: @autoclosure () -> Bool, _ message:String) throws {
         try check(saved.claudeModeID == "bypassPermissions" && saved.codex?.modeID == "fullAccess","\(backend) Studio permission defaults durable")
     }
     }
-    for backend in Backend.allCases {
+    // Claude's own process and Codex's shared app-server; Gemini's is covered by test-gemini-agent.sh.
+    for backend in [Backend.claude, .codex] {
         var r=ConversationRecord(model:"default",effort:"",personality:.neutral)
         r.activeBackend=backend
         r.projectFolder=root.path

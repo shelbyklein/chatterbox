@@ -134,6 +134,28 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(requests().contains { $0["method"]?.string == "session/resume" && $0["params"]?["sessionId"]?.string == session }, "it resumes the same session")
     try check(chat.record.gemini?.sessionId == session && !chat.items.contains { $0.text.contains("REPLAYED") }, "same session, nothing replayed into the chat")
 
+    // An idle process is released; the next message's new process resumes the same session.
+    let runtime = try ConversationRuntime(root: root.appendingPathComponent("runtime-\(UUID().uuidString.prefix(6))"))
+    var idleRecord = ConversationRecord(title: "Idle", model: "opus", effort: "", personality: .neutral)
+    idleRecord.projectFolder = folder.path
+    idleRecord.activeBackend = .gemini
+    idleRecord.gemini = GeminiSettings(mode: "auto")
+    let idle = try runtime.insert(idleRecord)
+    idle.send("Say hello")
+    try await wait("the idle chat's reply") { !idle.isRunning && idle.items.contains { $0.kind == .assistant } }
+    let idleSession = idle.record.gemini?.sessionId
+    let start = Date()
+    runtime.releaseIdleAgents(now: start)
+    runtime.releaseIdleAgents(now: start.addingTimeInterval(60))
+    try check(idle.geminiProcess != nil, "a warm Gemini process is kept before the idle timeout")
+    runtime.releaseIdleAgents(now: start.addingTimeInterval(400))
+    try check(idle.geminiProcess == nil && idle.record.gemini?.sessionId == idleSession, "an idle Gemini process is released, its session kept")
+    idle.send("Say hello again")
+    try await wait("the reply after idle release") { !idle.isRunning && idle.items.filter { $0.kind == .assistant }.count == 2 }
+    try check(requests().filter { $0["method"]?.string == "session/resume" && $0["params"]?["sessionId"]?.string == idleSession }.count == 1,
+              "the next message resumes the same session in a new process")
+    idle.shutdown()
+
     // A session agy no longer has: a new one, caught up on the chat.
     chat.record.gemini?.sessionId = "gone"
     await chat.restartThread()
