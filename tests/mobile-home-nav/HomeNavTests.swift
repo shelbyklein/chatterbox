@@ -506,7 +506,8 @@ final class HomeNavTests: XCTestCase {
   capture("model-preview",app)
   // The session's Brief, from About (its Notes).
   openAbout(app)
-  XCTAssertTrue(app.buttons["about-brief"].waitForExistence(timeout:5));XCTAssertEqual(app.buttons["about-brief"].label,"Brief, not set")
+  XCTAssertTrue(app.buttons["about-brief"].waitForExistence(timeout:5));XCTAssertEqual(app.buttons["about-brief"].label,"Note, not set")
+  XCTAssertTrue(app.buttons["about-studio-instructions"].exists, "a Studio session links to its Studio's instructions")
   app.buttons["about-brief"].tap()
   let briefText=app.textViews["brief-text"]
   XCTAssertTrue(briefText.waitForExistence(timeout:5));briefText.tap();briefText.typeText("Keep the crystal facets sharp.")
@@ -515,7 +516,7 @@ final class HomeNavTests: XCTestCase {
   let briefs=try await fixture("briefs",method:"GET") as? [String:String]
   XCTAssertEqual(briefs?["Crystal concept"],"Keep the crystal facets sharp.","the Brief reaches the Mac")
   openAbout(app)
-  XCTAssertTrue(app.buttons["Brief: Keep the crystal facets sharp."].waitForExistence(timeout:5),"About shows the Brief that was set")
+  XCTAssertTrue(app.buttons["Note: Keep the crystal facets sharp."].waitForExistence(timeout:5),"About shows the Brief that was set")
   app.buttons["about-brief"].tap();app.navigationBars["Session Brief"].buttons["Cancel"].tap()
   app.navigationBars.buttons.element(boundBy:0).tap()
   app.buttons["studios-index"].tap()
