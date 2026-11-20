@@ -428,8 +428,16 @@ final class HomeNavTests: XCTestCase {
   // Session Settings, a top-level button on the session's bar (also in About's Status).
   // Closed: the name on the left, the model on the right, and the sidebar's button where the
   // agent's glyph was.
-  XCTAssertLessThan(app.buttons["chat-title"].frame.midX, modelLine.frame.midX, "the name left of the model")
-  XCTAssertEqual(app.buttons["chat-title"].frame.midY, modelLine.frame.midY, accuracy: 6, "on one line")
+  // A closed Duo (Back sits in iOS's rail, not the bar): the name left, the model's pill right,
+  // on one line. A plain iPhone keeps the name over the model, clear of Back and the buttons.
+  let title=app.buttons["chat-title"]
+  if app.navigationBars.firstMatch.buttons["BackButton"].exists || app.navigationBars.firstMatch.buttons.element(boundBy:0).label.contains("Back") {
+    XCTAssertLessThan(title.frame.midY, modelLine.frame.midY, "a plain iPhone: the name over the model")
+  } else {
+    XCTAssertLessThan(title.frame.midX, modelLine.frame.midX, "the name left of the model")
+    XCTAssertEqual(title.frame.midY, modelLine.frame.midY, accuracy: 6, "on one line")
+  }
+  XCTAssertTrue(modelLine.isHittable && title.isHittable, "neither covered by the bar's buttons")
   XCTAssertFalse(app.buttons["rail-settings"].exists, "no agent glyph button")
   XCTAssertTrue(app.buttons["header-sidebar"].exists, "the sidebar's button instead")
   capture("2-chat-header", app)
@@ -1717,8 +1725,12 @@ final class HomeNavTests: XCTestCase {
   // keyboard away.
   let composerField=field("messageComposer",app)
   if composerField.waitForExistence(timeout:5) { composerField.tap(); XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout:5)) }
+  // From the chat's own right edge, where its bar ends (on a closed Duo the window's edge is
+  // the rail, not the chat).
   let window=app.windows.firstMatch
-  window.coordinate(withNormalizedOffset:CGVector(dx:0.995,dy:0.5)).press(forDuration:0.05, thenDragTo:window.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.5)))
+  let edgeX=app.navigationBars.firstMatch.frame.maxX-6, midY=window.frame.midY
+  let origin=window.coordinate(withNormalizedOffset:.zero)
+  origin.withOffset(CGVector(dx:edgeX, dy:midY)).press(forDuration:0.05, thenDragTo:origin.withOffset(CGVector(dx:edgeX-180, dy:midY)))
   XCTAssertTrue(app.descendants(matching:.any)["aboutPanel"].waitForExistence(timeout:5), "swiping in from the right edge opens the sidebar")
   XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout:3), "opening the sidebar hides the keyboard")
   openAbout(app)
@@ -1729,10 +1741,15 @@ final class HomeNavTests: XCTestCase {
   let order=["notes","outputs","work","tools","place","status"].map { app.descendants(matching:.any)["about-section-"+$0].frame.minY }
   XCTAssertEqual(order, order.sorted(), "sections in Shelby's order: \(order)")
   let panel=app.descendants(matching:.any)["aboutPanel"]
-  for _ in 0..<4 where !app.buttons["about-rename"].exists { panel.swipeUp() }
+  // Scroll inside the drawer (its content runs past the screen, so swipe on the screen, not the element).
+  func scrollDrawer(_ up: Bool) {
+    let x=app.windows.firstMatch.frame.maxX-120, o=app.windows.firstMatch.coordinate(withNormalizedOffset:.zero), h=app.windows.firstMatch.frame.height
+    o.withOffset(CGVector(dx:x, dy:h*(up ? 0.75 : 0.3))).press(forDuration:0.05, thenDragTo:o.withOffset(CGVector(dx:x, dy:h*(up ? 0.3 : 0.75))))
+  }
+  for _ in 0..<4 where !app.buttons["about-archive"].exists { scrollDrawer(true) }
   XCTAssertTrue(app.buttons["about-rename"].exists && app.buttons["about-archive"].exists, "Actions has the session's own actions")
   capture("about-actions-section",app)
-  for _ in 0..<4 { panel.swipeDown() }
+  for _ in 0..<4 { scrollDrawer(false) }
   for section in ["status","place","work","outputs","notes","tools","runs"] {
    XCTAssertTrue(app.descendants(matching:.any)["about-section-"+section].exists, "About shows its "+section+" section")
   }
@@ -1743,12 +1760,10 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.staticTexts["graft, MCP server, on"].exists && app.staticTexts["cinema4d, MCP server, off"].exists, "tools as chips, the off one too")
   XCTAssertTrue(app.descendants(matching:.any)["about-model-row"].exists && app.buttons["model-current"].exists, "the compact model picker")
   capture("phone-about", app)
-  // Dragged down: the whole screen.
-  let handle=app.descendants(matching:.any)["about-handle"]
-  XCTAssertTrue(handle.exists); let before=handle.frame.minY
-  handle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).press(forDuration:0.1, thenDragTo:app.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.98)))
-  try await Task.sleep(for:.seconds(1))
-  XCTAssertGreaterThan(handle.frame.minY, before+80, "dragged, About fills the screen")
+  // A drawer from the right edge, the whole height (Shelby, 2026-11-20; it dropped from the top).
+  let screen=app.windows.firstMatch.frame
+  XCTAssertGreaterThan(panel.frame.minX, screen.minX+20, "it leaves the chat showing on the left")
+  XCTAssertGreaterThan(panel.frame.height, screen.height*0.6, "the whole height, not a drop-down")
   capture("phone-about-full", app)
   // The model row opens the picker's menu.
   app.buttons["model-current"].tap()
