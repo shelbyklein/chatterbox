@@ -437,7 +437,11 @@ final class HomeNavTests: XCTestCase {
   modelRow.tap()
   XCTAssertTrue(modelItem("Sonnet 5",app).waitForExistence(timeout:5) && modelItem("Haiku 5",app).exists && modelItem("Opus 5.5",app).exists, "its menu lists the provider's models")
   capture("phone-model-compact", app)
-  modelItem("Sonnet 5",app).tap()
+  // A menu ignores taps until it has finished opening; tapping the moment the item exists
+  // sometimes landed mid-animation and did nothing (the menu stayed open with Opus still
+  // picked, 2026-11-20). Wait for it to settle, and tap again if that tap was swallowed.
+  try await tapWhenSettled(modelItem("Sonnet 5",app))
+  if !modelItem("Sonnet 5",app).waitForNonExistence(timeout:2) { try await tapWhenSettled(modelItem("Sonnet 5",app)) }
   XCTAssertTrue(modelItem("Sonnet 5",app).waitForNonExistence(timeout:5), "picking one closes the menu")
   app.navigationBars["Session Settings"].buttons["Done"].tap()
   // The strip yields while a chat is open: a left-edge swipe here mustn't switch tabs.
@@ -1921,6 +1925,17 @@ final class HomeNavTests: XCTestCase {
  /// Each new-chat-options query the app made, oldest first.
  func newChatQueries() async throws -> [[String:String]] { try await fixture("new-chat-options",method:"GET") as? [[String:String]] ?? [] }
  /// A model in the model row's menu (its label may carry the detail line after the name).
+ /// Taps once the element has stopped moving (a menu or sheet finished its animation).
+ @MainActor func tapWhenSettled(_ element:XCUIElement) async throws {
+  var last=element.frame
+  for _ in 0..<20 {
+   try await Task.sleep(for:.milliseconds(150))
+   let now=element.frame
+   if now==last && element.isHittable { break }
+   last=now
+  }
+  element.tap()
+ }
  @MainActor func modelItem(_ name:String,_ app:XCUIApplication) -> XCUIElement {
   app.descendants(matching:.any).matching(NSPredicate(format:"(elementType == %d OR elementType == %d OR elementType == %d) AND (label == %@ OR label BEGINSWITH %@)",
    XCUIElement.ElementType.button.rawValue, XCUIElement.ElementType.switch.rawValue, XCUIElement.ElementType.menuItem.rawValue, name, name+",")).firstMatch
