@@ -67,6 +67,25 @@ final class HomeNavTests: XCTestCase {
   XCTAssertLessThan(sidebar.frame.maxX-search.frame.maxX,36,"search should fill its pane, without a second camera/rail inset")
   capture("duo-sidebar-content-insets",app)
  }
+ /// The open Duo with no session open: the empty right column still has the page's ••• and
+ /// Feedback (iOS shows that column's buttons down the side rail), not an empty rail.
+ @MainActor func testOpenScreenPlaceholderHasButtons() async throws {
+  try await fixture("reset")
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launch()
+  defer { XCUIDevice.shared.orientation = .portrait }
+  // An open screen, or a phone on its side: both show the list beside an empty right column.
+  if min(app.windows.firstMatch.frame.width, app.windows.firstMatch.frame.height) < 600 { XCUIDevice.shared.orientation = .landscapeLeft }
+  XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
+  guard app.staticTexts["Choose a Session"].waitForExistence(timeout:10) else { throw XCTSkip("no two-column layout on this device") }
+  let menu = app.buttons["placeholder-menu"]
+  XCTAssertTrue(menu.waitForExistence(timeout:5), "the empty column has the page's ••• menu")
+  XCTAssertGreaterThanOrEqual(app.buttons.matching(identifier:"Feedback").count + app.buttons.matching(NSPredicate(format:"label == %@","Feedback")).count, 1)
+  capture("open-placeholder-buttons",app)
+  menu.tap()
+  XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["menu-feedback"].exists, "it's the same menu")
+ }
  /// A native iPad stand-in for a bent Duo: an asymmetric fold catches a fixed
  /// sidebar width, an equal split, and the old maximum width.
  @MainActor func testBentDuoSidebarFillsLeftScreen() async throws {
