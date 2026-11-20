@@ -415,6 +415,13 @@ final class HomeNavTests: XCTestCase {
   capture("2-sidequest-popover", app)
   app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)).tap()
   XCTAssertTrue(app.buttons["sidequest-open"].waitForNonExistence(timeout: 5))
+  // The model line under the title opens Session Settings too (the name opens About).
+  let modelLine=app.buttons["chat-model-line"]
+  XCTAssertTrue(modelLine.waitForExistence(timeout:5), "the model line is a button of its own")
+  modelLine.tap()
+  XCTAssertTrue(app.navigationBars["Session Settings"].waitForExistence(timeout:5), "tapping the model line opens Session Settings")
+  app.navigationBars["Session Settings"].buttons["Done"].tap()
+  XCTAssertTrue(app.navigationBars["Session Settings"].waitForNonExistence(timeout:5))
   // Session Settings, a top-level button on the session's bar (also in About's Status).
   XCTAssertTrue(app.buttons["rail-settings"].waitForExistence(timeout: 5)); app.buttons["rail-settings"].tap()
   // The provider, then one row with the model in use; its menu lists the models. No favorites or preset tiles.
