@@ -2228,6 +2228,11 @@ final class HomeNavTests: XCTestCase {
   app.buttons["Done"].tap()
   XCTAssertTrue(app.buttons["Remove Feedback image"].waitForExistence(timeout:10), "the Chatterbox session opens with the screenshot in its message box")
   XCTAssertTrue(app.navigationBars.staticTexts["Chatterbox"].exists || app.staticTexts["Chatterbox"].exists, "in the Chatterbox session")
+  // It waits for you: nothing is sent until you press send.
+  try await Task.sleep(for:.seconds(2))
+  XCTAssertTrue(app.buttons["Remove Feedback image"].exists, "still waiting in the box")
+  let sent=try await fixture("sent",method:"GET") as? [String:Any] ?? [:]
+  XCTAssertTrue(sent.isEmpty, "Feedback doesn't send by itself (\(sent))")
   capture("feedback-composer",app)
  }
  /// Usage from the ⋯ menu: each agent's limits and the proxy accounts.
