@@ -54,6 +54,7 @@
 		276EB339DC400FBCFE8D603E /* WideFormStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30C151709A832C444A1409D2 /* WideFormStyle.swift */; };
 		27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */; };
 		28372556AE4BB0A64CDCDE67 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
+		28444AAD7F75DA31B8B92405 /* ChatSession+Gemini.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6F65495C9CB3CCAD3FC366 /* ChatSession+Gemini.swift */; };
 		28DDAF605E19A5C37D331255 /* ModelSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE25E54431D3D93F2248E13 /* ModelSelection.swift */; };
 		28DDC8A2DD7364FFD02158BC /* Pins.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81413A73CF1A4475E1CF397 /* Pins.swift */; };
 		28DEC7A04F7372851A27B9B6 /* ChatImageGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0833CAAE10F69AF9B2DBDB7D /* ChatImageGallery.swift */; };
@@ -64,6 +65,7 @@
 		2CFE90EA6F8CAE80DD9D476D /* StarterPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6240D04D668176B8C39EAF3F /* StarterPrompts.swift */; };
 		2D48AEA40066889EB6AFFD04 /* CompanionRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09D02B8DF46CBC8EC8DA18F /* CompanionRetry.swift */; };
 		2DBC78ADC365F4DE913ECB8E /* DeskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A39058A34823DB61CC260 /* DeskStore.swift */; };
+		2E739BCC285B51B455E63518 /* GeminiACP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626F43262FE809C8EFEDADB0 /* GeminiACP.swift */; };
 		2F1B60297BF6B1E6A6A8BB08 /* ClaudeCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1127DC42D805D6EA8D1FCA /* ClaudeCode.swift */; };
 		2FB71D9AA2A2CA4EB04E316A /* ChatterboxWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E5119B836AA06EC117766A81 /* ChatterboxWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */; };
@@ -214,6 +216,7 @@
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
 		A2CF3A4ECA3016DE2E5734D2 /* Changelog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5768EE0C60193EDBD4709097 /* Changelog.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
+		A3FFA84BD8117163D06EAC53 /* GeminiACP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626F43262FE809C8EFEDADB0 /* GeminiACP.swift */; };
 		A547827BF4E5714D97FD6872 /* ToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B57D508A3ABB0885915F0B1 /* ToolsSettingsView.swift */; };
 		A5BC48149D2F5798A1FCD1F5 /* MacPressureViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBC269E8D4EEE899C1316B5 /* MacPressureViews.swift */; };
 		A5F4E7330D056D0E7F5E14EB /* DeskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093A6E7F6F501DBB039702A3 /* DeskView.swift */; };
@@ -226,6 +229,7 @@
 		AB708721BCC8467087735CED /* ChatColumns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12CB314DEA89B87998298D8B /* ChatColumns.swift */; };
 		ACB41DDBD0BF127A2B797F79 /* NextSteps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FD98C94B6B0110116CCF659 /* NextSteps.swift */; };
 		AD4E846A9844D5618C4530EA /* ConnectorServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1128D953C085340C80B95088 /* ConnectorServer.swift */; };
+		AD9FA6C901B4520785D7AE91 /* ChatSession+Gemini.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6F65495C9CB3CCAD3FC366 /* ChatSession+Gemini.swift */; };
 		AF7DCD2B2BE825817A17BEEF /* ProjectAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AFDC4128FF9AF137703459 /* ProjectAutomations.swift */; };
 		AFC77A37FA9A7CBD63395183 /* ChatControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B29BF52F3D3A9C7118F1AF5 /* ChatControls.swift */; };
 		B03530EEFF378F41B6051282 /* SidequestArchiveAsk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359B0D1B1906F4AA693411D6 /* SidequestArchiveAsk.swift */; };
@@ -352,10 +356,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -374,10 +378,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -471,6 +475,7 @@
 		5FA891062C71DAC451F97FFF /* ChatterboxWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatterboxWidget.swift; sourceTree = "<group>"; };
 		609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionDocuments.swift; sourceTree = "<group>"; };
 		6240D04D668176B8C39EAF3F /* StarterPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarterPrompts.swift; sourceTree = "<group>"; };
+		626F43262FE809C8EFEDADB0 /* GeminiACP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiACP.swift; sourceTree = "<group>"; };
 		62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeServer.swift; sourceTree = "<group>"; };
 		64471F2635F8902B8ABA0F12 /* SessionImageGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionImageGrid.swift; sourceTree = "<group>"; };
 		667AC120BEF5177C4AB1C659 /* MobileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileStore.swift; sourceTree = "<group>"; };
@@ -598,6 +603,7 @@
 		F9B547190B96DC266DABD2B6 /* ThreadTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadTools.swift; sourceTree = "<group>"; };
 		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
 		FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAutomations.swift; sourceTree = "<group>"; };
+		FB6F65495C9CB3CCAD3FC366 /* ChatSession+Gemini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Gemini.swift"; sourceTree = "<group>"; };
 		FD67624B5CA24DEA04249F80 /* AttentionColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttentionColor.swift; sourceTree = "<group>"; };
 		FECF7D36F90592F7130D3626 /* MobileIssueBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileIssueBoard.swift; sourceTree = "<group>"; };
 		FFF0CC86D7009BBBC7D1ABD6 /* ChatPromotionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPromotionSheet.swift; sourceTree = "<group>"; };
@@ -764,6 +770,7 @@
 				C8EB85AF0736434980646DAF /* ChatSession.swift */,
 				30AB9B96E1E8AE89ED5D5AD4 /* ChatSession+Claude.swift */,
 				C08B129E8E0D95F8D6A73710 /* ChatSession+Codex.swift */,
+				FB6F65495C9CB3CCAD3FC366 /* ChatSession+Gemini.swift */,
 				C2C217462B8D4C89A5A7EA27 /* ChatSession+Host.swift */,
 				A498BC502E33561D11D733D5 /* ChatSession+Issues.swift */,
 				82F44446A1C9FE4A09F1B2FF /* ChatSession+PC.swift */,
@@ -789,6 +796,7 @@
 				8F3A39058A34823DB61CC260 /* DeskStore.swift */,
 				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */,
+				626F43262FE809C8EFEDADB0 /* GeminiACP.swift */,
 				AA6AEF5454AAA03F422E2A83 /* GitHub.swift */,
 				B6E27AB1CACAD956FA3953FA /* GitHubIssues.swift */,
 				53DE3A68946E9818C4FA0A43 /* HostClient.swift */,
@@ -1206,6 +1214,7 @@
 				34E187B4E84CA3E7045D7930 /* ChatPromotion.swift in Sources */,
 				677C1381F02D81FD79F34CB5 /* ChatSession+Claude.swift in Sources */,
 				27CCD67483D16BEF45FE4EE5 /* ChatSession+Codex.swift in Sources */,
+				28444AAD7F75DA31B8B92405 /* ChatSession+Gemini.swift in Sources */,
 				E1C44E3596764381659F6798 /* ChatSession+Host.swift in Sources */,
 				CD177B0129A911BCBAFC510C /* ChatSession+Issues.swift in Sources */,
 				C2062E2BD580A322486C6A14 /* ChatSession+Media.swift in Sources */,
@@ -1251,6 +1260,7 @@
 				CAA043E61CFFAEBAA59152B1 /* EasyCLIProxy.swift in Sources */,
 				29FD428DBD6B91C5C6CDFB27 /* FilePaths.swift in Sources */,
 				623CF2DDA6344351CF403A8A /* Flavor.swift in Sources */,
+				A3FFA84BD8117163D06EAC53 /* GeminiACP.swift in Sources */,
 				DC51D10E5DF21CACCBB580FC /* GitHub.swift in Sources */,
 				B0D3B88622199B555C471C0D /* GitHubIssues.swift in Sources */,
 				70E0577C44E42D83B1414BD9 /* HTMLPreview.swift in Sources */,
@@ -1428,6 +1438,7 @@
 				546986B117BCCF07EBC7DC43 /* ChatPromotion.swift in Sources */,
 				4005AC8EBB1D653AFBFF631B /* ChatSession+Claude.swift in Sources */,
 				F72814D3C4221D8CED891093 /* ChatSession+Codex.swift in Sources */,
+				AD9FA6C901B4520785D7AE91 /* ChatSession+Gemini.swift in Sources */,
 				D2C92DDDCB9AEB5902ED8E12 /* ChatSession+Host.swift in Sources */,
 				56CD3F58F9EE442FB5D6E327 /* ChatSession+Issues.swift in Sources */,
 				AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */,
@@ -1460,6 +1471,7 @@
 				BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */,
 				326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */,
 				9C54FDAC108989E71F2445CB /* Flavor.swift in Sources */,
+				2E739BCC285B51B455E63518 /* GeminiACP.swift in Sources */,
 				3453C4E8264324D032F40A73 /* GitHub.swift in Sources */,
 				EDA06FE1F8A03C54C284197A /* GitHubIssues.swift in Sources */,
 				931CA2B4D3D160CDFB1605D8 /* HTTPFileTransfer.swift in Sources */,

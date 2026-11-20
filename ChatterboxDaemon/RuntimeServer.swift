@@ -400,7 +400,8 @@ import CoreFoundation
             let parent=try chat(r.body)
             // An agent may start one only from a chat that's mid-reply (its own).
             guard role=="ui" || (role=="agent" && parent.isRunning && !parent.isSidequest) else{throw RuntimeFailure("permission_denied")}
-            return .string(try DaemonContext(runtime).newSidequest(of:parent,task:task).id.uuidString)
+            let agent=r.body["agent"]?.string.flatMap(Backend.init(rawValue:))
+            return .string(try DaemonContext(runtime).newSidequest(of:parent,task:task,backend:agent).id.uuidString)
         case "tell":
             // One session's agent hands another information (bin/tell). An agent sends only from
             // its own chat while it's mid-reply; the receiving agent hears a <session_message>.
@@ -425,6 +426,8 @@ import CoreFoundation
             if let x=body["codexModel"]{s.setCodexModel(x.string)}
             if let x=body["codexEffort"]{s.setCodexEffort(x.string)}
             if let x=body["codexFolder"]?.string{s.setCodexFolder(x)}
+            if let x=body["geminiModel"]?.string{s.setGeminiModel(x)}
+            if let x=body["geminiEffort"]?.string{s.setGeminiEffort(x)}
             if let x=body["fastMode"]?.bool{s.setFastMode(x)}
             if let x=body["runOn"]{s.setRunOn(x.string)}
             if let x=body["openModel"]{s.setOpenModel(x.string)}

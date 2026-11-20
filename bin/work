@@ -2,7 +2,7 @@
 """Work threads: fresh Chatterbox threads that do one piece of work for this session (the front
 thread) and report back to it (plans/work-threads.md).
 
-  work start "TITLE" --brief TEXT [--agent claude|codex] [--model M]
+  work start "TITLE" --brief TEXT [--agent claude|codex|gemini] [--model M]
                     a work thread in this session's folder, started with the brief as its first
                     message (it gets the brief, not this conversation), on this session's agent
                     and model unless you choose; its task goes on the Desk. Prints its id.
@@ -167,7 +167,7 @@ def main():
     start = commands.add_parser("start", parents=[common], help="start a work thread from this session")
     start.add_argument("title")
     start.add_argument("--brief", required=True, help="what to do, what's decided, which files to read (- reads stdin)")
-    start.add_argument("--agent", choices=["claude", "codex"])
+    start.add_argument("--agent", choices=["claude", "codex", "gemini"])
     start.add_argument("--model")
     commands.add_parser("list", parents=[common], help="this session's work threads")
     report = commands.add_parser("report", parents=[common], help="from a work thread: send a result to its front thread")

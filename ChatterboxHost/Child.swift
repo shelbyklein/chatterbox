@@ -16,7 +16,7 @@ final class Child {
     }
 
     let id: String
-    /// "claude" or "codex": lets the host tell when the agent is busy or waiting on you.
+    /// "claude", "codex" or "gemini": lets the host tell when the agent is busy or waiting on you.
     let kind: String?
     private let queue: DispatchQueue
     private let logURL: URL
@@ -50,6 +50,8 @@ final class Child {
     private(set) var claudeBusy = false
     /// Codex: turns in progress, by thread.
     private(set) var codexTurns: Set<String> = []
+    /// Gemini (agy acp): `session/prompt` requests not answered yet, by JSON-RPC id.
+    private(set) var geminiPrompts: Set<String> = []
     /// When the child last became idle with no one attached, for closing it later.
     var detachedIdleSince: Date?
     var stdinClosed: Bool { stdinFD < 0 }
@@ -59,7 +61,7 @@ final class Child {
     var onExit: (() -> Void)?
 
     var isRunning: Bool { status == nil }
-    var isBusy: Bool { claudeBusy || !codexTurns.isEmpty }
+    var isBusy: Bool { claudeBusy || !codexTurns.isEmpty || !geminiPrompts.isEmpty }
 
     init(id: String, kind: String?, queue: DispatchQueue, directory: URL) {
         self.id = id
@@ -175,6 +177,8 @@ final class Child {
     func write(_ data: Data) {
         guard isRunning, let stdin else { return }
         if kind == "claude", (try? JSON.parse(data))?["type"]?.string == "user" { claudeBusy = true }
+        if kind == "gemini", data.range(of: Data("session/prompt".utf8)) != nil, let message = try? JSON.parse(data),
+           message["method"]?.string == "session/prompt", let id = message["id"] { geminiPrompts.insert(Child.rpcID(id)) }
         var line = data
         line.append(0x0A)
         stdin.write(line)
@@ -269,6 +273,9 @@ final class Child {
         stderrTail = Array((stderrTail + text.split(separator: "\n").map(String.init)).suffix(20))
     }
 
+    /// A JSON-RPC id as text, whether it was sent as a number or a string.
+    static func rpcID(_ id: JSON) -> String { id.string ?? id.int.map(String.init) ?? "\(id)" }
+
     /// Keeps track of whether the agent is working, and reports requests that wait on you.
     private func inspect(_ line: Data) {
         switch kind {
@@ -279,6 +286,14 @@ final class Child {
             if line.range(of: Data("can_use_tool".utf8)) != nil, let message = try? JSON.parse(line),
                message["type"]?.string == "control_request", message["request"]?["subtype"]?.string == "can_use_tool" {
                 onWaitingForUser?(Child.claudeRequestSummary(message["request"] ?? .null))
+            }
+        case "gemini":
+            guard let message = try? JSON.parse(line) else { return }
+            if message["method"] == nil, let id = message["id"] {
+                geminiPrompts.remove(Child.rpcID(id))
+            } else if message["method"]?.string == "session/request_permission" {
+                let title = message["params"]?["toolCall"]?["title"]?.string
+                onWaitingForUser?("Gemini wants to " + (title.map { "use \($0)" } ?? "use a tool"))
             }
         case "codex":
             guard line.range(of: Data("\"method\"".utf8)) != nil, let message = try? JSON.parse(line),

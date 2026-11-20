@@ -68,10 +68,10 @@ typealias AppModel=DaemonContext
     }
 
     /// A sidequest from `parent` to the other agent, built as the app builds them.
-    func newSidequest(of parent:ChatSession,task:String) throws ->ChatSession {
+    func newSidequest(of parent:ChatSession,task:String,backend:Backend?=nil) throws ->ChatSession {
         let anchor=parent.record.sidechatOf.flatMap{id in sessions.first{$0.id==id}} ?? parent
         let number=sessions.filter{$0.record.sidechatOf==anchor.id}.count+1
-        let quest=try runtime.insert(ChatSession.sidequestRecord(of:parent,anchor:anchor,number:number,backend:parent.record.backend == .claude ? .codex : .claude,task:task))
+        let quest=try runtime.insert(ChatSession.sidequestRecord(of:parent,anchor:anchor,number:number,backend:backend ?? parent.record.backend.other,task:task))
         quest.beginSidequest(from:parent)
         return quest
     }

@@ -1,5 +1,6 @@
 #!/usr/bin/python3 -I
-"""Send a task from this Chatterbox chat to the other agent (Claude <-> Codex) as a sidequest.
+"""Send a task from this Chatterbox chat to another agent as a sidequest (by default Claude <->
+Codex, and Gemini -> Claude; --agent claude|codex|gemini picks one).
 
   sidequest "TASK"              from the chat you're working in (found by $CHATTERBOX_CHAT_ID,
                                 or else the chat working right now in this folder)
@@ -108,6 +109,8 @@ def main():
     if errand:
         parser.add_argument("--file", action="append", default=[], help="a file on this Mac to send along")
         parser.add_argument("--agent", choices=["claude", "codex"], help="the agent on the PC (default: this chat's)")
+    else:
+        parser.add_argument("--agent", choices=["claude", "codex", "gemini"], help="the agent to send it to (default: the other one)")
     args = parser.parse_args()
     task = " ".join(args.task).strip()
     if not task:
@@ -126,7 +129,10 @@ def main():
         quest = service.request("pcErrand", body)
         print(f"Sent errand {quest} to Shelby-PC. Its answer (and any files, copied here) comes back to this chat when it's done.")
         return
-    quest = service.request("sidequest", {"chatID": chat, "task": task})
+    body = {"chatID": chat, "task": task}
+    if args.agent:
+        body["agent"] = args.agent
+    quest = service.request("sidequest", body)
     print(f"Started sidequest {quest}. Its answer comes back to this chat as a new message when it's done.")
 
 

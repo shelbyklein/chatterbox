@@ -1,7 +1,7 @@
 # Tests for files that scripts/tests-for.sh can't link to a test by itself: files a test reaches
 # through something built (the host app, the whole Mac app) or sources by a path it builds.
 # One rule a line: a path, folder/ or glob, then the test scripts that cover it.
-ChatterboxHost/                 test-host-handoff.sh test-host-upgrade.sh test-thread-restart.sh
+ChatterboxHost/                 test-host-handoff.sh test-host-upgrade.sh test-thread-restart.sh test-gemini-agent.sh
 scripts/lib/test-hygiene.sh     test-hygiene-simulators.sh test-build-lock.sh
 scripts/lib/build-lock.sh       test-build-lock.sh test-hygiene-simulators.sh
 scripts/lib/safe-stop.sh        test-host-handoff.sh
@@ -60,3 +60,7 @@ ChatterboxMobile/ChatDetailView.swift test-mobile-images.sh
 ChatterboxMobile/ChatDetailView.swift test-mobile-scroll.sh
 ChatterboxMobile/MobileStore.swift test-mobile-images.sh
 ChatterboxMobile/MobileStore.swift test-mobile-idempotency.sh
+Chatterbox/Engine/ChatSession+Gemini.swift test-gemini-agent.sh
+Chatterbox/Engine/GeminiACP.swift test-gemini-agent.sh
+bin/sidequest                    test-sidequest.sh
+bin/work                         test-work-threads.sh

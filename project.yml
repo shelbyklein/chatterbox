@@ -272,6 +272,8 @@ targets:
     - path: Core/Chatterbox/Engine/ChatSession.swift
     - path: Core/Chatterbox/Engine/ChatSession+Claude.swift
     - path: Core/Chatterbox/Engine/ChatSession+Codex.swift
+    - path: Core/Chatterbox/Engine/ChatSession+Gemini.swift
+    - path: Core/Chatterbox/Engine/GeminiACP.swift
     - path: Core/Chatterbox/Engine/ChatSession+Host.swift
     - path: Core/Chatterbox/Engine/ChatSession+Status.swift
     - path: Core/Chatterbox/Engine/ChatSession+Summary.swift
