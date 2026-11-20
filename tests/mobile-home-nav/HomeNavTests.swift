@@ -411,6 +411,8 @@ final class HomeNavTests: XCTestCase {
   // Tapping the icon shows its task, with Open (dismissed here without opening).
   questIcon.tap()
   XCTAssertTrue(app.buttons["sidequest-open"].waitForExistence(timeout: 5), "tapping a sidequest icon shows its task")
+  XCTAssertTrue(app.buttons["quest-archive"].exists && app.buttons["quest-delete"].exists, "with Archive and Delete beside Open")
+  XCTAssertEqual(app.buttons["sidequest-open"].frame.midY, app.buttons["quest-delete"].frame.midY, accuracy: 2, "in one row")
   XCTAssertTrue(app.staticTexts["Render ribbons"].exists, "the popover shows the sidequest's short title, not its whole brief")
   capture("2-sidequest-popover", app)
   app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)).tap()
