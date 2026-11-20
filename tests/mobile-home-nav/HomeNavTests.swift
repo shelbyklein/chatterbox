@@ -1705,10 +1705,14 @@ final class HomeNavTests: XCTestCase {
   // No Work strip: a pill under the title counts the running work threads.
   XCTAssertTrue(app.descendants(matching:.any)["workingPill"].waitForExistence(timeout:8), "the title's pill: work threads running")
   XCTAssertFalse(app.descendants(matching:.any)["work-strip"].exists, "no Work strip above the transcript")
-  // About: a swipe in from the right edge opens it (the title does too).
+  // About: a swipe in from the right edge opens it (the title does too), and puts the
+  // keyboard away.
+  let composerField=field("messageComposer",app)
+  if composerField.waitForExistence(timeout:5) { composerField.tap(); XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout:5)) }
   let window=app.windows.firstMatch
   window.coordinate(withNormalizedOffset:CGVector(dx:0.995,dy:0.5)).press(forDuration:0.05, thenDragTo:window.coordinate(withNormalizedOffset:CGVector(dx:0.55,dy:0.5)))
   XCTAssertTrue(app.descendants(matching:.any)["aboutPanel"].waitForExistence(timeout:5), "swiping in from the right edge opens the sidebar")
+  XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout:3), "opening the sidebar hides the keyboard")
   openAbout(app)
   let columns=app.buttons["work-chip-C4F14522-94D6-5AF4-BCF1-77AE08737652"], tabs=app.buttons["work-chip-CFD6F12A-EE25-5C7D-BCE0-C004F850001E"]
   XCTAssertTrue(columns.waitForExistence(timeout:8) && tabs.exists, "About lists each work thread")
