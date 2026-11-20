@@ -61,7 +61,7 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(project.waitForExistence(timeout:10));project.tap()
   let sidebar=app.descendants(matching:.any).matching(identifier:"session-sidebar-pane").firstMatch
   XCTAssertTrue(sidebar.waitForExistence(timeout:5))
-  let search=app.searchFields["Search Projects"]
+  let search=app.textFields["list-search"] // wide: the column's own search field
   XCTAssertTrue(search.waitForExistence(timeout:5))
   XCTAssertGreaterThanOrEqual(sidebar.frame.maxX-search.frame.maxX,8,"search must stay inside its own pane")
   XCTAssertLessThan(sidebar.frame.maxX-search.frame.maxX,36,"search should fill its pane, without a second camera/rail inset")
