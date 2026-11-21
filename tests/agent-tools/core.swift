@@ -162,6 +162,24 @@ func digest(_ path:String) -> String {
     try check(!ChatSession.claudeToolSearch(["ANTHROPIC_BASE_URL":"http://127.0.0.1:8317"]),"and off on another base URL")
     try check(ChatSession.claudeToolSearch(["ANTHROPIC_BASE_URL":"http://127.0.0.1:8317","ENABLE_TOOL_SEARCH":"true"]) && !ChatSession.claudeToolSearch(["ENABLE_TOOL_SEARCH":"false"]),"unless ENABLE_TOOL_SEARCH says otherwise")
 
+    // T7: Gemini discovery, loadedServers and ACP mcpServers
+    let geminiConfigDir = home + "/.gemini/config"
+    try fm.createDirectory(atPath: geminiConfigDir, withIntermediateDirectories: true)
+    try #"{"mcpServers":{"inspo":{"url":"https://inspomcp.dev/api/mcp"},"vispix":{"serverUrl":"https://mcp.vispix.dev/mcp"}}}"#.write(toFile: geminiConfigDir + "/mcp_config.json", atomically: true, encoding: .utf8)
+    try #"{"entries":[{"path":"~/.agents/skills"}]}"#.write(toFile: geminiConfigDir + "/skills.json", atomically: true, encoding: .utf8)
+    let foundWithGemini = ToolDiscovery.discover(projectFolder: project)
+    try check(foundWithGemini.first { $0.kind == .server && $0.name == "inspo" }?.agents == [.claude, .codex, .gemini], "a server all three agents have merges into one row")
+    try check(foundWithGemini.first { $0.kind == .server && $0.name == "vispix" }?.detail == "https://mcp.vispix.dev/mcp", "Gemini serverUrl entries are discovered")
+    try check(foundWithGemini.first { $0.kind == .skill && $0.name == "shared-skill" }?.agents == [.claude, .codex, .gemini], "Gemini skills.json entries merge with Claude and Codex")
+    let geminiLoads = ToolDiscovery.loadedServers(.gemini, projectFolder: project, tools: es)
+    try check(state(geminiLoads, "vispix") == .on && state(geminiLoads, "inspo") == .offInChatterbox && state(geminiLoads, "figma") == .addedInChatterbox,
+              "a Gemini chat lists its own servers and what Chatterbox adds")
+    let acpServers = studioChat.geminiToolsMCPServers(es)
+    try check(acpServers.compactMap { $0["name"]?.string }.sorted() == ["figma", "linear"], "Gemini ACP mcpServers carries Chatterbox servers targeting Gemini")
+    try check(ChatSession.agentHasServer("vispix", .gemini, session: studioChat) && !ChatSession.agentHasServer("missing-srv", .gemini, session: studioChat),
+              "agentHasServer checks Gemini's own config")
+    try fm.removeItem(atPath: home + "/.gemini")
+
     try check(digest(home)+digest(project)==before,"the agents' own config files are untouched")
     for s in runtime.sessions {s.shutdown()};try runtime.flush()
     print("PASS agent tools")

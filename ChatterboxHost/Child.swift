@@ -294,6 +294,8 @@ final class Child {
             } else if message["method"]?.string == "session/request_permission" {
                 let title = message["params"]?["toolCall"]?["title"]?.string
                 onWaitingForUser?("Gemini wants to " + (title.map { "use \($0)" } ?? "use a tool"))
+            } else if message["method"]?.string == "elicitation/create" {
+                onWaitingForUser?("Gemini has a question for you")
             }
         case "codex":
             guard line.range(of: Data("\"method\"".utf8)) != nil, let message = try? JSON.parse(line),

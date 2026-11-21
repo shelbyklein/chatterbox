@@ -186,6 +186,46 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(caughtText.contains("Wrote hello.txt.") && caughtText.contains("Still there?"), "a gone session is replaced by one caught up on the chat")
     try check(chat.items.contains { $0.kind == .notice && $0.text.contains("Couldn't reopen the earlier Gemini session") }, "and the chat says so")
 
+    // Interactive question card (ACP elicitation/create): answer, custom Other, and skip.
+    let initReq = requests().first { $0["method"]?.string == "initialize" }
+    try check(initReq?["params"]?["clientCapabilities"]?["elicitation"]?["form"] != nil, "initialize advertises form elicitation support")
+    chat.send("Ask me a question")
+    try await wait("the question card") { chat.items.contains { $0.kind == .questions && $0.approvalState == .pending } }
+    let qCard = chat.items.last { $0.kind == .questions }!
+    try check(qCard.questions?.map(\.id) == ["q1", "q2"] && qCard.questions?[0].question == "Favorite color?" && qCard.questions?[1].multiSelect == true,
+              "elicitation/create maps to an ordered question card with single and multi-select")
+    chat.answerQuestions(qCard.id, answers: ["q1": ["Blue"], "q2": ["Cheese", "Mushrooms"]])
+    try await wait("the answered question reply") { !chat.isRunning && chat.items.last { $0.kind == .assistant }?.text.hasPrefix("Answered:") == true }
+    let qReply = chat.items.last { $0.kind == .assistant }?.text ?? ""
+    try check(qReply.contains(#""q1": "2""#) && qReply.contains(#""q2": ["1"]"#) && qReply.contains(#""q2_other": "Mushrooms""#) && !qReply.contains("q1_other"),
+              "answers map preset options to const values and custom answers to _other")
+    chat.send("Ask another question to skip")
+    try await wait("the second question card") { chat.items.last { $0.kind == .questions }?.approvalState == .pending }
+    let skipCard = chat.items.last { $0.kind == .questions }!
+    chat.answerQuestions(skipCard.id, answers: nil)
+    try await wait("the skipped question reply") { !chat.isRunning && chat.items.last { $0.kind == .assistant }?.text == "Skipped questions." }
+    try check(chat.items.last { $0.kind == .questions }?.approvalState == .denied, "skipping sends decline and marks the card denied")
+
+    // Settings -> Tools MCP servers reach agy on session/resume when Tools change.
+    let launchesBeforeTools = launches()
+    try ToolScopes.save([
+        "chatterbox": ToolSet(servers: [
+            ToolServer(name: "linear", kind: .url, url: "https://mcp.linear.app/mcp", agents: [.gemini]),
+            ToolServer(name: "local-mcp", kind: .command, command: "/usr/bin/env", args: ["mcp"], env: ["MODE": "dev"], agents: [.gemini]),
+            ToolServer(name: "claude-only", kind: .url, url: "https://claude.only/mcp", agents: [.claude]),
+        ])
+    ])
+    chat.send("Say hello with tools")
+    try await wait("the reply after tools change") { !chat.isRunning && launches() == launchesBeforeTools + 1 }
+    let resumeWithTools = requests().last { $0["method"]?.string == "session/resume" }
+    let sentServers = resumeWithTools?["params"]?["mcpServers"]?.array ?? []
+    let sentNames = sentServers.compactMap { $0["name"]?.string }
+    try check(sentNames == ["linear", "local-mcp"], "Tools MCP servers for Gemini reach agy on resume, excluding Claude-only ones")
+    let localSpec = sentServers.first { $0["name"]?.string == "local-mcp" }
+    try check(localSpec?["command"]?.string == "/usr/bin/env" && localSpec?["env"]?.array?.first?["name"]?.string == "MODE",
+              "stdio MCP server carries command, args and env array")
+    try ToolScopes.save([:])
+
     // Pictures go as image blocks.
     let png = root.appendingPathComponent("dot.png")
     let image = NSImage(size: NSSize(width: 2, height: 2)); image.lockFocus(); NSColor.red.drawSwatch(in: NSRect(x: 0, y: 0, width: 2, height: 2)); image.unlockFocus()

@@ -21,6 +21,20 @@ def ask(sid, call):
     with answer_ready:
         while rid not in answers: answer_ready.wait()
         return answers.pop(rid)
+def elicit(sid):
+    counter[0] += 1; rid = 2000 + counter[0]
+    send({'jsonrpc': '2.0', 'id': rid, 'method': 'elicitation/create', 'params': {
+        'sessionId': sid, 'mode': 'form', 'message': 'The agent has 2 questions.',
+        'requestedSchema': {'type': 'object', 'properties': {
+            'q1': {'type': 'string', 'title': 'Favorite color?', 'oneOf': [{'const': '1', 'title': 'Red'}, {'const': '2', 'title': 'Blue'}]},
+            'q1_other': {'type': 'string', 'title': 'Other'},
+            'q2': {'type': 'array', 'title': 'Toppings?', 'items': {'anyOf': [{'const': '1', 'title': 'Cheese'}, {'const': '2', 'title': 'Olives'}]}},
+            'q2_other': {'type': 'string', 'title': 'Other'},
+        }}
+    }})
+    with answer_ready:
+        while rid not in answers: answer_ready.wait()
+        return answers.pop(rid)
 def config(model='gemini-4-neon'):
     return [{'id': 'model', 'currentValue': model, 'options': [{'value': 'gemini-4-neon', 'name': 'Gemini 4 Neon'}, {'value': 'gemini-3.8-flash', 'name': 'Gemini 3.8 Flash'}, {'value': 'claude-opus-5-5', 'name': 'Claude Opus 5.5'}]},
             {'id': 'thought_level', 'currentValue': 'high', 'options': [{'value': v, 'name': v} for v in ['low', 'medium', 'high', 'xhigh']]},
@@ -42,7 +56,13 @@ def prompt(rid, p):
             threading.Event().wait(0.05)
         cancelled.discard(sid)
         send({'jsonrpc': '2.0', 'id': rid, 'result': {'stopReason': 'cancelled'}}); return
-    if 'edit' in text:
+    if 'question' in text:
+        result = elicit(sid)
+        action = result.get('action', '')
+        content = result.get('content', {})
+        reply = 'Skipped questions.' if action != 'accept' else 'Answered: ' + json.dumps(content, sort_keys=True)
+        update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': reply}})
+    elif 'edit' in text:
         path = os.path.join(os.getcwd(), 'hello.txt')
         call = {'sessionUpdate': 'tool_call', 'toolCallId': 'call-1', 'name': 'write_file', 'status': 'pending', 'kind': 'edit',
                 'title': 'File ../../hello.txt', 'locations': [{'path': path}], 'rawInput': {'Path': path, 'Content': 'hi'},
