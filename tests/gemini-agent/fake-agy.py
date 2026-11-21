@@ -3,6 +3,11 @@
 # real one's traffic in plans/assets/gemini-agent/acp-probe*.log. Logs every request it gets.
 import json, os, sys, threading, queue
 root = os.environ['CHATTERBOX_DATA_DIR']
+if sys.argv[1:2] != ['acp']:
+    # `agy -p /usage --output-format json` (GeminiUsage): one reply, no session.
+    print(json.dumps({'status': 'SUCCESS', 'command': {'name': 'usage', 'data': {'groups': [{'name': 'Gemini Models', 'buckets': [
+        {'id': 'gemini-5h', 'window': '5h', 'remaining_fraction': 0.75, 'reset_time': '2026-11-21T19:26:53Z'}]}]}}}))
+    sys.exit(0)
 log = open(root + '/agy-requests.jsonl', 'a')
 with open(root + '/agy-launches.jsonl', 'a') as f: f.write(json.dumps({'args': sys.argv[1:], 'cwd': os.getcwd()}) + '\n')
 out_lock = threading.Lock()

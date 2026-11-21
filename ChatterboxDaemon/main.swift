@@ -35,6 +35,8 @@ Task { @MainActor in
             MobilePush.shared.post(title:warning.title,body:warning.body,chat:nil,kind:"usage")
             runtime.publishUIRequest("usage.warning",payload:["title":.string(warning.title),"body":.string(warning.body)])
         }
+        // Gemini's limits come from agy on request (Codex and Claude report theirs as they run).
+        GeminiUsage.shared.start()
         NotificationCenter.default.addObserver(forName:Notification.Name("ChatterboxRuntimeOpenPin"),object:nil,queue:.main){note in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }

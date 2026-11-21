@@ -76,6 +76,8 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(hello?.text == "Hello from Gemini." && hello?.phase == .final, "a reply streams in pieces and ends final")
     try check(chat.items.contains { $0.kind == .thought && $0.text == "Thinking it over." }, "its thinking shows")
     try check(chat.contextUsage[.gemini]?.used == 12345, "the context meter reads agy's usage")
+    try await wait("Gemini's limits read after the reply") { !UsageLimits.shared.gemini.isEmpty }
+    try check(abs((UsageLimits.shared.gemini.first?.utilization ?? 0) - 0.25) < 0.0001, "after a reply, the usage meter reads agy's limits")
     let first = requests().first { $0["method"]?.string == "session/prompt" }
     let firstText = (first?["params"]?["prompt"]?.array ?? []).compactMap { $0["text"]?.string }.joined(separator: "\n")
     try check(firstText.contains("Say hello") && firstText.count > 200, "a new session's first prompt carries the instructions, then the message")

@@ -58,6 +58,15 @@ import Foundation
     limits.updateCodex(["primary": ["usedPercent": .number(60), "windowDurationMins": .number(300), "resetsAt": .number(next.timeIntervalSince1970)]])
     try check(warnings.last?.backend == .codex && warnings.last?.left == 0.5 && warnings.last?.title == "Codex: 50% of your 5-hour limit left", "Codex warns too")
 
+    // Gemini: agy's /usage (remaining fractions, ISO resets), its Gemini group only, 5-hour first.
+    let geminiReply = #"{"groups":[{"name":"Gemini Models","buckets":[{"id":"gemini-weekly","window":"weekly","remaining_fraction":0.98,"reset_time":"2026-11-28T14:26:53Z"},{"id":"gemini-5h","window":"5h","remaining_fraction":0.45,"reset_time":"2026-11-21T19:26:53Z"}]},{"name":"Claude and GPT models","buckets":[{"id":"3p-5h","window":"5h","remaining_fraction":0.1,"reset_time":"2026-11-21T20:17:04Z"}]}]}"#
+    limits.updateGemini(try JSON.parse(Data(geminiReply.utf8)))
+    try check(limits.gemini.map(\.label) == ["5-hour", "Weekly"], "Gemini's windows, 5-hour first (\(limits.gemini.map(\.label)))")
+    try check(abs((limits.gemini.first?.utilization ?? 0) - 0.55) < 0.0001 && limits.gemini.first?.resetsAt == ISO8601DateFormatter().date(from: "2026-11-21T19:26:53Z"),
+              "used is 1 − remaining, with its reset time")
+    try check(limits.windows(for: .gemini) == limits.gemini, "a Gemini chat's meter shows them")
+    try check(warnings.last?.backend == .gemini && warnings.last?.title == "Gemini: 50% of your 5-hour limit left", "Gemini warns too")
+
     // Not going up: no run-out time.
     let flat = UsageBurn.from([(clock, 0.3), (clock + 600, 0.3)], now: clock + 600, resetsAt: nil)
     try check(flat?.perHour == 0 && flat?.runsOutAt == nil && flat?.beforeReset == false, "a flat window has no run-out time")

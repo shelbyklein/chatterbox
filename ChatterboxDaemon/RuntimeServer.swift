@@ -196,7 +196,7 @@ import CoreFoundation
                 result=["resync":.bool(replay.resync),"sequence":.number(Double(runtime.state.sequence)),"events":try .value(replay.events)]
             case "usage":
                 // The providers' limits with their burn rates, for the Mac's usage popover.
-                result=["claude":try .value(UsageLimits.shared.claude),"codex":try .value(UsageLimits.shared.codex)]
+                result=["claude":try .value(UsageLimits.shared.claude),"codex":try .value(UsageLimits.shared.codex),"gemini":try .value(UsageLimits.shared.gemini)]
             case "pressure":
                 // How hard the Mac is working, and what's held back (PressureMonitor).
                 result=try PressureHooks.snapshot().map{try JSON.value($0)} ?? .null
