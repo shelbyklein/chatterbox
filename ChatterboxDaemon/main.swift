@@ -3,9 +3,26 @@ import Darwin
 
 var daemon:RuntimeServer?
 var context:DaemonContext?
+/// Caps chatterboxd.log at 2 MB (keeping the previous copy in chatterboxd.log.1) by copying and
+/// truncating in place so launchd's open O_APPEND stdout/stderr descriptor stays valid.
+func rotateLogIfNeeded(maxBytes: UInt64 = 2 * 1024 * 1024) {
+    let log = RuntimePaths.data.appendingPathComponent("chatterboxd.log")
+    let fm = FileManager.default
+    guard let size = (try? fm.attributesOfItem(atPath: log.path)[.size] as? NSNumber)?.uint64Value,
+          size > maxBytes else { return }
+    let previous = RuntimePaths.data.appendingPathComponent("chatterboxd.log.1")
+    let temp = RuntimePaths.data.appendingPathComponent("chatterboxd.log.1.tmp")
+    try? fm.removeItem(at: temp)
+    if (try? fm.copyItem(at: log, to: temp)) != nil {
+        _ = rename(temp.path, previous.path)
+        _ = truncate(log.path, 0)
+    }
+}
+var logNotesSinceCheck = 0
 Task { @MainActor in
     do {
         try RuntimePreferences.load()
+        rotateLogIfNeeded()
         #if DEBUG
         if RuntimePaths.data.path.hasPrefix("/tmp/chatterbox-test-"), let fake=ProcessInfo.processInfo.environment["FAKE_PROVIDER"] {
             AppPreferences.defaults.setVolatileDomain(["claudePath":fake,"codexPath":fake,"easyCLIProxyEnabled":false,"remoteControlClaudeChats":false],forName:UserDefaults.argumentDomain)
@@ -13,7 +30,11 @@ Task { @MainActor in
         #endif
         await EasyCLIProxy.shared.refresh()
         let runtime=try ConversationRuntime()
-        RuntimeHooks.note={ message in fputs("chatterboxd: \(message)\n",stderr) }
+        RuntimeHooks.note={ message in
+            logNotesSinceCheck += 1
+            if logNotesSinceCheck >= 1000 { logNotesSinceCheck = 0; rotateLogIfNeeded() }
+            fputs("chatterboxd: \(message)\n",stderr)
+        }
         // Listen first, reattach to the background host after: a host that's slow or had just
         // handed off once kept the service silent for a minute. Chats with nothing in a host
         // are settled now; ones with a reply there show as reconnecting until it's confirmed.
