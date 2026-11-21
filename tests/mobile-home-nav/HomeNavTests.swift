@@ -566,7 +566,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual(pill.label, "Mac busy. Show readings")
   let header = app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", " active · ")).firstMatch
   XCTAssertTrue(header.exists)
-  XCTAssertEqual(pill.frame.midY, header.frame.midY, accuracy: 12, "on the Activity header's line")
+  // Its own row under the Activity header (Shelby, 2026-11-20: it crowded the header's line).
+  XCTAssertGreaterThan(abs(pill.frame.midY - header.frame.midY), 12, "on its own row, not the Activity header's line")
   capture("pressure-1-busy-header", app)
   pill.tap()
   XCTAssertTrue(app.staticTexts["load 30 on 16 cores (over 1.5\u{00D7}) for 2 min"].waitForExistence(timeout:5), "tapped: why it's busy")
@@ -700,6 +701,7 @@ final class HomeNavTests: XCTestCase {
   tab("Studios",app).tap();openStudio("studio-1",app)
   XCTAssertTrue(app.staticTexts["Renamed Coach"].waitForExistence(timeout:5))
   tab("Chats",app).tap()
+  chatsView(app)
   let loose=app.buttons.matching(NSPredicate(format:"label CONTAINS %@","Loose chat")).firstMatch
   XCTAssertTrue(loose.waitForExistence(timeout:5))
   loose.press(forDuration:1);app.buttons["Rename"].tap()
@@ -718,6 +720,7 @@ final class HomeNavTests: XCTestCase {
   func start() async throws {
    app.terminate();try await fixture("reset");app.launch()
    XCTAssertTrue(tab("Chats",app).waitForExistence(timeout:15));tab("Chats",app).tap()
+   chatsView(app)
    XCTAssertTrue(app.buttons["chat-"+uuid("Loose chat")].waitForExistence(timeout:15))
   }
   func action(_ label:String) {
@@ -1842,6 +1845,12 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["issue-start"].waitForExistence(timeout:5), "an open issue offers Start Thread")
   capture("issue-page",app)
  }
+ /// The Chats tab remembers Chats or All between launches: the Chats view, whatever an
+ /// earlier test left it on.
+ @MainActor func chatsView(_ app:XCUIApplication) {
+  let segment=app.segmentedControls.buttons["Chats"]
+  if segment.waitForExistence(timeout:3), !segment.isSelected { segment.tap() }
+ }
  @MainActor func openAbout(_ app:XCUIApplication) {
   let title=app.buttons["chat-title"]
   XCTAssertTrue(title.waitForExistence(timeout:8))
@@ -2326,7 +2335,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(tab("Projects",app).waitForExistence(timeout:15)); tab("Projects",app).tap()
   app.buttons["Connection"].tap()
   XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout:5) && app.buttons["Automations"].exists, "Automations and Settings")
-  for gone in ["Mac Screen","Activity History","Usage","Saved PDFs","Notifications","Appearance"] {
+  // Usage came back to the menu (Shelby, 2026-11-20).
+  for gone in ["Mac Screen","Activity History","Saved PDFs","Notifications","Appearance"] {
    XCTAssertFalse(app.buttons[gone].exists, "\(gone) left the ⋯ menu")
   }
   let list = app.buttons["Show as List"], cards = app.buttons["Show as Cards"]
