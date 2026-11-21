@@ -1657,28 +1657,28 @@ final class HomeNavTests: XCTestCase {
    return app
   }
   var app=launch(cards:true)
+  // Cards: a session's work threads and sidequests are icons in its card, which takes one
+  // column like the others (Shelby, 2026-11-21).
   let family=app.descendants(matching:.any)["family-"+uuid("Chatterbox")]
   XCTAssertTrue(family.waitForExistence(timeout:15), "Chatterbox and its work threads are one card")
-  let front=app.buttons["chat-"+uuid("Chatterbox")], columns=app.buttons["chat-"+columnsID], tabs=app.buttons["chat-"+tabsID], waiting=app.buttons["chat-"+sync]
-  XCTAssertTrue(front.exists && columns.exists && tabs.exists && waiting.exists)
-  for row in [front, tabs, waiting, columns] {
-   XCTAssertTrue(family.frame.insetBy(dx:-1, dy:-1).contains(row.frame), "\(row.identifier) is inside the Chatterbox card")
+  func icon(_ id:String) -> XCUIElement { app.buttons["sidequest-icon-"+id] }
+  let front=app.buttons["chat-"+uuid("Chatterbox")]
+  XCTAssertTrue(front.exists)
+  for id in [columnsID, tabsID, sync, docs, icons] {
+   XCTAssertTrue(icon(id).exists, "\(id) is an icon in the card")
+   XCTAssertTrue(family.frame.insetBy(dx:-1, dy:-1).contains(icon(id).frame), "\(id) is inside the Chatterbox card")
+   XCTAssertLessThan(icon(id).frame.width, 60, "a small icon, not a row")
   }
-  XCTAssertFalse(app.buttons["chat-"+docs].exists || app.buttons["chat-"+icons].exists, "the rest wait behind Show more")
-  XCTAssertLessThan(tabs.frame.maxY, waiting.frame.minY + 1, "newest first"); XCTAssertLessThan(waiting.frame.maxY, columns.frame.minY + 1)
-  let more=app.buttons["family-toggle-"+uuid("Chatterbox")]
-  XCTAssertTrue(more.exists && more.label == "Show 2 more", more.label)
-  let optimization=app.buttons["chat-"+uuid("optimization")], sdhq=app.buttons["chat-"+uuid("SDHQ")]
-  XCTAssertTrue(optimization.exists && sdhq.exists)
-  XCTAssertGreaterThan(family.frame.width, optimization.frame.width * 1.8, "the family card spans the page")
-  // SDHQ's sidequest is a row inside SDHQ's card, not a card of its own.
+  XCTAssertTrue(icon(columnsID).label.hasPrefix("Work thread"), icon(columnsID).label)
+  let optimization=app.buttons["chat-"+uuid("optimization")]
+  XCTAssertTrue(optimization.exists)
+  XCTAssertLessThan(family.frame.width, optimization.frame.width * 1.2, "the family card is one column wide")
+  // SDHQ's sidequest is an icon inside SDHQ's card.
   let sdhqFamily=app.descendants(matching:.any)["family-"+uuid("SDHQ")]
-  let quest=app.buttons["chat-975B1769-F8EA-59E2-A601-B40A492D19FA"]
+  let quest=icon("975B1769-F8EA-59E2-A601-B40A492D19FA")
   if !sdhqFamily.exists { app.swipeUp() }
   XCTAssertTrue(sdhqFamily.waitForExistence(timeout:5) && quest.exists, "SDHQ and its sidequest are one card")
   XCTAssertTrue(sdhqFamily.frame.insetBy(dx:-1, dy:-1).contains(quest.frame), "the sidequest is inside SDHQ's card")
-  let magnets=app.buttons["chat-"+uuid("PlayCase Magnets")], galley=app.buttons["chat-"+uuid("Galley")]
-  if magnets.exists && galley.exists { XCTAssertEqual(magnets.frame.minY, galley.frame.minY, accuracy: 2, "other projects still share a row") }
   tab("Activity",app).tap()
   // Activity shows a waiting work thread under its front thread's name.
   let needs=app.descendants(matching:.any).matching(NSPredicate(format:"label == %@", "Needs you: Chatterbox · needs you in Highlights sync")).firstMatch
@@ -1687,14 +1687,12 @@ final class HomeNavTests: XCTestCase {
                  "a working work thread isn't in Activity")
   tab("Projects",app).tap()
   capture("phone-projects-nested", app)
-  more.tap()
-  XCTAssertTrue(app.buttons["chat-"+docs].waitForExistence(timeout:3) && app.buttons["chat-"+icons].exists, "Show more opens the card in place")
-  XCTAssertEqual(app.buttons["family-toggle-"+uuid("Chatterbox")].label, "Show less")
-  capture("phone-projects-nested-expanded", app)
-  app.buttons["family-toggle-"+uuid("Chatterbox")].tap()
-  XCTAssertTrue(app.buttons["chat-"+docs].waitForNonExistence(timeout:3), "Show less folds it again")
-  columns.tap()
-  XCTAssertTrue(app.staticTexts["Hi! This is Desk board columns."].waitForExistence(timeout:10), "a row opens its work thread")
+  // An icon shows its title, with Open.
+  for _ in 0..<3 where !icon(columnsID).isHittable { app.swipeDown() }
+  icon(columnsID).tap()
+  XCTAssertTrue(app.buttons["sidequest-open"].waitForExistence(timeout:5), "tapping an icon shows it, with Open")
+  app.buttons["sidequest-open"].tap()
+  XCTAssertTrue(app.staticTexts["Hi! This is Desk board columns."].waitForExistence(timeout:10), "Open opens its work thread")
   app.terminate()
   // List mode: each family a card of its own; the work threads inside Chatterbox's, three until Show more.
   app=launch(cards:false)
