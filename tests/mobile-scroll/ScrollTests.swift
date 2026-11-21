@@ -82,8 +82,10 @@ final class ScrollTests: XCTestCase {
   let before = image.frame
   capture("reading-before-image-preview", app)
   image.tap()
-  XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
-  app.buttons["Done"].tap()
+  // Pictures open in comment mode (Shelby, 2026-11-20), closed with Cancel; Done before that.
+  let close = app.buttons["Cancel"].waitForExistence(timeout: 5) ? app.buttons["Cancel"] : app.buttons["Done"]
+  XCTAssertTrue(close.exists, "the picture opens with a way to close it")
+  close.tap()
   try await Task.sleep(for: .seconds(2))
   XCTAssertTrue(image.isHittable, "Closing an image preview pulled the reader away")
   XCTAssertEqual(image.frame.minY, before.minY, accuracy: 1, "Closing an image preview moved the reading position")
