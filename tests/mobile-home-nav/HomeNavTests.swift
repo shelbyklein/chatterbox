@@ -2058,27 +2058,28 @@ final class HomeNavTests: XCTestCase {
   app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
   app.launchArguments += ["-mobileChatListPage", "desk", "-deskIntroduced", "YES"]
   app.launch()
+  let ask=field("desk-ask",app)
   let button=app.buttons["desk-check-sources"]
-  XCTAssertTrue(button.waitForExistence(timeout:15)); button.tap()
-  XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "Last requested")).firstMatch.waitForExistence(timeout:10))
+  XCTAssertTrue(button.waitForExistence(timeout:15) && ask.exists)
+  XCTAssertGreaterThan(button.frame.minX, ask.frame.maxX - 1, "update button sits to the right of the ask box")
+  XCTAssertEqual(button.frame.midY, ask.frame.midY, accuracy: 6, "update button shares a row with the ask box")
+  button.tap()
+  await fulfillment(of:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"isEnabled == false"), object:button)], timeout:10)
   XCTAssertFalse(app.buttons["desk-source-check-open"].exists, "checking does not create a report detour")
-  XCTAssertFalse(button.isEnabled, "a running check cannot be duplicated")
-  XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@", "Last requested")).firstMatch.exists)
+  XCTAssertFalse(app.staticTexts["desk-source-check-status"].exists, "no summary line below the ask box")
   let checks=try await deskCalls().filter { $0["action"] as? String == "checkSources" }
   XCTAssertEqual(checks.count, 1)
   capture("desk-source-check",app)
   try await fixture("desk-source-result")
-  let result=app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@", "1 added · 1 updated")).firstMatch
-  XCTAssertTrue(result.waitForExistence(timeout:10), "persisted outcome appears inline above the board")
-  XCTAssertTrue(button.isEnabled)
+  await fulfillment(of:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"isEnabled == true"), object:button)], timeout:10)
+  XCTAssertFalse(app.staticTexts["desk-source-check-status"].exists, "summary stays hidden after check completes")
   app.buttons["desk-tab-todo"].tap()
   XCTAssertTrue(app.staticTexts["Prepare the spring camp poster"].waitForExistence(timeout:10), "the individual request is on the Desk")
   XCTAssertFalse(app.buttons["desk-source-check-open"].exists)
   capture("desk-check-complete",app)
   try await fixture("desk-source-result",body:["partial":true])
-  let incomplete=app.staticTexts["Check incomplete · Outlook archive unavailable"]
-  XCTAssertTrue(incomplete.waitForExistence(timeout:10), "partial coverage stays visible")
-  XCTAssertFalse(result.exists, "partial check must not claim successful coverage")
+  try await Task.sleep(for:.seconds(5))
+  XCTAssertFalse(app.staticTexts["desk-source-check-status"].exists, "partial check summary stays hidden")
   XCTAssertTrue(button.isEnabled)
   capture("desk-check-incomplete",app)
  }
