@@ -11,7 +11,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if self.path=='/v1/pair':self.reply({'token':'isolated-regression-token','macName':'Regression Mac','addresses':['127.0.0.1']})
   else:self.send_error(400,'Test does not accept chat mutations')
  def do_GET(self):
-  if self.path=='/v1/chats':self.reply({'revision':0,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[chat]}]})
+  if self.path.split('?')[0]=='/v1/chats':self.reply({'revision':0,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[chat]}]})
   elif self.path.startswith('/v1/chats/'+ID):self.reply({'unchanged':True,'revision':0} if '?since=0' in self.path else detail)
   elif self.path=='/v1/addresses':self.reply({'addresses':['127.0.0.1']})
   else:self.send_error(404)

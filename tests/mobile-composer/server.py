@@ -37,7 +37,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
  def do_GET(self):
   if self.path.startswith('/v1/') and self.headers.get('X-Chatterbox-Token')!='fixture':return self.reply({'error':'Unauthorized'},401)
   if self.path=='/test/log':return self.reply({'requests':logs,'counts':[len(x) for x in messages]})
-  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}], 'activity':[{'id':'55555555-5555-5555-5555-555555555555','chatID':IDS[1],'title':'Regression Project','backend':'codex','endedAt':'2026-10-06T14:00:00Z'},{'id':'66666666-6666-6666-6666-666666666666','chatID':IDS[1],'title':'Regression Project','backend':'claude','endedAt':'2026-10-06T13:00:00Z'}]})
+  if self.path.split('?')[0]=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}], 'activity':[{'id':'55555555-5555-5555-5555-555555555555','chatID':IDS[1],'title':'Regression Project','backend':'codex','endedAt':'2026-10-06T14:00:00Z'},{'id':'66666666-6666-6666-6666-666666666666','chatID':IDS[1],'title':'Regression Project','backend':'claude','endedAt':'2026-10-06T13:00:00Z'}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   for i,ident in enumerate(IDS):
    if self.path.startswith('/v1/chats/'+ident):return self.reply(detail(i))

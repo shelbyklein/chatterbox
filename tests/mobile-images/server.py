@@ -134,7 +134,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif not recovered and (mode in ('permanent', 'manual') or attempt == 1):
                     return self.reply(dict(error='Fixture transient failure'), 503)
             return self.binary(PNG, 'image/png')
-        if self.path == '/v1/chats':
+        if self.path.split('?')[0] == '/v1/chats':
             return self.reply(dict(revision=revision, groups=[dict(id='projects', kind='projects', title='Projects', chats=[summary()])]))
         if self.path == '/v1/addresses':
             return self.reply(dict(addresses=['127.0.0.1']))

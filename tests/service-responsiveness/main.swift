@@ -117,6 +117,20 @@ func http(_ path: String, token: String) -> Double? {
     return ok ? now() - start : nil
 }
 
+func httpData(_ path: String, token: String) -> Data? {
+    var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
+    request.setValue(token, forHTTPHeaderField: Companion.tokenHeader)
+    request.timeoutInterval = 30
+    let done = DispatchSemaphore(value: 0)
+    var out: Data?
+    URLSession.shared.dataTask(with: request) { data, response, _ in
+        if (response as? HTTPURLResponse)?.statusCode == 200 { out = data }
+        done.signal()
+    }.resume()
+    done.wait()
+    return out
+}
+
 @MainActor func run() async throws {
     let seedStart = now()
     try seed()
@@ -178,6 +192,20 @@ func http(_ path: String, token: String) -> Double? {
          socketRequest(socket, "list", ["summaryOnly": true]))
     }.value
     print("[\(label)] idle: /v1/chats \(idle.0.map(ms) ?? "failed"), /v1/chats/<long> \(idle.1.map(ms) ?? "failed"), socket list \(idle.2.map(ms) ?? "failed")")
+
+    // GET /v1/chats?since=<rev> returns unchanged when idle, and a fresh list after a change.
+    let initialListData = await Task.detached { httpData("/v1/chats", token: token) }.value
+    let initialList = initialListData.flatMap { try? Companion.decoder.decode(Companion.ChatList.self, from: $0) }
+    check(initialList != nil && (initialList?.revision ?? 0) > 0, "GET /v1/chats returns a ChatList with revision")
+    let rev1 = initialList!.revision
+    let unchangedData = await Task.detached { httpData("/v1/chats?since=\(rev1)", token: token) }.value
+    let unchanged = unchangedData.flatMap { try? Companion.decoder.decode(Companion.Unchanged.self, from: $0) }
+    check(unchanged?.unchanged == true && unchanged?.revision == rev1, "GET /v1/chats?since=\(rev1) returns unchanged when idle")
+    long.setTitle("The long session (renamed)")
+    let updatedListData = await Task.detached { httpData("/v1/chats?since=\(rev1)", token: token) }.value
+    let updatedList = updatedListData.flatMap { try? Companion.decoder.decode(Companion.ChatList.self, from: $0) }
+    check(updatedList != nil && (updatedList?.revision ?? 0) > rev1, "GET /v1/chats?since=\(rev1) returns full list with new revision after a change")
+    long.setTitle("The long session")
 
     // A probe off the main thread: how late does work queued on main start?
     final class Box: @unchecked Sendable { var stalls: [Double] = []; var phone: [Double] = []; var detail: [Double] = []; var list: [Double] = []; var failed = 0; var stop = false; let lock = NSLock() }

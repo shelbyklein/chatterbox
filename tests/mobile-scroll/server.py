@@ -62,7 +62,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
    try:self.wfile.write(data)
    except (BrokenPipeError,ConnectionResetError):pass
    return
-  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'projects','kind':'projects','title':'Projects','chats':[summary()]}]})
+  if self.path.split('?')[0]=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'projects','kind':'projects','title':'Projects','chats':[summary()]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path.startswith('/v1/chats/'+CHAT):return self.reply({'unchanged':True,'revision':revision} if f'?since={revision}' in self.path else detail())
   self.send_error(404)

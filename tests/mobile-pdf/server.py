@@ -50,7 +50,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
      if mode=='slow':time.sleep(.1)
    except (BrokenPipeError,ConnectionResetError):pass
    return
-  if self.path=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary]}]})
+  if self.path.split('?')[0]=='/v1/chats':return self.reply({'revision':1,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   if self.path.startswith('/v1/chats/'+CHAT+'?since=1'):return self.reply({'unchanged':True,'revision':1})
   if self.path.startswith('/v1/chats/'+CHAT):return self.reply({'revision':1,'summary':summary,'settings':'Codex','items':[{'id':'44444444-4444-4444-4444-444444444444','kind':'assistant','text':f'Your proof is ready. [Review PDF](chatterbox-document://{FILE})','isStreaming':False,'isCommentary':False,'isPending':False,'attachments':[file],'isQueued':False}],'earlierCount':0})

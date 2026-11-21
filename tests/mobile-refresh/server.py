@@ -26,7 +26,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   if delayed:delay_next=False
   logs.append({'method':'GET','path':self.path,'time':time.time(),'delayed':delayed}); (ROOT/'requests.json').write_text(json.dumps(logs))
   if delayed:time.sleep(8)
-  if self.path=='/v1/chats':return self.reply({'revision':revision,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
+  if self.path.split('?')[0]=='/v1/chats':return self.reply({'unchanged':True,'revision':revision} if f'?since={revision}' in self.path else {'revision':revision,'groups':[{'id':'chats','kind':'chats','title':'Chats','chats':[summary(0)]},{'id':'projects','kind':'projects','title':'Projects','chats':[summary(1)]}]})
   if self.path=='/v1/addresses':return self.reply({'addresses':['127.0.0.1']})
   for i,ident in enumerate(IDS):
    if self.path.startswith('/v1/chats/'+ident):return self.reply({'unchanged':True,'revision':revision} if f'?since={revision}' in self.path else detail(i))
