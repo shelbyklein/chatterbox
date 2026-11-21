@@ -32,6 +32,10 @@ def prompt(rid, p):
     text = texts[-1].lower() if texts else ''
     update(sid, {'sessionUpdate': 'agent_thought_chunk', 'content': {'type': 'text', 'text': 'Thinking it over.'}})
     update(sid, {'sessionUpdate': 'usage_update', 'used': 12345, 'size': 1048576})
+    if 'wedge' in text:
+        # Like agy on 2026-11-20: the answer comes, then the turn never ends and cancels go unanswered.
+        update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'All done.'}})
+        threading.Event().wait(3600); return
     if 'slow' in text:
         update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'Counting: 1 2 3'}})
         while sid not in cancelled:

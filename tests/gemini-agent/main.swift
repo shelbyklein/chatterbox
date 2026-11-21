@@ -117,6 +117,26 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(chat.items.contains { $0.kind == .notice && $0.text.hasPrefix("Stopped") }, "the transcript says it stopped")
     try check(!chat.items.contains { $0.queued == true }, "the queued message was sent after")
 
+    // agy wedged: the answer came but the turn never ends, and it ignores Stop. Stop still
+    // ends it, restarts the process, and the next message resumes the same session.
+    ChatSession.geminiStopGrace = .milliseconds(600)
+    let wedgedSession = chat.record.gemini?.sessionId
+    chat.send("wedge now")
+    try await wait("the wedged answer") { chat.items.last { $0.kind == .assistant }?.text == "All done." }
+    // A model meant for Claude, picked while Gemini is answering, waits with the switch.
+    let geminiModel = chat.record.gemini?.model
+    CompanionMapper.apply(.init(backend: "claude", model: "opus"), to: chat)
+    try check(chat.record.backend == .gemini && chat.record.gemini?.model == geminiModel,
+              "a Claude model picked mid-reply doesn't land on Gemini")
+    chat.interrupt()
+    try await wait("Stop to end the wedged reply", seconds: 5) { !chat.isRunning }
+    try check(chat.geminiProcess == nil && chat.record.gemini?.sessionId == wedgedSession, "an unanswered Stop ends the reply and restarts the process, keeping the session")
+    try check(chat.items.contains { $0.kind == .notice && $0.text.hasPrefix("Stopped") }, "and the chat says it stopped")
+    chat.send("Say hello once more")
+    try await wait("the reply after the wedge") { !chat.isRunning && chat.items.last { $0.kind == .assistant }?.text == "Hello from Gemini." }
+    try check(requests().filter { $0["method"]?.string == "session/resume" && $0["params"]?["sessionId"]?.string == wedgedSession }.count >= 1, "the next message resumes the same session")
+    ChatSession.geminiStopGrace = .seconds(10)
+
     // Model and effort reach agy.
     chat.setGeminiModel("gemini-3.8-flash")
     chat.setGeminiEffort("low")
