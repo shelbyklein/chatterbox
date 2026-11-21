@@ -139,6 +139,29 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(requests().filter { $0["method"]?.string == "session/resume" && $0["params"]?["sessionId"]?.string == wedgedSession }.count >= 1, "the next message resumes the same session")
     ChatSession.geminiStopGrace = .seconds(10)
 
+    // agy answers, has a last thought, then stays silent with the turn open: a quiet stretch
+    // with nothing running ends the turn, and a message sent meanwhile goes next.
+    ChatSession.geminiQuietLimit = .milliseconds(900); ChatSession.geminiQuietCheck = .milliseconds(150)
+    let lingerSession = chat.record.gemini?.sessionId
+    chat.send("linger please")
+    try await wait("the lingering answer") { chat.items.last { $0.kind == .thought }?.text == "Wrapping up." }
+    chat.send("And then say hello")
+    try check(chat.items.last?.queued == true, "a message sent while it lingers is queued")
+    try await wait("the quiet turn to close and the queued message to be answered", seconds: 15) {
+        !chat.isRunning && chat.items.last { $0.kind == .assistant }?.text == "Hello from Gemini."
+    }
+    try check(chat.record.gemini?.sessionId == lingerSession && !chat.items.contains { $0.queued == true }, "the quiet turn ended by itself, and the queued message went to the same session")
+    // A tool still running isn't "quiet after answering", however long it's silent.
+    chat.send("quiet tool run")
+    try await wait("the quiet tool") { chat.items.last { $0.kind == .tool }?.text == "Run the build" }
+    try await Task.sleep(for: .seconds(2.5))
+    try check(chat.isRunning, "a turn with a tool still running isn't ended for being quiet")
+    ChatSession.geminiStopGrace = .seconds(5)
+    chat.interrupt()
+    try await wait("Stop on the quiet tool", seconds: 8) { !chat.isRunning }
+    ChatSession.geminiStopGrace = .seconds(10)
+    ChatSession.geminiQuietLimit = .seconds(180); ChatSession.geminiQuietCheck = .seconds(15)
+
     // Model and effort reach agy.
     chat.setGeminiModel("gemini-3.8-flash")
     chat.setGeminiEffort("low")

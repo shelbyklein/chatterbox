@@ -51,6 +51,19 @@ def prompt(rid, p):
     text = texts[-1].lower() if texts else ''
     update(sid, {'sessionUpdate': 'agent_thought_chunk', 'content': {'type': 'text', 'text': 'Thinking it over.'}})
     update(sid, {'sessionUpdate': 'usage_update', 'used': 12345, 'size': 1048576})
+    if 'linger' in text:
+        # Like agy after a long task (2026-11-21): the answer, a last thought, then silence with
+        # the prompt still open; a cancel would still be answered, but none comes.
+        update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'Answer given.'}})
+        update(sid, {'sessionUpdate': 'agent_thought_chunk', 'content': {'type': 'text', 'text': 'Wrapping up.'}})
+        threading.Event().wait(3600); return
+    if 'quiet tool' in text:
+        # A tool still running with no updates: not finished, however quiet.
+        update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'Starting the build.'}})
+        update(sid, {'sessionUpdate': 'tool_call', 'toolCallId': 'call-q', 'name': 'run', 'status': 'in_progress', 'kind': 'execute', 'title': 'Run the build'})
+        while sid not in cancelled: threading.Event().wait(0.05)
+        cancelled.discard(sid)
+        send({'jsonrpc': '2.0', 'id': rid, 'result': {'stopReason': 'cancelled'}}); return
     if 'wedge' in text:
         # Like agy on 2026-11-20: the answer comes, then the turn never ends and cancels go unanswered.
         update(sid, {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'All done.'}})
