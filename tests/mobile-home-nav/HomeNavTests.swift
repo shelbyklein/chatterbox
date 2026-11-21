@@ -2148,6 +2148,8 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(sdhqFamily.waitForExistence(timeout:5) && quest.exists, "a sidequest sits in its session's Activity card")
   XCTAssertTrue(sdhqFamily.frame.insetBy(dx:-1,dy:-1).contains(quest.frame), "inside SDHQ's card")
   XCTAssertLessThan(quest.frame.width,60,"a sidequest is a small icon, not a row")
+  // Its card takes one column, like the others (Shelby, 2026-11-21).
+  XCTAssertLessThan(sdhqFamily.frame.width, working.frame.width+2, "the family card is one column wide, not both")
   capture("activity-sidequest-family",app)
   // Tapping the icon shows its title, with Open.
   quest.tap()
