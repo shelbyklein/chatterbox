@@ -1145,7 +1145,13 @@ final class HomeNavTests: XCTestCase {
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("todo",app)
   let ignore=app.buttons["desk-ignore-"+deskID("printer")]
-  XCTAssertTrue(ignore.waitForExistence(timeout:5)); reveal(ignore, app); ignore.tap()
+  XCTAssertTrue(ignore.waitForExistence(timeout:5)); reveal(ignore, app)
+  // The actions stay on one line: no button's word broken across two (Shelby, 2026-11-20).
+  let start=app.buttons["desk-start-"+deskID("printer")]
+  XCTAssertLessThan(start.frame.height, 48, "Start fits on one line")
+  XCTAssertEqual(start.frame.midY, ignore.frame.midY, accuracy: 4, "Start and Remove in one row")
+  capture("desk-card-actions", app)
+  ignore.tap()
   XCTAssertTrue(app.buttons["desk-place-"+deskID("printer")].waitForNonExistence(timeout:8), "removed, it's gone")
   XCTAssertTrue(app.buttons["desk-place-"+deskID("banner")].exists, "the other stays")
   XCTAssertEqual(deskCounts(app)[0], "To do, 1", "the count goes down")
