@@ -37,6 +37,7 @@ PLACES=[{'kind':'studio','id':cid('studio'),'name':'USA Archery','detail':'Banne
  {'kind':'project','id':cid('PlayCase Magnets'),'name':'PlayCase Magnets','detail':'Magnet products and their store photos.'},
  {'kind':'loose','id':None,'name':'A session of its own','detail':'Not in a Studio or project.'}]
 DESK_SOURCE_PULL=None
+DESK_WATCH=None
 DESK_WAITING=[];DESK_INCOMING=[];DESK_CALLS=[];DESK_REVISION=1;DESK_SILENCED=[];DESK_READY=[];DESK_DONE=[]
 DESK_HOLD_ENABLED=False;DESK_HELD=[];DESK_HELD_RECORDS={}
 # Tasks and work threads (plans/work-threads.md), off unless a test asks (/test/tasks): tasks linked
@@ -63,6 +64,8 @@ def stamp(minutes=0):
 def place_named(name):
  return next((p for p in PLACES if p['name'].lower()==(name or '').lower()),None)
 def desk_reset(empty=False):
+ global DESK_WATCH
+ DESK_WATCH=None
  global DESK_SOURCE_PULL,DESK_WAITING,DESK_INCOMING,DESK_CALLS,DESK_REVISION,DESK_SILENCED,DESK_READY,DESK_DONE,DESK_HOLD_ENABLED,DESK_HELD,DESK_HELD_RECORDS
  DESK_SOURCE_PULL=None
  DESK_HOLD_ENABLED=False;DESK_HELD=[];DESK_HELD_RECORDS={}
@@ -86,6 +89,7 @@ def desk():
   'activity':'Editing Sources/Typography/Engine.swift' if n=='Galley' else 'Thinking\u2026'} for n in RUNNING]
  d={'revision':DESK_REVISION,'needsYou':DESK_WAITING,'incoming':DESK_INCOMING,'working':working,'silenced':DESK_SILENCED,'ready':DESK_READY,'done':DESK_DONE}
  if DESK_SOURCE_PULL is not None:d["sourcePull"]=DESK_SOURCE_PULL
+ if DESK_WATCH is not None:d["watch"]=DESK_WATCH
  if DESK_HOLD_ENABLED:d["onHold"]=DESK_HELD
  if not TASKS:return d
  def tagged(items,key):
@@ -482,6 +486,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
     DESK_HELD=[h for h in DESK_HELD if h['id'].lower()!=id]
    DESK_REVISION+=1
    return self.reply(desk())
+  if self.path=='/test/desk-watch':
+   global DESK_WATCH
+   DESK_WATCH={'sources':[{'name':'ClickUp','lastChecked':stamp(2)},{'name':'Outlook','lastChecked':stamp(1),
+     **({'problem':'Add your usarchery.org account to Apple Mail'} if body.get('problem') else {})}],
+    'pending':0,'running':False,'nextDigest':stamp(-600),'changesToday':3}
+   DESK_REVISION+=1
+   return self.reply({'ok':True})
   if self.path=='/test/desk-source-result':
    global DESK_SOURCE_PULL
    partial=bool(body.get('partial',False))

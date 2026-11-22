@@ -2050,6 +2050,21 @@ final class HomeNavTests: XCTestCase {
   XCTAssertEqual((response as? HTTPURLResponse)?.statusCode,200)
   return try JSONSerialization.jsonObject(with:data)
  }
+ /// The always-on Desk's status line (plans/always-on-desk.md): what it watches, when it last
+ /// looked, today's changes and the next digest; a source's problem in orange.
+ @MainActor func testDeskWatchLine() async throws {
+  try await fixture("reset"); try await fixture("desk-watch", body: ["problem": true])
+  let app = XCUIApplication()
+  app.launchEnvironment = ["CHATTERBOX_TEST_HOST":"127.0.0.1", "CHATTERBOX_TEST_CODE":"123456", "CHATTERBOX_TEST_PORT":fixturePort]
+  app.launchArguments += ["-mobileChatListPage", "desk", "-deskIntroduced", "YES"]
+  app.launch()
+  let line=app.descendants(matching:.any)["desk-watch"]
+  XCTAssertTrue(line.waitForExistence(timeout:15), "the Desk shows what it's watching")
+  XCTAssertTrue(line.label.contains("Watching ClickUp · Outlook") && line.label.contains("3 changes today") && line.label.contains("digest"), line.label)
+  XCTAssertTrue(line.label.contains("Outlook: Add your usarchery.org account to Apple Mail"), "a source's problem shows")
+  XCTAssertGreaterThan(line.frame.minY, field("desk-ask",app).frame.maxY - 1, "under the ask box")
+  capture("desk-watch-line", app)
+ }
  @MainActor func testDeskSourceCheck() async throws {
   try await fixture("reset")
   let app = XCUIApplication()
