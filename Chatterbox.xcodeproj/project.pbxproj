@@ -24,6 +24,7 @@
 		12069144D157B29FCB0815F3 /* WidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F38DF753D6223FB05FB1D830 /* WidgetSnapshot.swift */; };
 		121878FD864195B66430A97B /* ChatSession+Remote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879B0DF595BE1302E720912 /* ChatSession+Remote.swift */; };
 		12619EA37700E060F9BDE7FD /* ChatToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442D749B9861C4CBE2521F3 /* ChatToolbar.swift */; };
+		12ECD8B2DE69791A20FA4273 /* DeskInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA586065C3E77DAF3F6B27EC /* DeskInbox.swift */; };
 		1417AE929D75C1B17835DCF3 /* HostProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8689DF6B99431EBDF5A4BE52 /* HostProtocol.swift */; };
 		1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07846B056A3EC031B8C536B /* Diagnostics.swift */; };
 		16BD2136B14DB11D43FB1F58 /* TranscriptImages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */; };
@@ -221,6 +222,7 @@
 		A5BC48149D2F5798A1FCD1F5 /* MacPressureViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBC269E8D4EEE899C1316B5 /* MacPressureViews.swift */; };
 		A5F4E7330D056D0E7F5E14EB /* DeskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 093A6E7F6F501DBB039702A3 /* DeskView.swift */; };
 		A60C1AEABC98583A9DC1F806 /* AttentionColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67624B5CA24DEA04249F80 /* AttentionColor.swift */; };
+		A8E5A30D17F2678D82C9297D /* DeskInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA586065C3E77DAF3F6B27EC /* DeskInbox.swift */; };
 		A9F21FC3D53C2E0C748C2429 /* RuntimePeer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498B57FF4D772C0E7C409EF /* RuntimePeer.swift */; };
 		AAA6B54A940459E3DF6C7834 /* ChatSession+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFA1527DD8F13A94382764C /* ChatSession+Media.swift */; };
 		AAB612292B82DC6585BCF021 /* PlaceSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */; };
@@ -601,6 +603,7 @@
 		F8D7D2F235E3F6DC973ABA35 /* CommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCenter.swift; sourceTree = "<group>"; };
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		F9B547190B96DC266DABD2B6 /* ThreadTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadTools.swift; sourceTree = "<group>"; };
+		FA586065C3E77DAF3F6B27EC /* DeskInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeskInbox.swift; sourceTree = "<group>"; };
 		FAADE85FD7DA7AFE4016DC12 /* CompanionTransportProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTransportProbe.swift; sourceTree = "<group>"; };
 		FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAutomations.swift; sourceTree = "<group>"; };
 		FB6F65495C9CB3CCAD3FC366 /* ChatSession+Gemini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Gemini.swift"; sourceTree = "<group>"; };
@@ -793,6 +796,7 @@
 				350619589BFFE4830DF574FF /* CompanionServer.swift */,
 				1128D953C085340C80B95088 /* ConnectorServer.swift */,
 				F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */,
+				FA586065C3E77DAF3F6B27EC /* DeskInbox.swift */,
 				8F3A39058A34823DB61CC260 /* DeskStore.swift */,
 				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */,
@@ -1253,6 +1257,7 @@
 				9B9F7310DE93EEE844226B8C /* ConnectorTools.swift in Sources */,
 				4CB7C3DF87AF4FBAEC98BCC6 /* ContentView.swift in Sources */,
 				265E9D78EEBB723103EEF085 /* ConversationRuntime.swift in Sources */,
+				A8E5A30D17F2678D82C9297D /* DeskInbox.swift in Sources */,
 				43474A6FC94DC6CECF2258E6 /* DeskStore.swift in Sources */,
 				A5F4E7330D056D0E7F5E14EB /* DeskView.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
@@ -1467,6 +1472,7 @@
 				9B553257496CC7A3A68206A4 /* ConnectorTools.swift in Sources */,
 				65DFD36FCBC41F84E758DF29 /* ConversationRuntime.swift in Sources */,
 				E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */,
+				12ECD8B2DE69791A20FA4273 /* DeskInbox.swift in Sources */,
 				2DBC78ADC365F4DE913ECB8E /* DeskStore.swift in Sources */,
 				BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */,
 				326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */,
