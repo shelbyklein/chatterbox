@@ -46,6 +46,7 @@
 		1EF938C4F2418B40A5544318 /* CodexModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186B4DB480F00C74F544E9BD /* CodexModelCatalog.swift */; };
 		20BA8BF7B48DF74D8F430525 /* CompanionDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609C49A774144EE8C48BEDB4 /* CompanionDocuments.swift */; };
 		216A4A576879E8065789E82E /* CompanionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA9F0B419529549C12E3317 /* CompanionAPI.swift */; };
+		226C099F0EB00B00AC94C34F /* DeskWatchers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C67EEBFB2944CA0BF28980 /* DeskWatchers.swift */; };
 		22DD258AFC5A17209F364B57 /* MobilePushNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */; };
 		240751B84CDB2B6BFB2F0439 /* MobileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667AC120BEF5177C4AB1C659 /* MobileStore.swift */; };
 		2588794624F1D967F91D5936 /* MobileAutomations.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEAC13CEEA55AF938C3BD48 /* MobileAutomations.swift */; };
@@ -241,6 +242,7 @@
 		B309C2DF59B192AD411D109B /* StarterPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6240D04D668176B8C39EAF3F /* StarterPrompts.swift */; };
 		B3A96469AE8961131069BF62 /* MobileWorkThreads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26030E650CD49C9FAFBEEA53 /* MobileWorkThreads.swift */; };
 		B4C0CF83925F8F0C9F708CBD /* FilePaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6BB9C35A1CEC6C889F7D4D /* FilePaths.swift */; };
+		B4EB6CB672595CC1FE9B1229 /* DeskWatchers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C67EEBFB2944CA0BF28980 /* DeskWatchers.swift */; };
 		B548D09F2AF1C222286B54D4 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D880F9204CBD1DAFCB11DD /* Secrets.swift */; };
 		B79ABA062171F68288AF9C7D /* ProxyQuotaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251C7FD9A35A3EF56C8496A7 /* ProxyQuotaView.swift */; };
 		B7DF907397E97087AAE0C534 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A09E99A7C1ABAD4A7CE11A /* Flavor.swift */; };
@@ -394,6 +396,7 @@
 		00772506A1F5031126B3A36E /* ChatFind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFind.swift; sourceTree = "<group>"; };
 		0178EBFCFA5C2E01B6F03C72 /* BackgroundWorkBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkBar.swift; sourceTree = "<group>"; };
 		021EC108AF9A069EC57072CC /* PlaceSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSuggestion.swift; sourceTree = "<group>"; };
+		02C67EEBFB2944CA0BF28980 /* DeskWatchers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeskWatchers.swift; sourceTree = "<group>"; };
 		036774A4584171FAB2B8EC39 /* BackgroundServiceRestart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundServiceRestart.swift; sourceTree = "<group>"; };
 		0629105A36394E1CD3331ACD /* Chatterbox.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chatterbox.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		064C3FB24651A1A367B53C36 /* CodexAppServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAppServer.swift; sourceTree = "<group>"; };
@@ -798,6 +801,7 @@
 				F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */,
 				FA586065C3E77DAF3F6B27EC /* DeskInbox.swift */,
 				8F3A39058A34823DB61CC260 /* DeskStore.swift */,
+				02C67EEBFB2944CA0BF28980 /* DeskWatchers.swift */,
 				D07846B056A3EC031B8C536B /* Diagnostics.swift */,
 				E400ADA33D3BEFF36A9EAE3B /* EasyCLIProxy.swift */,
 				626F43262FE809C8EFEDADB0 /* GeminiACP.swift */,
@@ -1260,6 +1264,7 @@
 				A8E5A30D17F2678D82C9297D /* DeskInbox.swift in Sources */,
 				43474A6FC94DC6CECF2258E6 /* DeskStore.swift in Sources */,
 				A5F4E7330D056D0E7F5E14EB /* DeskView.swift in Sources */,
+				226C099F0EB00B00AC94C34F /* DeskWatchers.swift in Sources */,
 				1427E101AA293DA9FA6DF32A /* Diagnostics.swift in Sources */,
 				08058949CC960A33EDA5461A /* DocumentViewer.swift in Sources */,
 				CAA043E61CFFAEBAA59152B1 /* EasyCLIProxy.swift in Sources */,
@@ -1474,6 +1479,7 @@
 				E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */,
 				12ECD8B2DE69791A20FA4273 /* DeskInbox.swift in Sources */,
 				2DBC78ADC365F4DE913ECB8E /* DeskStore.swift in Sources */,
+				B4EB6CB672595CC1FE9B1229 /* DeskWatchers.swift in Sources */,
 				BB9FE1736EDDD9BA2A09958A /* EasyCLIProxy.swift in Sources */,
 				326F9D82B49737E5AFCDA262 /* FilePaths.swift in Sources */,
 				9C54FDAC108989E71F2445CB /* Flavor.swift in Sources */,
