@@ -58,6 +58,8 @@ Task { @MainActor in
         }
         // Gemini's limits come from agy on request (Codex and Claude report theirs as they run).
         GeminiUsage.shared.start()
+        // The always-on Desk: watchers, inbox and short Desk runs, while Settings has it on.
+        DeskAgent.shared.start()
         NotificationCenter.default.addObserver(forName:Notification.Name("ChatterboxRuntimeOpenPin"),object:nil,queue:.main){note in
             MainActor.assumeIsolated{if let pin=note.object as? Pin,let payload=try? JSON.value(pin){runtime.publishUIRequest("pin.open",payload:payload)}}
         }

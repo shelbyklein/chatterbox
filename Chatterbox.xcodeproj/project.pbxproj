@@ -216,6 +216,7 @@
 		9F48E4FCE4F68EC2D5BF67CB /* MobileRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F870DC2E8E6B8DC7328004F /* MobileRail.swift */; };
 		A0100C9B64BAF5689FC7AB7C /* ChatSession+Tasks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */; };
 		A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB27A16AB61425271FAD9777 /* JSON.swift */; };
+		A14E937656A67881CB8ABD80 /* DeskAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C7378696A3C4E442DA88BC /* DeskAgent.swift */; };
 		A2CF3A4ECA3016DE2E5734D2 /* Changelog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5768EE0C60193EDBD4709097 /* Changelog.swift */; };
 		A31A7170DFE0B779E48AA163 /* Backend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3AE88BF63DE274A9EC0194F /* Backend.swift */; };
 		A3FFA84BD8117163D06EAC53 /* GeminiACP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626F43262FE809C8EFEDADB0 /* GeminiACP.swift */; };
@@ -360,10 +361,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -382,10 +383,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -602,6 +603,7 @@
 		F3DC91A879146D9B37CA06E3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F41E92F5B6E4595A2D12D85A /* ConnectorTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorTools.swift; sourceTree = "<group>"; };
 		F590872692259FADBC73667E /* DocumentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentViewer.swift; sourceTree = "<group>"; };
+		F6C7378696A3C4E442DA88BC /* DeskAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeskAgent.swift; sourceTree = "<group>"; };
 		F8396140D14FE6E04F22C13F /* prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = prompts; path = Core/prompts; sourceTree = SOURCE_ROOT; };
 		F8D7D2F235E3F6DC973ABA35 /* CommandCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCenter.swift; sourceTree = "<group>"; };
 		F90E1FEF54757E746B104D0F /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -842,6 +844,7 @@
 			children = (
 				2AA78EBBB4F6A55D6FB08863 /* AutomationRunner.swift */,
 				3918CAE546531216A58EABAA /* DaemonContext.swift */,
+				F6C7378696A3C4E442DA88BC /* DeskAgent.swift */,
 				25CA0C530A3B250D3DD1CB52 /* main.swift */,
 				EFA8A4798AD630C1E148DBB1 /* PressureMonitor.swift */,
 				62FE567C5923866F1A43D2B2 /* RuntimeServer.swift */,
@@ -1477,6 +1480,7 @@
 				9B553257496CC7A3A68206A4 /* ConnectorTools.swift in Sources */,
 				65DFD36FCBC41F84E758DF29 /* ConversationRuntime.swift in Sources */,
 				E3B47D0A403279AB5BD9F177 /* DaemonContext.swift in Sources */,
+				A14E937656A67881CB8ABD80 /* DeskAgent.swift in Sources */,
 				12ECD8B2DE69791A20FA4273 /* DeskInbox.swift in Sources */,
 				2DBC78ADC365F4DE913ECB8E /* DeskStore.swift in Sources */,
 				B4EB6CB672595CC1FE9B1229 /* DeskWatchers.swift in Sources */,

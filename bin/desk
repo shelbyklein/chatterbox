@@ -94,6 +94,14 @@ def main():
     ingest.add_argument("file", help="JSON file with items, updates and unavailable arrays (- reads stdin)")
     ingest.add_argument("--chat", default=os.environ.get("CHATTERBOX_CHAT_ID"), help="the active check session (defaults to CHATTERBOX_CHAT_ID)")
     commands.add_parser("places", help="Studios and projects")
+    remind = commands.add_parser("remind", help="the Desk agent's follow-up: an event at a time to check back")
+    remind.add_argument("task", nargs="?", help="the Desk task ID it concerns")
+    remind.add_argument("--at", required=True, help="ISO date/time (2026-11-24T09:00) or +3d, +4h, +30m")
+    remind.add_argument("--note", default="", help="what to check")
+    notify = commands.add_parser("notify", help="tell Shelby: --urgent now, otherwise in the morning digest")
+    notify.add_argument("text")
+    notify.add_argument("--urgent", action="store_true", help="needs her now, or due within 48 hours")
+    notify.add_argument("--task", help="the Desk task ID it concerns")
     args = parser.parse_args()
     service = Service()
 
@@ -151,6 +159,18 @@ def main():
             body["task"] = args.task
         service.request("desk", body)
         print(f"Noted: {args.ref} says {args.status}.")
+    elif args.command == "remind":
+        body = {"action": "remind", "at": args.at, "note": args.note}
+        if args.task:
+            body["task"] = args.task
+        result = service.request("desk", body) or {}
+        print(f"Follow-up set for {result.get('due', args.at)}.")
+    elif args.command == "notify":
+        body = {"action": "notify", "text": args.text, "urgent": args.urgent}
+        if args.task:
+            body["task"] = args.task
+        service.request("desk", body)
+        print("Shelby will hear now." if args.urgent else "Added to the morning digest.")
     elif args.command == "list":
         desk = service.request("desk", {"action": "get"}) or {}
         if args.json:

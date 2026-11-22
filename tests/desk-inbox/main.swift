@@ -181,6 +181,52 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!DeskInbox.shared.events.contains { $0.title == "Sent by me" || $0.title == "PlayCase order" }, "sent mail, other accounts and deleted mail are left out")
     let again = await mail.check()
     try check(again == 0, "the same mail isn't reported twice")
+    // Follow-ups: due ones go to the inbox once each; parsing "+3d" and dates.
+    let timers = DeskTimers(file: root.appendingPathComponent("Desk/timers.json"))
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    try check(DeskTimers.parse("+3d", now: base) == base.addingTimeInterval(3 * 86_400) && DeskTimers.parse("+30m", now: base) == base.addingTimeInterval(1800)
+              && DeskTimers.parse("2026-11-24T09:00") != nil && DeskTimers.parse("soon") == nil, "follow-up times: +3d, +30m, a date; nonsense refused")
+    _ = timers.add(task: "T-1", note: "Did Callie reply?", due: base.addingTimeInterval(60))
+    _ = timers.add(task: nil, note: "Later", due: base.addingTimeInterval(86_400))
+    try check(timers.fireDue(now: base) == 0, "nothing fires early")
+    try check(timers.fireDue(now: base.addingTimeInterval(7200)) == 1 && timers.timers.count == 1, "a due follow-up fires once, even long after")
+    try check(timers.fireDue(now: base.addingTimeInterval(7300)) == 0, "and not again")
+    try check(DeskInbox.shared.events.contains { $0.kind == "timer.followup" && $0.title == "Follow-up: Did Callie reply?" }, "it lands in the inbox as an event")
+
+    // Outbox: urgent now (not in quiet hours), the rest in one weekday digest; each told once.
+    let memory = DeskMemory(directory: root.appendingPathComponent("Desk/memory"))
+    let outbox = DeskOutbox(file: root.appendingPathComponent("Desk/outbox.json"))
+    outbox.memory = memory
+    var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "America/New_York")!
+    outbox.calendar = cal
+    var pushes: [(String, String)] = []
+    outbox.post = { pushes.append(($0, $1)) }
+    func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))! }
+    outbox.add("Sierra needs the banner by Monday", urgent: true, task: nil, now: at(23, 10))   // Monday 10 am
+    try check(pushes.count == 1 && pushes[0].1 == "Sierra needs the banner by Monday", "an urgent line goes to the phone at once")
+    outbox.add("Late urgent", urgent: true, task: nil, now: at(23, 22))
+    try check(pushes.count == 1, "quiet hours hold an urgent line")
+    outbox.add("Holiday card got a thumbs-up", urgent: false, task: nil, now: at(23, 22, 5))
+    outbox.add("New ribbon task", urgent: false, task: nil, now: at(23, 22, 6))
+    outbox.dispatch(now: at(24, 7, 5))
+    try check(pushes.count == 2 && pushes[1].1 == "Late urgent", "the held urgent line goes at 7 am, before the digest")
+    outbox.dispatch(now: at(24, 8, 31))
+    try check(pushes.count == 3 && pushes[2].0 == "Desk: 2 updates since yesterday" && pushes[2].1.contains("• New ribbon task"), "the rest go as one morning digest")
+    outbox.dispatch(now: at(24, 9))
+    try check(pushes.count == 3, "one digest a day")
+    let reported = memory.read("reported.md")
+    try check(["Sierra needs the banner", "Late urgent", "Holiday card", "New ribbon task"].allSatisfy { reported.contains($0) }, "everything sent is in reported.md")
+    outbox.add("Weekend note", urgent: false, task: nil, now: at(28, 12))   // Saturday
+    outbox.dispatch(now: at(28, 9))
+    try check(pushes.count == 3, "no digest on the weekend")
+
+    // A run's message: just these events, with memory, and the rules.
+    let message = ProjectAutomations.deskEventInstructions("Shelby's standing rules.", events: [
+        DeskEvent(source: "clickup", sourceEventID: "comment:c9", kind: "comment.new", title: "Sierra on \u{201C}Banner\u{201D}", detail: "Make it bigger", link: "https://app.clickup.com/t/x1")
+    ], memory: memory)
+    try check(message.contains("1. [comment.new] Sierra on \u{201C}Banner\u{201D}") && message.contains("Make it bigger") && message.contains("--- reported.md (newest) ---")
+              && message.contains("Shelby's standing rules.") && message.contains("desk notify --urgent") && message.contains("desk ingest FILE"),
+              "a run's message carries the events, memory, standing rules and how to report")
     print("ALL PASS")
 }
 MainActor.assumeIsolated {
