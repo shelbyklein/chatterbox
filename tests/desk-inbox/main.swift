@@ -143,6 +143,44 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(limited.clickupUpdatedAfter == before && limited.problems["clickup"]?.contains("slow down") == true, "and keeps its checkpoint, noting the problem")
     FakeClickUp.status = 200
     let caught = await watcher.check(); try check(caught == 1 && DeskCheckpoints.load(watcher.checkpointsFile).problems["clickup"] == nil, "the next check catches up and clears the problem")
+    // Apple Mail: a stand-in index and accounts database (the real ones are never touched).
+    func sql(_ file: URL, _ statement: String) throws {
+        let p = Process(); p.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3"); p.arguments = [file.path, statement]
+        try p.run(); p.waitUntilExit()
+    }
+    let accounts = root.appendingPathComponent("Accounts4.sqlite"), index = root.appendingPathComponent("Envelope Index")
+    try sql(accounts, "CREATE TABLE ZACCOUNT (ZIDENTIFIER TEXT, ZUSERNAME TEXT, ZACCOUNTDESCRIPTION TEXT); INSERT INTO ZACCOUNT VALUES ('PC-1','info@playcase.gg','Exchange');")
+    try sql(index, """
+        CREATE TABLE mailboxes (ROWID INTEGER PRIMARY KEY, url TEXT); CREATE TABLE addresses (ROWID INTEGER PRIMARY KEY, address TEXT, comment TEXT);
+        CREATE TABLE subjects (ROWID INTEGER PRIMARY KEY, subject TEXT); CREATE TABLE summaries (ROWID INTEGER PRIMARY KEY, summary TEXT);
+        CREATE TABLE messages (ROWID INTEGER PRIMARY KEY, message_id INTEGER, sender INTEGER, subject INTEGER, summary INTEGER, date_received INTEGER, mailbox INTEGER, deleted INTEGER DEFAULT 0);
+        INSERT INTO mailboxes VALUES (1,'ews://UA-1/Inbox'),(2,'ews://UA-1/Sent Items'),(3,'ews://PC-1/Inbox');
+        INSERT INTO addresses VALUES (1,'callie@usarchery.org','Callie Grieser'),(2,'store@playcase.gg','');
+        INSERT INTO subjects VALUES (1,'Old news'); INSERT INTO summaries VALUES (1,'Earlier');
+        INSERT INTO messages VALUES (1,9001,1,1,1,1795000000,1,0);
+        """)
+    let mail = MailWatcher()
+    mail.indexFile = index; mail.accountsFile = accounts; mail.keepMailOpen = false
+    mail.checkpointsFile = watcher.checkpointsFile
+    mail.domain = { "usarchery.org" }
+    let missing = await mail.check()
+    try check(missing == 0 && DeskCheckpoints.load(mail.checkpointsFile).problems["mail"]?.contains("Add your usarchery.org account to Apple Mail") == true,
+              "without the account in Mail, it says what to do")
+    try sql(accounts, "INSERT INTO ZACCOUNT VALUES ('UA-1','shelby@usarchery.org','Exchange');")
+    let learned = await mail.check()
+    try check(learned == 0 && DeskCheckpoints.load(mail.checkpointsFile).mailAfterRow == 1, "with the account, the first check learns where Mail is")
+    try sql(index, """
+        INSERT INTO subjects VALUES (2,'Banner proof feedback'),(3,'Sent by me'),(4,'PlayCase order');
+        INSERT INTO summaries VALUES (2,'Can we make the logo bigger?');
+        INSERT INTO messages VALUES (2,9002,1,2,2,1795100000,1,0),(3,9003,1,3,NULL,1795100100,2,0),(4,9004,2,4,NULL,1795100200,3,0),(5,9005,1,2,2,1795100300,1,1);
+        """)
+    let newMail = await mail.check()
+    let email = DeskInbox.shared.events.first { $0.kind == "email.new" }
+    try check(newMail == 1 && email?.title == "Banner proof feedback" && email?.detail.contains("Callie Grieser <callie@usarchery.org>") == true
+              && email?.detail.contains("logo bigger") == true, "a new USA Archery inbox message becomes an event, with sender and summary")
+    try check(!DeskInbox.shared.events.contains { $0.title == "Sent by me" || $0.title == "PlayCase order" }, "sent mail, other accounts and deleted mail are left out")
+    let again = await mail.check()
+    try check(again == 0, "the same mail isn't reported twice")
     print("ALL PASS")
 }
 MainActor.assumeIsolated {
