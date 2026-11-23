@@ -1687,6 +1687,9 @@ final class HomeNavTests: XCTestCase {
    XCTAssertLessThan(icon(id).frame.width, 60, "a small icon, not a row")
   }
   XCTAssertTrue(icon(columnsID).label.hasPrefix("Work thread"), icon(columnsID).label)
+  // A child working counts as the whole family working (Shelby, 2026-11-23).
+  XCTAssertTrue(icon(columnsID).label.contains("working"), "a work thread is working: \(icon(columnsID).label)")
+  XCTAssertTrue(front.label.contains("Working"), "so its front thread's card shows working: \(front.label)")
   let optimization=app.buttons["chat-"+uuid("optimization")]
   XCTAssertTrue(optimization.exists)
   XCTAssertLessThan(family.frame.width, optimization.frame.width * 1.2, "the family card is one column wide")
