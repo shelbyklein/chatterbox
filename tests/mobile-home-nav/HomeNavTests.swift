@@ -1305,6 +1305,11 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); deskColumn("ready",app)
   let magnets=uuid("PlayCase Magnets"), chatterbox=uuid("Chatterbox"), crystal=uuid("Crystal concept")
   let complete=app.buttons["desk-complete-"+magnets]
+  let readyOpen=app.buttons["desk-ready-open-"+magnets]
+  if complete.waitForExistence(timeout:8), readyOpen.exists {
+   XCTAssertGreaterThan(complete.frame.minX, readyOpen.frame.maxX + 30, "Complete is a check at the right end of the card")
+   XCTAssertLessThan(complete.frame.width, 60, "just a check icon")
+  }
   XCTAssertTrue(complete.waitForExistence(timeout:5)); complete.tap()
   XCTAssertTrue(app.descendants(matching:.any)["desk-ready-"+magnets].waitForNonExistence(timeout:8), "completed, it leaves Ready")
   var call=try await deskCalls().last
@@ -1487,6 +1492,14 @@ final class HomeNavTests: XCTestCase {
   try await fixture("reset"); try await fixture("desk-hold")
   let app=deskApp(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20))
+  // Open on a held card takes it off hold and opens its session (Shelby, 2026-11-23): then back to the Desk.
+  func resumeHeld(_ id:String) {
+   app.buttons["desk-resume-"+id].tap()
+   if field("messageComposer",app).waitForExistence(timeout:4) {
+    let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
+    back.tap(); deskTab(app).tap()
+   }
+  }
   func select(_ id:String) {
    let button=app.buttons["desk-tab-"+id]
    for _ in 0..<4 where !button.isHittable {
@@ -1515,16 +1528,20 @@ final class HomeNavTests: XCTestCase {
   XCTAssertTrue(app.buttons["desk-tab-todo"].isHittable,"normal text keeps the first state within reach")
   XCTAssertFalse(ready.exists,"the task is only in On hold")
   capture("desk-on-hold-review",app)
+  // Open on a held card: off hold, and into its conversation (Shelby, 2026-11-23).
+  XCTAssertFalse(held(reviewTask).buttons["Resume"].exists, "one button, Open, not Resume and Open")
   held(reviewTask).buttons["Open"].tap()
-  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10),"Open keeps access to the prepared conversation")
+  XCTAssertTrue(field("messageComposer",app).waitForExistence(timeout:10),"Open opens the prepared conversation")
   let back=app.buttons["BackButton"].exists ? app.buttons["BackButton"] : app.navigationBars.buttons.element(boundBy:0)
   XCTAssertTrue(back.waitForExistence(timeout:5)); back.tap(); deskTab(app).tap()
-  select("on-hold")
+  select("ready")
+  XCTAssertTrue(ready.waitForExistence(timeout:8),"and takes it off hold, back to Review")
+  putOnHold(ready)
   XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8))
   app.terminate(); app.launch()
   XCTAssertTrue(app.buttons[approve].waitForExistence(timeout:20)); select("on-hold")
   XCTAssertTrue(held(reviewTask).waitForExistence(timeout:8),"hold survives reconnect and app relaunch")
-  app.buttons["desk-resume-"+reviewTask].tap()
+  resumeHeld(reviewTask)
   XCTAssertTrue(ready.waitForExistence(timeout:8),"Resume restores Review rather than restarting preparation")
   XCTAssertTrue(app.buttons["desk-tab-ready"].isSelected)
   // The Review card's own On Hold button (waiting on someone's reply), without the long-press menu.
@@ -1545,7 +1562,7 @@ final class HomeNavTests: XCTestCase {
   capture("desk-waiting-for-response",app)
   let waitingCall=try await deskCalls().last { $0["action"] as? String == "hold" }
   XCTAssertEqual(waitingCall?["reason"] as? String,"response","the Mac is told why")
-  app.buttons["desk-resume-"+reviewTask].tap()
+  resumeHeld(reviewTask)
   XCTAssertTrue(ready.waitForExistence(timeout:8))
   // Errors keep the original task, and do not falsely switch its lane.
   try await fixture("fail",body:["value":true]); putOnHold(ready)
@@ -1554,18 +1571,18 @@ final class HomeNavTests: XCTestCase {
   select("todo")
   putOnHold(app.staticTexts["Make a banner for the fall archery camp"])
   XCTAssertTrue(held(deskID("banner")).waitForExistence(timeout:8)); capture("desk-on-hold-todo",app)
-  app.buttons["desk-resume-"+deskID("banner")].tap()
+  resumeHeld(deskID("banner"))
   XCTAssertTrue(app.buttons["desk-start-"+deskID("banner")].waitForExistence(timeout:8),"unstarted task returns to To do")
   select("needs-you")
   let question=app.descendants(matching:.any)["desk-waiting-"+deskID("questions")]
   putOnHold(question)
   XCTAssertTrue(held(questionTask).waitForExistence(timeout:8))
-  app.buttons["desk-resume-"+questionTask].tap()
+  resumeHeld(questionTask)
   XCTAssertTrue(question.waitForExistence(timeout:8),"idle question returns to Needs you")
   let calls=try await deskCalls()
-  // Three by long-press, one by the Review card's On Hold button, each resumed.
-  XCTAssertEqual(calls.filter { $0["action"] as? String == "hold" }.count,4)
-  XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,4)
+  // Four by long-press, one by the Review card's On Hold button, each resumed (one by Open).
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "hold" }.count,5)
+  XCTAssertEqual(calls.filter { $0["action"] as? String == "resume" }.count,5)
   XCTAssertFalse(calls.contains { ["start","complete","writeBack"].contains($0["action"] as? String ?? "") })
  }
  /// Show on the Desk: a session without a task gets the switch in its ⋯ menu; on, the Mac is
