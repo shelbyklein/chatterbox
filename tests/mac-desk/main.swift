@@ -425,6 +425,9 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
     check(frame("auto:\(proofs.id)") != nil && frame("auto:\(lid.id)") == nil, "an auto-started card says Started automatically")
     // The accordion: a click on the title closes the card to its title and actions, another opens it.
     try await click("readyToggle:\(lid.id)")
+    if let complete = frame("complete:\(lid.id)"), let open = frame("readyOpen:\(lid.id)") {
+        check(complete.minX > open.maxX + 40, "Complete sits at the right end of a Review card, apart from Open")
+    }
     check(frame("readySilence:\(lid.id)") == nil && frame("complete:\(lid.id)") != nil && frame("readyOpen:\(lid.id)") != nil,
           "a closed Review card: its title and actions only")
     try snapshot("desk-card-closed")
@@ -730,8 +733,10 @@ func check(_ ok: Bool, _ what: String) { print(ok ? "PASS" : "FAIL", what); if !
           "On hold column and Resume render on the Mac")
     try await click("resume:\(deferredTask)")
     check(desk.sections(in: model).onHold.isEmpty && desk.sections(in: model).ready.contains { $0.task == deferredTask },
-          "native Resume button restores Review without starting work")
+          "native Open (on hold) restores Review")
     check(sent.filter { ["hold", "resume"].contains($0["action"]?.string ?? "") }.suffix(2).map { $0["action"]?.string } == ["hold", "resume"], "hold/resume use explicit task actions")
+    // Open also opened its session: back to the Desk.
+    model.showDesk()
     // The Review card's own On hold button (waiting on someone's reply), no menu needed.
     try await render(AnyView(ContentView()), 2600, 1000, "desk-review-hold")
     check(frame("readyHold:\(deferred.id)") != nil, "a Review card shows On hold")
