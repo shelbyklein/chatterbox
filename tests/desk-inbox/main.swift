@@ -163,8 +163,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     mail.indexFile = index; mail.accountsFile = accounts; mail.keepMailOpen = false
     mail.checkpointsFile = watcher.checkpointsFile
     mail.domain = { "usarchery.org" }
+    mail.outlook.available = { false }
     let missing = await mail.check()
-    try check(missing == 0 && DeskCheckpoints.load(mail.checkpointsFile).problems["mail"]?.contains("Add your usarchery.org account to Apple Mail") == true,
+    try check(missing == 0 && DeskCheckpoints.load(mail.checkpointsFile).problems["mail"]?.contains("usarchery.org account to Apple Mail") == true,
               "without the account in Mail, it says what to do")
     try sql(accounts, "INSERT INTO ZACCOUNT VALUES ('UA-1','shelby@usarchery.org','Exchange');")
     let learned = await mail.check()
@@ -181,6 +182,37 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!DeskInbox.shared.events.contains { $0.title == "Sent by me" || $0.title == "PlayCase order" }, "sent mail, other accounts and deleted mail are left out")
     let again = await mail.check()
     try check(again == 0, "the same mail isn't reported twice")
+    // Outlook, read through accessibility, when Apple Mail has no USA Archery account.
+    let one = OutlookReader.Message("  Unread,    Allison Collins, Re: Pan Am and Parapan Am Jerseys,     2:48 PM, Folder: Inbox,   Has attachments,  Hi Shelby, the proofs look great")
+    try check(one?.from == "Allison Collins" && one?.subject == "Re: Pan Am and Parapan Am Jerseys" && one?.time == "2:48 PM" && one?.today == true
+              && one?.preview == "Hi Shelby, the proofs look great", "an Outlook row gives sender, subject, time and preview")
+    let thread = OutlookReader.Message("    3 messages, Nicole Glunt, Shelby Klein, Policies and Website Changes,   Replied  11/16/26, Folder: Inbox,   Looks good")
+    try check(thread?.from == "Nicole Glunt, Shelby Klein" && thread?.subject == "Policies and Website Changes" && thread?.today == false,
+              "a conversation row lists its senders; a dated row isn't today's")
+    try check(OutlookReader.Message("Top Results") == nil && OutlookReader.Message("Unread, Mon 3:15 PM") == nil, "headers and empty rows are skipped")
+    let outlookPoints = root.appendingPathComponent("Desk/outlook-checkpoints.json")
+    let ol = MailWatcher()
+    ol.accountsFile = root.appendingPathComponent("no-accounts.sqlite"); ol.keepMailOpen = false; ol.checkpointsFile = outlookPoints
+    try sql(ol.accountsFile, "CREATE TABLE ZACCOUNT (ZIDENTIFIER TEXT, ZUSERNAME TEXT, ZACCOUNTDESCRIPTION TEXT);")
+    ol.domain = { "usarchery.org" }
+    nonisolated(unsafe) var list = ["  Unread,    Allison Collins, Re: Jerseys,     9:02 AM, Folder: Inbox,   Morning",
+                                    "    Richard Fleming, Copy,     11/5/26, Folder: Inbox,   Old"]
+    ol.outlook.available = { true }
+    ol.outlook.inboxRows = { list }
+    let firstLook = await ol.check()
+    try check(firstLook == 0 && DeskCheckpoints.load(outlookPoints).outlookSeen?.count == 1 && DeskCheckpoints.load(outlookPoints).problems["mail"] == nil,
+              "Outlook's first read learns today's rows without reporting them")
+    list.insert("  Unread,    Callie Grieser, Banner sizes,     3:10 PM, Folder: Inbox,   Can we get a 728x90?", at: 0)
+    list[1] = "    Allison Collins, Re: Jerseys,     9:02 AM, Folder: Inbox,   Morning"
+    let fresh = await ol.check()
+    let banner = DeskInbox.shared.events.first { $0.title == "Banner sizes" }
+    try check(fresh == 1 && banner?.detail.contains("From: Callie Grieser") == true && banner?.detail.contains("728x90") == true,
+              "a new row in Outlook becomes one event; a row only marked read doesn't")
+    let repeatRead = await ol.check()
+    try check(repeatRead == 0, "and it isn't reported twice")
+    ol.outlook.inboxRows = { throw RuntimeFailure("Outlook isn't showing the usarchery.org Inbox") }
+    _ = await ol.check()
+    try check(DeskCheckpoints.load(outlookPoints).problems["mail"]?.contains("isn't showing") == true, "when Outlook can't be read, it says why")
     // Follow-ups: due ones go to the inbox once each; parsing "+3d" and dates.
     let timers = DeskTimers(file: root.appendingPathComponent("Desk/timers.json"))
     let base = Date(timeIntervalSince1970: 1_800_000_000)
