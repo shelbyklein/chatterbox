@@ -320,6 +320,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     do { _ = try runner.reportSession(for: general[1]); throw RuntimeFailure("project context accepted") }
     catch { try check(error.localizedDescription.contains("belongs to a project"), "a reporting session promoted to a project is refused") }
     report.record.projectFolder = nil
+    report.record.studioID = UUID(); report.record.studioFolder = "/tmp/Studios/USA Archery"
+    try check(try runner.reportSession(for: general[1]).id == reportID, "a reporting session moved into a Studio still takes the reports")
+    report.record.studioID = nil; report.record.studioFolder = nil
     let freshRecord = ChatSession.automationRunRecord(general[0], of: report, number: 1, manual: true)
     try check(freshRecord.sidechatOf == reportID && freshRecord.sidequestOf == reportID && freshRecord.projectFolder == nil
               && freshRecord.sidechatProjectFolder == nil && freshRecord.parentContext == nil

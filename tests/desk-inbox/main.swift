@@ -194,6 +194,9 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
               "an expanded conversation's header and your own sent replies aren't new mail")
     let forwarded = OutlookReader.Message("Coalition Security Support Team, [Security Alert] Coalition Security Report,  Forwarded 6:16 AM,        Hi Sklein")
     try check(forwarded?.from == "Coalition Security Support Team" && forwarded?.time == "6:16 AM" && forwarded?.today == true, "a forwarded message keeps its time")
+    let unreadThread = OutlookReader.Message("1 unread message,   15 messages, Lauren Chalk, USA Archery - Imagery Assets,   11:33 AM, Folder: Inbox, Here they are")
+    try check(unreadThread?.from == "Lauren Chalk" && unreadThread?.subject == "USA Archery - Imagery Assets" && unreadThread?.conversation == true,
+              "an unread count isn't read as the sender")
     try check(OutlookReader.Message("Top Results") == nil && OutlookReader.Message("Unread, Mon 3:15 PM") == nil, "headers and empty rows are skipped")
     let outlookPoints = root.appendingPathComponent("Desk/outlook-checkpoints.json")
     let ol = MailWatcher()
@@ -213,6 +216,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let banner = DeskInbox.shared.events.first { $0.title == "Banner sizes" }
     try check(fresh == 1 && banner?.detail.contains("From: Callie Grieser") == true && banner?.detail.contains("728x90") == true,
               "a new row in Outlook becomes one event; a row only marked read doesn't")
+    list.insert("    Lauren Chalk, Re: Imagery Assets,     3:20 PM, Folder: Inbox,   Here they are", at: 0)
+    list.insert("1 unread message,   4 messages, Lauren Chalk, Imagery Assets,     3:20 PM, Folder: Inbox,   Here they are", at: 0)
+    let threaded = await ol.check()
+    try check(threaded == 1, "a conversation listed with its messages is one event, not two")
     let repeatRead = await ol.check()
     try check(repeatRead == 0, "and it isn't reported twice")
     ol.outlook.inboxRows = { throw RuntimeFailure("Outlook isn't showing the usarchery.org Inbox") }

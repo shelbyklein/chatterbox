@@ -86,10 +86,11 @@ import Foundation
         guard let id = automation.reportSessionID else { throw RuntimeFailure("The general automation needs a reporting session.") }
         if let session = model.sessions.first(where: { $0.id == id }) {
             let r = session.record
+            // A Studio chat is fine (2026-11-24: the Desk's "USAA Updates" moved into the USA Archery
+            // Studio and every Desk run failed); a project's chat or a thread inside one isn't.
             guard r.projectFolder == nil, r.convertedProjectFolder == nil, r.worktreeOf == nil,
-                  r.sidechatOf == nil, r.sidequestOf == nil, r.studioID == nil, r.studioFolder == nil,
-                  r.sidechatProjectFolder == nil else {
-                throw RuntimeFailure("Its reporting session now belongs to a project or Studio. Choose another general reporting session.")
+                  r.sidechatOf == nil, r.sidequestOf == nil, r.sidechatProjectFolder == nil else {
+                throw RuntimeFailure("Its reporting session now belongs to a project. Choose another general reporting session.")
             }
             if r.archivedAt != nil { session.setArchived(false) }
             return session
