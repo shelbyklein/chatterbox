@@ -189,6 +189,11 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let thread = OutlookReader.Message("    3 messages, Nicole Glunt, Shelby Klein, Policies and Website Changes,   Replied  11/16/26, Folder: Inbox,   Looks good")
     try check(thread?.from == "Nicole Glunt, Shelby Klein" && thread?.subject == "Policies and Website Changes" && thread?.today == false,
               "a conversation row lists its senders; a dated row isn't today's")
+    try check(OutlookReader.Message("Expanded,  2 messages,  [Security Alert] Coalition Security Report,   Forwarded  6:16 AM,") == nil
+              && OutlookReader.Message("Shelby Klein, FW: [Security Alert] Coalition Security Report,   9:30 AM, Folder: Sent,       Hey Mikey") == nil,
+              "an expanded conversation's header and your own sent replies aren't new mail")
+    let forwarded = OutlookReader.Message("Coalition Security Support Team, [Security Alert] Coalition Security Report,  Forwarded 6:16 AM,        Hi Sklein")
+    try check(forwarded?.from == "Coalition Security Support Team" && forwarded?.time == "6:16 AM" && forwarded?.today == true, "a forwarded message keeps its time")
     try check(OutlookReader.Message("Top Results") == nil && OutlookReader.Message("Unread, Mon 3:15 PM") == nil, "headers and empty rows are skipped")
     let outlookPoints = root.appendingPathComponent("Desk/outlook-checkpoints.json")
     let ol = MailWatcher()

@@ -30,6 +30,7 @@
 		16BD2136B14DB11D43FB1F58 /* TranscriptImages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E1F72BF0B87EDB787529CCA /* TranscriptImages.swift */; };
 		17019507B38999546156EB4B /* Attachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCA3F2B7277E38C199221AE /* Attachments.swift */; };
 		1765CA046AFF8EE498AB13F2 /* RuntimeSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8852E0839DFB42BCDA5BE7 /* RuntimeSocket.swift */; };
+		17AB8FF70AB2C74144765047 /* OutlookAX.swift in Sources */ = {isa = PBXBuildFile; fileRef = 426AA53B0D59F0D7A48CE769 /* OutlookAX.swift */; };
 		17BF765717748A9396DC6875 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F3DC91A879146D9B37CA06E3 /* Assets.xcassets */; };
 		1854052A2BEEFBDFEA6E149C /* Studio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D2A3DE96AF0E796C221742 /* Studio.swift */; };
 		185FE4741650353C7DB76AFB /* Attention.swift in Sources */ = {isa = PBXBuildFile; fileRef = E34B3EA688DB4D5120202F4A /* Attention.swift */; };
@@ -363,10 +364,10 @@
 		0B9673928E888D70EF723F3E /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
+			dstPath = "";
+			dstSubfolderSpec = 6;
 			files = (
-				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
+				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -385,10 +386,10 @@
 		5D97EB4A3D2B1A79108C2EFA /* Embed Dependencies */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 6;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
 			files = (
-				F2378D0FDC17095FE7272E09 /* ChatterboxDaemon in Embed Dependencies */,
+				1E7FD4032ED24902D3C29989 /* ChatterboxHost.app in Embed Dependencies */,
 			);
 			name = "Embed Dependencies";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -457,6 +458,7 @@
 		406ADB3A1813ACB9EA0F53FD /* MobilePushNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePushNotifications.swift; sourceTree = "<group>"; };
 		40CA534C27F17A038BE6073F /* ThreadSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadSidebar.swift; sourceTree = "<group>"; };
 		419CCDA3AD4809FD770F09DE /* restart-service.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "restart-service.sh"; sourceTree = "<group>"; };
+		426AA53B0D59F0D7A48CE769 /* OutlookAX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlookAX.swift; sourceTree = "<group>"; };
 		43502F7C3D40995B7F9017CD /* MobileAppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileAppState.swift; sourceTree = "<group>"; };
 		440736B6996B651E0CC77FAE /* ChatSession+Tasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatSession+Tasks.swift"; sourceTree = "<group>"; };
 		44CB087C33DC73A1CD510AEC /* ProjectIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectIcons.swift; sourceTree = "<group>"; };
@@ -639,6 +641,7 @@
 				67B6115C97D436D69FEDDE1D /* Child.swift */,
 				06B1A8FD57BD2D2C11BC4B51 /* Host.swift */,
 				F90E1FEF54757E746B104D0F /* main.swift */,
+				426AA53B0D59F0D7A48CE769 /* OutlookAX.swift */,
 				8FACABAADB1BC61CD83F6473 /* OutputBuffer.swift */,
 				50F3BA0D6E5ABB8F2E8C5671 /* Watcher.swift */,
 			);
@@ -1375,6 +1378,7 @@
 				57D138F3E0F30EAC4F1EF78D /* Host.swift in Sources */,
 				96757C4FC62A060878D6DFCD /* HostProtocol.swift in Sources */,
 				A10A74A5566CCBD7F498FD47 /* JSON.swift in Sources */,
+				17AB8FF70AB2C74144765047 /* OutlookAX.swift in Sources */,
 				3D9C474E0171D07BCFD3E783 /* OutputBuffer.swift in Sources */,
 				73645E513DB79C5847930EC2 /* Watcher.swift in Sources */,
 				0C05433F3D417EFBF927AD1F /* main.swift in Sources */,

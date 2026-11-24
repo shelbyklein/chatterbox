@@ -134,6 +134,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try await wait("Stop to end the wedged reply", seconds: 5) { !chat.isRunning }
     try check(chat.geminiProcess == nil && chat.record.gemini?.sessionId == wedgedSession, "an unanswered Stop ends the reply and restarts the process, keeping the session")
     try check(chat.items.contains { $0.kind == .notice && $0.text.hasPrefix("Stopped") }, "and the chat says it stopped")
+    // The switch picked mid-reply happens once it ends, with the Claude model it came with.
+    try await wait("the held switch to Claude") { chat.record.backend == .claude }
+    try check(chat.record.model == "opus" && chat.record.gemini?.model == geminiModel, "the held switch lands once the reply ends, with its model")
+    chat.setBackend(.gemini)
     chat.send("Say hello once more")
     try await wait("the reply after the wedge") { !chat.isRunning && chat.items.last { $0.kind == .assistant }?.text == "Hello from Gemini." }
     try check(requests().filter { $0["method"]?.string == "session/resume" && $0["params"]?["sessionId"]?.string == wedgedSession }.count >= 1, "the next message resumes the same session")
