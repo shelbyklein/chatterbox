@@ -1190,6 +1190,19 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(recovery.complete && recovery.added == partialResult.added && desk.tasks.filter { $0.origin?.id == "ingest-partial" }.count == 1,
               "retry after source recovery keeps the original created IDs and does not duplicate work")
     partialRun.isRunning = false; partialRun.returnSidequest(to: reporting)
+    // Findings wait for Shelby's approval on the Desk (Shelby, November 24): a Yes with a place
+    // is marked Suggested and doesn't start by itself.
+    let suggestRun = try checkRun("Suggesting source check")
+    let autoBefore = desk.autoStartOverride
+    desk.autoStartOverride = true
+    let suggestion = try desk.ingest(.init(items: [.init(text: "Prepare the Board website brief", place: archery.name, origin: "email:ingest-suggested",
+                                                         confidence: "yes", reason: "Bounded comparison")], updates: [], unavailable: []), in: suggestRun)
+    let suggested = desk.tasks.first { $0.origin?.id == "ingest-suggested" }
+    try check(suggestion.added.count == 1 && suggested?.suggested == true && suggested?.chatID == nil
+              && desk.requests.first { $0.id == suggested?.id }?.suggested == true,
+              "a Desk check's new card is Suggested and waits for Start, even scored Yes")
+    desk.autoStartOverride = autoBefore
+    suggestRun.isRunning = false; suggestRun.returnSidequest(to: reporting)
     try check(partialRun.record.archivedAt != nil, "recovered check dismisses after its complete receipt")
 
     let invalidRun = try checkRun("Invalid source check")
