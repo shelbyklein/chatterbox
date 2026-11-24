@@ -722,6 +722,12 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let elsewhere = try await ui.request("desk", body: ["action": "start", "id": .string(uiAdd.incoming[0].id.uuidString),
                                                          "place": try .value(Companion.DeskPlace(kind: "project", id: dogear.id, name: "Dogear"))]).decode(Companion.ChatDetail.self)
     try check(runtime.session(elsewhere.summary.id)?.record.sidechatOf == dogear.id, "socket start with another place")
+    // Renamed as it starts: the task and its new thread take the name.
+    let renameMe = try await ui.request("desk", body: ["action": "add", "text": "A very long wordy request about the banner", "place": "USA Archery"]).decode(Companion.Desk.self)
+    let renameID = renameMe.incoming.first { $0.text == "A very long wordy request about the banner" }!.id
+    let renamed = try await ui.request("desk", body: ["action": "start", "id": .string(renameID.uuidString), "title": "Banner resize"]).decode(Companion.ChatDetail.self)
+    try check(desk.tasks.first { $0.id == renameID }?.text == "Banner resize" && runtime.session(renamed.summary.id)?.title == "Banner resize",
+              "a name given at Start renames the task and its new thread")
     let afterIgnore = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]).decode(Companion.Desk.self)
     try check(!afterIgnore.incoming.contains { $0.id == retried.id }, "socket ignore")
     do { _ = try await ui.request("desk", body: ["action": "ignore", "id": .string(retried.id.uuidString)]); try check(false, "ignoring a gone request fails") }
