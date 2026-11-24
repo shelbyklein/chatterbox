@@ -64,3 +64,4 @@ Chatterbox/Engine/ChatSession+Gemini.swift test-gemini-agent.sh
 Chatterbox/Engine/GeminiACP.swift test-gemini-agent.sh
 bin/sidequest                    test-sidequest.sh
 bin/work                         test-work-threads.sh
+Core/Chatterbox/Views/ProxyQuotaView.swift  test-proxy-quota.sh
