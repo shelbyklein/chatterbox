@@ -163,10 +163,10 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     mail.indexFile = index; mail.accountsFile = accounts; mail.keepMailOpen = false
     mail.checkpointsFile = watcher.checkpointsFile
     mail.domain = { "usarchery.org" }
-    mail.outlook.available = { false }
+    mail.sweepHours = { [] }
     let missing = await mail.check()
-    try check(missing == 0 && DeskCheckpoints.load(mail.checkpointsFile).problems["mail"]?.contains("usarchery.org account to Apple Mail") == true,
-              "without the account in Mail, it says what to do")
+    try check(missing == 0 && DeskCheckpoints.load(mail.checkpointsFile).problems["mail"] == nil,
+              "without the account in Mail and no check due, nothing is queued and nothing is wrong")
     try sql(accounts, "INSERT INTO ZACCOUNT VALUES ('UA-1','shelby@usarchery.org','Exchange');")
     let learned = await mail.check()
     try check(learned == 0 && DeskCheckpoints.load(mail.checkpointsFile).mailAfterRow == 1, "with the account, the first check learns where Mail is")
@@ -182,49 +182,30 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     try check(!DeskInbox.shared.events.contains { $0.title == "Sent by me" || $0.title == "PlayCase order" }, "sent mail, other accounts and deleted mail are left out")
     let again = await mail.check()
     try check(again == 0, "the same mail isn't reported twice")
-    // Outlook, read through accessibility, when Apple Mail has no USA Archery account.
-    let one = OutlookReader.Message("  Unread,    Allison Collins, Re: Pan Am and Parapan Am Jerseys,     2:48 PM, Folder: Inbox,   Has attachments,  Hi Shelby, the proofs look great")
-    try check(one?.from == "Allison Collins" && one?.subject == "Re: Pan Am and Parapan Am Jerseys" && one?.time == "2:48 PM" && one?.today == true
-              && one?.preview == "Hi Shelby, the proofs look great", "an Outlook row gives sender, subject, time and preview")
-    let thread = OutlookReader.Message("    3 messages, Nicole Glunt, Shelby Klein, Policies and Website Changes,   Replied  11/16/26, Folder: Inbox,   Looks good")
-    try check(thread?.from == "Nicole Glunt, Shelby Klein" && thread?.subject == "Policies and Website Changes" && thread?.today == false,
-              "a conversation row lists its senders; a dated row isn't today's")
-    try check(OutlookReader.Message("Expanded,  2 messages,  [Security Alert] Coalition Security Report,   Forwarded  6:16 AM,") == nil
-              && OutlookReader.Message("Shelby Klein, FW: [Security Alert] Coalition Security Report,   9:30 AM, Folder: Sent,       Hey Mikey") == nil,
-              "an expanded conversation's header and your own sent replies aren't new mail")
-    let forwarded = OutlookReader.Message("Coalition Security Support Team, [Security Alert] Coalition Security Report,  Forwarded 6:16 AM,        Hi Sklein")
-    try check(forwarded?.from == "Coalition Security Support Team" && forwarded?.time == "6:16 AM" && forwarded?.today == true, "a forwarded message keeps its time")
-    let unreadThread = OutlookReader.Message("1 unread message,   15 messages, Lauren Chalk, USA Archery - Imagery Assets,   11:33 AM, Folder: Inbox, Here they are")
-    try check(unreadThread?.from == "Lauren Chalk" && unreadThread?.subject == "USA Archery - Imagery Assets" && unreadThread?.conversation == true,
-              "an unread count isn't read as the sender")
-    try check(OutlookReader.Message("Top Results") == nil && OutlookReader.Message("Unread, Mon 3:15 PM") == nil, "headers and empty rows are skipped")
-    let outlookPoints = root.appendingPathComponent("Desk/outlook-checkpoints.json")
-    let ol = MailWatcher()
-    ol.accountsFile = root.appendingPathComponent("no-accounts.sqlite"); ol.keepMailOpen = false; ol.checkpointsFile = outlookPoints
-    try sql(ol.accountsFile, "CREATE TABLE ZACCOUNT (ZIDENTIFIER TEXT, ZUSERNAME TEXT, ZACCOUNTDESCRIPTION TEXT);")
-    ol.domain = { "usarchery.org" }
-    nonisolated(unsafe) var list = ["  Unread,    Allison Collins, Re: Jerseys,     9:02 AM, Folder: Inbox,   Morning",
-                                    "    Richard Fleming, Copy,     11/5/26, Folder: Inbox,   Old"]
-    ol.outlook.available = { true }
-    ol.outlook.inboxRows = { list }
-    let firstLook = await ol.check()
-    try check(firstLook == 0 && DeskCheckpoints.load(outlookPoints).outlookSeen?.count == 1 && DeskCheckpoints.load(outlookPoints).problems["mail"] == nil,
-              "Outlook's first read learns today's rows without reporting them")
-    list.insert("  Unread,    Callie Grieser, Banner sizes,     3:10 PM, Folder: Inbox,   Can we get a 728x90?", at: 0)
-    list[1] = "    Allison Collins, Re: Jerseys,     9:02 AM, Folder: Inbox,   Morning"
-    let fresh = await ol.check()
-    let banner = DeskInbox.shared.events.first { $0.title == "Banner sizes" }
-    try check(fresh == 1 && banner?.detail.contains("From: Callie Grieser") == true && banner?.detail.contains("728x90") == true,
-              "a new row in Outlook becomes one event; a row only marked read doesn't")
-    list.insert("    Lauren Chalk, Re: Imagery Assets,     3:20 PM, Folder: Inbox,   Here they are", at: 0)
-    list.insert("1 unread message,   4 messages, Lauren Chalk, Imagery Assets,     3:20 PM, Folder: Inbox,   Here they are", at: 0)
-    let threaded = await ol.check()
-    try check(threaded == 1, "a conversation listed with its messages is one event, not two")
-    let repeatRead = await ol.check()
-    try check(repeatRead == 0, "and it isn't reported twice")
-    ol.outlook.inboxRows = { throw RuntimeFailure("Outlook isn't showing the usarchery.org Inbox") }
-    _ = await ol.check()
-    try check(DeskCheckpoints.load(outlookPoints).problems["mail"]?.contains("isn't showing") == true, "when Outlook can't be read, it says why")
+    // Outlook without Apple Mail: one check queued per time slot, weekdays only.
+    let sweepPoints = root.appendingPathComponent("Desk/sweep-checkpoints.json")
+    let sweeps = MailWatcher()
+    sweeps.accountsFile = root.appendingPathComponent("no-accounts.sqlite"); sweeps.keepMailOpen = false; sweeps.checkpointsFile = sweepPoints
+    try sql(sweeps.accountsFile, "CREATE TABLE ZACCOUNT (ZIDENTIFIER TEXT, ZUSERNAME TEXT, ZACCOUNTDESCRIPTION TEXT);")
+    sweeps.domain = { "usarchery.org" }
+    sweeps.sweepHours = { [9, 12, 15] }
+    let sweepCalendar = Calendar.current
+    let sweep24_8_30 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 8, minute: 30))!
+    let sweep24_12_30 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 12, minute: 30))!
+    let sweep24_12_45 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 12, minute: 45))!
+    let sweep24_14_0 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 14, minute: 0))!
+    let sweep24_15_5 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 24, hour: 15, minute: 5))!
+    let sweep28_12_0 = sweepCalendar.date(from: DateComponents(year: 2026, month: 11, day: 28, hour: 12, minute: 0))!
+    let early = await sweeps.check(now: sweep24_8_30)
+    let noon = await sweeps.check(now: sweep24_12_30)
+    let sweepEvent = DeskInbox.shared.events.last { $0.kind == "email.check" }
+    try check(early == 0 && noon == 1 && sweepEvent?.sourceEventID == "sweep:2026-11-24 12" && sweepEvent?.detail.contains("computer use") == true
+              && sweepEvent?.detail.contains("read-only") == true, "at noon on a weekday, one Outlook check is queued, read-only with computer use")
+    let again1 = await sweeps.check(now: sweep24_12_45), again2 = await sweeps.check(now: sweep24_14_0)
+    let three = await sweeps.check(now: sweep24_15_5)
+    try check(again1 == 0 && again2 == 0 && three == 1, "each slot is queued once; the next comes at 3")
+    let saturday = await sweeps.check(now: sweep28_12_0)
+    try check(saturday == 0 && DeskCheckpoints.load(sweepPoints).problems["mail"] == nil, "not on weekends")
     // Follow-ups: due ones go to the inbox once each; parsing "+3d" and dates.
     let timers = DeskTimers(file: root.appendingPathComponent("Desk/timers.json"))
     let base = Date(timeIntervalSince1970: 1_800_000_000)

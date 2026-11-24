@@ -8,13 +8,6 @@ setsid()
 signal(SIGPIPE, SIG_IGN)
 signal(SIGHUP, SIG_IGN)
 
-// Outlook mode: the always-on Desk's MailWatcher asks for Outlook's Inbox rows (OutlookAX);
-// macOS grants this host Accessibility, not the service. Prints one JSON line and leaves.
-if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--read-outlook" {
-    OutlookAX.printInbox(domain: CommandLine.arguments[2])
-    exit(0)
-}
-
 // Watch mode: the app's outside watchdog (see Watcher.swift), not a host.
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--watch", let pid = pid_t(CommandLine.arguments[2]) {
     Watcher(pid: pid, folder: URL(fileURLWithPath: CommandLine.arguments[3])).run()
