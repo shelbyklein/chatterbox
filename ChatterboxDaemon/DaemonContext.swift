@@ -61,6 +61,26 @@ typealias AppModel=DaemonContext
     }
     /// An automation's run: a sidequest of its project's chat (see ChatSession+Sidequest).
     func newAutomationRun(_ automation:ProjectAutomation,of project:ChatSession,manual:Bool) throws ->ChatSession {
+        // One thread per automation (Shelby, November 24): each run continues the last one's
+        // thread, so it keeps what it learned and the chat doesn't fill with run sidequests.
+        let title="Automation \u{00B7} "+automation.title
+        if let last=sessions.filter({$0.record.sidechatOf==project.id && $0.record.automationID != nil && $0.record.title==title})
+            .max(by:{$0.record.updatedAt<$1.record.updatedAt}), !last.isRunning, !last.isWaitingOnYou {
+            let fresh=ChatSession.automationRunRecord(automation,of:project,number:1,manual:manual)
+            var task=ProjectAutomations.message(for:automation,manual:manual)
+            if automation.deskSourceCheck == true {
+                task+="\n\nFor this check, submit the manifest with `desk ingest FILE --chat \(last.id.uuidString)`. This is the check's run ID, not a task or source ID."
+                RuntimeHooks.clearSourceCheck(last.id)
+            }
+            last.record.automationID=automation.id
+            last.record.deskSourceCheck=fresh.deskSourceCheck
+            last.record.deskSourceCheckIncludeNew=fresh.deskSourceCheckIncludeNew
+            last.record.sidequestTask=task
+            last.record.sidequestReturned=nil
+            if last.record.archivedAt != nil {last.setArchived(false)}
+            last.startAutomationRun(automation,from:project)
+            return last
+        }
         let number=sessions.filter{$0.record.sidechatOf==project.id}.count+1
         let quest=try runtime.insert(ChatSession.automationRunRecord(automation,of:project,number:number,manual:manual))
         quest.startAutomationRun(automation,from:project)

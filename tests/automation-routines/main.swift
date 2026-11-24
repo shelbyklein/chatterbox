@@ -333,6 +333,15 @@ func check(_ ok: @autoclosure () throws -> Bool, _ text: String) throws {
     let generalRun = try runner.run(general[0], manual: false)
     try check(started.count == generalStarted + 1 && !started.last!.manual && runtime.session(generalRun)?.record.sidechatOf == reportID,
               "a scheduled general run succeeds with its former project closed")
+    // One thread per automation (Shelby, November 24): the next run continues the last one.
+    let firstThread = try model.newAutomationRun(general[0], of: report, manual: true)
+    firstThread.isRunning = false
+    firstThread.setArchived(true)
+    let threadsBefore = model.sessions.filter { $0.record.sidechatOf == reportID }.count
+    let secondThread = try model.newAutomationRun(general[1], of: report, manual: false)
+    try check(secondThread.id == firstThread.id && secondThread.record.archivedAt == nil && secondThread.record.automationID == general[1].id
+              && model.sessions.filter { $0.record.sidechatOf == reportID }.count == threadsBefore,
+              "a second run continues the same thread (reopened), without a new sidequest")
     runtime.session(generalRun)?.isRunning = true
     do { _ = try runner.run(general[6], manual: false); throw RuntimeFailure("parallel weekday accepted") }
     catch { try check(error.localizedDescription.contains("still going"), "another weekday cannot overlap an active general run") }

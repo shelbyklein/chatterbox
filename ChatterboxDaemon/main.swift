@@ -73,6 +73,7 @@ Task { @MainActor in
         ConnectorServer.shared.start()
         RuntimeHooks.clearSuggestions={NextSteps.shared.clear($0)}
         RuntimeHooks.sourceCheckComplete={DeskStore.shared.sourceCheckResult($0)?.complete == true}
+        RuntimeHooks.clearSourceCheck={DeskStore.shared.clearSourceCheck($0)}
         RuntimeHooks.turnEnded={session in
             NextSteps.shared.turnEnded(session,commands:session.availableSlashCommands);session.automaticTurn=false
             // A sidequest's answer goes back once the turn has settled.
