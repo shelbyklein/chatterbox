@@ -99,7 +99,30 @@ func runModelTests() {
 
     let garbage = A2UIParser.parse("not json at all { broken")
     precondition(!garbage.isValid, "invalid JSON should fall back cleanly")
-    print("PASS relative pointers, 200-component cap, deleteSurface, and invalid JSON fallback")
+
+    // 5b. Tolerant recovery from common LLM JSON typos (missing property key, trailing comma, missing closing brace, and per-component salvage)
+    let typoPayload = """
+    {"createSurface":{"surfaceId":"playcase-ideas","catalogId":"standard"}}
+    {"updateComponents":{"surfaceId":"playcase-ideas","components":[{"id":"root","component":"Column","children":["c1","c2",]},{"id":"c1","component":"Text","text":"1. Counterpunch!","variant":"h3"},{"id":"c2","component":"Text":"A high-juice puzzler","variant":"body"}]}
+    """
+    let recovered = A2UIParser.parse(typoPayload, closed: true)
+    precondition(recovered.isValid, "typo payload should recover cleanly")
+    assertEqual(recovered.primarySurface?.rootId, "root", "recovered root defaults to root")
+    assertEqual(recovered.primarySurface?.components.count, 3, "all 3 components recovered")
+    if case .text(let binding, _) = recovered.primarySurface?.components["c2"]?.kind {
+        assertEqual(binding.fallbackValue?.stringValue, "A high-juice puzzler", "missing text key repaired")
+    } else {
+        fatalError("c2 should have recovered as Text")
+    }
+
+    let damagedPayload = """
+    {"createSurface":{"surfaceId":"salvage","catalogId":"standard"}}
+    {"updateComponents":{"surfaceId":"salvage","components":[{"id":"root","component":"Column","children":["good","bad"]},{"id":"good","component":"Text","text":"Still renders!"},{"id":"bad","component": @@@ broken}]}}
+    """
+    let salvaged = A2UIParser.parse(damagedPayload, closed: true)
+    precondition(salvaged.isValid, "damaged updateComponents line should salvage valid components")
+    assertEqual(salvaged.primarySurface?.components.count, 2, "valid components salvaged around unparseable entry")
+    print("PASS relative pointers, 200-component cap, deleteSurface, invalid JSON fallback, and LLM typo recovery")
 
     // 6. SwiftUI layout & snapshot render test (including Swift Charts + cycle guard!)
     let cyclicJSON = """
